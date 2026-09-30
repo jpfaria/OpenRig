@@ -66,8 +66,10 @@ use application::command_schema::command_variant_names;
 /// and hand it to the DI exactly as the editor's Save button does.
 /// #1007 bumped to 103 with `SetMixerFader`/`SetMixerMute`/`ToggleMixerMute`
 /// — the global mixer's per-endpoint fader and mute — then to 105 with
-/// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO.
-const COMMAND_VARIANT_COUNT: usize = 105;
+/// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO, then to 109 with a
+/// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
+/// `ToggleChainMixerMute`/`SetChainDiFader`).
+const COMMAND_VARIANT_COUNT: usize = 109;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

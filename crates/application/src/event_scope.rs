@@ -53,7 +53,10 @@ impl Event {
             | Event::ChainLooperInputChanged { chain, .. }
             | Event::ChainLooperOutputChanged { chain, .. }
             | Event::ChainLooperPresetChanged { chain, .. }
-            | Event::ChainLooperTakeSaved { chain, .. } => Some(chain),
+            | Event::ChainLooperTakeSaved { chain, .. }
+            // #1007: a chain's own mixer faders.
+            | Event::ChainMixerStripChanged { chain, .. }
+            | Event::ChainDiFaderChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

@@ -67,10 +67,13 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::ChainQualityReport {
             chain: chain.clone(),
         },
-        QueryKind::ChainToneReport { chain },
+        QueryKind::ChainToneReport {
+            chain: chain.clone(),
+        },
         QueryKind::MetronomeState,
         QueryKind::OutputRoutes,
         QueryKind::MixerState,
+        QueryKind::ChainMixer { chain },
     ]
 }
 

@@ -26,25 +26,49 @@ type ChainEndpointKey = (String, MixerDirection, String, Vec<usize>);
 /// gets its chain fader (unity when nobody moved it), and the DI loop its
 /// own. Live runtimes glide to the new targets on their next callback.
 pub fn apply_chain_mix(chain: &Chain, registry: &[IoBinding]) {
+    // One physical endpoint can reach the chain through several bindings;
+    // its fader is the one stored on the FIRST port that reaches it (the
+    // port the chain mixer commands address), never reset by a later one.
+    let mut written: Vec<MixerStripId> = Vec::new();
     for port in resolve_chain_ports(chain, registry) {
         let direction = match port.direction {
             PortDirection::Input => MixerDirection::Input,
             PortDirection::Output => MixerDirection::Output,
         };
-        let linear = chain
-            .mix
-            .endpoint(direction, &port.binding_id, &port.endpoint.name)
-            .map_or(1.0, |fader| strip_linear_gain(fader.gain_db, fader.muted));
         let strip = MixerStripId {
             direction,
             device_id: port.endpoint.device_id.0.clone(),
             channels: port.endpoint.channels.clone(),
         };
+        if written.contains(&strip) {
+            continue;
+        }
+        let linear = chain
+            .mix
+            .endpoint(direction, &port.binding_id, &port.endpoint.name)
+            .map_or(1.0, |fader| strip_linear_gain(fader.gain_db, fader.muted));
         for channels in strip.runtime_channel_groups(port.endpoint.mode) {
             chain_endpoint_gain(&chain.id, direction, &strip.device_id, &channels).store(linear);
         }
+        written.push(strip);
     }
     chain_di_gain(&chain.id).store(strip_linear_gain(chain.mix.di_gain_db, false));
+}
+
+/// The linear target `chain`'s own fader holds on one endpoint (1.0 when
+/// nobody moved it). Read-only view for controllers and tests.
+pub fn chain_endpoint_gain_target(
+    chain: &ChainId,
+    direction: MixerDirection,
+    device_id: &str,
+    channels: &[usize],
+) -> f32 {
+    chain_endpoint_gain(chain, direction, device_id, channels).target()
+}
+
+/// The linear target of `chain`'s DI-loop fader.
+pub fn chain_di_gain_target(chain: &ChainId) -> f32 {
+    chain_di_gain(chain).target()
 }
 
 /// The chain-local scalar of one physical endpoint of `chain`.

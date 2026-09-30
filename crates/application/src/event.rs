@@ -281,6 +281,20 @@ pub enum Event {
         soloed: bool,
     },
 
+    /// #1007: a chain's own fader on one endpoint moved (applied values).
+    ChainMixerStripChanged {
+        chain: ChainId,
+        strip: String,
+        gain_db: f32,
+        muted: bool,
+    },
+
+    /// #1007: a chain's DI-loop fader moved (applied value).
+    ChainDiFaderChanged {
+        chain: ChainId,
+        gain_db: f32,
+    },
+
     /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`
     /// → `SetCompactViewEnabled`). The adapter opens/closes the per-chain
     /// compact window for the active chain; without this event the MIDI

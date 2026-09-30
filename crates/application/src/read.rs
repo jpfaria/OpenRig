@@ -113,6 +113,9 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         QueryKind::MixerState => Ok(crate::query_mixer::mixer_state_json(
             &ctx.dispatcher.mixer_strips(),
         )),
+        QueryKind::ChainMixer { chain } => {
+            crate::query_chain_mixer::chain_mixer_json(ctx.project, ctx.io_bindings, chain)
+        }
     }
 }
 

@@ -81,6 +81,7 @@ impl LocalDispatcher {
                 (strip, Box::new(move |s| s.soloed = soloed))
             }
             MixerCommand::ToggleMixerSolo { strip } => (strip, Box::new(|s| s.soloed = !s.soloed)),
+            other => unreachable!("chain mixer command routed to the global mixer: {other:?}"),
         };
         let Some(id) = MixerStripId::parse(&strip) else {
             bail!("unknown mixer strip {strip:?}: expected in:<channels>@<device> or out:<channels>@<device>");
@@ -137,7 +138,7 @@ impl LocalDispatcher {
             .map_or(ChannelMode::Stereo, |strip| strip.mode)
     }
 
-    fn current_io_bindings(&self) -> Vec<domain::io_binding::IoBinding> {
+    pub(crate) fn current_io_bindings(&self) -> Vec<domain::io_binding::IoBinding> {
         self.io_bindings
             .borrow()
             .as_ref()

@@ -232,3 +232,32 @@ fn an_untouched_di_fader_is_bit_identical() {
         "unity DI must not touch a bit"
     );
 }
+
+#[test]
+fn a_fader_survives_a_second_binding_on_the_same_physical_endpoint() {
+    // Two bindings of one chain both play through the same stereo main: the
+    // strip is one physical endpoint, so the fader moved on the first
+    // binding's port must not be reset to unity by the second.
+    let device = "cm-shared-out";
+    let mut registry = registry_on(device);
+    let mut second = registry[0].clone();
+    second.id = "io-2".into();
+    second.inputs[0].channels = vec![1];
+    registry.push(second);
+    let mut chain = chain_named("cm-shared-out-chain");
+    chain.io_binding_ids.push("io-2".into());
+    chain
+        .mix
+        .endpoint_mut(MixerDirection::Output, "io", "Main")
+        .gain_db = -6.0;
+    apply_chain_mix(&chain, &registry);
+    assert_eq!(
+        crate::chain_mix_gains::chain_endpoint_gain_target(
+            &chain.id,
+            MixerDirection::Output,
+            device,
+            &[0, 1]
+        ),
+        db(-6.0)
+    );
+}

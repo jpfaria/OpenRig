@@ -15,6 +15,7 @@ pub mod block_factory;
 pub mod bridge;
 mod bridge_off_frontend;
 pub mod chain_factory;
+pub mod chain_fader_view;
 pub mod chain_mixer_strips;
 pub mod command;
 pub mod command_schema;
@@ -36,6 +37,7 @@ mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
 mod local_dispatcher_chain_io;
+mod local_dispatcher_chain_mixer;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
 mod local_dispatcher_close;
@@ -85,6 +87,7 @@ pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
 pub mod query_block_params;
+pub mod query_chain_mixer;
 pub mod query_chain_quality;
 pub mod query_di;
 pub mod query_ids;
@@ -128,6 +131,10 @@ mod local_dispatcher_mixer_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_mixer_solo_tests.rs"]
 mod local_dispatcher_mixer_solo_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_mixer_tests.rs"]
+mod local_dispatcher_chain_mixer_tests;
 
 #[cfg(test)]
 #[path = "ld_block2_tests.rs"]

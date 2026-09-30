@@ -287,3 +287,36 @@ bindings:
         other => panic!("unexpected: {other:?}"),
     }
 }
+
+// ── #1007: a knob drives a chain's OWN fader on one strip ─────────────────
+
+#[test]
+fn a_knob_resolves_to_a_chain_mixer_fader() {
+    let map = map(r#"
+bindings:
+  - source: { kind: cc, channel: 1, controller: 20 }
+    command: SetChainMixerFader
+    args: { chain: "rig:guitar", strip: "out:0,1@dev" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+"#);
+    let cmd = resolve(
+        &map,
+        &MidiMessage::ControlChange {
+            channel: 1,
+            controller: 20,
+            value: 127,
+        },
+    );
+    match cmd {
+        Some(Command::Mixer(application::command::MixerCommand::SetChainMixerFader {
+            chain,
+            strip,
+            gain_db,
+        })) => {
+            assert_eq!(chain.0, "rig:guitar");
+            assert_eq!(strip, "out:0,1@dev");
+            assert!((gain_db - 12.0).abs() < 1e-4, "gain_db = {gain_db}");
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}

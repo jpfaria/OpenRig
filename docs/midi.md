@@ -354,6 +354,31 @@ without a path) has no per-strip bindings and sends no feedback; the
 external `mackie-control` bridge drives the mixer through the MCP tools
 and `openrig://mixer` instead.
 
+### A chain's own faders
+
+The compact chain view gives each chain its **own** fader and mute on every
+endpoint it plays through, on top of that endpoint's global strip, plus a
+fader for its DI loop. The chain fader multiplies with the global one and
+never moves it or any other chain. It is project data: it travels with
+`project.openrig`. `strip` is the global strip id of the endpoint.
+
+| `command` | What it does | `args` |
+|---|---|---|
+| `SetChainMixerFader` | Move the chain's fader on one endpoint (dB, `-60..=+12`) | `{ chain: id, strip: text, gain_db: num }` — via `scale: { min: -60, max: 12, into: gain_db }` |
+| `SetChainMixerMute` | Mute / unmute the chain on one endpoint | `{ chain: id, strip: text, muted: bool }` |
+| `ToggleChainMixerMute` | Flip the chain's mute on one endpoint | `{ chain: id, strip: text }` |
+| `SetChainDiFader` | Move the chain's DI-loop fader (dB, `-60..=+12`) | `{ chain: id, gain_db: num }` — via `scale` |
+
+```yaml
+bindings:
+  - source: { kind: cc, channel: 1, controller: 20 }
+    command: SetChainMixerFader
+    args: { chain: "rig:guitar", strip: "out:0,1@<device>" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+```
+
+The chain faders send no controller feedback (only the global strips do).
+
 ---
 
 ## Scope & guarantees

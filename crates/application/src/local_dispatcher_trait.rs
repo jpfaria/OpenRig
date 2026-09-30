@@ -25,8 +25,8 @@ use engine::DiPcm;
 use project::rig::RigProject;
 
 use crate::command::{
-    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, PluginCommand,
-    ProjectCommand, SelectionCommand, SettingsCommand,
+    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, MixerCommand,
+    PluginCommand, ProjectCommand, SelectionCommand, SettingsCommand,
 };
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
@@ -225,6 +225,15 @@ impl CommandDispatcher for LocalDispatcher {
             ) => self.handle_diagnostic_enabled(cmd),
 
             Command::Metronome(_) => self.handle_metronome(cmd),
+
+            // #1007: a chain's own faders live in the project, not the
+            // system mixer state.
+            Command::Mixer(
+                MixerCommand::SetChainMixerFader { .. }
+                | MixerCommand::SetChainMixerMute { .. }
+                | MixerCommand::ToggleChainMixerMute { .. }
+                | MixerCommand::SetChainDiFader { .. },
+            ) => self.handle_chain_mixer(cmd),
 
             Command::Mixer(_) => self.handle_mixer(cmd),
 

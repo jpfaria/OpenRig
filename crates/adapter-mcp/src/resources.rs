@@ -70,6 +70,9 @@ pub const URI_CHAIN_QUALITY_TEMPLATE: &str = "openrig://chains/{chain}/quality";
 /// #323: parameterised resource — one chain's loopers (persisted parameters
 /// plus live transport state), e.g. `openrig://chains/chain:1/loopers`.
 pub const URI_CHAIN_LOOPERS_TEMPLATE: &str = "openrig://chains/{chain}/loopers";
+/// #1007: parameterised resource — one chain's own mixer faders, e.g.
+/// `openrig://chains/rig:guitar/mixer`.
+pub const URI_CHAIN_MIXER_TEMPLATE: &str = "openrig://chains/{chain}/mixer";
 /// #791: URI template for the chain's last Tone Doctor verdict (symptom,
 /// culprit block, measurements, measured fix). Concrete URIs look like
 /// `openrig://chains/<chain_id>/tone`. The verdict is produced by
@@ -185,6 +188,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_CHAIN_MIXER_TEMPLATE,
+                "Chain's own mixer faders: its fader and mute on each strip it plays through, plus its DI fader (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_CHAIN_QUALITY_TEMPLATE,
                 "Objective chain quality report (replace {chain} with a chain id) — JSON",
             ),
@@ -234,6 +244,10 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
         }
     } else if let Some(chain_id) = parse_chain_loopers_uri(uri) {
         QueryKind::ChainLoopers {
+            chain: ChainId(chain_id),
+        }
+    } else if let Some(chain_id) = parse_chain_suffix_uri(uri, "/mixer") {
+        QueryKind::ChainMixer {
             chain: ChainId(chain_id),
         }
     } else if let Some(chain_id) = parse_chain_latency_uri(uri) {
@@ -299,6 +313,7 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
         QueryKind::MixerState => URI_MIXER.to_string(),
+        QueryKind::ChainMixer { chain } => format!("openrig://chains/{}/mixer", chain.0),
         QueryKind::ChainLatency { chain } => {
             format!("openrig://chains/{}/latency", chain.0)
         }
@@ -333,6 +348,15 @@ pub fn uri_for(kind: &QueryKind) -> String {
 fn parse_chain_presets_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/presets"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Extract `<chain>` from `openrig://chains/<chain><suffix>`. Returns `None`
+/// for any other URI shape or an empty chain id.
+fn parse_chain_suffix_uri(uri: &str, suffix: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix(suffix))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
 }
