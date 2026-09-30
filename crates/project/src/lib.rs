@@ -27,6 +27,7 @@ pub mod channel_mode_conv;
 pub mod device;
 pub mod endpoint_candidates;
 pub mod endpoint_disables;
+pub mod endpoint_feeds;
 pub mod endpoint_prune;
 pub mod endpoint_ref;
 pub mod format_version;
