@@ -988,3 +988,9 @@ msgstr "Split"
 
 msgid "graph-node-mixer"
 msgstr "Mixer"
+
+msgid "accessible-graph-node-bypass"
+msgstr "Ligar ou desligar o bloco"
+
+msgid "accessible-graph-node-remove"
+msgstr "Excluir o bloco"

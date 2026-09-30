@@ -979,3 +979,9 @@ msgstr "스플릿"
 
 msgid "graph-node-mixer"
 msgstr "믹서"
+
+msgid "accessible-graph-node-bypass"
+msgstr "블록 켜기/끄기"
+
+msgid "accessible-graph-node-remove"
+msgstr "블록 제거"

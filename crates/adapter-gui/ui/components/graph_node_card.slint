@@ -1,47 +1,179 @@
 // Responsibility: draws one node card of the graph view.
-// Node card of the graph view (#435). Pure visual: click and drag belong
-// to the canvas's node TouchArea. `node.kind` picks the face (#328 §5.2) —
-// the old empty-label routing dot is gone, so the split and the mixer are
-// real, labelled, clickable cards.
+// Node card of the graph chain editor (#435, #328). `node.kind` picks the
+// face: a "block" card keeps parity with the chain row's BlockChip (type
+// label, icon or thumbnail, LED, unavailable tint, MIDI markers — every
+// state colour read from BlockTileStyle so the two tiles never disagree);
+// I/O cards show their connector over the endpoint names; the split and
+// the mixer show their routing artwork over a translated name.
+//
+// Input: the canvas's node TouchArea is declared UNDER this card and owns
+// click and drag. The card's only TouchAreas are a block's LED (bypass)
+// and its × (remove), which therefore win on those two spots.
 
 import { GraphNode } from "graph_view_types.slint";
 import { EffectTypeIcon } from "effect_type_icon.slint";
+import { BlockTileStyle } from "block_tile_style.slint";
 import { Theme } from "../theme.slint";
 
 export component GraphNodeCard inherits Rectangle {
     in property <GraphNode> node;
     in property <bool> hovered;
     in property <bool> dragging;
+    // #591: MIDI markers only show while a MIDI command is recent.
+    in property <bool> markers-visible: false;
+    // Viewport zoom: block artwork scales with the card; text keeps
+    // Theme.min-font (#954) and elides.
+    in property <float> zoom: 1.0;
+    // Opaque fill behind a block card so the wires that run centre to
+    // centre stop at its edge (BlockChip itself sits on the row).
+    in property <color> backdrop;
     in property <length> card_width;
     in property <length> card_height;
+    callback bypass-toggled();
+    callback remove-requested();
 
+    property <bool> is-block: root.node.kind == "block";
     property <bool> is-io: root.node.kind == "io_input" || root.node.kind == "io_output";
     property <bool> is-routing: root.node.kind == "split" || root.node.kind == "mixer";
-    // The split and the mixer carry no host label (graph_view_model keeps
-    // it empty); their name is translated here.
+    property <bool> enabled: !root.node.bypass;
+    property <bool> unavailable: root.is-block && root.node.block.unavailable;
+    // BlockChip geometry (100×100 tile: 22px label, 6px gap, 68px art,
+    // 12px LED 10px above the bottom), scaled by the zoom.
+    property <length> label-h: max(22px, 22px * root.zoom);
+    property <length> art-y: root.label-h + 6px * root.zoom;
+    property <length> art-h: max(0px, root.height - root.art-y - 4px * root.zoom);
+    property <length> led: 12px * root.zoom;
+    // The split and the mixer carry no host label; their name is translated.
     property <string> face-label: root.node.kind == "split" ? @tr("graph-node-split")
         : root.node.kind == "mixer" ? @tr("graph-node-mixer")
         : root.node.label;
 
     width: root.card_width;
     height: root.card_height;
-    border-radius: 8px;
-    border-width: root.node.selected ? 2px : 1px;
-    border-color: root.node.selected
-        ? #f5f7fb
-        : root.node.border;
-    background: root.node.bypass
-        ? root.node.fill.with-alpha(0.35)
-        : root.dragging
-        ? root.node.fill.brighter(0.20)
-        : root.hovered
-        ? root.node.fill.brighter(0.10)
+    border-radius: root.is-block ? 6px : 8px;
+    background: root.is-block ? root.backdrop
+        : root.node.bypass ? root.node.fill.with-alpha(0.35)
+        : root.dragging ? root.node.fill.brighter(0.20)
+        : root.hovered ? root.node.fill.brighter(0.10)
         : root.node.fill;
-    opacity: root.node.bypass ? 0.7 : 1.0;
-    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
+    border-width: root.is-block
+        ? BlockTileStyle.marker-border-width(root.markers-visible, root.node.selected, root.node.neighbor)
+        : (root.node.selected ? 2px : 1px);
+    border-color: root.is-block
+        ? BlockTileStyle.marker-border-color(root.markers-visible, root.node.selected, root.node.neighbor, root.enabled)
+        : (root.node.selected ? #f5f7fb : root.node.border);
+    opacity: root.unavailable ? BlockTileStyle.unavailable-opacity
+        : (!root.is-block && root.node.bypass) ? 0.7
+        : 1.0;
+    drop-shadow-blur: root.is-block ? 0px : root.dragging ? 12px : (root.hovered ? 6px : 2px);
     drop-shadow-color: #00000080;
-    drop-shadow-offset-y: 2px;
+    drop-shadow-offset-y: root.is-block ? 0px : 2px;
 
+    // ── Block: BlockChip parity ──────────────────────────────────────
+    // #591 marker tint over the backdrop.
+    if root.is-block : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        background: BlockTileStyle.marker-background(root.markers-visible, root.node.selected);
+    }
+
+    if root.is-block : Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: root.label-h;
+        text: root.node.block.type-label;
+        color: BlockTileStyle.label-color(root.unavailable, root.enabled, root.node.block.accent-color);
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    if root.is-block && root.node.block.has-thumbnail : Image {
+        x: 0px;
+        y: root.art-y;
+        width: parent.width;
+        height: root.art-h;
+        source: root.node.block.thumbnail;
+        image-fit: contain;
+    }
+
+    if root.is-block && !root.node.block.has-thumbnail : EffectTypeIcon {
+        x: 0px;
+        y: root.art-y;
+        width: parent.width;
+        height: root.art-h;
+        icon-kind: root.node.block.icon-kind;
+        tint: BlockTileStyle.art-color(root.unavailable, root.dragging, root.enabled, root.node.block.accent-color);
+    }
+
+    // LED status (sprite 24×12 at zoom 1: 0px shows lit, -12px unlit), as
+    // BlockChip draws it.
+    if root.is-block : Rectangle {
+        x: (parent.width - root.led) / 2;
+        y: parent.height - 10px * root.zoom;
+        width: root.led;
+        height: root.led;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.enabled ? 0px : -root.led;
+            y: 0px;
+            width: 2 * root.led;
+            height: root.led;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // The LED is the bypass switch (#328 §5.2 `bypass-toggled`). Its hit
+    // zone scales with the card like the LED does: a fixed 28×20 would
+    // swallow the bottom of a zoomed-out card.
+    if root.is-block : bypass-ta := TouchArea {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - 18px * root.zoom;
+        width: 28px * root.zoom;
+        height: 20px * root.zoom;
+        mouse-cursor: pointer;
+        clicked => { root.bypass-toggled(); }
+        accessible-role: switch;
+        accessible-checked: root.enabled;
+        accessible-label: @tr("accessible-graph-node-bypass");
+    }
+
+    // × at the top right (#328 §5.2 `remove-requested`). Live only while the
+    // card is hovered: a tap on a touch screen, which has no hover, can
+    // never land on an invisible ×. Scaled with the card: a fixed 24×24
+    // would cover most of a 30px card at the minimum zoom, and a click
+    // meant to select the block would remove it.
+    if root.is-block : remove-ta := TouchArea {
+        x: parent.width - 26px * root.zoom;
+        y: 2px * root.zoom;
+        width: 24px * root.zoom;
+        height: 24px * root.zoom;
+        enabled: root.hovered || self.has-hover;
+        mouse-cursor: pointer;
+        clicked => { root.remove-requested(); }
+        accessible-role: button;
+        accessible-label: @tr("accessible-graph-node-remove");
+
+        Image {
+            x: 4px * root.zoom;
+            y: 4px * root.zoom;
+            width: 16px * root.zoom;
+            height: 16px * root.zoom;
+            source: @image-url("../assets/close.svg");
+            colorize: remove-ta.has-hover ? #ffffff : #8a94a2;
+            visible: root.hovered || remove-ta.has-hover;
+        }
+    }
+
+    // ── I/O, split, mixer ────────────────────────────────────────────
     // I/O endpoint: its connector artwork above the endpoint names.
     if root.is-io : EffectTypeIcon {
         x: 0px;
@@ -65,7 +197,7 @@ export component GraphNodeCard inherits Rectangle {
         colorize: #f5f7fb;
     }
 
-    Text {
+    if !root.is-block : Text {
         x: 8px;
         y: root.is-io || root.is-routing ? parent.height - 30px : 0px;
         width: parent.width - 16px;
@@ -81,4 +213,5 @@ export component GraphNodeCard inherits Rectangle {
 
     accessible-role: button;
     accessible-label: root.face-label;
+    accessible-enabled: !root.unavailable;
 }

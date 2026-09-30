@@ -13,6 +13,7 @@
 import { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor } from "graph_view_types.slint";
 import { GraphNodeCard } from "graph_node_card.slint";
 import { GraphWire } from "graph_wire.slint";
+import { BlockHoverTooltip } from "block_hover_tooltip.slint";
 
 export { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor }
 
@@ -35,6 +36,9 @@ export component GraphView inherits Rectangle {
     in property <color> background_color: #11141a;
     in property <color> grid_color: #1a1f2a;
     in property <bool> show_grid: true;
+    // #591 parity with BlockChip: MIDI markers show only while a MIDI
+    // command is recent.
+    in property <bool> markers_visible: false;
 
     // When true the host computes positions via topological_layout and
     // re-tidies on drag end via reorder_for_drop. Documentational on the
@@ -56,10 +60,16 @@ export component GraphView inherits Rectangle {
     // Fired once when the drag gesture ends (mouse up).
     callback node_drag_ended(string, length, length);
     callback viewport_changed(float, length, length);
+    // #328: a block card's LED was clicked — the host toggles its bypass.
+    callback bypass-toggled(string);
+    // #328: a block card's × was clicked — the host removes the block.
+    callback remove-requested(string);
 
     // ── Internal state ──────────────────────────────────────────────
     private property <string> hover_id: "";
     private property <string> drag_id: "";
+    // Index of the hovered node, for the block tooltip (-1 = none).
+    private property <int> hover_index: -1;
     // Local mouse position (TouchArea space) captured at press. The drag
     // math is delta-based: new_layout = node.layout + (mouse - press)/zoom.
     // The node's own layout cancels out of that expression, so it tracks
@@ -190,9 +200,7 @@ export component GraphView inherits Rectangle {
     }
 
     // ── Nodes ──────────────────────────────────────────────────────
-    // Every node is a card, whatever its kind (#328 §5.2). The split and
-    // the mixer used to be 8px routing dots picked by an empty label,
-    // with a zero-size TouchArea — they could not be clicked. Position is
+    // Every node is a card, whatever its kind (#328 §5.2). Position is
     // the card centre at (layout * zoom + pan), shifted by half the card
     // size so it lands geometrically centred.
     for node[idx] in root.nodes : Rectangle {
@@ -204,16 +212,10 @@ export component GraphView inherits Rectangle {
         width: self.w;
         height: self.h;
 
-        GraphNodeCard {
-            x: 0px;
-            y: 0px;
-            node: node;
-            card_width: parent.width;
-            card_height: parent.height;
-            hovered: root.hover_id == node.id && root.drag_id == "";
-            dragging: root.drag_id == node.id;
-        }
-
+        // Declared BEFORE the card (#328): the card's own TouchAreas — a
+        // block's LED and × — sit on top of this one and win on those two
+        // spots. The rest of the card is plain visuals, so every other
+        // pointer event falls through to here for click and drag.
         node-ta := TouchArea {
             x: 0px;
             y: 0px;
@@ -256,14 +258,49 @@ export component GraphView inherits Rectangle {
             changed has-hover => {
                 if (self.has-hover) {
                     root.hover_id = node.id;
+                    root.hover_index = idx;
                 } else if (root.hover_id == node.id) {
                     root.hover_id = "";
+                    root.hover_index = -1;
                 }
             }
             double-clicked => {
                 root.node_double_clicked(node.id);
             }
         }
+
+        GraphNodeCard {
+            x: 0px;
+            y: 0px;
+            node: node;
+            zoom: root.zoom;
+            backdrop: root.background_color;
+            markers-visible: root.markers_visible;
+            card_width: parent.width;
+            card_height: parent.height;
+            hovered: root.hover_id == node.id && root.drag_id == "";
+            dragging: root.drag_id == node.id;
+            bypass-toggled => { root.bypass-toggled(node.id); }
+            remove-requested => { root.remove-requested(node.id); }
+        }
+    }
+
+    // ── Block tooltip (#328 parity with BlockChip) ─────────────────
+    // The chain row's hover card, declared after every node so it paints
+    // on top. Only for a block with a model (display_name), never while a
+    // drag is in flight.
+    if root.hover_index >= 0
+        && root.hover_index < root.nodes.length
+        && root.nodes[root.hover_index].kind == "block"
+        && root.nodes[root.hover_index].block.display_name != ""
+        && root.drag_id == ""
+        : BlockHoverTooltip {
+        block: root.nodes[root.hover_index].block;
+        anchor-x: root.pan_x + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
+        anchor-y: root.pan_y + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
+        chip-width: root.node_width * root.zoom;
+        chip-height: root.node_height * root.zoom;
+        container-width: root.width;
     }
 
 }

@@ -93,3 +93,20 @@ fn the_routing_cards_draw_artwork_without_baked_in_text() {
         );
     }
 }
+
+/// Spec §5.1: the graph block card paints its states from the same
+/// global as BlockChip.
+#[test]
+fn the_graph_block_card_paints_its_states_from_block_tile_style() {
+    let card = read_component("graph_node_card.slint");
+    assert!(
+        card.contains("BlockTileStyle."),
+        "graph_node_card.slint must paint a block's states from BlockTileStyle (#328 parity)"
+    );
+    for literal in ["#b07a3c", "#5c6678", "#8b95a5", "#f0a020"] {
+        assert!(
+            !card.contains(literal),
+            "graph_node_card.slint hard-codes {literal}; read it from BlockTileStyle"
+        );
+    }
+}

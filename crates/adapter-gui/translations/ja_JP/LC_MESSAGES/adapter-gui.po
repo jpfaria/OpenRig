@@ -981,3 +981,9 @@ msgstr "スプリット"
 
 msgid "graph-node-mixer"
 msgstr "ミキサー"
+
+msgid "accessible-graph-node-bypass"
+msgstr "ブロックのオン/オフ"
+
+msgid "accessible-graph-node-remove"
+msgstr "ブロックを削除"

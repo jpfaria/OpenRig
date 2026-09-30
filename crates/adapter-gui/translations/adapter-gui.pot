@@ -974,3 +974,9 @@ msgstr ""
 
 msgid "graph-node-mixer"
 msgstr ""
+
+msgid "accessible-graph-node-bypass"
+msgstr ""
+
+msgid "accessible-graph-node-remove"
+msgstr ""

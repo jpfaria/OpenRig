@@ -85,6 +85,10 @@ struct GraphEdgeGeometry {
 
 `kind` picks the card face (#328): `block` — the block tile; `io_input` / `io_output` — connector artwork over the endpoint names (`label`); `split` / `mixer` — routing artwork (`ui/assets/graph-split.svg` / `graph-mix.svg`, text-free and colorized) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
 
+### Block card parity
+
+A `block` card draws what the chain row's `BlockChip` draws, from the same `ChainBlockItem` (`node.block`): type label, icon or thumbnail, the LED (driven by `bypass`), the amber unavailable tint at half opacity, the MIDI selected / neighbor markers, and the `BlockHoverTooltip` on hover (drawn by the canvas after every node, only for a block with a `display_name`, never during a drag). State colours come from `BlockTileStyle` (`ui/components/block_tile_style.slint`), the global `BlockChip` reads too. The canvas's node TouchArea sits UNDER the card, so the LED and the × win on their spots and the rest of the card clicks and drags through. The LED and × hit zones scale with the zoom.
+
 ### Properties
 
 | Property | Direction | Type | Default | Purpose |
@@ -97,6 +101,7 @@ struct GraphEdgeGeometry {
 | `background_color` | `in` | `color` | `#11141a` | canvas background |
 | `grid_color` | `in` | `color` | `#1a1f2a` | grid hint colour |
 | `show_grid` | `in` | `bool` | `true` | render origin-cross grid hint |
+| `markers_visible` | `in` | `bool` | `false` | show the MIDI selected / neighbor markers on block cards (#591) |
 | `min_zoom`, `max_zoom` | `in` | `float` | `0.3`, `3.0` | zoom limits |
 
 ### Callbacks
@@ -108,6 +113,8 @@ struct GraphEdgeGeometry {
 | `node_dragged(string, length, length)` | id, new layout-space x, y | continuously while drag in progress |
 | `node_drag_ended(string, length, length)` | id, layout x, y | on mouse up after drag |
 | `viewport_changed(float, length, length)` | zoom, pan_x, pan_y | after pan release or wheel zoom step |
+| `bypass-toggled(string)` | node id | a block card's LED was clicked (#328) |
+| `remove-requested(string)` | node id | a block card's × was clicked; the × is live only while the card is hovered, so a touch tap never removes (#328) |
 
 The host receives layout-space coords. To persist a moved node, write them back into `nodes` — the Slint side reads positions reactively.
 
@@ -133,7 +140,7 @@ The host receives layout-space coords. To persist a moved node, write them back 
 
 ## Category → colour mapping
 
-The component owns no colours. The host resolves each node's `fill`/`border` from `default_palette()` (Rust, `graph_view_model/palette.rs`, the single source of truth) and writes them onto the node; they paint the I/O, split and mixer cards. Adding a category is one `NodeCategory` variant, its `as_str()` slug and one palette entry.
+The component owns no colours. The host resolves each node's `fill`/`border` from `default_palette()` (Rust, `graph_view_model/palette.rs`, the single source of truth) and writes them onto the node; they paint the I/O, split and mixer cards. Adding a category is one `NodeCategory` variant, its `as_str()` slug and one palette entry. Block cards do not use `fill`/`border`: they paint their states from `BlockTileStyle`, shared with `BlockChip`.
 
 ## Interactivity contract
 

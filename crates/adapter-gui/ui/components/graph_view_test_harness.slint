@@ -12,9 +12,12 @@ export component GraphViewHarness inherits Window {
     height: 420px;
     in property <[GraphNode]> nodes;
     in property <[GraphEdgeGeometry]> edges;
+    in property <bool> markers-visible: false;
     in-out property <float> zoom: 1.0;
     callback node-clicked(string);
     callback node-drag-ended(string, length, length);
+    callback bypass-toggled(string);
+    callback remove-requested(string);
 
     GraphView {
         x: 0px;
@@ -23,9 +26,12 @@ export component GraphViewHarness inherits Window {
         height: 100%;
         nodes: root.nodes;
         edges: root.edges;
+        markers_visible: root.markers-visible;
         zoom <=> root.zoom;
         node_clicked(id) => { root.node-clicked(id); }
         node_drag_ended(id, x, y) => { root.node-drag-ended(id, x, y); }
+        bypass-toggled(id) => { root.bypass-toggled(id); }
+        remove-requested(id) => { root.remove-requested(id); }
     }
 }
 

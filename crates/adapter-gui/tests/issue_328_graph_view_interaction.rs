@@ -6,7 +6,8 @@
 //! The harness canvas sits at the window origin with zoom 1 and no pan, so a
 //! node's layout coordinates ARE its window coordinates.
 
-use adapter_gui::{GraphNode, GraphViewHarness, GraphViewScrollHarness};
+use adapter_gui::{ChainBlockItem, GraphNode, GraphViewHarness, GraphViewScrollHarness};
+use i_slint_backend_testing::ElementHandle;
 use slint::platform::{Key, PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, ModelRc, VecModel};
 use std::cell::RefCell;
@@ -221,5 +222,164 @@ fn every_node_kind_is_a_clickable_card() {
         *clicked.borrow(),
         ["in", "__split_1", "amp", "__merge_1", "out"],
         "the split and the mixer must be clickable cards, not 8px routing dots (#328 §5.2)"
+    );
+}
+
+/// A block card with a model: type label, icon and a tooltip name.
+fn block_node(id: &str, label: &str, x: f32, y: f32) -> GraphNode {
+    GraphNode {
+        block: ChainBlockItem {
+            type_label: "AMP".into(),
+            icon_kind: "amp".into(),
+            display_name: "Clean Amp".into(),
+            ..Default::default()
+        },
+        ..typed(id, "block", label, x, y)
+    }
+}
+
+fn center(el: &ElementHandle) -> LogicalPosition {
+    let p = el.absolute_position();
+    let s = el.size();
+    at(p.x + s.width / 2.0, p.y + s.height / 2.0)
+}
+
+/// Every element with `id`, left to right on screen.
+fn handles(w: &GraphViewHarness, id: &str) -> Vec<ElementHandle> {
+    let mut found: Vec<ElementHandle> = ElementHandle::find_by_element_id(w, id).collect();
+    found.sort_by(|a, b| a.absolute_position().x.total_cmp(&b.absolute_position().x));
+    found
+}
+
+fn hover(w: &GraphViewHarness, p: LogicalPosition) {
+    w.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: p });
+}
+
+#[test]
+fn a_block_cards_led_shows_bypass_and_toggles_it_without_a_click() {
+    let mut rev = block_node("rev", "Rev", 400.0, 200.0);
+    rev.bypass = true;
+    let w = harness(vec![block_node("amp", "Amp", 240.0, 200.0), rev]);
+    let toggled = recorder::<String>();
+    let clicked = recorder::<String>();
+    let t = toggled.clone();
+    w.on_bypass_toggled(move |id| t.borrow_mut().push(id.to_string()));
+    let c = clicked.clone();
+    w.on_node_clicked(move |id| c.borrow_mut().push(id.to_string()));
+
+    let leds = handles(&w, "GraphNodeCard::bypass-ta");
+    assert_eq!(
+        leds.iter()
+            .map(|l| l.accessible_checked())
+            .collect::<Vec<_>>(),
+        [Some(true), Some(false)],
+        "the LED reads on for a live block and off for a bypassed one"
+    );
+
+    click_at(&w, center(&leds[0]));
+    assert_eq!(*toggled.borrow(), ["amp"]);
+    assert!(
+        clicked.borrow().is_empty(),
+        "the LED toggles bypass; it must not also click the node"
+    );
+
+    click_at(&w, at(240.0, 200.0));
+    assert_eq!(
+        *clicked.borrow(),
+        ["amp"],
+        "the card body still clicks through to the node"
+    );
+}
+
+#[test]
+fn hovering_a_block_card_reveals_a_remove_button_that_fires_remove_requested() {
+    let w = harness(vec![block_node("amp", "Amp", 240.0, 200.0)]);
+    let removed = recorder::<String>();
+    let clicked = recorder::<String>();
+    let r = removed.clone();
+    w.on_remove_requested(move |id| r.borrow_mut().push(id.to_string()));
+    let c = clicked.clone();
+    w.on_node_clicked(move |id| c.borrow_mut().push(id.to_string()));
+
+    hover(&w, at(240.0, 200.0));
+    let remove = handles(&w, "GraphNodeCard::remove-ta");
+    assert_eq!(remove.len(), 1, "a block card carries one × button");
+    let p = center(&remove[0]);
+    hover(&w, p);
+    click_at(&w, p);
+
+    assert_eq!(*removed.borrow(), ["amp"]);
+    assert!(
+        clicked.borrow().is_empty(),
+        "the × removes; it must not click the node"
+    );
+}
+
+#[test]
+fn only_block_cards_carry_a_led_and_a_remove_button() {
+    let mut nodes = one_of_each_kind();
+    nodes[2] = block_node("amp", "Amp", 400.0, 200.0);
+    let w = harness(nodes);
+    assert_eq!(handles(&w, "GraphNodeCard::bypass-ta").len(), 1);
+    assert_eq!(handles(&w, "GraphNodeCard::remove-ta").len(), 1);
+}
+
+#[test]
+fn hovering_a_block_with_a_model_shows_its_tooltip() {
+    let mut nodes = one_of_each_kind();
+    nodes[2] = block_node("amp", "Amp", 400.0, 200.0);
+    let w = harness(nodes);
+    let tooltips = |w: &GraphViewHarness| {
+        ElementHandle::find_by_element_type_name(w, "BlockHoverTooltip").count()
+    };
+
+    hover(&w, at(400.0, 200.0));
+    assert_eq!(
+        tooltips(&w),
+        1,
+        "hovering a block with a model shows the BlockChip tooltip"
+    );
+
+    hover(&w, at(80.0, 200.0));
+    assert_eq!(tooltips(&w), 0, "an I/O node has no block tooltip");
+}
+
+#[test]
+fn an_unavailable_block_card_reads_as_disabled() {
+    let mut amp = block_node("amp", "Amp", 240.0, 200.0);
+    amp.block.unavailable = true;
+    let w = harness(vec![amp, block_node("rev", "Rev", 400.0, 200.0)]);
+    let enabled = |label: &str| {
+        ElementHandle::find_by_accessible_label(&w, label)
+            .next()
+            .and_then(|e| e.accessible_enabled())
+    };
+    assert_eq!(
+        enabled("Amp"),
+        Some(false),
+        "an uninstalled model reads as disabled"
+    );
+    assert_eq!(enabled("Rev"), Some(true));
+}
+
+#[test]
+fn a_block_cards_led_and_remove_hit_zones_scale_with_the_zoom() {
+    let w = harness(vec![block_node("amp", "Amp", 240.0, 200.0)]);
+    w.set_zoom(0.5);
+    let size = |id: &str| {
+        handles(&w, id)
+            .first()
+            .map(|h| (h.size().width, h.size().height))
+    };
+    assert_eq!(
+        size("GraphNodeCard::remove-ta"),
+        Some((12.0, 12.0)),
+        "at half zoom the × is half size; a fixed 24px one covers most of a small card"
+    );
+    assert_eq!(
+        size("GraphNodeCard::bypass-ta"),
+        Some((14.0, 10.0)),
+        "at half zoom the LED switch is half size"
     );
 }

@@ -977,3 +977,9 @@ msgstr "स्प्लिट"
 
 msgid "graph-node-mixer"
 msgstr "मिक्सर"
+
+msgid "accessible-graph-node-bypass"
+msgstr "ब्लॉक चालू या बंद करें"
+
+msgid "accessible-graph-node-remove"
+msgstr "ब्लॉक हटाएँ"
