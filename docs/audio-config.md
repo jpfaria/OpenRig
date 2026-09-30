@@ -419,6 +419,10 @@ their unity sum, time-aligned by the Split → Mix code. The split's own knobs
 Y has no mixer. A bypassed Y split passes the shared signal once to every
 checked output. An offline render (no per-output routing) hears both paths.
 
+A route's convolution cushion (#592/#965) counts only the paths its segment
+runs: path B's cab does not deepen the cushion — and so the latency — of an
+output path A alone feeds.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it
