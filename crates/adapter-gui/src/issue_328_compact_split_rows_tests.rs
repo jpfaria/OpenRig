@@ -82,3 +82,58 @@ fn each_path_row_says_which_path_it_is_on() {
         ]
     );
 }
+
+fn split_row(chain: Chain) -> CompactBlockItem {
+    rows_of(chain)
+        .into_iter()
+        .find(|r| r.block_id == "sp")
+        .expect("the split is a compact row")
+}
+
+fn knob_paths(row: &CompactBlockItem) -> Vec<String> {
+    row.parameter_items
+        .iter()
+        .filter(|p| p.strip_line >= 0)
+        .map(|p| p.path.to_string())
+        .collect()
+}
+
+#[test]
+fn a_y_split_row_shows_the_split_knobs() {
+    let row = split_row(y_chain());
+    assert_eq!(
+        knob_paths(&row),
+        vec![
+            "split_mode",
+            "level_to_a",
+            "level_to_b",
+            "balance_a",
+            "balance_b"
+        ],
+        "the knobs the split editor shows, on the row like any block"
+    );
+    assert!(row.parameter_lines.row_count() > 0, "the strip is drawn");
+}
+
+#[test]
+fn a_mix_split_row_has_a_split_tab_and_a_mixer_tab() {
+    let row = split_row(mix_chain());
+    let tabs: Vec<String> = row.parameter_groups.iter().map(|g| g.to_string()).collect();
+    assert_eq!(
+        tabs,
+        vec!["Split", "Mixer"],
+        "tab labels read like every other block's groups"
+    );
+    assert_eq!(row.active_parameter_group, 0);
+    assert_eq!(
+        knob_paths(&row),
+        vec![
+            "split_mode",
+            "level_to_a",
+            "level_to_b",
+            "balance_a",
+            "balance_b"
+        ],
+        "the first tab is the split"
+    );
+}

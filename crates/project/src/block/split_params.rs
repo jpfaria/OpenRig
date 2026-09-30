@@ -37,11 +37,13 @@ pub const POLARITY_INVERT: &str = "invert";
 /// Effect type and model name the split's descriptors and errors carry.
 pub const SPLIT_SCHEMA_ID: &str = "split";
 
-const SPLIT_GROUP: &str = "split";
-const MIXER_GROUP: &str = "mixer";
+/// The groups double as the compact row's tab labels, cased like every
+/// other block's groups ("Output", "EQ").
+const SPLIT_GROUP: &str = "Split";
+const MIXER_GROUP: &str = "Mixer";
 
 /// Every split and mixer knob, in the spec table's order. The split editor
-/// shows the `split` group, the mixer editor the `mixer` group.
+/// shows the `Split` group, the mixer editor the `Mixer` group.
 pub fn split_param_specs() -> Vec<ParameterSpec> {
     let split = Some(SPLIT_GROUP);
     let mixer = Some(MIXER_GROUP);

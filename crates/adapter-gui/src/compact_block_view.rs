@@ -32,7 +32,7 @@ use crate::{
 
 /// Group the laid-out cells by their `strip_line` — Slint cannot filter inside a
 /// `for`, so it renders one `HorizontalLayout` per line of this model.
-fn param_lines(params: &[BlockParameterItem], lines: i32) -> Vec<CompactParamLine> {
+pub(crate) fn param_lines(params: &[BlockParameterItem], lines: i32) -> Vec<CompactParamLine> {
     (0..lines)
         .map(|line| CompactParamLine {
             cells: ModelRc::from(Rc::new(VecModel::from(

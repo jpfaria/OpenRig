@@ -186,7 +186,7 @@ Left to right: input node → shared blocks → split node → two lanes (A on t
 
 - The graph replaces `ChainRowBlocks` inside `ChainRow`. The row height is derived from the lane count: one lane for linear chains, two for a split. The four `tests/chain_row_*.rs` tests that pin the current height for linear chains must stay green unchanged.
 - `app-window.slint` is at 500/500. Any callback forwarded through it forces a split of that file first (behaviour-preserving).
-- Compact view: every block is a row in signal order: the split, then path A, then path B, then what follows the split. The split row has only its icon and kind (SPLIT MIX / SPLIT Y), with no model selector, and opening it opens the split editor. A path row carries an "A"/"B" badge on its type icon. Toggle, remove, parameters, model, open, insert and drag all act on that path's block. A drag only reorders within its own list. Touch view: the split shows as one "Split" chip that opens the split editor.
+- Compact view: every block is a row in signal order: the split, then path A, then path B, then what follows the split. The split row has its icon, its kind (SPLIT MIX / SPLIT Y) and the split editor's knobs on the row; a Mix split adds a Mixer tab with the mixer's knobs. It has no model selector, and opening it opens the split editor. A path row carries an "A"/"B" badge on its type icon. Toggle, remove, parameters, model, open, insert and drag all act on that path's block. A drag only reorders within its own list. Touch view: the split shows as one "Split" chip that opens the split editor.
 
 ## 6. Invariants and risks
 

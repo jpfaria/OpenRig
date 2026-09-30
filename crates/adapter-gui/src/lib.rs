@@ -30,6 +30,7 @@ mod block_editor_window_setup;
 mod block_error_tick;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
+mod block_option_value;
 pub mod block_panel_dimensions;
 mod block_param_apply;
 mod block_parameter_extras;

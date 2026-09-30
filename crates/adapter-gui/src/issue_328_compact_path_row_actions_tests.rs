@@ -251,3 +251,39 @@ fn opening_the_split_row_opens_the_split_editor() {
         "the split editor, as a click on the graph's split node"
     );
 }
+
+fn split_param(
+    session: &Rc<RefCell<Option<ProjectSession>>>,
+    path: &str,
+) -> Option<domain::value_objects::ParameterValue> {
+    let borrow = session.borrow();
+    let project = borrow.as_ref().unwrap().project.borrow();
+    match &project.chains[0].blocks[1].kind {
+        AudioBlockKind::Split(split) => split.params.get(path).cloned(),
+        _ => None,
+    }
+}
+
+#[test]
+fn turning_a_knob_on_the_split_row_sets_the_split() {
+    let session = session_with(vec![mix_chain()]);
+    let (_app, compact) = open_compact(&session);
+    compact.invoke_update_block_parameter_number(0, 1, "level_to_a".into(), 40.0);
+    assert_eq!(
+        split_param(&session, "level_to_a"),
+        Some(domain::value_objects::ParameterValue::Float(40.0))
+    );
+}
+
+#[test]
+fn picking_the_split_mode_on_the_split_row_sets_the_split() {
+    let session = session_with(vec![mix_chain()]);
+    let (_app, compact) = open_compact(&session);
+    compact.invoke_select_block_parameter_option(0, 1, "split_mode".into(), 1);
+    assert_eq!(
+        split_param(&session, "split_mode"),
+        Some(domain::value_objects::ParameterValue::String(
+            "dual_mono".into()
+        ))
+    );
+}

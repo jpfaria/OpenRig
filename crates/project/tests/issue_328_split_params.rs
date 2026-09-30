@@ -123,12 +123,12 @@ fn descriptors_address_each_knob_on_the_split_block() {
     let groups: Vec<Option<&str>> = descriptors.iter().map(|d| d.group.as_deref()).collect();
     assert_eq!(
         &groups[..5],
-        &[Some("split"); 5],
+        &[Some("Split"); 5],
         "the split editor's knobs"
     );
     assert_eq!(
         &groups[5..],
-        &[Some("mixer"); 7],
+        &[Some("Mixer"); 7],
         "the mixer editor's knobs"
     );
 }
