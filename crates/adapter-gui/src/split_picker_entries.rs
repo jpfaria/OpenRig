@@ -1,11 +1,13 @@
 //! Responsibility: offers the split entries of the add-block picker.
 //!
 //! #328 (spec §5.1): "Split → Mix" and "Y → A/B" follow the block types in the
-//! picker. One split per chain and none inside a path (spec §1.1); a Y split
-//! must be the chain's last processing block, so it is offered only where no
-//! block but an I/O port follows (the rule `validate_split_layout` enforces).
+//! picker. A chain holds at most one Mix and one Y, the Mix first, and no split
+//! goes inside a path (spec §1.1). A Y must be the chain's last processing
+//! block, so it is offered only after the Mix and where no block but an I/O
+//! port follows; a Mix only where it lands before the Y (the rules
+//! `validate_split_layout` enforces).
 
-use project::block::{AudioBlockKind, PathRef, SplitEnd};
+use project::block::{find_split_with_end, AudioBlockKind, PathRef, SplitEnd};
 use project::chain::Chain;
 
 use crate::BlockTypePickerItem;
@@ -14,28 +16,30 @@ use crate::BlockTypePickerItem;
 /// recognises the entries by their position after the block types.
 const SPLIT_ENTRY_EFFECT_TYPE: &str = "split";
 
+/// The split ends a block inserted before top-level `position` may take.
 pub(crate) fn split_picker_ends(
     chain: &Chain,
     position: usize,
     path: Option<&PathRef>,
 ) -> Vec<SplitEnd> {
-    let has_split = chain
-        .blocks
-        .iter()
-        .any(|b| matches!(b.kind, AudioBlockKind::Split(_)));
-    if path.is_some() || has_split {
+    if path.is_some() {
         return Vec::new();
+    }
+    let mix_at = find_split_with_end(&chain.blocks, SplitEnd::Mix).map(|(at, _)| at);
+    let y_at = find_split_with_end(&chain.blocks, SplitEnd::Y).map(|(at, _)| at);
+    let mut ends = Vec::new();
+    if mix_at.is_none() && y_at.is_none_or(|y| position <= y) {
+        ends.push(SplitEnd::Mix);
     }
     let block_follows = chain
         .blocks
         .iter()
         .skip(position)
         .any(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
-    if block_follows {
-        vec![SplitEnd::Mix]
-    } else {
-        vec![SplitEnd::Mix, SplitEnd::Y]
+    if y_at.is_none() && mix_at.is_none_or(|mix| position > mix) && !block_follows {
+        ends.push(SplitEnd::Y);
     }
+    ends
 }
 
 pub(crate) fn split_picker_items(ends: &[SplitEnd]) -> Vec<BlockTypePickerItem> {

@@ -11,8 +11,9 @@ use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 
 /// Reassign a fresh id to every block of `chain`, recursing into `Select`
-/// options. Called when a chain is cloned so two live chains never share a
-/// block id — a shared id makes a per-block runtime lookup ambiguous.
+/// options and split paths. Called when a chain is cloned so two live chains
+/// never share a block id — a shared id makes a per-block runtime lookup
+/// ambiguous.
 pub(crate) fn assign_new_block_ids(chain: &mut Chain) {
     for block in &mut chain.blocks {
         assign_new_block_ids_recursive(block, &chain.id);
@@ -21,10 +22,18 @@ pub(crate) fn assign_new_block_ids(chain: &mut Chain) {
 
 fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
     block.id = BlockId::generate_for_chain(chain_id);
-    if let AudioBlockKind::Select(select) = &mut block.kind {
-        for option in &mut select.options {
-            assign_new_block_ids_recursive(option, chain_id);
+    match &mut block.kind {
+        AudioBlockKind::Select(select) => {
+            for option in &mut select.options {
+                assign_new_block_ids_recursive(option, chain_id);
+            }
         }
+        AudioBlockKind::Split(split) => {
+            for inner in split.a.iter_mut().chain(split.b.iter_mut()) {
+                assign_new_block_ids_recursive(inner, chain_id);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -43,3 +52,7 @@ pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> us
     // insert-before) pointed one block off.
     ui_index.min(chain.blocks.len())
 }
+
+#[cfg(test)]
+#[path = "chain_block_helpers_tests.rs"]
+mod tests;

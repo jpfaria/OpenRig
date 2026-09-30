@@ -2,16 +2,15 @@
 //!
 //! #328 (spec §5.2). A block node carries the block's own `BlockId`, so a
 //! gesture on a card names the block wherever it sits. The input/output nodes
-//! and the split/mixer routing nodes are not blocks; their ids are the fixed
-//! strings below. The split/mixer ids are the ones `linear_chain_layout` gives
-//! the chain's single `Parallel` stage (one split per chain, spec §1.1).
+//! and the split/mixer routing nodes are not blocks. `linear_chain_layout`
+//! gives the n-th split of the chain (1-based, top-level order) the nodes
+//! `__split_n` and, when it ends in a Mix, `__merge_n`; a chain holds at most
+//! a Mix, then a Y (spec §1.1).
 
 use domain::ids::BlockId;
-use project::block::{AudioBlockKind, PathRef, PathSide};
+use project::block::{AudioBlockKind, PathRef, PathSide, SplitEnd};
 use project::chain::Chain;
 use project::endpoint_disables::EndpointNode;
-
-use crate::chain_block_lists::split_of;
 
 pub(crate) const INPUT_NODE_ID: &str = "__io_input";
 pub(crate) const OUTPUT_NODE_ID: &str = "__io_output";
@@ -19,6 +18,9 @@ pub(crate) const PATH_A_OUTPUT_NODE_ID: &str = "__io_output_a";
 pub(crate) const PATH_B_OUTPUT_NODE_ID: &str = "__io_output_b";
 pub(crate) const SPLIT_NODE_ID: &str = "__split_1";
 pub(crate) const MIXER_NODE_ID: &str = "__merge_1";
+
+const SPLIT_NODE_PREFIX: &str = "__split_";
+const MIXER_NODE_PREFIX: &str = "__merge_";
 
 /// What a graph node stands for in its chain.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,10 +31,10 @@ pub(crate) enum NodeRef {
         path: Option<PathRef>,
         index: usize,
     },
-    /// The chain's split node (one split per chain: `split_of` finds it).
-    Split,
-    /// The chain's mixer node (Split → Mix).
-    Mixer,
+    /// The split node of the split block `id`.
+    Split { id: BlockId },
+    /// The mixer node of the Mix split block `id`.
+    Mixer { id: BlockId },
     /// An input or output node — which endpoint set it shows.
     Endpoints(EndpointNode),
 }
@@ -43,9 +45,15 @@ pub(crate) fn resolve_node(chain: &Chain, node_id: &str) -> Option<NodeRef> {
         OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::Output)),
         PATH_A_OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::PathAOutput)),
         PATH_B_OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::PathBOutput)),
-        SPLIT_NODE_ID => return split_of(chain).map(|_| NodeRef::Split),
-        MIXER_NODE_ID => return split_of(chain).map(|_| NodeRef::Mixer),
         _ => {}
+    }
+    if let Some(ordinal) = node_id.strip_prefix(SPLIT_NODE_PREFIX) {
+        return nth_split(chain, ordinal).map(|(id, _)| NodeRef::Split { id });
+    }
+    if let Some(ordinal) = node_id.strip_prefix(MIXER_NODE_PREFIX) {
+        return nth_split(chain, ordinal)
+            .filter(|(_, end)| *end == SplitEnd::Mix)
+            .map(|(id, _)| NodeRef::Mixer { id });
     }
     for (index, block) in chain.blocks.iter().enumerate() {
         if block.id.0 == node_id {
@@ -71,6 +79,13 @@ pub(crate) fn resolve_node(chain: &Chain, node_id: &str) -> Option<NodeRef> {
         }
     }
     None
+}
+
+/// The id and end of the split a 1-based `ordinal` names.
+fn nth_split(chain: &Chain, ordinal: &str) -> Option<(BlockId, SplitEnd)> {
+    let n: usize = ordinal.parse().ok()?;
+    let (position, split) = project::block::splits(&chain.blocks).nth(n.checked_sub(1)?)?;
+    Some((chain.blocks[position].id.clone(), split.end))
 }
 
 #[cfg(test)]

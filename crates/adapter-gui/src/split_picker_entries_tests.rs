@@ -1,7 +1,7 @@
 //! #328 — Review Focus 5: a split is offered only where it can go.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain};
+use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, y_chain};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide, SplitEnd};
 
@@ -21,8 +21,41 @@ fn y_is_offered_only_at_the_end_of_the_chain() {
 }
 
 #[test]
-fn no_split_entry_when_the_chain_already_has_one() {
-    assert!(split_picker_ends(&mix_chain(), 3, None).is_empty());
+fn mix_then_y_a_mix_chain_offers_a_y_only_after_its_mix_at_the_end() {
+    // mix_chain(): [pre, sp (Mix), post]
+    let c = mix_chain();
+    assert_eq!(split_picker_ends(&c, 3, None), vec![SplitEnd::Y]);
+    assert!(
+        split_picker_ends(&c, 2, None).is_empty(),
+        "post would follow the Y"
+    );
+    assert!(
+        split_picker_ends(&c, 1, None).is_empty(),
+        "a Y before the Mix, and a second Mix"
+    );
+}
+
+#[test]
+fn mix_then_y_a_y_chain_offers_a_mix_only_before_its_y() {
+    // y_chain(): [pre, sp (Y)]
+    let c = y_chain();
+    assert_eq!(split_picker_ends(&c, 0, None), vec![SplitEnd::Mix]);
+    assert_eq!(split_picker_ends(&c, 1, None), vec![SplitEnd::Mix]);
+    assert!(
+        split_picker_ends(&c, 2, None).is_empty(),
+        "nothing goes after the Y"
+    );
+}
+
+#[test]
+fn mix_then_y_a_chain_with_both_offers_no_split() {
+    let c = mix_then_y_chain();
+    for position in 0..=c.blocks.len() {
+        assert!(
+            split_picker_ends(&c, position, None).is_empty(),
+            "position {position}"
+        );
+    }
 }
 
 #[test]

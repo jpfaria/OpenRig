@@ -1,7 +1,8 @@
 //! Responsibility: turns a chain into the graph its row draws.
 //!
-//! #328 (spec §5.1, §5.2). The chain's `Split` becomes Part 5's `Parallel`
-//! stage: lane A on top, lane B below; `Merge` ends it in the mixer node, `Fan`
+//! #328 (spec §5.1, §5.2). Each of the chain's splits (a Mix, then a Y) becomes
+//! one Part 5 `Parallel` stage: lane A on top, lane B below; `Merge` ends it in
+//! the mixer node, `Fan`
 //! (Y → A/B) ends each lane in its own output node. Stage 0 is the input node
 //! and every top-level block is one stage — `graph_anchor` counts on that
 //! numbering. Positions and "+" anchors come from Part 5

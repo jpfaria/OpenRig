@@ -21,6 +21,7 @@ fn switch(
     set_split_end(
         session,
         0,
+        &BlockId("sp".into()),
         end,
         &RowsTarget {
             model: &model,

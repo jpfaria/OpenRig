@@ -2,9 +2,10 @@
 //!
 //! #328 (spec §5.1): a block card opens its block editor (a top-level card
 //! through the strip's own row flow, a path card through `open-path-block`),
-//! the split and mixer nodes open their knob editors, an input or output node
-//! opens the endpoint checklist.
+//! a split or mixer node opens the knob editor of its own split, an input or
+//! output node opens the endpoint checklist.
 
+use domain::ids::BlockId;
 use project::block::PathRef;
 use project::chain::Chain;
 
@@ -14,8 +15,8 @@ use crate::chain_graph_ids::{resolve_node, NodeRef};
 pub(crate) enum ClickAction {
     SelectRow(usize),
     OpenPathBlock { path: PathRef, index: usize },
-    OpenSplitEditor,
-    OpenMixerEditor,
+    OpenSplitEditor { split: BlockId },
+    OpenMixerEditor { split: BlockId },
     OpenChecklist,
 }
 
@@ -29,8 +30,8 @@ pub(crate) fn click_action(chain: &Chain, node_id: &str) -> Option<ClickAction> 
             index,
             ..
         } => ClickAction::OpenPathBlock { path, index },
-        NodeRef::Split => ClickAction::OpenSplitEditor,
-        NodeRef::Mixer => ClickAction::OpenMixerEditor,
+        NodeRef::Split { id } => ClickAction::OpenSplitEditor { split: id },
+        NodeRef::Mixer { id } => ClickAction::OpenMixerEditor { split: id },
         NodeRef::Endpoints(_) => ClickAction::OpenChecklist,
     })
 }

@@ -2,17 +2,17 @@
 //!
 //! #328 (spec §5.1). The graph reports a "+" or a drop by the anchor id Part 5
 //! gives each wire (`AnchorSlot::anchor_id`). `chain_graph_adapter` lays a
-//! chain out as stage 0 = the input node, one stage per top-level block (the
+//! chain out as stage 0 = the input node, one stage per top-level block (each
 //! split is one `Parallel` stage), then the output node — so stage `i` is
-//! top-level position `i - 1`, and lane 0 / 1 of the split's stage (split
-//! position + 1) is path A / B. A place is a position in one block list plus
-//! that list's path (`None` = top level, spec §3).
+//! top-level position `i - 1`, and lane 0 / 1 of a split's stage is path A / B
+//! of that split. A place is a position in one block list plus that list's
+//! path (`None` = top level, spec §3).
 
 use domain::ids::BlockId;
-use project::block::PathRef;
+use project::block::{AudioBlockKind, PathRef};
 use project::chain::Chain;
 
-use crate::chain_block_lists::{list_at, side_from_index, split_of};
+use crate::chain_block_lists::{list_at, side_from_index};
 use crate::chain_graph_ids::{resolve_node, NodeRef};
 use crate::graph_view_model::AnchorSlot;
 
@@ -53,12 +53,12 @@ pub(crate) fn insert_target(chain: &Chain, slot: &AnchorSlot) -> Option<InsertTa
             })
         }
         AnchorSlot::Lane { stage, lane, index } => {
-            let (split_position, split_id, _) = split_of(chain)?;
-            if stage != split_position + 1 {
+            let block = chain.blocks.get(stage.checked_sub(1)?)?;
+            let AudioBlockKind::Split(_) = &block.kind else {
                 return None;
-            }
+            };
             let path = PathRef {
-                split: split_id.clone(),
+                split: block.id.clone(),
                 side: side_from_index(i32::try_from(lane).ok()?)?,
             };
             let len = list_at(chain, Some(&path))?.len();

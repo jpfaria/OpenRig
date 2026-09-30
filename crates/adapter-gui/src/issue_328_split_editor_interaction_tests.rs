@@ -156,7 +156,7 @@ fn opening_the_mixer_lists_its_knobs_and_an_edit_reaches_the_split() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, session) = wired_app(mix_chain());
     let state = ChainGraphOverlayState::get(&app);
-    state.invoke_open_split_editor(0, 1);
+    state.invoke_open_split_editor(0, "sp".into(), 1);
     assert!(state.get_split_editor_open());
     assert_eq!(state.get_split_editor_items().row_count(), 7);
     assert_eq!(state.get_split_editor_split_id().as_str(), "sp");
@@ -186,7 +186,7 @@ fn switching_a_y_to_mix_reaches_the_project() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, session) = wired_app(y_chain());
     let state = ChainGraphOverlayState::get(&app);
-    state.invoke_open_split_editor(0, 0);
+    state.invoke_open_split_editor(0, "sp".into(), 0);
     assert!(state.get_split_editor_end_y(), "a Y opens with the Y lit");
     state.invoke_split_editor_set_end(0, "sp".into(), false);
     assert_eq!(end_of(&session), SplitEnd::Mix);
@@ -198,10 +198,35 @@ fn a_refused_switch_shows_the_error() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, session) = wired_app(mix_chain());
     let state = ChainGraphOverlayState::get(&app);
-    state.invoke_open_split_editor(0, 0);
+    state.invoke_open_split_editor(0, "sp".into(), 0);
     state.invoke_split_editor_set_end(0, "sp".into(), true);
     assert_eq!(end_of(&session), SplitEnd::Mix);
     assert!(!state.get_split_editor_end_y());
+    assert!(
+        !app.get_status_message().is_empty(),
+        "the refusal is shown as a toast"
+    );
+}
+
+#[test]
+fn mix_then_y_a_refused_switch_of_the_y_keeps_the_y_lit() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (app, session) = wired_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
+    let state = ChainGraphOverlayState::get(&app);
+    state.set_split_editor_chain_index(0);
+    state.set_split_editor_kind(0);
+    state.set_split_editor_split_id("y".into());
+    state.set_split_editor_end_y(true);
+    state.set_split_editor_open(true);
+
+    // A second Mix is refused.
+    state.invoke_split_editor_set_end(0, "y".into(), false);
+
+    let AudioBlockKind::Split(y) = &chain_in(&session, 0).blocks[3].kind else {
+        panic!("block 3 is the Y")
+    };
+    assert_eq!(y.end, SplitEnd::Y);
+    assert!(state.get_split_editor_end_y(), "the Y stays lit");
     assert!(
         !app.get_status_message().is_empty(),
         "the refusal is shown as a toast"

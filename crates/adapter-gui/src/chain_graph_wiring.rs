@@ -11,6 +11,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Timer, VecModel};
 
+use domain::ids::BlockId;
 use domain::AudioDeviceDescriptor;
 use project::chain::Chain;
 
@@ -98,12 +99,10 @@ fn wire_clicks(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
                     side_index(&path.side),
                     index as i32,
                 ),
-            ClickAction::OpenSplitEditor => {
-                ChainGraphOverlayState::get(&window).invoke_open_split_editor(chain_index, 0)
-            }
-            ClickAction::OpenMixerEditor => {
-                ChainGraphOverlayState::get(&window).invoke_open_split_editor(chain_index, 1)
-            }
+            ClickAction::OpenSplitEditor { split } => ChainGraphOverlayState::get(&window)
+                .invoke_open_split_editor(chain_index, split.0.as_str().into(), 0),
+            ClickAction::OpenMixerEditor { split } => ChainGraphOverlayState::get(&window)
+                .invoke_open_split_editor(chain_index, split.0.as_str().into(), 1),
             ClickAction::OpenChecklist => {
                 ChainGraphOverlayState::get(&window).invoke_open_checklist(chain_index, node_id)
             }
@@ -162,9 +161,10 @@ fn wire_edits(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
                 remove_node(&ctx.project_session, chain_index as usize, &node_id, rows)
             });
             match outcome {
-                Ok(RemoveOutcome::ConfirmSplit { name }) => {
+                Ok(RemoveOutcome::ConfirmSplit { name, split }) => {
                     let overlay = ChainGraphOverlayState::get(&window);
                     overlay.set_confirm_remove_split_chain_index(chain_index);
+                    overlay.set_confirm_remove_split_id(split.0.as_str().into());
                     overlay.set_confirm_remove_split_name(name.into());
                     overlay.set_confirm_remove_split_open(true);
                 }
@@ -236,10 +236,11 @@ fn wire_split_removal(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
         let Some(window) = weak.upgrade() else {
             return;
         };
-        let chain_index =
-            ChainGraphOverlayState::get(&window).get_confirm_remove_split_chain_index();
+        let overlay = ChainGraphOverlayState::get(&window);
+        let chain_index = overlay.get_confirm_remove_split_chain_index();
+        let split_id = BlockId(overlay.get_confirm_remove_split_id().to_string());
         let result = with_rows(&ctx, |rows| {
-            remove_split(&ctx.project_session, chain_index as usize, rows)
+            remove_split(&ctx.project_session, chain_index as usize, &split_id, rows)
         });
         report(&window, &ctx, result);
     });

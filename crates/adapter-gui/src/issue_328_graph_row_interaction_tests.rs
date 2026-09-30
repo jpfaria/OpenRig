@@ -154,3 +154,77 @@ fn the_confirm_dialog_fires_the_split_removal() {
         "the dialog closed"
     );
 }
+
+/// An app whose graph gestures and split editor are wired to a session on
+/// the real dispatcher.
+fn wired_graph_app(
+    chain: project::chain::Chain,
+) -> (
+    crate::AppWindow,
+    Rc<RefCell<Option<crate::state::ProjectSession>>>,
+) {
+    use crate::chain_graph_fixtures_tests::{rows, session_with};
+    let app = crate::AppWindow::new().unwrap();
+    let session = session_with(vec![chain]);
+    let (project_chains, toast_timer) = (rows(), Rc::new(slint::Timer::default()));
+    crate::chain_graph_wiring::wire(
+        &app,
+        crate::chain_graph_wiring::ChainGraphWiringCtx {
+            project_session: session.clone(),
+            project_chains: project_chains.clone(),
+            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            output_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            toast_timer: toast_timer.clone(),
+        },
+    );
+    crate::split_editor_wiring::wire(
+        &app,
+        crate::split_editor_wiring::SplitEditorWiringCtx {
+            project_session: session.clone(),
+            project_chains,
+            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            output_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            toast_timer,
+        },
+    );
+    (app, session)
+}
+
+fn top_ids(session: &Rc<RefCell<Option<crate::state::ProjectSession>>>) -> Vec<String> {
+    crate::chain_graph_fixtures_tests::chain_in(session, 0)
+        .blocks
+        .iter()
+        .map(|b| b.id.0.clone())
+        .collect()
+}
+
+#[test]
+fn mix_then_y_clicking_the_y_node_opens_the_editor_on_the_y() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (app, _session) = wired_graph_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
+    ChainGraphBridge::get(&app).invoke_node_clicked(0, "__split_2".into());
+    let state = crate::ChainGraphOverlayState::get(&app);
+    assert!(state.get_split_editor_open(), "the split editor opened");
+    assert_eq!(state.get_split_editor_split_id().as_str(), "y");
+    assert!(state.get_split_editor_end_y(), "the Y's end is lit");
+}
+
+#[test]
+fn mix_then_y_confirming_the_y_removal_removes_the_y_and_keeps_the_mix() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (app, session) = wired_graph_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
+    ChainGraphBridge::get(&app).invoke_remove_requested(0, "__split_2".into());
+    app.show().unwrap();
+    let button = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &app,
+        "ConfirmDeleteBlockDialog::confirm-area",
+    )
+    .next()
+    .expect("removing the Y asks first: its path B holds yb");
+    let (pos, size) = (button.absolute_position(), button.size());
+    click_at(
+        &app,
+        LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0),
+    );
+    assert_eq!(top_ids(&session), vec!["pre", "mx", "mid", "ya"]);
+}

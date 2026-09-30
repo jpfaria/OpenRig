@@ -11,11 +11,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{BlockCommand, Command, SplitCommand};
+use domain::ids::BlockId;
 use domain::AudioDeviceDescriptor;
 use project::chain::Chain;
 use slint::VecModel;
 
-use crate::chain_block_lists::split_of;
+use crate::chain_block_lists::split_by_id;
 use crate::chain_graph_ids::{resolve_node, NodeRef};
 use crate::graph_anchor::{move_target, parse_anchor};
 use crate::project_view::replace_project_chains;
@@ -46,9 +47,11 @@ pub(crate) enum GestureError {
 pub(crate) enum RemoveOutcome {
     Removed,
     /// Path B holds blocks and removing the split deletes them (spec §3):
-    /// ask first. `name` is what the confirm dialog shows.
+    /// ask first. `name` is what the confirm dialog shows, `split` the split
+    /// the confirmation removes.
     ConfirmSplit {
         name: String,
+        split: BlockId,
     },
 }
 
@@ -121,7 +124,7 @@ pub(crate) fn remove_node(
     node_id: &str,
     rows: &RowsTarget<'_>,
 ) -> Result<RemoveOutcome, GestureError> {
-    {
+    let split_id = {
         let borrowed = session.borrow();
         let s = borrowed.as_ref().ok_or(GestureError::NoProject)?;
         let chain = chain_of(s, chain_index)?;
@@ -134,32 +137,36 @@ pub(crate) fn remove_node(
                 apply(s, &chain, command, rows)?;
                 return Ok(RemoveOutcome::Removed);
             }
-            NodeRef::Split | NodeRef::Mixer => {
-                let (_, _, split) = split_of(&chain).ok_or(GestureError::NotApplicable)?;
+            NodeRef::Split { id } | NodeRef::Mixer { id } => {
+                let (_, split) = split_by_id(&chain, &id).ok_or(GestureError::NotApplicable)?;
                 if !split.b.is_empty() {
                     let name = rust_i18n::t!("confirm-remove-split-name", n = split.b.len());
                     return Ok(RemoveOutcome::ConfirmSplit {
                         name: name.to_string(),
+                        split: id,
                     });
                 }
+                id
             }
             NodeRef::Endpoints(_) => return Err(GestureError::NotApplicable),
         }
-    }
-    remove_split(session, chain_index, rows)?;
+    };
+    remove_split(session, chain_index, &split_id, rows)?;
     Ok(RemoveOutcome::Removed)
 }
 
-/// `RemoveSplit`: path A's blocks take the split's place, path B's go (spec §3).
+/// `RemoveSplit` of the split `split_id`: path A's blocks take its place,
+/// path B's go (spec §3).
 pub(crate) fn remove_split(
     session: &Session,
     chain_index: usize,
+    split_id: &BlockId,
     rows: &RowsTarget<'_>,
 ) -> Result<(), GestureError> {
     let borrowed = session.borrow();
     let s = borrowed.as_ref().ok_or(GestureError::NoProject)?;
     let chain = chain_of(s, chain_index)?;
-    let (_, split_id, _) = split_of(&chain).ok_or(GestureError::NotApplicable)?;
+    split_by_id(&chain, split_id).ok_or(GestureError::NotApplicable)?;
     let command = Command::Split(SplitCommand::RemoveSplit {
         chain: chain.id.clone(),
         split_id: split_id.clone(),

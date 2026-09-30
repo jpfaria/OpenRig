@@ -208,7 +208,7 @@ fn the_plus_under_the_last_row_adds_to_the_chain() {
 enum Opened {
     ChainRow(i32),
     PathBlock(String, i32, i32),
-    SplitEditor(i32),
+    SplitEditor(String, i32),
 }
 
 fn open_detail(row: i32) -> Option<Opened> {
@@ -222,8 +222,9 @@ fn open_detail(row: i32) -> Option<Opened> {
         *s.borrow_mut() = Some(Opened::PathBlock(split.to_string(), side, index))
     });
     let s = seen.clone();
-    crate::ChainGraphOverlayState::get(&app)
-        .on_open_split_editor(move |_, kind| *s.borrow_mut() = Some(Opened::SplitEditor(kind)));
+    crate::ChainGraphOverlayState::get(&app).on_open_split_editor(move |_, split, kind| {
+        *s.borrow_mut() = Some(Opened::SplitEditor(split.to_string(), kind))
+    });
     compact.invoke_open_block_detail(0, row);
     seen.take()
 }
@@ -247,9 +248,32 @@ fn opening_the_row_after_the_paths_opens_its_chain_block() {
 fn opening_the_split_row_opens_the_split_editor() {
     assert_eq!(
         open_detail(1),
-        Some(Opened::SplitEditor(0)),
+        Some(Opened::SplitEditor("sp".into(), 0)),
         "the split editor, as a click on the graph's split node"
     );
+}
+
+#[test]
+fn mix_then_y_opening_the_y_row_opens_the_editor_on_the_y() {
+    let session = session_with(vec![crate::chain_graph_fixtures_tests::mix_then_y_chain()]);
+    let (app, compact) = open_compact(&session);
+    crate::split_editor_wiring::wire(
+        &app,
+        crate::split_editor_wiring::SplitEditorWiringCtx {
+            project_session: session.clone(),
+            project_chains: Rc::new(VecModel::default()),
+            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            output_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            toast_timer: Rc::new(Timer::default()),
+        },
+    );
+
+    // Rows: pre, mx, ma, mb, mid, y, ya, yb.
+    compact.invoke_open_block_detail(0, 5);
+
+    let state = crate::ChainGraphOverlayState::get(&app);
+    assert!(state.get_split_editor_open());
+    assert_eq!(state.get_split_editor_split_id().as_str(), "y");
 }
 
 fn split_param(

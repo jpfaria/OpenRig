@@ -117,7 +117,7 @@ fn removing_a_split_with_an_empty_path_b_needs_no_confirmation() {
 #[test]
 fn confirming_removes_the_split_and_keeps_path_a() {
     let (session, rows) = (session_with(vec![mix_chain()]), rows());
-    remove_split(&session, 0, &target(&rows)).expect("remove");
+    remove_split(&session, 0, &BlockId("sp".into()), &target(&rows)).expect("remove");
     assert_eq!(
         ids(&chain_in(&session, 0).blocks),
         vec!["pre", "a1", "a2", "post"]
@@ -206,5 +206,37 @@ fn a_refused_drop_snaps_the_card_back() {
         x,
         CARD_HALF + COLUMN_SPACING,
         "the port is back in its slot"
+    );
+}
+
+#[test]
+fn mix_then_y_removing_the_y_node_asks_about_the_ys_path_b() {
+    let (session, rows) = (
+        session_with(vec![crate::chain_graph_fixtures_tests::mix_then_y_chain()]),
+        rows(),
+    );
+    let outcome = remove_node(&session, 0, "__split_2", &target(&rows)).expect("decided");
+    assert!(
+        matches!(&outcome, RemoveOutcome::ConfirmSplit { split, .. } if split.0 == "y"),
+        "got {outcome:?}"
+    );
+}
+
+#[test]
+fn mix_then_y_removing_a_y_with_an_empty_path_b_removes_the_y_and_keeps_the_mix() {
+    let c = chain(vec![
+        core("pre"),
+        split("mx", SplitEnd::Mix, vec![core("ma")], vec![core("mb")]),
+        core("mid"),
+        split("y", SplitEnd::Y, vec![core("ya")], vec![]),
+    ]);
+    let (session, rows) = (session_with(vec![c]), rows());
+    assert_eq!(
+        remove_node(&session, 0, "__split_2", &target(&rows)),
+        Ok(RemoveOutcome::Removed)
+    );
+    assert_eq!(
+        ids(&chain_in(&session, 0).blocks),
+        vec!["pre", "mx", "mid", "ya"]
     );
 }

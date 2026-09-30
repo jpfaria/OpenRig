@@ -1,7 +1,7 @@
 //! #328 — an index inside a split path never reads the top level.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain};
+use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide};
 
@@ -68,11 +68,12 @@ fn a_side_round_trips_through_its_index() {
 }
 
 #[test]
-fn split_of_finds_the_chains_split() {
-    let c = mix_chain();
-    let (index, id, split) = split_of(&c).expect("the chain has a split");
-    assert_eq!(
-        (index, id.0.as_str(), split.a.len(), split.b.len()),
-        (1, "sp", 2, 1)
-    );
+fn mix_then_y_a_path_of_the_y_names_the_ys_lane() {
+    let c = mix_then_y_chain();
+    let y_path = |side| PathRef {
+        split: BlockId("y".into()),
+        side,
+    };
+    assert_eq!(ids(list_at(&c, Some(&y_path(PathSide::A)))), vec!["ya"]);
+    assert_eq!(ids(list_at(&c, Some(&y_path(PathSide::B)))), vec!["yb"]);
 }

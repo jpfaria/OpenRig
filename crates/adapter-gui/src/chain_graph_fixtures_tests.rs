@@ -99,6 +99,17 @@ pub(crate) fn y_chain() -> Chain {
     ])
 }
 
+/// `pre → Mix mx (A: ma | B: mb) → mid → Y y (A: ya | B: yb)`: the one Mix,
+/// then the one Y as the last processing block.
+pub(crate) fn mix_then_y_chain() -> Chain {
+    chain(vec![
+        core("pre"),
+        split("mx", SplitEnd::Mix, vec![core("ma")], vec![core("mb")]),
+        core("mid"),
+        split("y", SplitEnd::Y, vec![core("ya")], vec![core("yb")]),
+    ])
+}
+
 pub(crate) fn endpoint(name: &str) -> IoEndpoint {
     IoEndpoint {
         name: name.into(),

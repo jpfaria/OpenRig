@@ -1,6 +1,6 @@
 //! Responsibility: opens the editor of the block shown on a compact view row.
 //!
-//! #328: a row may be the split itself or a block inside one of its paths, so
+//! #328: a row may be a split itself or a block inside one of its paths, so
 //! the row index is resolved to the same editor a click on its graph node opens.
 
 use std::cell::RefCell;
@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use slint::Global;
 
+use domain::ids::BlockId;
 use project::block::AudioBlockKind;
 
 use crate::chain_block_lists::side_index;
@@ -36,12 +37,19 @@ pub(crate) fn open_row_detail(
         compact_rows(chain)
             .into_iter()
             .nth(row.max(0) as usize)
-            .map(|(address, block)| (address, matches!(block.kind, AudioBlockKind::Split(_))))
+            .map(|(address, block)| {
+                let split: Option<BlockId> =
+                    matches!(block.kind, AudioBlockKind::Split(_)).then(|| block.id.clone());
+                (address, split)
+            })
     };
     match target {
-        Some((_, true)) => ChainGraphOverlayState::get(main_win)
-            .invoke_open_split_editor(chain_index, SPLIT_EDITOR_KIND),
-        Some((RowAddress { path: None, index }, false)) => {
+        Some((_, Some(split))) => ChainGraphOverlayState::get(main_win).invoke_open_split_editor(
+            chain_index,
+            split.0.as_str().into(),
+            SPLIT_EDITOR_KIND,
+        ),
+        Some((RowAddress { path: None, index }, None)) => {
             main_win.invoke_select_chain_block(chain_index, index as i32)
         }
         Some((
@@ -49,7 +57,7 @@ pub(crate) fn open_row_detail(
                 path: Some(path),
                 index,
             },
-            false,
+            None,
         )) => ChainGraphBridge::get(main_win).invoke_open_path_block(
             chain_index,
             path.split.0.as_str().into(),

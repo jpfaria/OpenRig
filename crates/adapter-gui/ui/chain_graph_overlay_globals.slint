@@ -12,10 +12,12 @@ export global ChainGraphOverlayState {
     in-out property <bool> confirm-remove-split-open: false;
     in-out property <int> confirm-remove-split-chain-index: -1;
     in-out property <string> confirm-remove-split-name;
+    in-out property <string> confirm-remove-split-id;
     callback confirm-remove-split();
 
-    // ── Split / mixer editor (spec §1.2, §5.1) — kind 0 = split, 1 = mixer ──
-    callback open-split-editor(int, int);
+    // ── Split / mixer editor (spec §1.2, §5.1) ──
+    // Args: chain index, split block id, kind (0 = split, 1 = mixer).
+    callback open-split-editor(int, string, int);
     in-out property <bool> split-editor-open: false;
     in-out property <int> split-editor-chain-index: -1;
     in-out property <int> split-editor-kind: 0;

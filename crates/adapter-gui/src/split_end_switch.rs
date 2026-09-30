@@ -1,18 +1,20 @@
-//! Responsibility: switches the end kind of a chain's split.
+//! Responsibility: switches the end kind of one split of a chain.
 //!
 //! #328 (orchestrator decision 9): the split editor's Mix / Y switch is a
-//! `SetSplitEnd` on the bus. The command owns the rule (no Y while a
-//! processing block follows the split) and its refusal comes back as
-//! `GestureError::Failed` for the toast. An accepted switch is resynced into
-//! the live chain (#614) and the rows are republished.
+//! `SetSplitEnd` on the bus for the split the editor shows. The command owns
+//! the rules (at most a Mix, then a Y, with no processing block after the Y)
+//! and its refusal comes back as `GestureError::Failed` for the toast. An
+//! accepted switch is resynced into the live chain (#614) and the rows are
+//! republished.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SplitCommand};
+use domain::ids::BlockId;
 use project::block::SplitEnd;
 
-use crate::chain_block_lists::split_of;
+use crate::chain_block_lists::split_by_id;
 use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
@@ -21,25 +23,26 @@ use crate::state::ProjectSession;
 pub(crate) fn set_split_end(
     session: &Rc<RefCell<Option<ProjectSession>>>,
     chain_index: usize,
+    split_id: &BlockId,
     end: SplitEnd,
     rows: &RowsTarget<'_>,
 ) -> Result<(), GestureError> {
     let borrowed = session.borrow();
     let session = borrowed.as_ref().ok_or(GestureError::NoProject)?;
-    let (chain_id, split_id) = {
+    let chain_id = {
         let project = session.project.borrow();
         let chain = project
             .chains
             .get(chain_index)
             .ok_or(GestureError::NoSuchChain)?;
-        let (_, split_id, _) = split_of(chain).ok_or(GestureError::NotApplicable)?;
-        (chain.id.clone(), split_id.clone())
+        split_by_id(chain, split_id).ok_or(GestureError::NotApplicable)?;
+        chain.id.clone()
     };
     session
         .dispatcher
         .dispatch(Command::Split(SplitCommand::SetSplitEnd {
             chain: chain_id.clone(),
-            split_id,
+            split_id: split_id.clone(),
             end,
         }))
         .map_err(|e| GestureError::Failed(e.to_string()))?;

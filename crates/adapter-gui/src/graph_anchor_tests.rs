@@ -2,7 +2,7 @@
 //! place in the chain: a position in one list plus the path of that list.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, split, y_chain};
+use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, split, y_chain};
 use crate::chain_graph_ids::{INPUT_NODE_ID, SPLIT_NODE_ID};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide, SplitEnd};
@@ -161,4 +161,30 @@ fn only_block_nodes_move() {
     let c = mix_chain();
     assert_eq!(move_target(&c, SPLIT_NODE_ID, &lane(2, 0, 0)), None);
     assert_eq!(move_target(&c, INPUT_NODE_ID, &lane(2, 0, 0)), None);
+}
+
+#[test]
+fn mix_then_y_a_lane_anchor_names_the_split_of_its_stage() {
+    // 0 input · 1 pre · 2 Mix mx(A: ma | B: mb) · 3 mid · 4 Y y(A: ya | B: yb)
+    let c = mix_then_y_chain();
+    let on_y = |side| {
+        Some(PathRef {
+            split: BlockId("y".into()),
+            side,
+        })
+    };
+    let on_mx = |side| {
+        Some(PathRef {
+            split: BlockId("mx".into()),
+            side,
+        })
+    };
+    assert_eq!(insert_target(&c, &lane(4, 0, 1)), at(1, on_y(PathSide::A)));
+    assert_eq!(insert_target(&c, &lane(4, 1, 0)), at(0, on_y(PathSide::B)));
+    assert_eq!(insert_target(&c, &lane(2, 1, 1)), at(1, on_mx(PathSide::B)));
+    assert_eq!(
+        insert_target(&c, &lane(3, 0, 0)),
+        None,
+        "stage 3 is not a split"
+    );
 }

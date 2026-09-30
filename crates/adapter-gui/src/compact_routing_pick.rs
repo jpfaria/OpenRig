@@ -6,6 +6,11 @@
 //! callback carrying a BINDING id, and this is where it becomes the command the
 //! block actually persists — an insert saves its loop binding, a port saves the
 //! binding plus that binding's first endpoint in its own direction.
+//!
+//! #328: the pick names a compact ROW, and rows list the blocks inside split
+//! paths too. The port commands address a top-level position, so the row is
+//! resolved to its own place first; a port inside a path is not re-pointed
+//! here rather than re-pointing the top-level block at the row's number.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,35 +18,52 @@ use std::rc::Rc;
 use application::command::{BlockCommand, ChainCommand, Command};
 use project::block::AudioBlockKind;
 
-use crate::compact_row_address::row_block;
+use crate::compact_row_address::compact_rows;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
 
-/// Whether the block at `(chain_index, block_index)` is routing, and if so
-/// dispatch the binding change. Returns `true` when it handled the pick, so the
-/// caller can skip the model path entirely.
+/// Whether the block on compact row `row` of chain `chain_index` is routing,
+/// and if so dispatch the binding change. Returns `true` when it handled the
+/// pick, so the caller can skip the model path entirely.
 pub(crate) fn dispatch_binding_pick(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     chain_index: usize,
-    block_index: usize,
+    row: usize,
     binding_id: &str,
 ) -> bool {
     let mut session_borrow = project_session.borrow_mut();
     let Some(session) = session_borrow.as_mut() else {
         return false;
     };
-    let (chain_id, block_id, kind) = {
+    let (chain_id, block_id, kind, address) = {
         let project = session.project.borrow();
         let Some(chain) = project.chains.get(chain_index) else {
             return false;
         };
-        let Some(block) = row_block(chain, block_index) else {
+        let Some((address, block)) = compact_rows(chain).into_iter().nth(row) else {
             return false;
         };
         if !block.kind.is_routing() {
             return false;
         }
-        (chain.id.clone(), block.id.clone(), block.kind.clone())
+        (
+            chain.id.clone(),
+            block.id.clone(),
+            block.kind.clone(),
+            address,
+        )
+    };
+    let top_level_index = match (&kind, &address.path) {
+        (AudioBlockKind::Input(_) | AudioBlockKind::Output(_), Some(path)) => {
+            log::warn!(
+                "[compact] port {} sits in path {:?} of split {}; not re-pointed",
+                block_id.0,
+                path.side,
+                path.split.0
+            );
+            return true;
+        }
+        _ => address.index,
     };
 
     // A port also needs an endpoint; take the binding's first one on its own
@@ -71,13 +93,13 @@ pub(crate) fn dispatch_binding_pick(
         }),
         AudioBlockKind::Input(_) => Command::Chain(ChainCommand::SaveChainInputEndpoints {
             chain: chain_id.clone(),
-            block_index,
+            block_index: top_level_index,
             io: binding_id.to_string(),
             endpoint: endpoint_of(true),
         }),
         AudioBlockKind::Output(_) => Command::Chain(ChainCommand::SaveChainOutputEndpoints {
             chain: chain_id.clone(),
-            block_index,
+            block_index: top_level_index,
             io: binding_id.to_string(),
             endpoint: endpoint_of(false),
         }),

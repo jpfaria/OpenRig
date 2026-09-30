@@ -200,7 +200,11 @@ pub(crate) fn wire(
         // has no model for the block editor below.
         if matches!(block.kind, AudioBlockKind::Split(_)) {
             drop(session_borrow);
-            crate::ChainGraphOverlayState::get(&window).invoke_open_split_editor(chain_index, 0);
+            crate::ChainGraphOverlayState::get(&window).invoke_open_split_editor(
+                chain_index,
+                block.id.0.as_str().into(),
+                0,
+            );
             return;
         }
         // #85: a mid I/O port opens the port editor it was created with, seeded

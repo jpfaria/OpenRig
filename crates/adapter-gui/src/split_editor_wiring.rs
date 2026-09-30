@@ -1,7 +1,8 @@
 //! Responsibility: drives the split editor overlay.
 //!
-//! #328 (spec §1.2, §5.1). One overlay edits either side of the split: kind 0
-//! shows the split's knobs and its Mix / Y switch, kind 1 the mixer's. A knob
+//! #328 (spec §1.2, §5.1). One overlay edits either side of the split it was
+//! opened on (by id — a chain may hold a Mix and a Y): kind 0 shows the
+//! split's knobs and its Mix / Y switch, kind 1 the mixer's. A knob
 //! edit goes on the bus as a `SetBlockParameter*` on the split block
 //! (`apply_parameter_to_block`), never through the drawer's persist, which
 //! would rebuild the block from a model. Rows update in place so a knob being
@@ -17,7 +18,7 @@ use domain::AudioDeviceDescriptor;
 use project::block::SplitEnd;
 
 use crate::block_param_apply::{apply_parameter_to_block, ApplyParamError, ParamValue};
-use crate::chain_block_lists::split_of;
+use crate::chain_block_lists::split_by_id;
 use crate::chain_graph_wiring::chain_at;
 use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use crate::helpers::set_status_error;
@@ -50,7 +51,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
     state.set_split_editor_end_y_label(rust_i18n::t!("picker-split-y").to_string().into());
     {
         let (weak, editor) = (window.as_weak(), editor.clone());
-        state.on_open_split_editor(move |chain_index, kind_index| {
+        state.on_open_split_editor(move |chain_index, split_id, kind_index| {
             let Some(window) = weak.upgrade() else {
                 return;
             };
@@ -60,14 +61,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
             let Some(chain) = chain_at(&editor.ctx.project_session, chain_index) else {
                 return;
             };
-            let Some((_, split_id, split)) = split_of(&chain) else {
+            let Some((_, split)) = split_by_id(&chain, &BlockId(split_id.to_string())) else {
                 return;
             };
             editor.rows.set_vec(split_editor_items(split, kind));
             let state = ChainGraphOverlayState::get(&window);
             state.set_split_editor_chain_index(chain_index);
             state.set_split_editor_kind(kind_index);
-            state.set_split_editor_split_id(split_id.0.as_str().into());
+            state.set_split_editor_split_id(split_id);
             state.set_split_editor_end_y(split.end == SplitEnd::Y);
             state.set_split_editor_title(kind.title().into());
             state.set_split_editor_open(true);
@@ -120,11 +121,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
     }
     {
         let (weak, editor) = (window.as_weak(), editor.clone());
-        state.on_split_editor_set_end(move |chain_index, _split_id, y| {
+        state.on_split_editor_set_end(move |chain_index, split_id, y| {
             let Some(window) = weak.upgrade() else {
                 return;
             };
-            switch_end(&window, &editor, chain_index, y);
+            switch_end(&window, &editor, chain_index, &split_id, y);
         });
     }
 }
@@ -167,12 +168,14 @@ fn commit(
     }
 }
 
-/// The Mix / Y switch: `SetSplitEnd`, a refusal shown as a toast; the lit
-/// segment always follows what the project holds afterwards.
-fn switch_end(window: &AppWindow, editor: &Editor, chain_index: i32, y: bool) {
+/// The Mix / Y switch of the split `split_id`: `SetSplitEnd`, a refusal shown
+/// as a toast; the lit segment always follows what the project holds
+/// afterwards.
+fn switch_end(window: &AppWindow, editor: &Editor, chain_index: i32, split_id: &str, y: bool) {
     let Ok(index) = usize::try_from(chain_index) else {
         return;
     };
+    let split_id = BlockId(split_id.to_string());
     let end = if y { SplitEnd::Y } else { SplitEnd::Mix };
     let result = {
         let inputs = editor.ctx.input_chain_devices.borrow();
@@ -182,7 +185,7 @@ fn switch_end(window: &AppWindow, editor: &Editor, chain_index: i32, y: bool) {
             inputs: &inputs,
             outputs: &outputs,
         };
-        set_split_end(&editor.ctx.project_session, index, end, &rows)
+        set_split_end(&editor.ctx.project_session, index, &split_id, end, &rows)
     };
     match result {
         Ok(()) => {}
@@ -194,7 +197,7 @@ fn switch_end(window: &AppWindow, editor: &Editor, chain_index: i32, y: bool) {
         Err(other) => log::warn!("[split-editor] end switch ignored: {other:?}"),
     }
     let now_y = chain_at(&editor.ctx.project_session, chain_index)
-        .and_then(|chain| split_of(&chain).map(|(_, _, split)| split.end == SplitEnd::Y))
+        .and_then(|chain| split_by_id(&chain, &split_id).map(|(_, split)| split.end == SplitEnd::Y))
         .unwrap_or(false);
     ChainGraphOverlayState::get(window).set_split_editor_end_y(now_y);
 }
@@ -202,14 +205,15 @@ fn switch_end(window: &AppWindow, editor: &Editor, chain_index: i32, y: bool) {
 /// Same row count ⇒ update each row in place (the knob under the pointer
 /// keeps its identity); otherwise swap the list.
 fn refresh_rows(window: &AppWindow, editor: &Editor, chain_index: i32) {
-    let kind_index = ChainGraphOverlayState::get(window).get_split_editor_kind();
-    let Some(kind) = SplitEditorKind::from_index(kind_index) else {
+    let state = ChainGraphOverlayState::get(window);
+    let Some(kind) = SplitEditorKind::from_index(state.get_split_editor_kind()) else {
         return;
     };
     let Some(chain) = chain_at(&editor.ctx.project_session, chain_index) else {
         return;
     };
-    let Some((_, _, split)) = split_of(&chain) else {
+    let split_id = BlockId(state.get_split_editor_split_id().to_string());
+    let Some((_, split)) = split_by_id(&chain, &split_id) else {
         return;
     };
     let fresh = split_editor_items(split, kind);
