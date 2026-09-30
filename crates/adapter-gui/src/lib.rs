@@ -409,6 +409,8 @@ mod issue_328_graph_row_interaction_tests;
 mod issue_328_path_block_editor_tests;
 #[cfg(test)]
 mod issue_328_split_picker_tests;
+#[cfg(test)]
+mod issue_328_split_chip_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

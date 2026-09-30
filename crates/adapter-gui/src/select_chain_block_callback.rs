@@ -196,6 +196,13 @@ pub(crate) fn wire(
                     },
                 ));
         }
+        // #328 (spec §5.4): the Split chip opens the split editor; the split
+        // has no model for the block editor below.
+        if matches!(block.kind, AudioBlockKind::Split(_)) {
+            drop(session_borrow);
+            crate::ChainGraphOverlayState::get(&window).invoke_open_split_editor(chain_index, 0);
+            return;
+        }
         // #85: a mid I/O port opens the port editor it was created with, seeded
         // with the E/S it currently points at — otherwise the port is added and
         // then uneditable ("this block cannot be edited from the GUI yet"), so

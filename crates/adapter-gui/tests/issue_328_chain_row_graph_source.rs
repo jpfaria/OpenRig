@@ -56,3 +56,10 @@ fn graph_cards_mark_the_selection_by_block_id() {
         read("ui/pages/chain_row.slint").contains("markers-visible: root.midi-selection-active;")
     );
 }
+
+#[test]
+fn the_icon_set_draws_split_and_mixer_from_svg() {
+    let icons = read("ui/components/effect_type_icon.slint");
+    assert!(icons.contains("root.icon-kind == \"split\"") && icons.contains("graph-split.svg"));
+    assert!(icons.contains("root.icon-kind == \"mixer\"") && icons.contains("graph-mix.svg"));
+}
