@@ -677,3 +677,72 @@ fn the_latency_probe_summary_names_a_faulted_path_block() {
         "the probe must see inside the paths: {summary}"
     );
 }
+
+#[test]
+fn toggling_a_block_inside_a_path_fades_it_out() {
+    let (chain, registry) = mono_chain(
+        "toggle",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![volume_block("amp_a", 100.0)],
+            vec![volume_block("amp_b", 100.0)],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    drive_and_capture(&runtime, 1, &sine_block(256, 0), 2);
+    super::set_block_enabled(&runtime, &BlockId("amp_b".into()), false).expect("queued");
+    drive_and_capture(&runtime, 1, &sine_block(256, 256), 2);
+    drive_and_capture(&runtime, 1, &sine_block(256, 512), 2);
+    with_split(&runtime, |split| {
+        assert!(!split.b[0].block_snapshot.enabled, "amp B is off");
+        assert_eq!(
+            split.b[0].fade_state,
+            FadeState::Bypassed,
+            "after its fade-out"
+        );
+    });
+    let errors = runtime.poll_errors();
+    assert!(
+        errors.is_empty(),
+        "the toggle must find the block inside the path: {errors:?}"
+    );
+}
+
+#[test]
+fn switching_the_ir_in_path_a_off_realigns_the_paths() {
+    let (chain, registry) = mono_chain(
+        "toggle_align",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[invert()],
+            vec![unit_impulse_ir_block("a_ir")],
+            vec![],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    let mut callback = 0;
+    for _ in 0..8 {
+        drive_and_capture(&runtime, 1, &sine_block(256, callback * 256), 2);
+        callback += 1;
+    }
+    super::set_block_enabled(&runtime, &BlockId("a_ir".into()), false).expect("queued");
+    let mut peak = 0.0_f32;
+    for step in 0..12 {
+        let out = drive_and_capture(&runtime, 1, &sine_block(256, callback * 256), 2);
+        callback += 1;
+        if step >= 4 {
+            peak = peak.max(peak_abs(&out));
+        }
+    }
+    with_split(&runtime, |split| {
+        assert_eq!(
+            split.align_b.delay(),
+            0,
+            "with the cab off the dry path waits for nothing"
+        )
+    });
+    assert!(peak < 1e-4, "the realigned paths cancel again, peak {peak}");
+}

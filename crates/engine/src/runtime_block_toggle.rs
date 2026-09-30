@@ -58,7 +58,8 @@ use domain::ids::BlockId;
 
 use crate::runtime::FADE_IN_FRAMES;
 use crate::runtime_state::{
-    BlockError, ChainProcessingState, ChainRuntimeState, FadeState, RuntimeProcessor,
+    BlockError, BlockRuntimeNode, ChainProcessingState, ChainRuntimeState, FadeState,
+    RuntimeProcessor,
 };
 
 /// Queue a per-block enabled flip for the audio thread to apply on its
@@ -113,10 +114,10 @@ pub(crate) fn drain_pending_block_toggles(
 }
 
 /// In-place mutation that flips `fade_state` for every node matching
-/// `block_id` across every per-input runtime of the chain. Mirrors the
-/// pre-#580 inline implementation but never takes the `processing`
-/// lock itself (the audio-thread caller already holds it via
-/// `process_input_f32`'s try_lock guard).
+/// `block_id` across every per-input runtime of the chain — inside the paths
+/// of a split too, which then lines its paths up again (#328). Never takes
+/// the `processing` lock itself (the audio-thread caller already holds it
+/// via `process_input_f32`'s try_lock guard); no allocation on success.
 fn apply_block_toggle(
     processing: &mut ChainProcessingState,
     block_id: &BlockId,
@@ -126,33 +127,17 @@ fn apply_block_toggle(
     let mut touched = 0usize;
     for input_state in processing.input_states.iter_mut() {
         for node in input_state.blocks.iter_mut() {
-            if &node.block_snapshot.id != block_id {
-                continue;
+            touched += toggle_node(node, block_id, enabled, runtime);
+            if let RuntimeProcessor::Split(split) = &mut node.processor {
+                let mut in_paths = 0usize;
+                for path_node in split.a.iter_mut().chain(split.b.iter_mut()) {
+                    in_paths += toggle_node(path_node, block_id, enabled, runtime);
+                }
+                if in_paths > 0 {
+                    split.refresh_alignment();
+                }
+                touched += in_paths;
             }
-            if enabled && matches!(node.processor, RuntimeProcessor::Bypass) {
-                let _ = runtime.error_queue.push(BlockError {
-                    block_id: block_id.clone(),
-                    message: format!(
-                        "block '{}' has no live processor — needs full rebuild to re-enable",
-                        block_id.0
-                    ),
-                });
-                continue;
-            }
-            let was_enabled = node.block_snapshot.enabled;
-            if was_enabled != enabled {
-                node.fade_state = if enabled {
-                    FadeState::FadingIn {
-                        frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
-                    }
-                } else {
-                    FadeState::FadingOut {
-                        frames_remaining: FADE_IN_FRAMES,
-                    }
-                };
-            }
-            node.block_snapshot.enabled = enabled;
-            touched += 1;
         }
     }
     if touched == 0 {
@@ -164,4 +149,40 @@ fn apply_block_toggle(
             ),
         });
     }
+}
+
+/// Flip one node when it is `block_id`; returns 1 when it was toggled.
+fn toggle_node(
+    node: &mut BlockRuntimeNode,
+    block_id: &BlockId,
+    enabled: bool,
+    runtime: &ChainRuntimeState,
+) -> usize {
+    if &node.block_snapshot.id != block_id {
+        return 0;
+    }
+    if enabled && matches!(node.processor, RuntimeProcessor::Bypass) {
+        let _ = runtime.error_queue.push(BlockError {
+            block_id: block_id.clone(),
+            message: format!(
+                "block '{}' has no live processor — needs full rebuild to re-enable",
+                block_id.0
+            ),
+        });
+        return 0;
+    }
+    let was_enabled = node.block_snapshot.enabled;
+    if was_enabled != enabled {
+        node.fade_state = if enabled {
+            FadeState::FadingIn {
+                frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
+            }
+        } else {
+            FadeState::FadingOut {
+                frames_remaining: FADE_IN_FRAMES,
+            }
+        };
+    }
+    node.block_snapshot.enabled = enabled;
+    1
 }
