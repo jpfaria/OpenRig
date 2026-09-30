@@ -1,0 +1,142 @@
+use super::*;
+
+const RATE: f32 = 44_100.0;
+const BUFFER: usize = 64;
+
+/// 1.5 s of the rig's In 1 (HD 8, 44.1 kHz, OpenRig at 64 frames) recorded on
+/// 30/09 while the chain was ON and the owner heard the stacked "box of bees"
+/// sound: per-phase |3rd difference| folded at 64 frames reads max/median 107–186
+/// in every 0.25 s window.
+const STEPPED: &[u8] = include_bytes!("../tests/fixtures/issue_979/in1_stepped.f32");
+/// Same input, same minute, chain OFF: the fold reads 1.1–1.3.
+const CLEAN: &[u8] = include_bytes!("../tests/fixtures/issue_979/in1_clean.f32");
+
+fn samples(raw: &[u8]) -> Vec<f32> {
+    raw.chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect()
+}
+
+/// Feeds `signal` in `BUFFER`-frame buffers (mono, like one input channel) and
+/// returns the frame count at which the detector first reported a trip.
+fn feed(detector: &mut InputSeamDetector, signal: &[f32]) -> Option<usize> {
+    let mut fed = 0;
+    for chunk in signal.chunks_exact(BUFFER) {
+        fed += chunk.len();
+        if detector.push(chunk, 1, 0) {
+            return Some(fed);
+        }
+    }
+    None
+}
+
+fn noise(frames: usize, amplitude: f32) -> Vec<f32> {
+    let mut state = 0x2545_F491_u32;
+    (0..frames)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            (state as f32 / u32::MAX as f32 * 2.0 - 1.0) * amplitude
+        })
+        .collect()
+}
+
+#[test]
+fn the_recorded_stepped_input_trips_after_one_second() {
+    let mut detector = InputSeamDetector::new(RATE);
+    let tripped_at = feed(&mut detector, &samples(STEPPED));
+    let frames = tripped_at.expect("the stepped In 1 recording never tripped the detector");
+    assert!(
+        frames >= RATE as usize,
+        "tripped after {frames} frames, before one second of stepped input"
+    );
+}
+
+#[test]
+fn the_recorded_clean_input_never_trips() {
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(feed(&mut detector, &samples(CLEAN)), None);
+}
+
+#[test]
+fn a_trip_stays_latched_until_reset() {
+    let mut detector = InputSeamDetector::new(RATE);
+    feed(&mut detector, &samples(STEPPED)).expect("stepped input must trip");
+    let clean = samples(CLEAN);
+    assert!(detector.push(&clean[..BUFFER], 1, 0));
+    detector.reset();
+    assert_eq!(feed(&mut detector, &clean), None);
+}
+
+#[test]
+fn white_noise_never_trips() {
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(feed(&mut detector, &noise(3 * RATE as usize, 0.01)), None);
+}
+
+#[test]
+fn digital_silence_never_trips() {
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(feed(&mut detector, &vec![0.0; 3 * RATE as usize]), None);
+}
+
+#[test]
+fn stepped_input_shorter_than_one_second_does_not_trip() {
+    let stepped = samples(STEPPED);
+    let clean = samples(CLEAN);
+    let half = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
+    let mut signal = stepped[..half].to_vec();
+    signal.extend_from_slice(&clean[..half]);
+    signal.extend_from_slice(&stepped[..half]);
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(feed(&mut detector, &signal), None);
+}
+
+#[test]
+fn silence_holds_the_count_instead_of_clearing_it() {
+    let stepped = samples(STEPPED);
+    let part = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
+    let mut signal = stepped[..part].to_vec();
+    signal.extend(std::iter::repeat_n(0.0, part));
+    signal.extend_from_slice(&stepped[part..2 * part]);
+    let mut detector = InputSeamDetector::new(RATE);
+    assert!(feed(&mut detector, &signal).is_some());
+}
+
+#[test]
+fn a_buffer_size_change_restarts_the_count() {
+    let stepped = samples(STEPPED);
+    let part = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(feed(&mut detector, &stepped[..part]), None);
+    for chunk in stepped[part..].chunks_exact(128).take(8) {
+        assert!(!detector.push(chunk, 1, 0));
+    }
+    let rest = &stepped[part + 8 * 128..];
+    let tripped_at = feed(&mut detector, rest);
+    assert!(
+        tripped_at.is_none_or(|frames| frames >= RATE as usize),
+        "the count survived a buffer size change: tripped {tripped_at:?} frames after it"
+    );
+}
+
+#[test]
+fn only_the_stepped_channel_of_an_interleaved_buffer_trips() {
+    let stepped = samples(STEPPED);
+    let clean = samples(CLEAN);
+    let interleaved: Vec<f32> = stepped
+        .iter()
+        .zip(&clean)
+        .flat_map(|(s, c)| [*c, *s])
+        .collect();
+    let mut on_clean = InputSeamDetector::new(RATE);
+    let mut on_stepped = InputSeamDetector::new(RATE);
+    let (mut clean_tripped, mut stepped_tripped) = (false, false);
+    for chunk in interleaved.chunks_exact(BUFFER * 2) {
+        clean_tripped |= on_clean.push(chunk, 2, 0);
+        stepped_tripped |= on_stepped.push(chunk, 2, 1);
+    }
+    assert!(!clean_tripped, "the clean channel tripped");
+    assert!(stepped_tripped, "the stepped channel did not trip");
+}

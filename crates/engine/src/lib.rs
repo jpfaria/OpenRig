@@ -27,6 +27,7 @@ mod elastic_skip_fade;
 mod endpoint_entry;
 mod endpoint_fader;
 mod input_conflicts;
+pub mod input_seam_detector;
 pub mod input_tap;
 pub mod insert_cut;
 mod insert_endpoints;
