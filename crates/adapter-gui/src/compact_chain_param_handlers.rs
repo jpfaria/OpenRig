@@ -19,6 +19,7 @@ use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
+use crate::compact_row_address::row_block;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
@@ -81,7 +82,7 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())
@@ -150,7 +151,7 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 // Resolve option value string from schema + index.
@@ -241,7 +242,7 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

@@ -67,6 +67,8 @@ mod chain_row_wiring;
 mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
 mod cli;
+mod compact_block_detail;
+mod compact_block_insert;
 mod compact_block_layout;
 mod compact_block_tabs;
 mod compact_block_view;
@@ -80,6 +82,8 @@ mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod compact_mixer_wiring;
 mod compact_routing_pick;
+mod compact_row_address;
+mod compact_split_row;
 mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
@@ -422,6 +426,12 @@ mod project_view_stream_meters_tests;
 #[cfg(test)]
 mod touch_window_io_parity_tests;
 
+#[cfg(test)]
+mod compact_row_address_tests;
+#[cfg(test)]
+mod issue_328_compact_path_row_actions_tests;
+#[cfg(test)]
+mod issue_328_compact_split_rows_tests;
 #[cfg(test)]
 mod issue_328_endpoint_checklist_interaction_tests;
 #[cfg(test)]

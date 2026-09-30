@@ -13,6 +13,7 @@ use std::rc::Rc;
 use application::command::{BlockCommand, ChainCommand, Command};
 use project::block::AudioBlockKind;
 
+use crate::compact_row_address::row_block;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
 
@@ -34,7 +35,7 @@ pub(crate) fn dispatch_binding_pick(
         let Some(chain) = project.chains.get(chain_index) else {
             return false;
         };
-        let Some(block) = chain.blocks.get(block_index) else {
+        let Some(block) = row_block(chain, block_index) else {
             return false;
         };
         if !block.kind.is_routing() {
