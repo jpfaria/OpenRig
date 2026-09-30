@@ -4,7 +4,8 @@
 // (`MixerBridge`, the same one the Mixer window moves) beside this chain's
 // own fader on it (`ChainMixerBridge`). OUT opens with the chain's MASTER
 // (the chain volume) as its first fader. DI, LOOPER and MASTER are single
-// faders of this chain only. The section opens collapsed every time: only
+// faders of this chain only; the DI tab shows while the DI loop plays and the
+// LOOPER tab while the chain has a looper. The section opens collapsed every time: only
 // its header shows until it is expanded.
 
 import { ScrollView } from "std-widgets.slint";
@@ -23,8 +24,16 @@ export component CompactChainMixer inherits Rectangle {
     // Every chain has at least its MASTER fader.
     out property <bool> has-strips: true;
 
-    // 0 IN, 1 OUT (MASTER first), 2 DI, 3 LOOPER.
-    private property <int> tab: 0;
+    // The DI tab shows only while the chain's DI loop plays.
+    in property <bool> di-playing: false;
+    private property <bool> has-looper: ChainMixerBridge.loopers.length > 0;
+    // 0 IN, 1 OUT (MASTER first), 2 DI, 3 LOOPER — whichever of DI / LOOPER
+    // is absent drops out of the bar, and a picked tab that disappears falls
+    // back to IN.
+    private property <int> picked: 0;
+    private property <int> tab:
+        (root.picked == 2 && !root.di-playing) || (root.picked == 3 && !root.has-looper)
+        ? 0 : root.picked;
     private property <[MixerStripRow]> no-rows: [];
     private property <[MixerStripRow]> dual-rows:
         root.tab == 0 ? MixerBridge.inputs : (root.tab == 1 ? MixerBridge.outputs : root.no-rows);
@@ -65,14 +74,16 @@ export component CompactChainMixer inherits Rectangle {
     if root.expanded : ParamTabBar {
         x: 16px; y: root.header-height + 6px;
         width: parent.width - 32px; height: root.tabs-height;
-        groups: [
-            @tr("tab-mixer-in"),
-            @tr("tab-mixer-out"),
-            @tr("tab-mixer-di"),
-            @tr("tab-mixer-looper"),
-        ];
-        active: root.tab;
-        select(i) => { root.tab = i; }
+        groups: root.di-playing && root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di"), @tr("tab-mixer-looper")]
+            : root.di-playing
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di")]
+            : root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-looper")]
+            : [@tr("tab-mixer-in"), @tr("tab-mixer-out")];
+        // Bar position 2 is DI while it plays, LOOPER otherwise.
+        active: root.tab == 3 && !root.di-playing ? 2 : root.tab;
+        select(i) => { root.picked = i == 2 && !root.di-playing ? 3 : i; }
     }
 
     if root.expanded : ScrollView {
