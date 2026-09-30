@@ -1,4 +1,4 @@
-//! Responsibility: names the binding on both sides of each stream.
+//! Responsibility: describes the endpoint on each side of a stream.
 
 use domain::io_binding::IoBinding;
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
@@ -19,6 +19,10 @@ use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub struct StreamIoLabels {
     pub input: String,
     pub output: String,
+    /// 1-based channels the stream reads, e.g. "1" (#1006).
+    pub input_channels: String,
+    /// 1-based channels the stream writes, one group per output, e.g. "1,2 + 17,18".
+    pub output_channels: String,
 }
 
 /// One entry per stream, in the same order `chain_stream_count` counts them —
@@ -47,10 +51,15 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
         .iter()
         .map(|segment| {
             let mut outputs: Vec<String> = Vec::new();
+            let mut output_channels: Vec<String> = Vec::new();
             for &route in &segment.output_route_indices {
                 let Some(entry) = eff_outputs.get(route) else {
                     continue;
                 };
+                let chans = channel_list(&entry.channels);
+                if !output_channels.contains(&chans) {
+                    output_channels.push(chans);
+                }
                 let id = inserts
                     .iter()
                     .find(|(_, _, send)| same_output(send, entry))
@@ -78,9 +87,20 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
             StreamIoLabels {
                 input: input_id.map(|id| name(&id)).unwrap_or_default(),
                 output: outputs.join(" + "),
+                input_channels: channel_list(&segment.input.channels),
+                output_channels: output_channels.join(" + "),
             }
         })
         .collect()
+}
+
+/// 0-based device channels as the interface prints them: "0,1" -> "1,2".
+fn channel_list(channels: &[usize]) -> String {
+    channels
+        .iter()
+        .map(|c| (c + 1).to_string())
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn binding_name(registry: &[IoBinding], id: &str) -> String {

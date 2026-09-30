@@ -231,6 +231,9 @@ fn refresh_chain_meter_row(
                     || (a.out_dbfs - b.out_dbfs).abs() > 0.05
                     || a.in_label != b.in_label
                     || a.out_label != b.out_label
+                    || a.in_channels != b.in_channels
+                    || a.out_channels != b.out_channels
+                    || a.in_repeated != b.in_repeated
             })
     };
     let aggregate_changed =
@@ -255,6 +258,9 @@ fn refresh_chain_meter_row(
             .map_or(engine::output_meter::SILENT_DBFS, |d| d.out_dbfs),
         in_label: Default::default(),
         out_label: Default::default(),
+        in_channels: Default::default(),
+        out_channels: Default::default(),
+        in_repeated: false,
     };
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
