@@ -1,0 +1,18 @@
+// Responsibility: hosts the global mixer panel for a test.
+// #1007 TEST-ONLY harness: hosts MixerPanel in a real Window so the headless
+// interaction tests (i-slint-backend-testing) can dispatch real pointer events
+// at the faders and mute buttons. Imported by app-window.slint purely so
+// slint-build emits the Rust type; never shown in the running app.
+
+import { MixerPanel } from "../pages/mixer_window.slint";
+
+export component MixerHarness inherits Window {
+    width: 720px;
+    height: 480px;
+
+    MixerPanel {
+        width: 100%;
+        height: 100%;
+        show-close-button: true;
+    }
+}

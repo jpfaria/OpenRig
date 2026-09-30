@@ -25,6 +25,9 @@ pub const URI_METRONOME: &str = "openrig://metronome";
 /// #923: what each output route's device stream pulled (callbacks, underruns,
 /// peak since the last read) per (chain, runtime group, route).
 pub const URI_ROUTES: &str = "openrig://routes";
+/// #1007: the global mixer — one strip per configured endpoint with its
+/// fader and mute. Read parity for the mixer commands.
+pub const URI_MIXER: &str = "openrig://mixer";
 /// #829: per-chain latency probe. Concrete URIs look like
 /// `openrig://chains/<chain_id>/latency`.
 pub const URI_CHAIN_LATENCY_TEMPLATE: &str = "openrig://chains/{chain}/latency";
@@ -124,6 +127,13 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(
                 URI_ROUTES,
                 "Per-output-route stream accounting (callbacks, underruns, peak since last read) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_MIXER,
+                "Global mixer strips (one per configured endpoint: fader dB, mute) — JSON",
             ),
             None,
         ),
@@ -255,6 +265,7 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_DI => QueryKind::DiLoopState,
             URI_METRONOME => QueryKind::MetronomeState,
             URI_ROUTES => QueryKind::OutputRoutes,
+            URI_MIXER => QueryKind::MixerState,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
@@ -287,6 +298,7 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::DiLoopState => URI_DI.to_string(),
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
+        QueryKind::MixerState => URI_MIXER.to_string(),
         QueryKind::ChainLatency { chain } => {
             format!("openrig://chains/{}/latency", chain.0)
         }

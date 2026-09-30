@@ -46,6 +46,7 @@ mod local_dispatcher_language;
 mod local_dispatcher_looper;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
+mod local_dispatcher_mixer;
 mod local_dispatcher_model_swap_rig;
 mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
@@ -67,6 +68,10 @@ pub mod looper_edit;
 /// #127: the metronome's control-plane state — settings, chosen output and
 /// tap history — owned by the dispatcher so every transport shares one truth.
 pub mod metronome_state;
+/// #1007: the global mixer's control-plane state.
+pub mod mixer_state;
+/// #1007: the global mixer strips as frontends read them.
+pub mod mixer_view;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
@@ -82,6 +87,7 @@ pub mod query_ids;
 pub mod query_kind;
 pub mod query_latency;
 pub mod query_loopers;
+pub mod query_mixer;
 pub mod query_output_routes;
 pub mod query_paths;
 pub mod query_plugins;
@@ -110,6 +116,10 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_mixer_tests.rs"]
+mod local_dispatcher_mixer_tests;
 
 #[cfg(test)]
 #[path = "ld_block2_tests.rs"]

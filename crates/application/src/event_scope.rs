@@ -77,6 +77,8 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            // #1007: mixer strips are system-level endpoints, never a chain.
+            | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }
             | Event::MidiEnabledChanged { .. }
             | Event::McpEnabledChanged { .. }

@@ -13,7 +13,7 @@
 
 use std::path::PathBuf;
 
-use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig};
+use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig};
 
 /// Read-modify-write `config.yaml` on the persist worker, against the path
 /// bound NOW. `mutate` runs on the worker thread after the current config
@@ -60,6 +60,28 @@ pub fn persist_metronome(
             mutate(&mut config.metronome)
         }) {
             log::error!("persist metronome failed: {e}");
+        }
+    });
+}
+
+/// #1007: upsert one global-mixer strip into `config.yaml` on the persist
+/// worker. Only callers holding an attached config path reach this (#701).
+/// A strip back at unity and unmuted leaves the file: the default needs no
+/// entry.
+pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            let at_default = strip.gain_db == 0.0 && !strip.muted;
+            match config.mixer.iter().position(|s| s.id == strip.id) {
+                Some(i) if at_default => {
+                    config.mixer.remove(i);
+                }
+                Some(i) => config.mixer[i] = strip,
+                None if at_default => {}
+                None => config.mixer.push(strip),
+            }
+        }) {
+            log::error!("persist mixer strip failed: {e}");
         }
     });
 }

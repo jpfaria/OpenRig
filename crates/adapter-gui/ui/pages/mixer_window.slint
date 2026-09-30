@@ -1,0 +1,164 @@
+// Responsibility: renders the global mixer window.
+// #1007 — one strip per input and output endpoint configured in the I/O
+// bindings, grouped by side. Header mirrors the metronome's; the body scrolls
+// sideways when a machine has more endpoints than the window is wide.
+//
+// The panel reads its state from `MixerBridge`, so the same component serves
+// the standalone window and the inline (fullscreen/touch) placement.
+
+import { ScrollView } from "std-widgets.slint";
+import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
+import { MixerStripView } from "../components/mixer_strip.slint";
+
+// One side of the mixer: a caption over its strips.
+component MixerSection inherits Rectangle {
+    in property <string> caption;
+    in property <[MixerStripRow]> strips;
+
+    Text {
+        x: 0; y: 0;
+        width: parent.width; height: 22px;
+        text: root.caption;
+        color: #93a1b7;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 2.0px;
+    }
+
+    HorizontalLayout {
+        x: 0; y: 28px;
+        height: parent.height - 28px;
+        spacing: 8px;
+        alignment: start;
+        for strip in root.strips : MixerStripView {
+            strip: strip;
+            fader-moved(id, position) => { MixerBridge.fader-moved(id, position); }
+            fader-reset(id) => { MixerBridge.fader-reset(id); }
+            mute-toggled(id) => { MixerBridge.mute-toggled(id); }
+        }
+    }
+}
+
+export component MixerPanel inherits Rectangle {
+    // The inline overlay needs a close button; the standalone window closes via
+    // its own chrome.
+    in property <bool> show-close-button: false;
+
+    private property <length> section-gap: 24px;
+    private property <length> inputs-width: MixerBridge.inputs.length * 104px;
+    private property <length> outputs-width: MixerBridge.outputs.length * 104px;
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header bar ───────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 72px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        Image {
+            x: 20px; y: 24px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/mixer-faders.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 54px; y: 0;
+            width: 200px; height: parent.height;
+            text: @tr("label-mixer");
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 22px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { MixerBridge.close-mixer(); }
+            }
+        }
+    }
+
+    // ── Empty state — nothing configured to mix ──────────────────────────
+    if MixerBridge.inputs.length + MixerBridge.outputs.length == 0 : Text {
+        x: 24px; y: 72px;
+        width: parent.width - 48px; height: parent.height - 72px;
+        text: @tr("status-mixer-no-endpoints");
+        color: #6a6a82;
+        font-size: 18px;
+        wrap: word-wrap;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // ── Strips — inputs, then outputs ────────────────────────────────────
+    ScrollView {
+        x: 16px; y: 88px;
+        width: parent.width - 32px;
+        height: parent.height - 104px;
+        viewport-width: max(self.width,
+            root.inputs-width + root.section-gap + root.outputs-width);
+        viewport-height: self.height;
+
+        if MixerBridge.inputs.length > 0 : MixerSection {
+            x: 0; y: 0;
+            width: root.inputs-width;
+            height: parent.height - 12px;
+            caption: @tr("label-mixer-inputs");
+            strips: MixerBridge.inputs;
+        }
+
+        if MixerBridge.outputs.length > 0 : MixerSection {
+            x: MixerBridge.inputs.length > 0 ? root.inputs-width + root.section-gap : 0;
+            y: 0;
+            width: root.outputs-width;
+            height: parent.height - 12px;
+            caption: @tr("label-mixer-outputs");
+            strips: MixerBridge.outputs;
+        }
+    }
+}
+
+export component MixerWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 18px;
+    title: @tr("title-window-mixer");
+    min-width: 360px;
+    min-height: 420px;
+    preferred-width: 720px;
+    preferred-height: 480px;
+    background: #050608;
+
+    MixerPanel {
+        width: 100%;
+        height: 100%;
+        show-close-button: false;
+    }
+}

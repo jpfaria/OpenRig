@@ -33,6 +33,8 @@ use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
@@ -223,6 +225,8 @@ impl CommandDispatcher for LocalDispatcher {
             ) => self.handle_diagnostic_enabled(cmd),
 
             Command::Metronome(_) => self.handle_metronome(cmd),
+
+            Command::Mixer(_) => self.handle_mixer(cmd),
 
             // #791: the Tone Doctor — diagnosis and its measured fix, on the
             // bus so MCP/gRPC reach the same verdict the GUI panel shows.
@@ -434,5 +438,13 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         LocalDispatcher::metronome_snapshot(self)
+    }
+
+    fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
+        LocalDispatcher::attach_mixer_state(self, state)
+    }
+
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        LocalDispatcher::mixer_strips(self)
     }
 }

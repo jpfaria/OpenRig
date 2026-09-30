@@ -61,7 +61,9 @@ use application::command_schema::command_variant_names;
 /// (`EditChainLooperAudio`/`UndoChainLooperEdit`/`RedoChainLooperEdit`) —
 /// trimming, cropping and cutting a recorded loop, so a headless client
 /// reshapes a take exactly as the waveform editor does.
-const COMMAND_VARIANT_COUNT: usize = 99;
+/// #1007 bumped to 102 with `SetMixerFader`/`SetMixerMute`/`ToggleMixerMute`
+/// — the global mixer's per-endpoint fader and mute.
+const COMMAND_VARIANT_COUNT: usize = 102;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

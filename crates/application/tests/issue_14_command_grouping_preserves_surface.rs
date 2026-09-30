@@ -119,6 +119,9 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetLanguage",
     "SetMcpEnabled",
     "SetMidiEnabled",
+    // #1007: the global mixer.
+    "SetMixerFader",
+    "SetMixerMute",
     "SetOutputMuted",
     "SetPluginsPath",
     "SetPresetsPath",
@@ -133,6 +136,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "ToggleActiveBlockNeighborEnabled",
     "ToggleBlockEnabled",
     "ToggleChainEnabled",
+    "ToggleMixerMute",
     "UnloadPlugin",
     "UpdateIoBinding",
     "UpdateProjectName",

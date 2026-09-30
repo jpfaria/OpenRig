@@ -6,9 +6,11 @@ pub mod midi_device;
 pub mod midi_migrate;
 pub mod midi_paths;
 pub mod midi_profile;
+pub mod mixer_config;
 pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
 pub use metronome_config::MetronomeConfig;
 pub use midi_device::{MidiDeviceSelection, MidiPortKey};
+pub use mixer_config::MixerStripConfig;
 
 #[cfg(test)]
 #[path = "midi_profile_tests.rs"]

@@ -25,11 +25,12 @@ import { LooperHarness } from "components/looper_panel_test_harness.slint";
 import { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
 import { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness }
+import { MixerHarness } from "components/mixer_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, MixerHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MixerWindow, MixerBridge, MixerStripRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
@@ -40,9 +41,9 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 export { AppUpdate } from "components/app_update_globals.slint";
-export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs, MixerBridge, MixerStripRow }
 export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge }
-export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
+export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow, MixerWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
 

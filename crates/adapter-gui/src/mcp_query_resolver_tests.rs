@@ -70,6 +70,7 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::ChainToneReport { chain },
         QueryKind::MetronomeState,
         QueryKind::OutputRoutes,
+        QueryKind::MixerState,
     ]
 }
 

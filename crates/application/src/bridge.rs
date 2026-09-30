@@ -122,6 +122,7 @@ impl CommandBridge {
             | QueryKind::DiLoopState
             | QueryKind::OutputRoutes
             | QueryKind::MetronomeState
+            | QueryKind::MixerState
             | QueryKind::ChainLatency { .. }
             | QueryKind::ChainToneReport { .. } => None,
             // Handled above; unreachable here.

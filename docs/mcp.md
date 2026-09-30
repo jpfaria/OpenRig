@@ -105,6 +105,12 @@ follow-up.
     metronome commands — a client that can start the click can see the
     tempo it runs at and the beat it is on. With no runtime hosted the
     position reads as beat zero rather than a fabricated one.
+  - `openrig://mixer` (#1007) — the global mixer: `strips`, one per input
+    and output endpoint configured in the I/O bindings, inputs first, each
+    with `id` (what the mixer tools address), `direction`
+    (`input`/`output`), `name`, `device_id`, `channels`, `gain_db`
+    (-60..+12, 0 = unity) and `muted` (JSON). Read parity for
+    `set_mixer_fader` / `set_mixer_mute` / `toggle_mixer_mute`.
   - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
     one chain, probed at that chain input's real rate and buffer (never a
     hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used. With

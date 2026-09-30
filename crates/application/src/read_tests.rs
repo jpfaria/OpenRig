@@ -52,6 +52,7 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::ChainToneReport { chain },
         QueryKind::MetronomeState,
         QueryKind::OutputRoutes,
+        QueryKind::MixerState,
     ]
 }
 
@@ -59,7 +60,7 @@ fn all_kinds() -> Vec<QueryKind> {
 /// arm in `match_all_kinds` (exhaustive match) AND a new entry here (fixed
 /// array length), and `all_kinds_covers_every_variant` then fails until
 /// `all_kinds` lists it too — the loop below cannot silently skip a kind.
-const KIND_NAMES: [&str; 21] = [
+const KIND_NAMES: [&str; 22] = [
     "ProjectYaml",
     "Devices",
     "Ids",
@@ -81,6 +82,7 @@ const KIND_NAMES: [&str; 21] = [
     "ChainToneReport",
     "MetronomeState",
     "OutputRoutes",
+    "MixerState",
 ];
 
 fn match_all_kinds(kind: &QueryKind) -> &'static str {
@@ -106,6 +108,7 @@ fn match_all_kinds(kind: &QueryKind) -> &'static str {
         QueryKind::ChainToneReport { .. } => "ChainToneReport",
         QueryKind::MetronomeState => "MetronomeState",
         QueryKind::OutputRoutes => "OutputRoutes",
+        QueryKind::MixerState => "MixerState",
     }
 }
 
@@ -525,5 +528,57 @@ fn a_frontend_that_cannot_resolve_a_rate_leaves_the_engine_rate_in_charge() {
         expected,
         "with nothing to resolve the rate against, the dispatcher's tracked rate is the \
          answer — never a number written here: {json}"
+    );
+}
+
+#[test]
+fn the_mixer_state_lists_every_strip_with_its_setting() {
+    use crate::command::{Command, MixerCommand};
+    use crate::dispatcher::CommandDispatcher;
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    dispatcher.attach_io_bindings(Rc::new(RefCell::new(vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "Guitar".into(),
+            device_id: DeviceId("mxr-read".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "Main".into(),
+            device_id: DeviceId("mxr-read".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }])));
+    dispatcher
+        .dispatch(Command::Mixer(MixerCommand::SetMixerMute {
+            strip: "out:0,1@mxr-read".into(),
+            muted: true,
+        }))
+        .expect("mute dispatches");
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &NoLiveSource,
+    };
+    let json: serde_json::Value =
+        serde_json::from_str(&resolve(&QueryKind::MixerState, &ctx).expect("answers"))
+            .expect("json");
+    assert_eq!(
+        json,
+        serde_json::json!({"strips": [
+            {"id": "in:0@mxr-read", "direction": "input", "name": "Guitar",
+             "device_id": "mxr-read", "channels": [0], "gain_db": 0.0, "muted": false},
+            {"id": "out:0,1@mxr-read", "direction": "output", "name": "Main",
+             "device_id": "mxr-read", "channels": [0, 1], "gain_db": 0.0, "muted": true},
+        ]})
     );
 }

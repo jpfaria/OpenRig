@@ -1,0 +1,37 @@
+// Responsibility: carries the global mixer panel state.
+// #1007 — like `MetronomeBridge`, the panel renders in two places (the
+// standalone `MixerWindow` and inline in fullscreen/touch), so its state lives
+// on one global the wiring fills per window instead of threading it through
+// `AppWindow → DesktopMain/TouchMain`.
+
+// One strip as the panel draws it. Everything is pre-computed in Rust: the
+// fader position follows the fader law there, and the label is formatted
+// there, so the panel holds no audio arithmetic.
+export struct MixerStripRow {
+    // Wire id the mixer commands address (`in:0,1@device`).
+    id: string,
+    name: string,
+    // Device and channels, for the second caption line.
+    detail: string,
+    is-input: bool,
+    // Fader cap position, 0 (bottom) .. 1 (top).
+    position: float,
+    gain-label: string,
+    muted: bool,
+}
+
+export global MixerBridge {
+    // Whether the inline panel is shown (the standalone window ignores this).
+    in-out property <bool> show;
+    in-out property <[MixerStripRow]> inputs;
+    in-out property <[MixerStripRow]> outputs;
+
+    // ── Intent, routed to the dispatcher by the wiring ──
+    callback open-mixer-window();
+    callback close-mixer();
+    // The fader moved to `position` (0..1); Rust maps it to dB.
+    callback fader-moved(string, float);
+    // Double-click on the fader: back to unity.
+    callback fader-reset(string);
+    callback mute-toggled(string);
+}

@@ -272,6 +272,14 @@ pub enum Event {
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
 
+    /// #1007: a global mixer strip moved. Values are the applied ones (the
+    /// fader already clamped); a surface echoes them as fader/LED feedback.
+    MixerStripChanged {
+        strip: String,
+        gain_db: f32,
+        muted: bool,
+    },
+
     /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`
     /// → `SetCompactViewEnabled`). The adapter opens/closes the per-chain
     /// compact window for the active chain; without this event the MIDI
