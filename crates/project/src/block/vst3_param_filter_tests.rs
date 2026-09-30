@@ -51,16 +51,21 @@ fn non_automatable_placeholders_are_skipped() {
 }
 
 #[test]
-fn automatable_placeholder_name_is_kept() {
-    // The plugin says it is a real control: trust the flag over the name.
-    assert!(is_user_facing(&param("RESERVED1", CAN_AUTOMATE)));
-}
-
-#[test]
 fn non_automatable_real_control_is_kept() {
     // Not automatable is not enough on its own: plenty of real controls
     // (e.g. a mode switch) clear kCanAutomate.
     assert!(is_user_facing(&param("Mode", 0)));
     // A word that merely starts like a placeholder is not one.
     assert!(is_user_facing(&param("Reserve Tank", 0)));
+}
+
+#[test]
+fn automatable_reserved_slot_is_skipped() {
+    // #1011: Valhalla marks RESERVED1..4 automatable; they still showed up.
+    for title in ["RESERVED1", "RESERVED4", "Reserved 2"] {
+        assert!(
+            !is_user_facing(&param(title, CAN_AUTOMATE)),
+            "{title} must be hidden"
+        );
+    }
 }

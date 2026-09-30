@@ -3,23 +3,21 @@
 //! Reads only the flags and names the plugin itself reports through its
 //! `IEditController`; OpenRig never hardcodes any plugin (#1011).
 
-use vst3_host::param_flags::{CAN_AUTOMATE, IS_BYPASS, IS_HIDDEN, IS_READ_ONLY};
+use vst3_host::param_flags::{IS_BYPASS, IS_HIDDEN, IS_READ_ONLY};
 use vst3_host::Vst3ParamInfo;
 
-/// Placeholder names a plugin gives to slots that are not real controls. Only
-/// consulted for parameters the plugin also marks as not automatable, so a
-/// real control that happens to carry one of these names is still kept.
+/// Placeholder names a plugin gives to slots that are not real controls. Some
+/// plugins still flag these automatable, so the name alone decides.
 const PLACEHOLDER_NAMES: &[&str] = &["reserved", "unused", "unnamed"];
 
 /// `false` for parameters the plugin asks hosts not to show (`kIsHidden`),
 /// output-only readouts (`kIsReadOnly`), the plugin's own bypass (`kIsBypass`,
-/// duplicated by the block footswitch), and non-automatable placeholders.
+/// duplicated by the block footswitch), and placeholder slots.
 pub(crate) fn is_user_facing(param: &Vst3ParamInfo) -> bool {
     if param.flags & (IS_HIDDEN | IS_READ_ONLY | IS_BYPASS) != 0 {
         return false;
     }
-    let automatable = param.flags & CAN_AUTOMATE != 0;
-    automatable || !(is_placeholder(&param.title) || is_placeholder(&param.short_title))
+    !(is_placeholder(&param.title) || is_placeholder(&param.short_title))
 }
 
 /// `RESERVED1`, `Reserved 2`, `unused_3` … : a placeholder word followed only
