@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig};
 
-use crate::mixer_persist_coalesce::pending_strips;
+use crate::mixer_persist_coalesce::{pending_strips, Settle};
 
 /// How long a queued mixer-strip write waits for a drag to settle.
 const MIXER_WRITE_SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
@@ -75,8 +75,9 @@ pub fn persist_metronome(
 /// entry.
 ///
 /// A fader drag sends a value per tick: the strip keeps ONE queued write, the
-/// later values replace the pending one, and the write lets the drag settle
-/// for `MIXER_WRITE_SETTLE` before taking the latest (`mixer_persist_coalesce`).
+/// later values replace the pending one, and the write waits until the strip
+/// has been still for `MIXER_WRITE_SETTLE` before writing the drop value
+/// (`mixer_persist_coalesce`).
 /// It stays on the single worker, so `persist_worker::flush` still waits for it.
 pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
     let id = strip.id.clone();
@@ -84,9 +85,14 @@ pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
         return;
     }
     crate::persist_worker::run(move || {
-        std::thread::sleep(MIXER_WRITE_SETTLE);
-        let Some(strip) = pending_strips().take(&config_path, &id) else {
-            return;
+        let strip = loop {
+            std::thread::sleep(MIXER_WRITE_SETTLE);
+            let now = std::time::Instant::now();
+            match pending_strips().take_settled(&config_path, &id, now, MIXER_WRITE_SETTLE) {
+                Settle::Ready(strip) => break strip,
+                Settle::Wait(_) => continue,
+                Settle::Gone => return,
+            }
         };
         if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
             let at_default = strip.gain_db == 0.0 && !strip.muted && !strip.soloed;
