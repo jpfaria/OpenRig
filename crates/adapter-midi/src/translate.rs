@@ -6,7 +6,7 @@
 use application::command::Command;
 
 use crate::mapping::{inject, Binding, MidiMap, Source};
-use crate::message::MidiMessage;
+use crate::message::{MidiMessage, PITCH_BEND_MAX};
 
 /// Resolve a message to a command via the first matching binding, or `None`
 /// if nothing matches (or, defensively, if the command fails to build —
@@ -39,6 +39,7 @@ pub fn message_to_source(msg: &MidiMessage) -> Source {
         // the projected source mirrors that — the editor learns "PC #5", not
         // "PC #5 on channel 4".
         MidiMessage::ProgramChange { program, .. } => Source::ProgramChange { program },
+        MidiMessage::PitchBend { channel, .. } => Source::PitchBend { channel },
     }
 }
 
@@ -84,20 +85,31 @@ fn matches(source: &Source, msg: &MidiMessage) -> bool {
         (Source::ProgramChange { program }, MidiMessage::ProgramChange { program: p, .. }) => {
             program == p
         }
+        (Source::PitchBend { channel }, MidiMessage::PitchBend { channel: c, .. }) => channel == c,
         _ => false,
     }
 }
 
 /// Static args, plus — for a continuous source — the live value scaled into
-/// the target argument (`scale.into`, default `value`; raw 0..=127 if no
+/// the target argument (`scale.into`, default `value`; the raw value if no
 /// scale).
 fn build_args(binding: &Binding, msg: &MidiMessage) -> serde_json::Value {
     let mut args = binding.args.clone();
-    if let MidiMessage::ControlChange { value, .. } = msg {
-        let (key, scaled) = match &binding.scale {
-            Some(s) => (s.into.clone(), s.apply(*value)),
-            None => ("value".to_string(), f64::from(*value)),
-        };
+    let scaled = match *msg {
+        MidiMessage::ControlChange { value, .. } => Some(match &binding.scale {
+            Some(s) => (s.into.clone(), s.apply(value)),
+            None => ("value".to_string(), f64::from(value)),
+        }),
+        MidiMessage::PitchBend { value, .. } => {
+            let t = f64::from(value) / f64::from(PITCH_BEND_MAX);
+            Some(match &binding.scale {
+                Some(s) => (s.into.clone(), s.apply_unit(t)),
+                None => ("value".to_string(), f64::from(value)),
+            })
+        }
+        _ => None,
+    };
+    if let Some((key, scaled)) = scaled {
         if let Some(num) = serde_json::Number::from_f64(scaled) {
             inject(&mut args, &key, serde_json::Value::Number(num));
         }

@@ -207,3 +207,59 @@ fn source_from_bytes_note_on_velocity_zero_becomes_note_off() {
         })
     );
 }
+
+// ── #1007: a Mackie fader (Pitch Bend) drives a mixer strip ────────────────
+
+fn mixer_fader_map() -> MidiMap {
+    map(r#"
+bindings:
+  - source: { kind: pitch_bend, channel: 1 }
+    command: SetMixerFader
+    args: { strip: "in:0@dev" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+"#)
+}
+
+#[test]
+fn pitch_bend_top_resolves_to_mixer_fader_max() {
+    let cmd = resolve(
+        &mixer_fader_map(),
+        &MidiMessage::PitchBend {
+            channel: 1,
+            value: 16383,
+        },
+    );
+    match cmd {
+        Some(Command::Mixer(application::command::MixerCommand::SetMixerFader {
+            strip,
+            gain_db,
+        })) => {
+            assert_eq!(strip, "in:0@dev");
+            assert!((gain_db - 12.0).abs() < 1e-4, "gain_db = {gain_db}");
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}
+
+#[test]
+fn pitch_bend_on_other_channel_does_not_match() {
+    let cmd = resolve(
+        &mixer_fader_map(),
+        &MidiMessage::PitchBend {
+            channel: 2,
+            value: 0,
+        },
+    );
+    assert!(cmd.is_none(), "got {cmd:?}");
+}
+
+#[test]
+fn pitch_bend_projects_to_pitch_bend_source() {
+    assert_eq!(
+        message_to_source(&MidiMessage::PitchBend {
+            channel: 5,
+            value: 100
+        }),
+        Source::PitchBend { channel: 5 }
+    );
+}

@@ -240,6 +240,7 @@ mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
+mod midi_mixer_feedback_wiring;
 pub mod midi_profile_wiring;
 mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;

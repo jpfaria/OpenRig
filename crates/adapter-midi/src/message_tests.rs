@@ -75,3 +75,29 @@ fn rejects_unsupported_channel_voice() {
     // 0xA0 = polyphonic aftertouch — not a bindable source.
     assert_eq!(MidiMessage::parse(&[0xA0, 60, 10]), None);
 }
+
+// ── #1007: Pitch Bend carries a Mackie fader's 14-bit position ─────────────
+
+#[test]
+fn parses_pitch_bend_as_fourteen_bit_value() {
+    // LSB first, then MSB: centre is 0x2000.
+    assert_eq!(
+        MidiMessage::parse(&[0xE0, 0x00, 0x40]),
+        Some(MidiMessage::PitchBend {
+            channel: 1,
+            value: 8192
+        })
+    );
+    assert_eq!(
+        MidiMessage::parse(&[0xE3, 0x7F, 0x7F]),
+        Some(MidiMessage::PitchBend {
+            channel: 4,
+            value: 16383
+        })
+    );
+}
+
+#[test]
+fn rejects_truncated_pitch_bend() {
+    assert_eq!(MidiMessage::parse(&[0xE0, 0x00]), None);
+}
