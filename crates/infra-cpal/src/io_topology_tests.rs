@@ -385,3 +385,78 @@ fn unchecking_an_input_endpoint_changes_the_bound_io_signature() {
         "#328: the unchecked input opens no stream, so a running chain must re-bind"
     );
 }
+
+// ── #328: which split paths feed each output is part of the structure ─────
+
+/// A Y → A/B chain whose two outputs both stay open: checking path B on the
+/// output path A already feeds opens no new device stream (the I/O signature
+/// is unchanged), yet that output's pipeline now runs both paths. Only the
+/// structure signature can see it; without the row `schedule_chain_activation`
+/// takes the edit for a knob turn instead of giving the chain brand-new
+/// streams (#881, spec §4.2).
+#[test]
+fn a_path_set_change_is_a_structural_change() {
+    use domain::ids::{BlockId, ChainId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::split_params::default_split_params;
+    use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
+    use project::chain::Chain;
+    use project::endpoint_disables::{EndpointDisables, EndpointRef};
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![ep("in", 0)],
+        outputs: vec![ep("out-a", 0), ep("out-b", 1)],
+    }];
+    let off = |name: &str| EndpointRef {
+        io: "main".into(),
+        endpoint: name.into(),
+    };
+    let chain = |path_b_outputs: Vec<EndpointRef>| Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("split".into()),
+            enabled: true,
+            kind: AudioBlockKind::Split(SplitBlock {
+                end: SplitEnd::Y,
+                params: default_split_params(),
+                a: vec![],
+                b: vec![],
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints: EndpointDisables {
+            inputs: vec![],
+            outputs: vec![],
+            path_a_outputs: vec![off("out-b")],
+            path_b_outputs,
+        },
+    };
+    // Path A → out-a. Path B → out-b only, then → out-a too.
+    let before = chain(vec![off("out-a")]);
+    let after = chain(vec![]);
+
+    assert_eq!(
+        super::bound_io_signature(&before, &registry),
+        super::bound_io_signature(&after, &registry),
+        "fixture: both outputs stay open, so the I/O signature cannot tell"
+    );
+    assert_ne!(
+        super::chain_structure_signature(&before, &registry),
+        super::chain_structure_signature(&after, &registry),
+        "#328: out-a now runs path A AND path B — its pipeline changed, so the chain needs new streams (#881)"
+    );
+}

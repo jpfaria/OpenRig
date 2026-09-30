@@ -423,6 +423,12 @@ A route's convolution cushion (#592/#965) counts only the paths its segment
 runs: path B's cab does not deepen the cushion — and so the latency — of an
 output path A alone feeds.
 
+`chain_structure_signature` carries each output's path set, so checking or
+unchecking a path on an output that stays open is a structural edit: the chain
+gets brand-new streams (#881), never an in-place knob-style rebuild. On
+Linux/JACK the structure signature is not consulted (#672); there the edit
+is an in-place rebuild, which already runs the new path sets.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it
