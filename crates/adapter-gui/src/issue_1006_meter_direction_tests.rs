@@ -11,7 +11,8 @@
 //! the slint testing backend is per-thread.
 
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem, StreamMeter};
-use slint::{ComponentHandle, LogicalSize, ModelRc, VecModel};
+use slint::platform::{PointerEventButton, WindowEvent};
+use slint::{ComponentHandle, LogicalPosition, LogicalSize, ModelRc, VecModel};
 
 const BINDING: &str = "GUITARRA 1 - SYN5050";
 
@@ -32,6 +33,27 @@ fn texts(w: &impl ComponentHandle, id: &str) -> Vec<String> {
         .filter_map(|el| el.accessible_label())
         .map(|s| s.to_string())
         .collect()
+}
+
+/// #1007: the rows sit behind the header's meters icon; open them the way
+/// the user does before reading them.
+fn open_compact_meters(w: &CompactChainViewWindow) {
+    w.set_chain_enabled(true);
+    let el = i_slint_backend_testing::ElementHandle::find_by_element_id(w, "ChainMetersButton::ta")
+        .next()
+        .expect("meters button not found");
+    let (pos, size) = (el.absolute_position(), el.size());
+    let at = LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0);
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: at });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: at,
+        button: PointerEventButton::Left,
+    });
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: at,
+        button: PointerEventButton::Left,
+    });
 }
 
 fn assert_row(w: &impl ComponentHandle, component: &str) {
@@ -58,6 +80,7 @@ fn meter_rows_show_the_binding_name_and_the_channels_of_each_side() {
     let chain = ProjectChainItem {
         title: "Chain".into(),
         enabled: true,
+        meters_expanded: true,
         stream_meters: ModelRc::new(VecModel::from(vec![meter()])),
         ..Default::default()
     };
@@ -70,6 +93,7 @@ fn meter_rows_show_the_binding_name_and_the_channels_of_each_side() {
     compact.window().set_size(LogicalSize::new(1400.0, 900.0));
     compact.set_stream_meters(ModelRc::new(VecModel::from(vec![meter()])));
     compact.show().unwrap();
+    open_compact_meters(&compact);
     assert_row(&compact, "CompactStreamMeters");
 }
 
@@ -106,6 +130,7 @@ fn an_input_feeding_two_outputs_is_listed_once() {
     let chain = ProjectChainItem {
         title: "Chain".into(),
         enabled: true,
+        meters_expanded: true,
         stream_meters: rows(),
         ..Default::default()
     };
@@ -117,6 +142,7 @@ fn an_input_feeding_two_outputs_is_listed_once() {
     compact.window().set_size(LogicalSize::new(1400.0, 900.0));
     compact.set_stream_meters(rows());
     compact.show().unwrap();
+    open_compact_meters(&compact);
 
     assert_eq!(
         texts(&app, "ChainRowMeters::in-channels"),
