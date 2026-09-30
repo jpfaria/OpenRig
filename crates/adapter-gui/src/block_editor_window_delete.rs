@@ -105,7 +105,10 @@ pub(crate) fn wire_block_delete(
                 let Some(chain) = proj.chains.get(draft.chain_index) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_index) else {
+                // #328: an index inside a split path counts in that path.
+                let Some(block) =
+                    crate::chain_block_lists::block_at(chain, block_index, draft.path.as_ref())
+                else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

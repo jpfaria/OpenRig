@@ -67,6 +67,7 @@ fn draft(chain_index: usize, block_index: Option<usize>) -> BlockEditorDraft {
         model_id: "volume".into(),
         enabled: true,
         is_select: false,
+        path: None,
     }
 }
 

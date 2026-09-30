@@ -315,7 +315,7 @@ fn wire_drawer_toggle_save(
             };
             // Step 1: read chain_id and block_id from the draft + project (immutable).
             let (chain_id, block_id) = {
-                let (chain_index, block_index) = {
+                let (chain_index, block_index, block_path) = {
                     let draft_borrow = win_draft.borrow();
                     let Some(draft) = draft_borrow.as_ref() else {
                         return;
@@ -323,7 +323,7 @@ fn wire_drawer_toggle_save(
                     let Some(bi) = draft.block_index else {
                         return;
                     };
-                    (draft.chain_index, bi)
+                    (draft.chain_index, bi, draft.path.clone())
                 };
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
@@ -333,7 +333,10 @@ fn wire_drawer_toggle_save(
                 let Some(chain) = proj.chains.get(chain_index) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_index) else {
+                // #328: an index inside a split path counts in that path.
+                let Some(block) =
+                    crate::chain_block_lists::block_at(chain, block_index, block_path.as_ref())
+                else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

@@ -412,6 +412,8 @@ mod touch_window_io_parity_tests;
 
 #[cfg(test)]
 mod issue_328_graph_row_interaction_tests;
+#[cfg(test)]
+mod issue_328_path_block_editor_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

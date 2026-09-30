@@ -68,7 +68,7 @@ pub(crate) fn apply_block_parameter(
     input_chain_devices: &[AudioDeviceDescriptor],
     output_chain_devices: &[AudioDeviceDescriptor],
 ) -> Result<bool, ApplyParamError> {
-    let (chain_index, block_index) = {
+    let (chain_index, block_index, block_path) = {
         let borrowed = draft.borrow();
         let Some(draft) = borrowed.as_ref() else {
             return Err(ApplyParamError::NotAddressable);
@@ -76,7 +76,7 @@ pub(crate) fn apply_block_parameter(
         let Some(block_index) = draft.block_index else {
             return Err(ApplyParamError::NotAddressable);
         };
-        (draft.chain_index, block_index)
+        (draft.chain_index, block_index, draft.path.clone())
     };
     let (chain_id, block_id) = {
         let borrowed = project_session.borrow();
@@ -87,7 +87,10 @@ pub(crate) fn apply_block_parameter(
         let Some(chain) = project.chains.get(chain_index) else {
             return Err(ApplyParamError::NotAddressable);
         };
-        let Some(block) = chain.blocks.get(block_index) else {
+        // #328: an index inside a split path counts in that path.
+        let Some(block) =
+            crate::chain_block_lists::block_at(chain, block_index, block_path.as_ref())
+        else {
             return Err(ApplyParamError::NotAddressable);
         };
         (chain.id.clone(), block.id.clone())

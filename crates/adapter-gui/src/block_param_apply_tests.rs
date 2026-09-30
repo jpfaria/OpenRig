@@ -63,6 +63,7 @@ fn draft(block_index: Option<usize>) -> Rc<RefCell<Option<BlockEditorDraft>>> {
         model_id: "volume".into(),
         enabled: true,
         is_select: false,
+        path: None,
     })))
 }
 

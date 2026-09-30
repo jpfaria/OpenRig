@@ -359,11 +359,11 @@ pub(crate) fn wire(
             // knob overlays and #780 parameter tabs from `editor_data`; the
             // block is created only on save (persist inserts when index is None).
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
-            let (chain_index, before_index) = block_editor_draft
+            let (chain_index, before_index, block_path) = block_editor_draft
                 .borrow()
                 .as_ref()
-                .map(|d| (d.chain_index, d.before_index))
-                .unwrap_or((0, 0));
+                .map(|d| (d.chain_index, d.before_index, d.path.clone()))
+                .unwrap_or((0, 0, None));
             let editor_data = BlockEditorData {
                 effect_type: model.effect_type.to_string(),
                 model_id: model.model_id.to_string(),
@@ -393,6 +393,7 @@ pub(crate) fn wire(
                 enabled: true,
                 editor_data,
                 block_id: None,
+                path: block_path,
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
                 block_stream_reads: Rc::clone(&block_stream_reads),
@@ -411,6 +412,7 @@ pub(crate) fn wire(
                     open_block_windows.borrow_mut().push(BlockWindow {
                         chain_index,
                         block_index: usize::MAX,
+                        path: None,
                         window: win,
                         stream_timer,
                     });

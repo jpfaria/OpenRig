@@ -43,6 +43,7 @@ fn native_ctx(effect_type: &str, model_id: &str) -> BlockEditorWindowSetupCtx {
             selected_select_option_block_id: None,
         },
         block_id: None,
+        path: None,
         project_session: empty_session(),
         project_chains: Rc::new(VecModel::default()),
         block_stream_reads: Rc::new(application::live_source::NoLiveSource),
