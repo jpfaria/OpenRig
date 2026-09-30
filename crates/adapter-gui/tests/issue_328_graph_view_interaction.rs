@@ -6,10 +6,14 @@
 //! The harness canvas sits at the window origin with zoom 1 and no pan, so a
 //! node's layout coordinates ARE its window coordinates.
 
-use adapter_gui::{ChainBlockItem, GraphNode, GraphViewHarness, GraphViewScrollHarness};
+use adapter_gui::graph_view_model as model;
+use adapter_gui::{
+    ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode, GraphViewHarness,
+    GraphViewScrollHarness,
+};
 use i_slint_backend_testing::ElementHandle;
 use slint::platform::{Key, PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, ModelRc, VecModel};
+use slint::{ComponentHandle, LogicalPosition, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -382,4 +386,159 @@ fn a_block_cards_led_and_remove_hit_zones_scale_with_the_zoom() {
         Some((14.0, 10.0)),
         "at half zoom the LED switch is half size"
     );
+}
+
+/// in → split → [a1] ∥ [b1] → mixer → out, laid out by the real model on
+/// the default grid: in (80,200) · split (240,200) · a1 (400,140) ·
+/// b1 (400,260) · mixer (560,200) · out (720,200). Anchors sit on the wire
+/// midpoints: split→b1 at (320,230), a1→mixer at (480,170).
+fn split_mix_chain() -> (
+    Vec<model::GraphNode>,
+    Vec<model::GraphEdge>,
+    Vec<model::GraphAnchor>,
+) {
+    let amp =
+        |id: &str| model::BlockBlueprint::new(id, id.to_uppercase(), model::NodeCategory::Amp);
+    let stages = [
+        model::ChainStage::Single(
+            model::BlockBlueprint::new("in", "In 1", model::NodeCategory::Input)
+                .with_kind(model::NodeKind::IoInput),
+        ),
+        model::ChainStage::Parallel {
+            lanes: vec![vec![amp("a1")], vec![amp("b1")]],
+            end: model::ParallelEnd::Merge,
+        },
+        model::ChainStage::Single(
+            model::BlockBlueprint::new("out", "Out 1", model::NodeCategory::Output)
+                .with_kind(model::NodeKind::IoOutput),
+        ),
+    ];
+    let (nodes, edges) = model::linear_chain_layout(&stages, model::GridMetrics::default());
+    let anchors = model::insert_anchors(&stages, &nodes);
+    (nodes, edges, anchors)
+}
+
+/// The graph as a host hands it to the canvas: the Rust model mapped field
+/// by field onto the Slint structs, with the drop resolver wired to
+/// `graph_view_model::resolve_drop_anchor`.
+fn canvas_for(
+    nodes: &[model::GraphNode],
+    edges: &[model::GraphEdge],
+    anchors: &[model::GraphAnchor],
+) -> GraphViewHarness {
+    let w = harness(
+        nodes
+            .iter()
+            .map(|n| GraphNode {
+                id: n.id.as_str().into(),
+                label: n.label.as_str().into(),
+                category: n.category.as_str().into(),
+                kind: n.kind.as_str().into(),
+                layout_x: n.x,
+                layout_y: n.y,
+                bypass: n.bypass,
+                ..Default::default()
+            })
+            .collect(),
+    );
+    let pos = |id: &str| {
+        nodes
+            .iter()
+            .find(|n| n.id == id)
+            .map(|n| (n.x, n.y))
+            .unwrap_or_default()
+    };
+    let geometry: Vec<GraphEdgeGeometry> = edges
+        .iter()
+        .map(|e| {
+            let (from_x, from_y) = pos(&e.from_id);
+            let (to_x, to_y) = pos(&e.to_id);
+            GraphEdgeGeometry {
+                from_id: e.from_id.as_str().into(),
+                to_id: e.to_id.as_str().into(),
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+            }
+        })
+        .collect();
+    w.set_edges(ModelRc::new(VecModel::from(geometry)));
+    let slint_anchors: Vec<GraphAnchor> = anchors
+        .iter()
+        .map(|a| GraphAnchor {
+            id: a.id.as_str().into(),
+            layout_x: a.x,
+            layout_y: a.y,
+            always_visible: a.always_visible,
+        })
+        .collect();
+    w.set_anchors(ModelRc::new(VecModel::from(slint_anchors)));
+    let (nodes, anchors) = (nodes.to_vec(), anchors.to_vec());
+    w.on_resolve_drop_anchor(move |id, x, y| {
+        model::resolve_drop_anchor(&nodes, &anchors, &id, x, y, model::GridMetrics::default())
+            .map(|a| SharedString::from(a.id.as_str()))
+            .unwrap_or_default()
+    });
+    w
+}
+
+#[test]
+fn clicking_a_wire_anchor_fires_add_requested_with_its_slot_id() {
+    let (nodes, edges, anchors) = split_mix_chain();
+    let w = canvas_for(&nodes, &edges, &anchors);
+    let added = recorder::<String>();
+    let a = added.clone();
+    w.on_add_requested(move |id| a.borrow_mut().push(id.to_string()));
+
+    assert_eq!(
+        handles(&w, "BlockInsertSlot::hover-area").len(),
+        anchors.len(),
+        "one + per wire"
+    );
+    click_at(&w, at(320.0, 230.0));
+
+    assert_eq!(
+        *added.borrow(),
+        ["lane:1:1:0"],
+        "the + on split → b1 adds first in path B"
+    );
+}
+
+#[test]
+fn dragging_a_block_onto_the_other_lanes_anchor_fires_node_dropped() {
+    let (nodes, edges, anchors) = split_mix_chain();
+    let w = canvas_for(&nodes, &edges, &anchors);
+    let dropped = recorder::<(String, String)>();
+    let d = dropped.clone();
+    w.on_node_dropped(move |id, anchor| d.borrow_mut().push((id.to_string(), anchor.to_string())));
+
+    drag(&w, at(400.0, 140.0), at(320.0, 230.0));
+
+    assert_eq!(
+        *dropped.borrow(),
+        [("a1".to_string(), "lane:1:1:0".to_string())],
+        "path A's block dropped on split → b1 moves first into path B"
+    );
+}
+
+#[test]
+fn dropping_a_block_on_its_own_wire_fires_no_node_dropped() {
+    let (nodes, edges, anchors) = split_mix_chain();
+    let w = canvas_for(&nodes, &edges, &anchors);
+    let dropped = recorder::<(String, String)>();
+    let ended = recorder::<String>();
+    let d = dropped.clone();
+    w.on_node_dropped(move |id, anchor| d.borrow_mut().push((id.to_string(), anchor.to_string())));
+    let e = ended.clone();
+    w.on_node_drag_ended(move |id, _, _| e.borrow_mut().push(id.to_string()));
+
+    drag(&w, at(400.0, 140.0), at(480.0, 170.0));
+
+    assert!(
+        dropped.borrow().is_empty(),
+        "a1 → mixer is a1's own wire: no move, got {:?}",
+        dropped.borrow()
+    );
+    assert_eq!(*ended.borrow(), ["a1"], "the drag itself still ends");
 }

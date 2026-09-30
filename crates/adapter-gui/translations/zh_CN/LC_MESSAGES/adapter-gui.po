@@ -982,3 +982,6 @@ msgstr "开启或关闭模块"
 
 msgid "accessible-graph-node-remove"
 msgstr "移除模块"
+
+msgid "accessible-add-block-here"
+msgstr "在此添加模块"

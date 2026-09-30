@@ -988,3 +988,6 @@ msgstr "Activer ou désactiver le bloc"
 
 msgid "accessible-graph-node-remove"
 msgstr "Retirer le bloc"
+
+msgid "accessible-add-block-here"
+msgstr "Ajouter un bloc ici"

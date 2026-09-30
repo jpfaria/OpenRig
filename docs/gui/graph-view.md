@@ -77,6 +77,13 @@ struct GraphEdgeGeometry {
     to_x: length;
     to_y: length;
 }
+
+struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_anchors)
+    id: string;             // "stage:{i}" | "lane:{stage}:{lane}:{i}"
+    layout_x: length;       // wire midpoint
+    layout_y: length;
+    always_visible: bool;   // empty segment: "+" shown without hover
+}
 ```
 
 `GraphEdgeGeometry` is the resolved form of an edge — coordinates are already looked up from the node list so Slint doesn't search per frame.
@@ -95,6 +102,7 @@ A `block` card draws what the chain row's `BlockChip` draws, from the same `Chai
 |---|---|---|---|---|
 | `nodes` | `in` | `[GraphNode]` | — | nodes to render |
 | `edges` | `in` | `[GraphEdgeGeometry]` | — | resolved edges to render |
+| `anchors` | `in` | `[GraphAnchor]` | — | the "+" insert anchors, one per wire, drawn as the chain row's `BlockInsertSlot` without its track, over the nodes so a dragged card never hides the lit target |
 | `zoom` | `in-out` | `float` | `1.0` | viewport scale, clamped to `[min_zoom, max_zoom]` |
 | `pan_x`, `pan_y` | `in-out` | `length` | `0px` | viewport offset |
 | `node_width`, `node_height` | `in` | `length` | `100px` × `100px` | per-node card size in layout space — the chain row's BlockChip size |
@@ -115,6 +123,9 @@ A `block` card draws what the chain row's `BlockChip` draws, from the same `Chai
 | `viewport_changed(float, length, length)` | zoom, pan_x, pan_y | after pan release or wheel zoom step |
 | `bypass-toggled(string)` | node id | a block card's LED was clicked (#328) |
 | `remove-requested(string)` | node id | a block card's × was clicked; the × is live only while the card is hovered, so a touch tap never removes (#328) |
+| `add-requested(string)` | anchor id | a "+" was clicked — the host opens the add-block picker for that slot |
+| `node-dropped(string, string)` | node id, anchor id | a dragged block was released on an anchor; fired after `node_drag_ended` |
+| `resolve-drop-anchor(string, length, length) -> string` | node id, layout x, y | `pure` — the host answers which anchor a drag at (x, y) lands on (`""` = none) by calling `graph_view_model::resolve_drop_anchor`; asked on every drag move so the target lights up |
 
 The host receives layout-space coords. To persist a moved node, write them back into `nodes` — the Slint side reads positions reactively.
 
@@ -148,6 +159,7 @@ The component owns no colours. The host resolves each node's `fill`/`border` fro
 - **Zoom:** Cmd (macOS) or Ctrl (Windows, Linux) + scroll wheel over the canvas — Slint reports both as `modifiers.control`. Zooms around the cursor (the point under the cursor stays fixed in layout space). Clamped to `[min_zoom, max_zoom]`. Fires `viewport_changed`.
 - **Plain wheel:** not accepted. The canvas rejects it so the scroll area around the graph (the chains list, #328) scrolls instead.
 - **Drag a node:** press on a node card, move beyond 5 px. Fires `node_dragged` continuously, `node_drag_ended` on release.
+- **Drop on an anchor:** while a block is dragged the canvas asks `resolve-drop-anchor` on every move and highlights that "+"; releasing there fires `node-dropped(node, anchor)`. A drop on the block's own wire, or on nothing, fires no `node-dropped` (the drag still ends).
 - **Click vs drag:** total displacement < 5 px in viewport space → `node_clicked`. Threshold is a `private property` so it can be retuned without changing the API.
 - **Double-click:** fires `node_double_clicked` — host opens the block editor.
 

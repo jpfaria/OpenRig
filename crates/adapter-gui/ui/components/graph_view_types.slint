@@ -67,3 +67,13 @@ export struct CategoryColor {
     fill: color,
     border: color,
 }
+
+// #328 §5.1: one insert anchor — the "+" on a wire. Host-computed by
+// graph_view_model::insert_anchors (wire midpoint, slot id).
+export struct GraphAnchor {
+    id: string,
+    layout_x: length,
+    layout_y: length,
+    // An empty segment (no block at either end) always shows its "+".
+    always_visible: bool,
+}

@@ -980,3 +980,6 @@ msgstr ""
 
 msgid "accessible-graph-node-remove"
 msgstr ""
+
+msgid "accessible-add-block-here"
+msgstr ""

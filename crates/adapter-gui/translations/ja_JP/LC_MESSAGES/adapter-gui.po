@@ -987,3 +987,6 @@ msgstr "ブロックのオン/オフ"
 
 msgid "accessible-graph-node-remove"
 msgstr "ブロックを削除"
+
+msgid "accessible-add-block-here"
+msgstr "ここにブロックを追加"

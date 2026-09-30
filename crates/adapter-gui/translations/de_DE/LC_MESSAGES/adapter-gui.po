@@ -992,3 +992,6 @@ msgstr "Block ein- oder ausschalten"
 
 msgid "accessible-graph-node-remove"
 msgstr "Block entfernen"
+
+msgid "accessible-add-block-here"
+msgstr "Hier einen Block hinzufügen"

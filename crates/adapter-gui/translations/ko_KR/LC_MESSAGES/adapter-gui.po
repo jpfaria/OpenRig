@@ -985,3 +985,6 @@ msgstr "블록 켜기/끄기"
 
 msgid "accessible-graph-node-remove"
 msgstr "블록 제거"
+
+msgid "accessible-add-block-here"
+msgstr "여기에 블록 추가"

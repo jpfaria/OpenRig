@@ -983,3 +983,6 @@ msgstr "ब्लॉक चालू या बंद करें"
 
 msgid "accessible-graph-node-remove"
 msgstr "ब्लॉक हटाएँ"
+
+msgid "accessible-add-block-here"
+msgstr "यहाँ ब्लॉक जोड़ें"
