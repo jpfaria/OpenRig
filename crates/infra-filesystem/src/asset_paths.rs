@@ -164,6 +164,13 @@ pub fn default_evaluations_path() -> PathBuf {
     user_data_root().join("evaluations")
 }
 
+/// #827: OS default for the app-wide library of saved looper takes
+/// (`<user data root>/looper-takes`). Every project sees it; the DI source
+/// picker lists it. Returned without creating it.
+pub fn default_looper_takes_path() -> PathBuf {
+    user_data_root().join("looper-takes")
+}
+
 /// #582: OS-specific user data root for OpenRig
 /// (`~/Library/Application Support/OpenRig` on macOS,
 /// `%APPDATA%\OpenRig` on Windows,

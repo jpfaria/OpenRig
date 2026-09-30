@@ -61,7 +61,10 @@ use application::command_schema::command_variant_names;
 /// (`EditChainLooperAudio`/`UndoChainLooperEdit`/`RedoChainLooperEdit`) —
 /// trimming, cropping and cutting a recorded loop, so a headless client
 /// reshapes a take exactly as the waveform editor does.
-const COMMAND_VARIANT_COUNT: usize = 99;
+/// #827 bumped to 100 with `SaveChainLooperTake` — keeping a recorded loop as
+/// a named take in the app-wide library, so a headless client can save one
+/// and hand it to the DI exactly as the editor's Save button does.
+const COMMAND_VARIANT_COUNT: usize = 100;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

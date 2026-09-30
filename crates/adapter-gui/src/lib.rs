@@ -95,6 +95,7 @@ mod di_output_select_wiring;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
+mod di_source_rows;
 mod insert_wiring;
 mod live_sync_plan;
 mod looper_commands;
@@ -228,6 +229,8 @@ mod looper_callbacks;
 mod looper_editor_callbacks;
 pub mod looper_items;
 mod looper_rows;
+mod looper_take_callbacks;
+mod looper_take_catalog;
 mod looper_view;
 mod looper_vocabulary;
 mod meter_invalidation;
