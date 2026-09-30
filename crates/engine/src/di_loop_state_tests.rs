@@ -19,6 +19,7 @@ fn empty_chain() -> Chain {
         blocks: Vec::<AudioBlock>::new(),
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

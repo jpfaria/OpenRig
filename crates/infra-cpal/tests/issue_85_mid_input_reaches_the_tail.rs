@@ -259,6 +259,7 @@ fn tail_peak(blocks: Vec<AudioBlock>, head_on_loopback: bool) -> f32 {
             blocks,
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

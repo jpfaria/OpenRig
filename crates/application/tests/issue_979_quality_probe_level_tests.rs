@@ -183,6 +183,7 @@ fn rig(heads: &[&str], insert_enabled: bool) -> Chain {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

@@ -1,0 +1,48 @@
+// Responsibility: renders the clickable header of a collapsible section.
+// #1007 — a chevron (right = collapsed, down = expanded) and the section's
+// title across the whole header; a click asks for the opposite state through
+// `toggled`. The owner keeps the state and feeds it back into `expanded`, so
+// every view decides for itself where it lives (the compact mixer in the
+// view, a chain card in its row model) and always opens collapsed.
+
+export component SectionToggle inherits Rectangle {
+    in property <string> title;
+    in property <bool> expanded: false;
+    callback toggled(bool);
+
+    background: area.has-hover ? #141820 : transparent;
+    accessible-role: button;
+    accessible-label: root.title;
+    accessible-action-default => { root.flip(); }
+
+    function flip() {
+        root.toggled(!root.expanded);
+    }
+
+    Image {
+        x: 16px;
+        y: (parent.height - self.height) / 2;
+        width: 16px; height: 16px;
+        source: root.expanded
+            ? @image-url("../assets/chevron-down.svg")
+            : @image-url("../assets/arrow-right.svg");
+        colorize: area.has-hover ? #d7dde8 : #8a94a6;
+    }
+
+    Text {
+        x: 40px; y: 0;
+        width: parent.width - 56px; height: parent.height;
+        text: root.title;
+        color: area.has-hover ? #d7dde8 : #8a94a6;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.0px;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.flip(); }
+    }
+}

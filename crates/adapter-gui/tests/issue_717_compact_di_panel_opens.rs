@@ -134,6 +134,12 @@ fn compact_di_meter_row_shows_only_while_playing() {
     w.set_chain_index(0);
     w.set_di_loop_playing(false);
     w.show().unwrap();
+    // #1007: the meter rows sit behind the header's meters icon (running chain).
+    w.set_chain_enabled(true);
+    assert!(
+        click_id(&w, "ChainMetersButton::ta", 0),
+        "the meters icon must be hittable"
+    );
 
     assert_eq!(
         count_id(&w, "CompactStreamMeters::di-row"),

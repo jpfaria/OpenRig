@@ -97,6 +97,7 @@ fn build() -> Arc<ChainRuntimeState> {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![nam_amp()],
+        mix: Default::default(),
     };
     Arc::new(
         build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build NAM chain"),

@@ -11,6 +11,9 @@
 
 mod audio_frame;
 mod audio_processor;
+#[cfg(test)]
+mod chain_mix_gain_tests;
+pub mod chain_mix_gains;
 pub mod chain_quality;
 pub mod crossfade;
 pub mod di_loop;
@@ -22,6 +25,7 @@ mod elastic_drift_guard;
 mod elastic_hand_off;
 mod elastic_skip_fade;
 mod endpoint_entry;
+mod endpoint_fader;
 mod input_conflicts;
 pub mod input_tap;
 pub mod insert_cut;
@@ -40,6 +44,10 @@ pub mod looper_bank;
 mod looper_op;
 mod looper_status;
 pub mod metronome_state;
+#[cfg(test)]
+mod mixer_gain_tests;
+pub mod mixer_gains;
+mod mixer_ramp;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;

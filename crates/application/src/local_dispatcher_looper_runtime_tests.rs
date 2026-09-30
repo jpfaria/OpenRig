@@ -149,6 +149,7 @@ fn chain_with_loopers(id: &str, uids: &[u64]) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: uids.iter().map(|uid| LooperConfig::new(*uid)).collect(),
+        mix: Default::default(),
     }
 }
 

@@ -231,6 +231,7 @@ fn chain_with(heads: &[&str], scene: Scene) -> Chain {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

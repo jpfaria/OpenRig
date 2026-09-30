@@ -43,6 +43,7 @@ fn stopped_session() -> ProjectSession {
             }],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

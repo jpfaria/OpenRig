@@ -97,6 +97,38 @@ msgstr "選択中:"
 msgid "label-channels-total"
 msgstr "{} チャンネル"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+msgid "label-mixer-no-inputs"
+msgstr "入力なし"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-outputs"
+msgstr "出力なし"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-loopers"
+msgstr "ルーパーなし"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "ミキサー"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+msgid "tab-mixer-in"
+msgstr "入力"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+msgid "tab-mixer-out"
+msgstr "出力"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+msgid "tab-mixer-looper"
+msgstr "ルーパー"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "モデルを検索..."
@@ -147,6 +179,10 @@ msgstr "削除"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "DI出力"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "グローバル"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -343,6 +379,14 @@ msgstr "テイクを保存できませんでした"
 #: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
 msgid "looper-take-needs-name"
 msgstr "テイクの名前を入力してください"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
+msgid "action-mixer-solo"
+msgstr "ソロ"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
+msgid "action-mixer-mute"
+msgstr "ミュート"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
@@ -552,6 +596,10 @@ msgstr "エンドポイント"
 msgid "msg-pick-io-endpoint"
 msgstr "I/O とエンドポイントを選択"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "入力 / 出力"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -624,6 +672,23 @@ msgstr "プロジェクトの出力が未設定"
 msgid "title-window-metronome"
 msgstr "メトロノーム"
 
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-inputs"
+msgstr "入力"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-outputs"
+msgstr "出力"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
+msgid "status-mixer-no-endpoints"
+msgstr ""
+"入力も出力も設定されていません。I/O 設定でエンドポイントを追加してください。"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
+msgid "title-window-mixer"
+msgstr "ミキサー"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:88
 msgid "·"
 msgstr "·"
@@ -660,15 +725,19 @@ msgstr "Tuner"
 msgid "tooltip-metronome"
 msgstr "メトロノーム"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:148
+#: crates/adapter-gui/ui/pages/project_chains.slint:149
+msgid "tooltip-mixer"
+msgstr "ミキサー"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:157
 msgid "tooltip-project-settings"
 msgstr "プロジェクト"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:157
+#: crates/adapter-gui/ui/pages/project_chains.slint:166
 msgid "tooltip-save"
 msgstr "保存"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:165
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
 msgstr "新しい チェーン"
 
@@ -1002,6 +1071,6 @@ msgstr "OpenRig · Insertを構成"
 msgid "title-window-chain-port"
 msgstr "ポート"
 
-#: crates/adapter-gui/ui/touch_main.slint:407
+#: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

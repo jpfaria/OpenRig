@@ -213,6 +213,7 @@ fn peak_on_loopback(mid: bool) -> f32 {
             },
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

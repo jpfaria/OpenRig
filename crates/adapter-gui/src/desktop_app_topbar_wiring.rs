@@ -1,6 +1,6 @@
 //! Responsibility: wires the top-bar features to the windows they open.
 //!
-//! Tuner, spectrum analyzer, metronome and the per-chain latency probe. Each
+//! Tuner, spectrum analyzer, metronome, mixer and the per-chain latency probe. Each
 //! is powered through the analyzer sessions / live sources — the windows only
 //! render, so a MIDI footswitch or an MCP client starts the very same feature
 //! the button does (#127).
@@ -12,13 +12,14 @@ use slint::{Timer, VecModel};
 
 use crate::latency_probe;
 use crate::state::ProjectSession;
-use crate::{AppWindow, MetronomeWindow, SpectrumWindow, TunerWindow};
+use crate::{AppWindow, MetronomeWindow, MixerWindow, SpectrumWindow, TunerWindow};
 
 pub(crate) struct TopBarWindows<'a> {
     pub window: &'a AppWindow,
     pub tuner_window: &'a TunerWindow,
     pub spectrum_window: &'a SpectrumWindow,
     pub metronome_window: &'a MetronomeWindow,
+    pub mixer_window: &'a MixerWindow,
 }
 
 pub(crate) fn wire(
@@ -57,4 +58,5 @@ pub(crate) fn wire(
         metronome_live,
         metronome_timer,
     );
+    crate::mixer_wiring::wire_mixer(windows.window, windows.mixer_window, project_session);
 }

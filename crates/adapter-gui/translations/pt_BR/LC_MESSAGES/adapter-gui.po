@@ -106,6 +106,38 @@ msgstr "Selecionados:"
 msgid "label-channels-total"
 msgstr "{} canais"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+msgid "label-mixer-no-inputs"
+msgstr "Sem entradas"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-outputs"
+msgstr "Sem saídas"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-loopers"
+msgstr "Sem loopers"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "MIXER"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+msgid "tab-mixer-in"
+msgstr "ENTRADA"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+msgid "tab-mixer-out"
+msgstr "SAÍDA"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+msgid "tab-mixer-looper"
+msgstr "LOOPER"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "Buscar modelos..."
@@ -156,6 +188,10 @@ msgstr "Remover"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "Saída do DI"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "GLOBAL"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -352,6 +388,14 @@ msgstr "Não foi possível salvar o take"
 #: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
 msgid "looper-take-needs-name"
 msgstr "Digite um nome para o take"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
+msgid "action-mixer-solo"
+msgstr "SOLO"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
+msgid "action-mixer-mute"
+msgstr "MUDO"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
@@ -561,6 +605,10 @@ msgstr "Ponto"
 msgid "msg-pick-io-endpoint"
 msgstr "Escolha uma E/S e um ponto"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "ENTRADA / SAÍDA"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -633,6 +681,24 @@ msgstr "Nenhuma saída configurada no projeto"
 msgid "title-window-metronome"
 msgstr "Metrônomo"
 
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-inputs"
+msgstr "ENTRADAS"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-outputs"
+msgstr "SAÍDAS"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
+msgid "status-mixer-no-endpoints"
+msgstr ""
+"Nenhuma entrada ou saída configurada. Adicione endpoints nas configurações "
+"de E/S."
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
+msgid "title-window-mixer"
+msgstr "Mixer"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:88
 msgid "·"
 msgstr "·"
@@ -669,15 +735,19 @@ msgstr "Tuner"
 msgid "tooltip-metronome"
 msgstr "Metrônomo"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:148
+#: crates/adapter-gui/ui/pages/project_chains.slint:149
+msgid "tooltip-mixer"
+msgstr "Mixer"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:157
 msgid "tooltip-project-settings"
 msgstr "Projeto"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:157
+#: crates/adapter-gui/ui/pages/project_chains.slint:166
 msgid "tooltip-save"
 msgstr "Salvar"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:165
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
 msgstr "Nova chain"
 
@@ -1009,6 +1079,6 @@ msgstr "OpenRig · Configurar Insert"
 msgid "title-window-chain-port"
 msgstr "Porta"
 
-#: crates/adapter-gui/ui/touch_main.slint:407
+#: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

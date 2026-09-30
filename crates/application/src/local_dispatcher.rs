@@ -39,6 +39,7 @@ use project::rig::RigProject;
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::metronome_state::MetronomeControlState;
+use crate::mixer_state::MixerControlState;
 use crate::runtime_control::RuntimeControl;
 
 /// The rate the dispatcher reports when NO audio stream is running: before the
@@ -159,6 +160,9 @@ pub struct LocalDispatcher {
     /// the tap history start over. A dispatcher nobody attached one to keeps
     /// this private, unpersisted allocation.
     pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
+    /// #1007: the global mixer's faders and mutes. Same handle shape and
+    /// same #701 guard as the metronome: unattached ⇒ nothing persists.
+    pub(crate) mixer: RefCell<Rc<RefCell<MixerControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -211,6 +215,7 @@ impl LocalDispatcher {
             io_bindings: RefCell::new(None),
             runtime_control: RefCell::new(None),
             metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
+            mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
         }
     }
 

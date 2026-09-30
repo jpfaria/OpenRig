@@ -6,6 +6,7 @@ import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
 import { CompactStreamMeters } from "../components/compact_stream_meters.slint";
+import { CompactChainMixer } from "../components/compact_chain_mixer.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -132,6 +133,8 @@ export component CompactChainViewPage inherits Rectangle {
         di-loop-outputs: root.di-loop-outputs;
         di-output-selected-index: root.di-output-selected-index;
         latency-ms: root.latency-ms;
+        meters-shown: root.meters-expanded;
+        meters-toggled(shown) => { root.meters-expanded = shown; }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
         switch-chain-scene(s) => { root.switch-chain-scene(s); }
@@ -149,14 +152,21 @@ export component CompactChainViewPage inherits Rectangle {
     property <int> meter-row-count:
         (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
         + (root.di-loop-playing ? 1 : 0);
-    property <length> meter-footer-height: root.meter-row-count * meters.row-pitch + 6px;
+    // #1007: the header's meters icon shows the rows, hidden on open and on
+    // a stopped chain.
+    property <bool> meters-expanded: false;
+    property <bool> meters-shown: root.chain-enabled && root.meters-expanded;
+    property <length> meter-footer-height:
+        root.meters-shown ? root.meter-row-count * meters.row-pitch + 6px : 0px;
+    // #1007: the chain's own mixer strips sit between the rows and the meters.
+    property <length> mixer-height: chain-mixer.has-strips ? chain-mixer.preferred-area-height : 0px;
 
     // Block rows with insert slots between them
     Flickable {
         x: 0; y: 66px;
         width: parent.width;
         // Leave room at the bottom for the per-stream IN/OUT meter rows.
-        height: parent.height - 66px - root.meter-footer-height;
+        height: parent.height - 66px - root.mixer-height - root.meter-footer-height;
         // #787: rows have their own heights now — the viewport is exactly the
         // trailing insert slot (the same geometry the drop indicator uses).
         viewport-height: root.slot-y(root.compact-blocks.length);
@@ -412,10 +422,19 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
+    // ── #1007: this chain's mixer strips, above the meter footer ──────
+    chain-mixer := CompactChainMixer {
+        di-playing: root.di-loop-playing;
+        x: 0; y: parent.height - root.meter-footer-height - root.mixer-height;
+        width: parent.width; height: root.mixer-height;
+        visible: self.has-strips;
+    }
+
     // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
     // Extracted to `compact_stream_meters.slint` (file-size cap).
     meters := CompactStreamMeters {
         x: 0; y: 0; width: 100%; height: 100%;
+        visible: root.meters-shown;
         stream-meters: root.stream-meters;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;

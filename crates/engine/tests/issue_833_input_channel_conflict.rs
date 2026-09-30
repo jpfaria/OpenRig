@@ -45,6 +45,7 @@ fn chain(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         blocks: vec![],
         loopers: vec![],
         di_output: None,
+        mix: Default::default(),
     }
 }
 

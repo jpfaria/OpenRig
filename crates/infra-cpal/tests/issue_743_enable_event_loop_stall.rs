@@ -144,6 +144,7 @@ fn owner_two_interface_rig_enable_is_clean() {
             volume: 0.0,
             io_binding_ids: vec!["io-scar".into(), "io-tey".into()],
             blocks,
+            mix: Default::default(),
         }],
         midi: None,
     };

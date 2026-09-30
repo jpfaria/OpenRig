@@ -1,0 +1,43 @@
+// Responsibility: renders the level meters trigger of a chain header.
+// #1007 — beside the DI fone and the looper: a click asks to show or hide the
+// chain's IN / OUT meter rows through `toggled`. The owner keeps the state and
+// feeds it back into `shown`; the header only offers it on a running chain.
+
+import { IconTooltip } from "icon_tooltip.slint";
+
+export component ChainMetersButton inherits Rectangle {
+    in property <bool> shown: false;
+    callback toggled(bool);
+
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    background: root.shown ? #6e8aff28
+                : ta.has-hover ? #ffffff10
+                : transparent;
+    animate background { duration: 150ms; }
+
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/meters.svg");
+        image-fit: contain;
+        colorize: root.shown ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(!root.shown); }
+    }
+
+    IconTooltip { text: @tr("label-meters"); show: ta.has-hover; }
+
+    accessible-role: button;
+    accessible-label: @tr("label-meters");
+    accessible-action-default => { root.toggled(!root.shown); }
+}

@@ -1,0 +1,124 @@
+// Responsibility: renders one chain's mixer inside the compact view.
+// #1007 — tabs IN | OUT | DI | LOOPER. IN and OUT show one dual strip per
+// endpoint the chain plays through: the endpoint's GLOBAL fader
+// (`MixerBridge`, the same one the Mixer window moves) beside this chain's
+// own fader on it (`ChainMixerBridge`). OUT opens with the chain's MASTER
+// (the chain volume) as its first fader. DI, LOOPER and MASTER are single
+// faders of this chain only; the DI tab shows while the DI loop plays and the
+// LOOPER tab while the chain has a looper. The section opens collapsed every time: only
+// its header shows until it is expanded.
+
+import { ScrollView } from "std-widgets.slint";
+import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
+import { ChainMixerBridge } from "chain_mixer_globals.slint";
+import { DualMixerStripView } from "dual_mixer_strip.slint";
+import { MixerStripView } from "mixer_strip.slint";
+import { ParamTabBar } from "param_tab_bar.slint";
+import { SectionToggle } from "section_toggle.slint";
+
+export component CompactChainMixer inherits Rectangle {
+    private property <bool> expanded: false;
+    private property <length> header-height: 36px;
+    // Height the host reserves for the mixer: just the header while collapsed.
+    out property <length> preferred-area-height: root.expanded ? 416px : root.header-height;
+    // Every chain has at least its MASTER fader.
+    out property <bool> has-strips: true;
+
+    // The DI tab shows only while the chain's DI loop plays.
+    in property <bool> di-playing: false;
+    private property <bool> has-looper: ChainMixerBridge.loopers.length > 0;
+    // 0 IN, 1 OUT (MASTER first), 2 DI, 3 LOOPER — whichever of DI / LOOPER
+    // is absent drops out of the bar, and a picked tab that disappears falls
+    // back to IN.
+    private property <int> picked: 0;
+    private property <int> tab:
+        (root.picked == 2 && !root.di-playing) || (root.picked == 3 && !root.has-looper)
+        ? 0 : root.picked;
+    private property <[MixerStripRow]> no-rows: [];
+    private property <[MixerStripRow]> dual-rows:
+        root.tab == 0 ? MixerBridge.inputs : (root.tab == 1 ? MixerBridge.outputs : root.no-rows);
+    private property <[MixerStripRow]> chain-rows:
+        root.tab == 0 ? ChainMixerBridge.inputs : ChainMixerBridge.outputs;
+    private property <[MixerStripRow]> single-rows:
+        root.tab == 1 ? ChainMixerBridge.master
+        : (root.tab == 2 ? ChainMixerBridge.di
+        : (root.tab == 3 ? ChainMixerBridge.loopers : root.no-rows));
+    private property <int> count: root.dual-rows.length + root.single-rows.length;
+    private property <length> dual-pitch: 188px;
+    private property <length> single-pitch: 120px;
+    // The dual strips start after the single ones (OUT: after MASTER).
+    private property <length> dual-offset: root.single-rows.length * root.single-pitch;
+    private property <length> content-width:
+        root.dual-offset + root.dual-rows.length * root.dual-pitch;
+    private property <length> tabs-height: 34px;
+    private property <string> empty-text:
+        root.tab == 0 ? @tr("label-mixer-no-inputs")
+        : (root.tab == 1 ? @tr("label-mixer-no-outputs") : @tr("label-mixer-no-loopers"));
+
+    background: #0c0e12;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 1px;
+        background: #1c2028;
+    }
+
+    mixer-toggle := SectionToggle {
+        x: 0; y: 1px;
+        width: parent.width; height: root.header-height - 1px;
+        title: @tr("label-mixer");
+        expanded: root.expanded;
+        toggled(expanded) => { root.expanded = expanded; }
+    }
+
+    if root.expanded : ParamTabBar {
+        x: 16px; y: root.header-height + 6px;
+        width: parent.width - 32px; height: root.tabs-height;
+        groups: root.di-playing && root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di"), @tr("tab-mixer-looper")]
+            : root.di-playing
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di")]
+            : root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-looper")]
+            : [@tr("tab-mixer-in"), @tr("tab-mixer-out")];
+        // Bar position 2 is DI while it plays, LOOPER otherwise.
+        active: root.tab == 3 && !root.di-playing ? 2 : root.tab;
+        select(i) => { root.picked = i == 2 && !root.di-playing ? 3 : i; }
+    }
+
+    if root.expanded : ScrollView {
+        x: 16px; y: root.header-height + root.tabs-height + 14px;
+        width: parent.width - 32px;
+        height: parent.height - self.y;
+        viewport-width: max(self.width, root.content-width);
+        viewport-height: self.height;
+
+        for strip[i] in root.dual-rows : DualMixerStripView {
+            x: root.dual-offset + i * root.dual-pitch; y: 0;
+            height: parent.height - 12px;
+            global: strip;
+            chain: root.chain-rows[i];
+        }
+
+        for strip[i] in root.single-rows : MixerStripView {
+            x: i * root.single-pitch; y: 0;
+            height: parent.height - 12px;
+            strip: strip;
+            has-solo: false;
+            has-mute: false;
+            fader-moved(id, position) => { ChainMixerBridge.single-fader-moved(id, position); }
+            fader-reset(id) => { ChainMixerBridge.single-fader-reset(id); }
+        }
+    }
+
+    if root.expanded && root.count == 0 : Text {
+        x: 16px; y: root.header-height + root.tabs-height + 14px;
+        width: parent.width - 32px; height: 60px;
+        text: root.empty-text;
+        color: #6f7a8a;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.0px;
+        vertical-alignment: center;
+    }
+}

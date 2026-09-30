@@ -181,6 +181,7 @@ fn heavy_chain(suffix: &str) -> Chain {
             ),
             limiter_block(),
         ],
+        mix: Default::default(),
     }
 }
 
@@ -265,6 +266,7 @@ fn natives_only_chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![comp_block(), eq_block(), gate_block(), limiter_block()],
+        mix: Default::default(),
     }
 }
 
@@ -374,6 +376,7 @@ fn isolated_chain(label: &str, block: AudioBlock) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![block],
+        mix: Default::default(),
     }
 }
 

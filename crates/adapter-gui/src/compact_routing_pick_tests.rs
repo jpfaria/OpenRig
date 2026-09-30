@@ -90,6 +90,7 @@ fn session() -> Rc<RefCell<Option<ProjectSession>>> {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let session = ProjectSession::new(
         Project {

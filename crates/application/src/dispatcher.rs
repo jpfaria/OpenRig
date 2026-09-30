@@ -30,6 +30,8 @@ use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::local_dispatcher::ToneDoctorInput;
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -135,6 +137,16 @@ pub trait CommandDispatcher {
     /// from and re-installs on every runtime sync. A transport with no
     /// frontend registry keeps the default no-op.
     fn attach_io_bindings(&self, _registry: Rc<RefCell<Vec<IoBinding>>>) {}
+
+    /// #1007: hand the dispatcher the global mixer state it owns. Attaching
+    /// applies every restored strip to the engine; a transport that hosts no
+    /// audio keeps the default no-op.
+    fn attach_mixer_state(&self, _state: Rc<RefCell<MixerControlState>>) {}
+
+    /// #1007: the global mixer strips with their current settings.
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        Vec::new()
+    }
 }
 
 #[cfg(test)]

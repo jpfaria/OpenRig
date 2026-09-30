@@ -3,6 +3,9 @@
 //! controller binding can target. Pure and fully testable — no device, no
 //! `midir`. System/real-time/unsupported messages parse to `None`.
 
+/// Top of a 14-bit Pitch Bend value.
+pub const PITCH_BEND_MAX: u16 = 0x3FFF;
+
 /// A channel-voice MIDI message. `channel` is 1..=16 (human/`midi-map.yaml`
 /// numbering), not the 0..=15 wire value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +27,11 @@ pub enum MidiMessage {
     ProgramChange {
         channel: u8,
         program: u8,
+    },
+    /// 14-bit position, `0..=16383`.
+    PitchBend {
+        channel: u8,
+        value: u16,
     },
 }
 
@@ -69,6 +77,15 @@ impl MidiMessage {
             0xC0 => {
                 let program = *bytes.get(1)?;
                 Some(Self::ProgramChange { channel, program })
+            }
+            0xE0 => {
+                // 14-bit value, LSB first.
+                let lsb = u16::from(*bytes.get(1)? & 0x7F);
+                let msb = u16::from(*bytes.get(2)? & 0x7F);
+                Some(Self::PitchBend {
+                    channel,
+                    value: (msb << 7) | lsb,
+                })
             }
             _ => None,
         }
