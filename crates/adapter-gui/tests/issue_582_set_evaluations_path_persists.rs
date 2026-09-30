@@ -118,6 +118,9 @@ fn issue_582_reset_evaluations_path_persists_none_in_config_yaml() {
                 path: None,
             }))
             .expect("reset must succeed");
+        // #693: wait for the persist worker, or the read can see the
+        // earlier set instead of the reset.
+        application::persist_worker::flush();
 
         let loaded = FilesystemStorage::load_app_config()
             .expect("load_app_config from fresh HOME must succeed");

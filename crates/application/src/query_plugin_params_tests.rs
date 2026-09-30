@@ -39,6 +39,7 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
                 default_value: Some(ParameterValue::Bool(false)),
                 optional: false,
                 allow_empty: false,
+                value_labels: Vec::new(),
             }],
         })
     }

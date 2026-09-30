@@ -1,4 +1,6 @@
-use super::{dynamic_group_for, is_unlabeled, looks_like_on_off};
+use super::{dynamic_group_for, is_unlabeled, looks_like_on_off, specs_from_params};
+use vst3_host::param_flags::{CAN_AUTOMATE, IS_BYPASS, IS_HIDDEN};
+use vst3_host::Vst3ParamInfo;
 
 #[test]
 fn dynamic_grouping_labels_by_longest_common_prefix() {
@@ -85,4 +87,74 @@ fn real_mode_switch_stays_a_selector() {
     // Distinct, meaningful labels → NOT on/off → a 2-way selector.
     assert!(!looks_like_on_off("Mode", &opts("Sunlion", "Germanium")));
     assert!(!looks_like_on_off("Voicing", &opts("Vintage", "Modern")));
+}
+
+fn info(id: u32, title: &str, flags: i32) -> Vst3ParamInfo {
+    Vst3ParamInfo {
+        id,
+        title: title.to_string(),
+        short_title: String::new(),
+        units: String::new(),
+        step_count: 0,
+        default_normalized: 0.5,
+        flags,
+        enum_options: Vec::new(),
+        value_texts: Vec::new(),
+    }
+}
+
+#[test]
+fn schema_skips_params_the_plugin_marks_as_not_user_facing() {
+    let params = [
+        info(1, "Mix", CAN_AUTOMATE),
+        info(2, "Hidden Thing", CAN_AUTOMATE | IS_HIDDEN),
+        info(3, "BYPASS", CAN_AUTOMATE | IS_BYPASS),
+        info(4, "RESERVED1", 0),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let paths: Vec<&str> = specs.iter().map(|s| s.path.as_str()).collect();
+    assert_eq!(paths, ["p1"]);
+}
+
+#[test]
+fn schema_labels_use_the_humanized_plugin_title() {
+    let params = [
+        info(1, "DELAY_MS", CAN_AUTOMATE),
+        info(2, "preDelay", CAN_AUTOMATE),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let labels: Vec<&str> = specs.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["Delay ms", "Pre Delay"]);
+}
+
+#[test]
+fn continuous_knob_carries_the_plugin_value_texts() {
+    let mut knob = info(1, "Decay", CAN_AUTOMATE);
+    knob.value_texts = vec!["0.1 s".to_string(), "2.5 s".to_string()];
+    let specs = specs_from_params(&[knob], &Default::default());
+    assert_eq!(specs[0].value_labels, ["0.1 s", "2.5 s"]);
+}
+
+#[test]
+fn label_drops_the_tab_name_it_repeats() {
+    // #1011: ChowMatrix titles its knobs "Node 1: Delay" inside the "Node 1"
+    // tab, so every knob repeated the tab name.
+    let params = [
+        info(1, "Node 1: Delay", CAN_AUTOMATE),
+        info(2, "Node 1: Pan", CAN_AUTOMATE),
+        info(3, "Node 1: Feedback", CAN_AUTOMATE),
+        info(4, "Mix", CAN_AUTOMATE),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let labels: Vec<&str> = specs.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["Delay", "Pan", "Feedback", "Mix"]);
+}
+
+#[test]
+fn manifest_group_prefix_is_dropped_from_the_label() {
+    let params = [info(7, "Node 2 Gain", CAN_AUTOMATE)];
+    let groups = [(7u32, "Node 2".to_string())].into_iter().collect();
+    let specs = specs_from_params(&params, &groups);
+    assert_eq!(specs[0].label, "Gain");
+    assert_eq!(specs[0].group.as_deref(), Some("Node 2"));
 }

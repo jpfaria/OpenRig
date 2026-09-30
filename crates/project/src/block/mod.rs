@@ -26,6 +26,8 @@ pub mod port_duplication;
 pub mod select_block_methods;
 pub mod types;
 pub mod vst3_model_id;
+mod vst3_param_filter;
+mod vst3_param_label;
 pub mod vst3_schema;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};

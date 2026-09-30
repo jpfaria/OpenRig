@@ -102,6 +102,19 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
   entry names a `vst3_id` and the block-editor tab it belongs to; `min` / `max`
   / `default` are optional and unused for grouping, since the live controller
   owns the real ranges.
+  The editor shows only the parameters the plugin itself marks as user-facing
+  (#1011): anything flagged `kIsHidden`, `kIsReadOnly` or `kIsBypass` (the block
+  footswitch already is the bypass) is skipped, and so are placeholder slots
+  (`Reserved*`, `Unused*`, `Unnamed*`) and unmapped macro slots (`Assign*`),
+  even when the plugin flags them automatable. A label that repeats its tab
+  name drops it (`Node 1: Delay` in the `Node 1` tab reads `Delay`). Labels come from the
+  plugin's `title` (falling back to `shortTitle`), split on `_` / `-` /
+  camelCase, with ALL-CAPS titles turned into sentence case (`DELAY_MS` →
+  `Delay ms`); words glued without any separator are only case-folded.
+  Continuous knobs keep their 0–100 % storage, but the value box shows the
+  plugin's own text (`getParamStringByValue` + `units`, e.g. `2.5 s`), sampled
+  once per knob step when the controller is read (`ParameterSpec.value_labels`);
+  a plugin that formats nothing falls back to the number.
   Parameter changes made in the plugin's **native editor** are captured back
   into the block's params (`p{id}` percent) on save, via `CaptureRigEdits`
   (#780) — the controller's current non-default values are read through the
