@@ -4,6 +4,7 @@ use domain::ids::ChainId;
 use serde::{Deserialize, Serialize};
 
 use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InsertBlock, OutputBlock};
+pub use crate::chain_bus_layout::bus_layout_after;
 pub use crate::chain_modes::{
     processing_layout, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
 };

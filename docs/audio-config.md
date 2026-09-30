@@ -107,6 +107,20 @@ HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stere
             → [m,m] → mixdown=m → HW(ch0=m)
 ```
 
+**6. Mono in + TrueStereo block (fil4, a stereo LV2) + mono out (#992)**
+
+When every output of a mono input is mono, the engine runs the segment on a
+mono bus (`project::chain::processing_layout`: mono blocks skip the
+mono→stereo→mono round-trip). A true-stereo block on that bus gets the bus
+broadcast to both of its inputs (`AudioProcessor::StereoFromMono`) and the bus
+is stereo from there on; the mono output takes the mixdown at the end. The rule
+lives in `project::chain::bus_layout_after`, shared by the engine and
+`validate_project`. Before #992 the block was swapped for a faulted bypass
+("does not accept mono input") and did nothing.
+```
+HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
+```
+
 ### Streams paralelos
 
 - Cada InputBlock = um stream paralelo TOTALMENTE isolado (próprio
@@ -256,6 +270,41 @@ a 2.9 ms dip on every tail route. A pipeline that is new, or builds a block
 fresh, still fades in; the spillover path (#454) still builds fresh and fades
 in against the old pipeline's tail. Pinned by
 `insert_bridge_isolation::insert_on_an_in_place_scene_edit_is_inaudible`.
+
+**A live edit never clicks (#987).** Toggling a block or switching scene used to
+click on both edit paths; now every transition is a warmed-up crossfade of the
+same stream, with no change to latency or to the steady-state sound:
+
+- **In place (chains holding a VST3).** Every node the edit needs fresh is
+  built first (`runtime_graph_prebuild`), while the live pipelines keep
+  playing; the swap then only moves nodes, under one processing-lock section,
+  so the audio never plays a pipeline emptied for the edit (it used to play the
+  raw input for the whole NAM/IR build). An edit that needs a fresh VST3 keeps
+  the quiesced path (#779), and so does a `Select`.
+- **A fresh node takes over from the node it replaces**
+  (`runtime_node_handover`): it runs unheard for 512 frames (an IR's partition
+  latency and onset, most of a NAM's receptive field) while the old node — or
+  the dry input, when the block was off or new — keeps playing, then the two
+  crossfade over 128 frames.
+- **A block turned back on warms up first.** Its processor sat frozen while the
+  block was off; it now runs unheard for the same 512 frames before its
+  128-frame fade-in, instead of ramping its stale state in.
+- **Fresh rebuild (chains without a VST3).** The new runtime is handed over in
+  its slot (`slot_handover`): the old runtime keeps playing, fed the same input,
+  while the new one warms up unheard for 1536 frames (its primed cushion, its
+  fades from silence, its cold blocks), then every output crossfades over 256
+  frames. The old runtime is released on the control side once no audio thread
+  holds it.
+- **The DSP worker waits for the swap.** The per-input worker (#670) retries
+  the processing lock for up to one period, sleeping 20 µs between tries,
+  instead of dropping the buffer; the device callback keeps its plain
+  `try_lock`.
+
+The new sound starts 11–40 ms after the edit (the warm-up); signal latency is
+unchanged. Pinned by `infra-cpal` `issue_987_live_edit_click_tests` (a steady
+tone scanned sample by sample for a step or a gap, the in-place cases with the
+audio on its own thread and a real IR cab). History:
+`docs/audio-incidents/987-click-on-live-edit.md`.
 
 ### I/O resolution from the binding registry (issue #716, model A)
 

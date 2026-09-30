@@ -239,6 +239,10 @@ server runs on its own tokio thread and crosses the boundary through
 `application::bridge` (a `Send` channel + `futures` oneshot). It is drained
 each tick on the frontend thread — the same path GUI callbacks use. No
 audio-thread code is touched; invariants 1–10 hold by construction.
+The events a drained command produces redraw every open surface that shows
+the project — the chains list and the compact chain view alike — so a knob
+set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen
+(#999).
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`

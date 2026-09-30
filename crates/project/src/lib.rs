@@ -21,6 +21,7 @@ mod catalog_model_info;
 mod catalog_registry;
 mod catalog_types;
 pub mod chain;
+pub mod chain_bus_layout;
 pub mod chain_modes;
 pub mod channel_mode_conv;
 pub mod device;
