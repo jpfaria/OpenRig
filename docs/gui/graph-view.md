@@ -212,11 +212,14 @@ Every desktop chain row hosts a `GraphView` through `ui/pages/chain_row_graph.sl
 | ![linear](assets/chain-row-graph-linear.png) | ![split to mix](assets/chain-row-graph-split-mix.png) | ![y](assets/chain-row-graph-y.png) |
 
 - `src/chain_graph_adapter.rs` turns a `Chain` into `ChainStage`s: stage 0 is the input
-  node, every top-level block one stage, the split one `Parallel { lanes: [A, B], end }`
+  node, every top-level block one stage, each split one `Parallel { lanes: [A, B], end }`
   stage (`Merge` for Split → Mix, `Fan` for Y → A/B with each lane ending in its own output
-  node), then the output node. Cards sit 132 px apart, lanes 108 px apart.
+  node), then the output node. A chain with a Mix, then a Y has two parallel stages in that
+  order. Cards sit 132 px apart, lanes 108 px apart.
 - `src/chain_graph_ids.rs` names the nodes: a block node is its `BlockId`; the fixed ids
-  are `__io_input`, `__io_output`, `__io_output_a`, `__io_output_b`, `__split_1`, `__merge_1`.
+  are `__io_input`, `__io_output`, `__io_output_a`, `__io_output_b`. The n-th split of the
+  chain (1-based, top-level order) is `__split_n` and, for a Mix, its mixer `__merge_n`;
+  `resolve_node` turns them back into the split's `BlockId`.
 - `src/chain_graph_models.rs` publishes the nodes (each block node with its strip tile in
   `GraphNode.block`), the wires and the "+" anchors on `ProjectChainItem.graph_*` once per
   row rebuild; the meter tick never rebuilds them.

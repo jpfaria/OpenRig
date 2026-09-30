@@ -94,9 +94,11 @@ Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and a
 | `mix_master` | 0–100 | 50 | Mix only. Output gain `x/100`; at the default two identical paths sum to unity |
 | `mix_master_sum` | bool | false | Mix only. Output becomes dual mono `L = R = (L+R)/2` |
 
-Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): at most one split per chain; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split.
+Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): a chain holds at most one Split → Mix and at most one Y → A/B, and when it holds both the Mix comes first; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split. Two Mix, two Y, a Y before a Mix and a processing block after the Y are refused.
 
-In the GUI, clicking the split node of a chain graph (or the Split chip in touch and compact views) opens the
+**Mix, then Y.** One chain can sum two amps and send the sum to two outputs that differ only in the cab: input → Split → Mix (A: amp 1, B: amp 2) → shared blocks → Y → A/B (A: cab IR → FRFR output, B: nothing → a real cab's output). Each split keeps its own knobs, addressed by its own block id. Every Y output runs its own copy of the Mix and of every block before the Y (one pipeline per output), so their CPU cost counts once per Y output. Spec: `docs/superpowers/specs/2026-09-28-issue-328-chain-split-graph-design.md` §9.
+
+In the GUI, clicking a split node of a chain graph (or a Split chip in touch and compact views) opens the
 **split editor** — a Split → Mix / Y → A/B switch (`SetSplitEnd`; a switch the chain refuses shows the error as a
 toast), mode, levels into A and B, balances — and clicking the mixer node opens the **mixer editor** — levels,
 pans, B polarity, master, master sum. Both are a small root-level panel drawn from `split_param_specs()` by the

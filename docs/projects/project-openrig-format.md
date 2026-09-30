@@ -98,6 +98,42 @@ chain and every scene was cleared.
 
 A preset may hold a `Split` block (`kind: !Split`). Blocks before it are shared by both paths; for `end: mix` the blocks after it are shared again after the mixer. `a` and `b` are the two paths. The split and mixer knobs live in `params` (see `docs/blocks-catalog.md` → Chain split).
 
+A preset holds at most one `end: mix` split and at most one `end: y` split. When it holds both, the Mix comes first and the Y is the last processing block: only the chain's own ports may follow it. Two Mix, two Y, a Y before a Mix or a processing block after the Y fail validation (spec §9, `docs/superpowers/specs/2026-09-28-issue-328-chain-split-graph-design.md`).
+
+A Mix, then a Y: two amps summed, then one output with a cab and one without (abridged: each block's `params` are left out):
+
+```yaml
+version: 2                                # a Split in the file writes version 2
+project:
+  presets:
+    dual-amp:
+      id: dual-amp
+      name: DUAL AMP
+      blocks:
+      - id: rig:guitar:block:mix
+        enabled: true
+        kind: !Split
+          end: mix
+          params: { values: { mix_pan_a: -50.0, mix_pan_b: 50.0 } }  # plus the other split knobs
+          a:
+          - id: rig:guitar:block:amp-1
+            kind: !Core { effect_type: amp, model: blackface_clean }
+          b:
+          - id: rig:guitar:block:amp-2
+            kind: !Core { effect_type: preamp, model: american_clean }
+      - id: rig:guitar:block:y
+        enabled: true
+        kind: !Split
+          end: y
+          params: { values: { level_to_a: 100.0, level_to_b: 100.0 } }  # plus the other split knobs
+          a:                                  # path A → its outputs (FRFR): with a cab
+          - id: rig:guitar:block:cab
+            kind: !Core { effect_type: cab, model: american_2x12 }
+          b: []                               # path B → its outputs (a real cab): no cab
+```
+
+Each Y path feeds every output endpoint of the chain's E/S that the input's `disabled_endpoints.path_a_outputs` / `path_b_outputs` does not leave out. The two splits' path blocks keep distinct ids in every format, so they never collide.
+
 Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
 Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide, #690). Swapping a path block's model keeps every scene (#986 applies inside paths). Adding, removing or moving a block inside a path is a structural edit and follows the #986 rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
@@ -133,7 +169,7 @@ and rejects:
    `InputBlock::validate_channel_conflicts` (same `(device, channel)` used by
    two sources of the same input);
 6. a `routing` target not naming an `outputs` entry;
-7. a preset breaking the split rules of #328: two splits, a split/select/input/output/insert inside a path, or anything but a port after a Y split.
+7. a preset breaking the split rules of #328: two Mix splits, two Y splits, a Y before a Mix, a split/select/input/output/insert inside the path of any split, or anything but a port after a Y split.
 
 Cross-input capture exclusivity is **not** validated statically: a project
 may freely hold many inputs sharing a `(device, channel)` tap (a library of

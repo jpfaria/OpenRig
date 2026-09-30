@@ -300,9 +300,15 @@ below is bindable.
 `{ StepScene: int }` (relative, wraps).
 
 `path?` (#328) is optional: `{ split: id, side: a }` (or `side: b`)
-puts the block into that path of the chain's split. Leave it out for the
-chain's top level — every map written before #328 keeps working
-unchanged.
+puts the block into that path of the split whose block id is `split`.
+Leave it out for the chain's top level — every map written before #328
+keeps working unchanged.
+
+A split's own knobs (`level_to_a`, `mix_pan_b`, `mix_master`, …) are
+mapped like any block parameter: `SetBlockParameterNumber` (or `Bool` /
+`Text`) with `block` = the split's block id. A chain can hold a Mix and
+a Y, so each split's knobs are addressed by that split's own id (listed
+by `openrig://ids`).
 
 That is **all 34 commands** (enum order). The 7 live actions in the
 standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,

@@ -65,17 +65,20 @@ follow-up.
   sidecars, which only the GUI's own Save did before. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
 
-  Split chains (#328): a chain may hold one split, with a path `a` and a
-  path `b` running side by side. Every tool that finds a block by id
+  Split chains (#328): a split runs a path `a` and a path `b` side by
+  side. A chain may hold one Split → Mix and one Y → A/B; with both, the
+  Mix comes first and the Y is the last processing block. Every tool
+  that names a split takes its block id (`split`, `split_id`), so the
+  two are never ambiguous. Every tool that finds a block by id
   (`set_block_parameter_*`, `toggle_block_enabled`,
-  `replace_block_model`, …) also reaches the blocks inside a path. The
+  `replace_block_model`, …) also reaches the blocks inside a path. Each
   split's own knobs (`split_mode`, `level_to_a`, `mix_pan_b`,
-  `mix_master_sum`, …) are ordinary parameters of the split's block id.
+  `mix_master_sum`, …) are ordinary parameters of that split's block id.
 
-  An edit that would break a split rule — a second split; a split,
-  select, input, output or insert block inside a path; a processing
-  block after a Y split — is refused and leaves the chain exactly as it
-  was. `remove_block` refuses the split itself, because removing it that
+  An edit that would break a split rule — a second Mix or a second Y; a
+  Mix after the Y; a split, select, input, output or insert block inside
+  a path; a processing block after a Y split — is refused and leaves the
+  chain exactly as it was. `remove_block` refuses the split itself, because removing it that
   way would drop both paths. `add_chain`, `configure_chain`, `save_chain`
   and `load_chain_preset` refuse a block list that breaks the same rules.
 
@@ -90,15 +93,20 @@ follow-up.
   path and the top level (no `path`).
 
   `add_split` (`{ chain, position, end: "mix" | "y" }`) inserts an empty
-  split with the default knobs and answers `BlockAdded` with its id;
+  split with the default knobs and answers `BlockAdded` with its id; it
+  adds a second split when the result is a Mix, then a Y (a Mix before an
+  existing Y, or a Y at the end after an existing Mix).
   `set_split_end` (`{ chain, split_id, end }`) switches it between
-  Split → Mix and Y → A/B; `remove_split` (`{ chain, split_id }`) puts
-  path `a`'s blocks in its place and drops path `b`'s.
+  Split → Mix and Y → A/B, refused when the chain would then hold two
+  splits of one end; `remove_split` (`{ chain, split_id }`) puts that
+  split's path `a` blocks in its place, drops its path `b`'s and keeps
+  the chain's other split.
 
   `set_chain_endpoint_enabled` (`{ chain, node: "input" | "output" |
   "path_a_output" | "path_b_output", io, endpoint, enabled }`) checks
   or unchecks one endpoint of the chain's E/S on one node of the chain
-  graph. The E/S itself is not edited: the unchecked endpoint stays
+  graph (`path_a_output` / `path_b_output` are the Y split's path output
+  nodes). The E/S itself is not edited: the unchecked endpoint stays
   listed, is saved with the chain's input in `project.openrig`, and
   survives preset/scene switches, `configure_chain` and the chain
   editor's Save.

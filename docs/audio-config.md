@@ -443,6 +443,19 @@ gets brand-new streams (#881), never an in-place knob-style rebuild. On
 Linux/JACK the structure signature is not consulted (#672); there the edit
 is an in-place rebuild, which already runs the new path sets.
 
+**A Mix before the Y.** A chain may hold one Split → Mix and, after it, one
+Y → A/B as its last processing block (e.g. two amps summed, then a cab on the
+FRFR output and none on the real-cab output). The Mix is one of the shared
+blocks, so the segment of every Y output runs the whole Mix — both paths and
+the mixer — and every other block before the Y, then only the Y paths that
+output checks; `split_segment_view` reshapes the Y and leaves the Mix
+unchanged. This is the isolation law, one pipeline per output: nothing before
+the Y is shared between the outputs' runtimes, so **the CPU cost of the Mix and
+of every block before the Y counts once per Y output** (two outputs = two Mix
+passes, two amp pairs). A Mix knob edit or a Mix bypass reaches every Y output
+in place, and no Mix edit reopens streams: only the Y's per-output path sets
+enter `chain_structure_signature`.
+
 On Linux with JACK-direct, one JACK client carries a chain's whole runtime.
 Every output route of that runtime (`ChainRuntimeState::output_route_count`)
 gets **its own set of output ports**, one per device channel
