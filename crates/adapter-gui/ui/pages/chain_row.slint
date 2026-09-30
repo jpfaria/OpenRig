@@ -172,6 +172,7 @@ export component ChainRow inherits Rectangle {
         columns: root.chain.graph_columns;
         chain-index: root.chain-index;
         latency-ms: root.chain.latency_ms;
+        markers-visible: root.midi-selection-active;
     }
 
     meters := ChainRowMeters {

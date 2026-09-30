@@ -18,6 +18,7 @@ export component ChainRowGraph inherits Rectangle {
     in property <int> columns: 1;
     in property <int> chain-index;
     in property <float> latency-ms: 0;
+    in property <bool> markers-visible: false;
 
     background: transparent;
 
@@ -29,6 +30,11 @@ export component ChainRowGraph inherits Rectangle {
         nodes: root.nodes;
         edges: root.edges;
         anchors: root.anchors;
+        markers_visible: root.markers-visible;
+        selected-node-id: ChainGraphBridge.selected-chain-index == root.chain-index
+            ? ChainGraphBridge.selected-block-id : "";
+        neighbor-node-id: ChainGraphBridge.selected-chain-index == root.chain-index
+            ? ChainGraphBridge.neighbor-block-id : "";
         node_width: 100px;
         node_height: 100px;
         show_grid: false;

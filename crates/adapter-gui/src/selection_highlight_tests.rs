@@ -226,3 +226,49 @@ fn a_block_that_is_not_in_the_chain_marks_no_chip() {
         (0, -1)
     );
 }
+
+/// #328: the graph marks cards by block id; same rule as the strip's indices.
+#[test]
+fn the_graph_marks_the_selected_block_and_its_neighbor_by_id() {
+    let sel = SelectionState {
+        active_chain: Some("rig:input-1".to_string()),
+        active_block: Some("b0".to_string()),
+        ..Default::default()
+    };
+    assert_eq!(
+        graph_selection_ids(&project(), &sel),
+        (0, "b0".to_string(), "b1".to_string())
+    );
+}
+
+#[test]
+fn nothing_selected_marks_no_card() {
+    assert_eq!(
+        graph_selection_ids(&project(), &SelectionState::default()),
+        (-1, String::new(), String::new())
+    );
+}
+
+/// The footswitch drain calls `sync_selection_markers`: the graph rows must
+/// follow it like the strip does.
+#[test]
+fn syncing_the_markers_feeds_the_chain_graph_too() {
+    use slint::Global;
+    i_slint_backend_testing::init_no_event_loop();
+    let window = crate::AppWindow::new().unwrap();
+    let sel = SelectionState {
+        active_chain: Some("rig:input-1".to_string()),
+        active_block: Some("b0".to_string()),
+        ..Default::default()
+    };
+    sync_selection_markers(&window, &project(), &sel);
+    let bridge = crate::ChainGraphBridge::get(&window);
+    assert_eq!(
+        (
+            bridge.get_selected_chain_index(),
+            bridge.get_selected_block_id().to_string(),
+            bridge.get_neighbor_block_id().to_string(),
+        ),
+        (0, "b0".to_string(), "b1".to_string())
+    );
+}

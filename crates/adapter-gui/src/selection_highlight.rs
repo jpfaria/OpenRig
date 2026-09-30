@@ -11,6 +11,7 @@
 
 use application::SelectionState;
 use project::project::Project;
+use slint::Global;
 
 use crate::AppWindow;
 
@@ -70,6 +71,35 @@ pub(crate) fn sync_selection_markers(window: &AppWindow, project: &Project, sel:
     window.set_selected_chain_block_chain_index(chain_index);
     window.set_selected_chain_block_index(block_ui_index);
     window.set_selected_chain_block_neighbor_index(active_neighbor_block_ui_index(project, sel));
+    let (graph_chain, graph_block, graph_neighbor) = graph_selection_ids(project, sel);
+    let bridge = crate::ChainGraphBridge::get(window);
+    bridge.set_selected_chain_index(graph_chain);
+    bridge.set_selected_block_id(graph_block.into());
+    bridge.set_neighbor_block_id(graph_neighbor.into());
+}
+
+/// #328: `(chain_index, block_id, neighbor_id)` the chain graph marks — the
+/// strip's rule above, by block id instead of chip index ("" = none).
+pub(crate) fn graph_selection_ids(
+    project: &Project,
+    sel: &SelectionState,
+) -> (i32, String, String) {
+    let (chain_index, block_index) = active_highlight_indices(project, sel);
+    let neighbor_index = active_neighbor_block_ui_index(project, sel);
+    let Some(chain) = usize::try_from(chain_index)
+        .ok()
+        .and_then(|index| project.chains.get(index))
+    else {
+        return (-1, String::new(), String::new());
+    };
+    let id_at = |index: i32| {
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| chain.blocks.get(i))
+            .map(|block| block.id.0.clone())
+            .unwrap_or_default()
+    };
+    (chain_index, id_at(block_index), id_at(neighbor_index))
 }
 
 #[cfg(test)]

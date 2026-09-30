@@ -21,6 +21,11 @@ export component GraphNodeCard inherits Rectangle {
     in property <bool> dragging;
     // #591: MIDI markers only show while a MIDI command is recent.
     in property <bool> markers-visible: false;
+    // #328 part 6: the host also marks the selection by block id.
+    in property <string> selected-node-id;
+    in property <string> neighbor-node-id;
+    property <bool> is-selected: root.node.selected || (root.node.id != "" && root.node.id == root.selected-node-id);
+    property <bool> is-neighbor: root.node.neighbor || (root.node.id != "" && root.node.id == root.neighbor-node-id);
     // Viewport zoom: block artwork scales with the card; text keeps
     // Theme.min-font (#954) and elides.
     in property <float> zoom: 1.0;
@@ -57,11 +62,11 @@ export component GraphNodeCard inherits Rectangle {
         : root.hovered ? root.node.fill.brighter(0.10)
         : root.node.fill;
     border-width: root.is-block
-        ? BlockTileStyle.marker-border-width(root.markers-visible, root.node.selected, root.node.neighbor)
-        : (root.node.selected ? 2px : 1px);
+        ? BlockTileStyle.marker-border-width(root.markers-visible, root.is-selected, root.is-neighbor)
+        : (root.is-selected ? 2px : 1px);
     border-color: root.is-block
-        ? BlockTileStyle.marker-border-color(root.markers-visible, root.node.selected, root.node.neighbor, root.enabled)
-        : (root.node.selected ? #f5f7fb : root.node.border);
+        ? BlockTileStyle.marker-border-color(root.markers-visible, root.is-selected, root.is-neighbor, root.enabled)
+        : (root.is-selected ? #f5f7fb : root.node.border);
     opacity: root.unavailable ? BlockTileStyle.unavailable-opacity
         : (!root.is-block && root.node.bypass) ? 0.7
         : 1.0;
@@ -75,7 +80,7 @@ export component GraphNodeCard inherits Rectangle {
         width: parent.width;
         height: parent.height;
         border-radius: 6px;
-        background: BlockTileStyle.marker-background(root.markers-visible, root.node.selected);
+        background: BlockTileStyle.marker-background(root.markers-visible, root.is-selected);
     }
 
     if root.is-block : Text {

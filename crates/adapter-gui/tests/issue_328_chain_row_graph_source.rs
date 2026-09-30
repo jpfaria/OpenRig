@@ -40,3 +40,19 @@ fn the_graph_row_keeps_the_latency_badge() {
     assert!(read("ui/pages/chain_row_graph.slint").contains("ChainLatencyBadge {"));
     assert!(read("ui/pages/chain_row_blocks.slint").contains("ChainLatencyBadge {"));
 }
+
+#[test]
+fn graph_cards_mark_the_selection_by_block_id() {
+    let card = read("ui/components/graph_node_card.slint");
+    assert!(card.contains("root.node.id == root.selected-node-id"));
+    assert!(card.contains("root.node.id == root.neighbor-node-id"));
+    let view = read("ui/components/graph_view.slint");
+    assert!(view.contains("selected-node-id: root.selected-node-id;"));
+    assert!(view.contains("neighbor-node-id: root.neighbor-node-id;"));
+    let row = read("ui/pages/chain_row_graph.slint");
+    assert!(row.contains("ChainGraphBridge.selected-block-id"));
+    assert!(row.contains("markers_visible: root.markers-visible;"));
+    assert!(
+        read("ui/pages/chain_row.slint").contains("markers-visible: root.midi-selection-active;")
+    );
+}

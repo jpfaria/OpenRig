@@ -42,6 +42,11 @@ export component GraphView inherits Rectangle {
     // #591 parity with BlockChip: MIDI markers show only while a MIDI
     // command is recent.
     in property <bool> markers_visible: false;
+    // #328 part 6: the #591 selection by block id ("" = none). A per-node
+    // `selected` flag would be wiped by every row rebuild; these follow
+    // `SelectionState` through `ChainGraphBridge`.
+    in property <string> selected-node-id;
+    in property <string> neighbor-node-id;
 
     // When true the host computes positions via topological_layout and
     // re-tidies on drag end via reorder_for_drop. Documentational on the
@@ -302,6 +307,8 @@ export component GraphView inherits Rectangle {
             zoom: root.zoom;
             backdrop: root.background_color;
             markers-visible: root.markers_visible;
+            selected-node-id: root.selected-node-id;
+            neighbor-node-id: root.neighbor-node-id;
             card_width: parent.width;
             card_height: parent.height;
             hovered: root.hover_id == node.id && root.drag_id == "";

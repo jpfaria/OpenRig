@@ -202,6 +202,32 @@ Source pins — `tests/issue_328_graph_view_sources.rs`: the file split, no empt
 
 Render — `ui/components/_harness_graph_view.slint` (not compiled into the app): `LinearChain`, `LinearChainZoomedOut`, `SplitMixChain`, `SplitYChain`, rendered with `tools/slint-render` (command in the `openrig-tooling` skill). The interpreter has no translation catalog, so `@tr` text renders as its key.
 
+## Chain row (#328)
+
+Every desktop chain row hosts a `GraphView` through `ui/pages/chain_row_graph.slint`
+(`ChainRow` keeps the pedal strip for touch mode, `ChainGraphBridge.graph-enabled`).
+
+| Linear | Split → Mix | Y → A/B |
+|---|---|---|
+| ![linear](assets/chain-row-graph-linear.png) | ![split to mix](assets/chain-row-graph-split-mix.png) | ![y](assets/chain-row-graph-y.png) |
+
+- `src/chain_graph_adapter.rs` turns a `Chain` into `ChainStage`s: stage 0 is the input
+  node, every top-level block one stage, the split one `Parallel { lanes: [A, B], end }`
+  stage (`Merge` for Split → Mix, `Fan` for Y → A/B with each lane ending in its own output
+  node), then the output node. Cards sit 132 px apart, lanes 108 px apart.
+- `src/chain_graph_ids.rs` names the nodes: a block node is its `BlockId`; the fixed ids
+  are `__io_input`, `__io_output`, `__io_output_a`, `__io_output_b`, `__split_1`, `__merge_1`.
+- `src/chain_graph_models.rs` publishes the nodes (each block node with its strip tile in
+  `GraphNode.block`), the wires and the "+" anchors on `ProjectChainItem.graph_*` once per
+  row rebuild; the meter tick never rebuilds them.
+- `src/graph_anchor.rs` turns an anchor id (`stage:{i}` / `lane:{stage}:{lane}:{i}`) back
+  into a position plus a split path — where a "+" inserts and where a drop moves a block.
+- The #591 MIDI markers follow `ChainGraphBridge.selected-block-id` / `neighbor-block-id`
+  (`GraphView.selected-node-id` / `neighbor-node-id`), fed from the same `SelectionState` the
+  strip reads, so a row rebuild never loses them.
+- Every gesture reaches Rust through `ChainGraphBridge`, tagged with the row's chain index;
+  `resolve-drop-anchor` is answered by `graph_view_model::resolve_drop_anchor`.
+
 ## Future work
 
 Captured here so the next contributor doesn't reinvent it:

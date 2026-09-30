@@ -49,9 +49,10 @@ export component ChainRowGraphSplitMixHarness inherits Window {
         height: 216px;
         columns: 7;
         chain-index: 0;
+        markers-visible: true;
         nodes: [
             { id: "__io_input", label: "In 1", category: "input", kind: "io_input", fill: #1e8aff, border: #1359a5, layout_x: 50px, layout_y: 104px },
-            { id: "od", label: "TS9", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 182px, layout_y: 104px,
+            { id: "od", label: "TS9", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 182px, layout_y: 104px, selected: true,
               block: { kind: "gain", icon_kind: "gain", type_label: "GAIN", label: "ts9", enabled: true, accent_color: #d04a3a, display_name: "TS9", backend_label: "NATIVE" } },
             { id: "__split_1", label: "", category: "util", kind: "split", fill: #6a7483, border: #454b55, layout_x: 314px, layout_y: 104px },
             { id: "a1", label: "Plexi", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 446px, layout_y: 50px,
