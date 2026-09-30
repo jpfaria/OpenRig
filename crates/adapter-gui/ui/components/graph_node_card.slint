@@ -1,0 +1,49 @@
+// Responsibility: draws one node card of the graph view.
+// Single node card. Pure visual; drag/click are owned by the parent
+// GraphView TouchArea so we keep one input source per gesture.
+
+import { GraphNode } from "graph_view_types.slint";
+
+export component GraphNodeCard inherits Rectangle {
+    in property <GraphNode> node;
+    in property <bool> hovered;
+    in property <bool> dragging;
+    in property <length> card_width;
+    in property <length> card_height;
+
+    width: root.card_width;
+    height: root.card_height;
+    border-radius: 8px;
+    border-width: root.node.selected ? 2px : 1px;
+    border-color: root.node.selected
+        ? #f5f7fb
+        : root.node.border;
+    background: root.node.bypass
+        ? root.node.fill.with-alpha(0.35)
+        : root.dragging
+        ? root.node.fill.brighter(0.20)
+        : root.hovered
+        ? root.node.fill.brighter(0.10)
+        : root.node.fill;
+    opacity: root.node.bypass ? 0.7 : 1.0;
+    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
+    drop-shadow-color: #00000080;
+    drop-shadow-offset-y: 2px;
+
+    Text {
+        x: 8px;
+        y: 0px;
+        width: parent.width - 16px;
+        height: parent.height;
+        text: root.node.label;
+        color: #f5f7fb;
+        font-size: 18px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    accessible-role: button;
+    accessible-label: root.node.label;
+}

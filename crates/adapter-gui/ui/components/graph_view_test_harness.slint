@@ -1,0 +1,30 @@
+// Responsibility: hosts the graph view in test windows.
+// #328 TEST-ONLY harness: hosts GraphView in a real Window so the headless
+// interaction tests (i-slint-backend-testing) can dispatch real pointer,
+// wheel and key events at it. Imported by app-window.slint purely so
+// slint-build emits the Rust types; never shown in the running app.
+
+import { GraphView, GraphNode, GraphEdgeGeometry } from "graph_view.slint";
+
+// The canvas alone, every callback forwarded.
+export component GraphViewHarness inherits Window {
+    width: 900px;
+    height: 420px;
+    in property <[GraphNode]> nodes;
+    in property <[GraphEdgeGeometry]> edges;
+    in-out property <float> zoom: 1.0;
+    callback node-clicked(string);
+    callback node-drag-ended(string, length, length);
+
+    GraphView {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        nodes: root.nodes;
+        edges: root.edges;
+        zoom <=> root.zoom;
+        node_clicked(id) => { root.node-clicked(id); }
+        node_drag_ended(id, x, y) => { root.node-drag-ended(id, x, y); }
+    }
+}

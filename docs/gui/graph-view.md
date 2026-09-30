@@ -1,7 +1,7 @@
 # GraphView — node-and-edge canvas with pan/zoom/drag
 
-**Status:** introduced in #435.
-**Source:** `crates/adapter-gui/ui/components/graph_view.slint` + `crates/adapter-gui/src/graph_view_model.rs`.
+**Status:** introduced in #435; grown into the chain editor's canvas in #328.
+**Source:** `crates/adapter-gui/ui/components/` — `graph_view.slint` (the canvas), `graph_node_card.slint` (one node card), `graph_wire.slint` (one wire), `graph_view_types.slint` (the structs) — and the Rust model in `crates/adapter-gui/src/graph_view_model/`.
 
 A reusable Slint component for rendering a directed graph with full interactivity. Built first as a standalone primitive — integration with the existing chain UI (`secondary_windows_chain.slint`, `chain_chips.slint`) is a separate effort and not part of this component.
 
@@ -21,7 +21,7 @@ The visual language follows pedalboards in the **Helix / Quad Cortex / Mooer GE1
 ```
                 ┌─ Rust ───────────────────────────────────────┐
                 │                                              │
-  domain  ───►  │  graph_view_model.rs                         │
+  domain  ───►  │  graph_view_model/                           │
    data         │   ChainStage[]  → linear_chain_layout()      │
                 │   → (Vec<GraphNode>, Vec<GraphEdge>)         │
                 │   → validate_graph()                         │
@@ -169,7 +169,7 @@ Layout helper has 17 tests in `crates/adapter-gui/src/graph_view_model_tests.rs`
 - `validate_graph` reports duplicate ids, dangling edges, self-loops
 - The output of `linear_chain_layout` is always valid
 
-Visual behaviour (drag, zoom, click thresholds) is validated by running the demo example. There is no automated UI test harness for Slint at this time — that's a project-wide gap, not specific to this component.
+Pointer behaviour is proven headlessly: `crates/adapter-gui/tests/issue_328_graph_view_interaction.rs` dispatches real pointer events at `GraphViewHarness` (`ui/components/graph_view_test_harness.slint`, test-only, exported through `app-window.slint`). `tests/issue_328_graph_view_sources.rs` pins the file split.
 
 ## Future work
 
