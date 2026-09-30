@@ -383,6 +383,13 @@ The input and output nodes of a chain's graph list every endpoint of the chain's
 
 The input-conflict detectors agree on it (#924): the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.openrig` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
 
+Unchecking **every** input (with no mid `Input`) or **every** output (with no
+mid `Output`) is allowed: the chain simply has nothing to play. The engine does
+not invent its legacy fallback endpoint for it (`effective_inputs` /
+`effective_outputs` keep that fallback for a chain that selects no E/S), and
+with no input it builds no segment at all — an insert's return must never stand
+in for the missing input.
+
 Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
 
 ### Mid-chain ports (issue #85)

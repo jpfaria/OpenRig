@@ -50,6 +50,13 @@ pub(crate) fn split_chain_into_segments(
     effective_outs: &[OutputEntry],
     registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
+    // #328: the input node's checklist left the chain no head input and no mid
+    // `Input` either — it has no source, so it builds nothing. An insert's
+    // return must never stand in for the missing input (the loop would feed
+    // itself).
+    if project::endpoint_feeds::inputs_all_unchecked(chain, registry) {
+        return Vec::new();
+    }
     // Find positions of enabled Insert blocks in chain.blocks. Only an insert
     // whose binding resolves on BOTH sides is a boundary (#881): the send and
     // return shims are what `effective_outputs` / `effective_inputs` append, so

@@ -106,7 +106,10 @@ pub(crate) fn effective_inputs(
         entries.push(ret);
     }
 
-    if !entries.is_empty() {
+    // #328: a node the checklist emptied stays empty — the fallback below is
+    // for a chain with no E/S, never a way to reach device "" behind the
+    // user's unchecked inputs.
+    if !entries.is_empty() || project::endpoint_feeds::inputs_all_unchecked(chain, registry) {
         return (entries, cpal_indices, split_positions, entry_groups);
     }
     // Fallback — chain has no resolved inputs.
@@ -135,7 +138,8 @@ pub(crate) fn effective_outputs(
     // Append Insert send entries (as outputs for segments before each Insert).
     entries.extend(insert_send_entries(chain, registry));
 
-    if !entries.is_empty() {
+    // #328: same rule on the output side.
+    if !entries.is_empty() || project::endpoint_feeds::outputs_all_unchecked(chain, registry) {
         return entries;
     }
     // Fallback — no resolved outputs and no Inserts.
@@ -172,3 +176,7 @@ fn insert_send_entries(chain: &Chain, registry: &[IoBinding]) -> Vec<OutputEntry
         })
         .collect()
 }
+
+#[cfg(test)]
+#[path = "issue_328_checklist_segments_tests.rs"]
+mod issue_328_checklist_segments_tests;
