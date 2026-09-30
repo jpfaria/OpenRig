@@ -130,6 +130,7 @@ pub(crate) fn split_chain_into_segments(
         resolved_output_count,
         &crate::insert_return_routes::return_tail_routes(&tail_routes, effective_outs),
         &mid_taps,
+        &route_paths,
     )
 }
 
@@ -321,6 +322,7 @@ fn segments_with_inserts(
     resolved_output_count: usize,
     tail_routes: &[usize],
     mid_taps: &[MidOutputTap],
+    route_paths: &[SegmentPaths],
 ) -> Vec<ChainSegment> {
     let mut segments = Vec::new();
     // Insert return entries start after regular inputs; the sends start after
@@ -423,22 +425,31 @@ fn segments_with_inserts(
     );
 
     let last_return_idx = return_idx(insert_positions.len() - 1);
-    segments.push(ChainSegment {
-        input: effective_ins[last_return_idx].clone(),
-        cpal_input_index: cpal_indices
-            .get(last_return_idx)
-            .copied()
-            .unwrap_or(last_return_idx),
-        block_indices,
-        output_route_indices: tail_routes.to_vec(),
-        mid_output_taps: taps,
-        split_mono_sibling_count: None,
-        entry_group: entry_groups
-            .get(last_return_idx)
-            .copied()
-            .unwrap_or(last_return_idx),
-        paths: SegmentPaths::None,
-    });
+    // #328: a Y → A/B split runs different paths per output, so the return
+    // feeds one pipeline per path set; a split-free chain is one group with
+    // every tail route, exactly as before. Mid taps ride the first pipeline
+    // only — two would write the tap's route twice.
+    let mut taps = Some(taps);
+    for (paths, routes) in
+        crate::runtime_graph::segment_paths::group_routes_by_paths(tail_routes, route_paths)
+    {
+        segments.push(ChainSegment {
+            input: effective_ins[last_return_idx].clone(),
+            cpal_input_index: cpal_indices
+                .get(last_return_idx)
+                .copied()
+                .unwrap_or(last_return_idx),
+            block_indices: block_indices.clone(),
+            output_route_indices: routes,
+            mid_output_taps: taps.take().unwrap_or_default(),
+            split_mono_sibling_count: None,
+            entry_group: entry_groups
+                .get(last_return_idx)
+                .copied()
+                .unwrap_or(last_return_idx),
+            paths,
+        });
+    }
 
     segments
 }

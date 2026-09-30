@@ -404,6 +404,11 @@ has no route and no segment. The #716 pairing is unchanged: a head input still
 pairs only with its own E/S's outputs, so a path can only reach outputs of the
 E/S whose input feeds it.
 
+With an insert cutting the shared blocks, the insert's return feeds one
+pipeline per distinct path set (routes that run the same paths share it). A mid
+`Output` after the insert rides only the first of them, so its route is still
+written once.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it

@@ -33,3 +33,29 @@ pub fn route_paths(chain: &Chain, registry: &[IoBinding]) -> Vec<SegmentPaths> {
         })
         .collect()
 }
+
+/// Groups `routes` (indices into `paths`) by the path set they run, in
+/// first-seen order, so one pipeline serves every route that runs the same
+/// paths. A split-free chain is one group holding every route, and no routes
+/// is one empty group — the exact shape the insert return had before #328.
+pub(crate) fn group_routes_by_paths(
+    routes: &[usize],
+    paths: &[SegmentPaths],
+) -> Vec<(SegmentPaths, Vec<usize>)> {
+    let mut groups: Vec<(SegmentPaths, Vec<usize>)> = Vec::new();
+    for &route in routes {
+        let set = paths.get(route).copied().unwrap_or(SegmentPaths::None);
+        match groups.iter_mut().find(|(group, _)| *group == set) {
+            Some((_, members)) => members.push(route),
+            None => groups.push((set, vec![route])),
+        }
+    }
+    if groups.is_empty() {
+        groups.push((SegmentPaths::None, Vec::new()));
+    }
+    groups
+}
+
+#[cfg(test)]
+#[path = "segment_paths_tests.rs"]
+mod tests;

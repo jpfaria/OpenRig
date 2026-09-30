@@ -227,3 +227,74 @@ fn a_head_input_still_pairs_only_with_its_own_e_s() {
          each through the path its output checks"
     );
 }
+
+/// An insert in the shared blocks: the return feeds the tail. With a Y split
+/// its outputs run different paths, so the return feeds one pipeline per path
+/// set — and a mid Output after the insert rides only ONE of them, or its
+/// route would be written twice (doubled level).
+#[test]
+fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
+    let registry = vec![
+        IoBinding {
+            id: "main".into(),
+            name: "MAIN".into(),
+            inputs: vec![mono("in", "dev", 0)],
+            outputs: vec![stereo("out-a", "dev", [0, 1]), stereo("out-b", "dev", [2, 3])],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![mono("ret", "dev", 4)],
+            outputs: vec![mono("snd", "dev", 4)],
+        },
+        IoBinding {
+            id: "aux".into(),
+            name: "AUX".into(),
+            inputs: vec![],
+            outputs: vec![stereo("aux-out", "aux", [6, 7])],
+        },
+    ];
+    let insert = AudioBlock {
+        id: BlockId("loop".into()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "standard".into(),
+            io: "fx".into(),
+        }),
+    };
+    let disables = EndpointDisables {
+        inputs: vec![],
+        outputs: vec![],
+        path_a_outputs: vec![r("main", "out-b")],
+        path_b_outputs: vec![r("main", "out-a")],
+    };
+    let chain = chain(&["main"], vec![insert, mid_output(), y_split()], disables);
+    let (segs, outs) = segments(&chain, &registry);
+
+    let finals: Vec<(Vec<Vec<usize>>, SegmentPaths)> = segs
+        .iter()
+        .filter(|s| s.block_indices == vec![2])
+        .map(|s| {
+            (
+                s.output_route_indices.iter().map(|&r| outs[r].clone()).collect(),
+                s.paths,
+            )
+        })
+        .collect();
+    assert_eq!(
+        finals,
+        vec![
+            (vec![vec![0, 1]], SegmentPaths::A),
+            (vec![vec![2, 3]], SegmentPaths::B),
+        ],
+        "#328: the return feeds one pipeline per path set — out-a through A, out-b through B"
+    );
+    let tap_writers = segs
+        .iter()
+        .filter(|s| s.mid_output_taps.iter().any(|t| outs[t.route_idx] == vec![6, 7]))
+        .count();
+    assert_eq!(
+        tap_writers, 1,
+        "#328: the mid Output after the insert is written by ONE pipeline — two would double it on its route"
+    );
+}
