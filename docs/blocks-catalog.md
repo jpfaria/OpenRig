@@ -105,8 +105,9 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
   The editor shows only the parameters the plugin itself marks as user-facing
   (#1011): anything flagged `kIsHidden`, `kIsReadOnly` or `kIsBypass` (the block
   footswitch already is the bypass) is skipped, and so are placeholder slots
-  (`Reserved*`, `Unused*`, `Unnamed*`), even when the plugin flags them
-  automatable. Labels come from the
+  (`Reserved*`, `Unused*`, `Unnamed*`) and unmapped macro slots (`Assign*`),
+  even when the plugin flags them automatable. A label that repeats its tab
+  name drops it (`Node 1: Delay` in the `Node 1` tab reads `Delay`). Labels come from the
   plugin's `title` (falling back to `shortTitle`), split on `_` / `-` /
   camelCase, with ALL-CAPS titles turned into sentence case (`DELAY_MS` →
   `Delay ms`); words glued without any separator are only case-folded.

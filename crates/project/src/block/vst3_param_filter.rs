@@ -6,9 +6,11 @@
 use vst3_host::param_flags::{IS_BYPASS, IS_HIDDEN, IS_READ_ONLY};
 use vst3_host::Vst3ParamInfo;
 
-/// Placeholder names a plugin gives to slots that are not real controls. Some
-/// plugins still flag these automatable, so the name alone decides.
-const PLACEHOLDER_NAMES: &[&str] = &["reserved", "unused", "unnamed"];
+/// Placeholder names a plugin gives to slots that are not real controls:
+/// reserved ids and unmapped macro slots (`Assign 1`, which does nothing until
+/// mapped in the plugin's own editor). Some plugins still flag these
+/// automatable, so the name alone decides.
+const PLACEHOLDER_NAMES: &[&str] = &["reserved", "unused", "unnamed", "assign"];
 
 /// `false` for parameters the plugin asks hosts not to show (`kIsHidden`),
 /// output-only readouts (`kIsReadOnly`), the plugin's own bypass (`kIsBypass`,

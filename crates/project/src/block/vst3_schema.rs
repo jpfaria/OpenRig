@@ -21,7 +21,7 @@ use block_core::param::ParameterUnit;
 use block_core::param::{bool_parameter, enum_parameter, float_parameter, ParameterSpec};
 
 use super::vst3_param_filter::is_user_facing;
-use super::vst3_param_label::humanize_param_label;
+use super::vst3_param_label::{humanize_param_label, strip_group_prefix};
 
 /// Build the parameter specs for a VST3 `model`, or an empty vec if the plugin
 /// exposes none / cannot be read.
@@ -56,11 +56,11 @@ fn specs_from_params(
         .enumerate()
         .map(|(i, p)| {
             let path = format!("p{}", p.id);
-            let label = &labels[i];
             let group = group_map
                 .get(&p.id)
                 .map(String::as_str)
                 .or(dynamic[i].as_deref());
+            let label = &strip_group_prefix(&labels[i], group);
             let is_toggle = p.step_count == 1 && looks_like_on_off(&p.title, &p.enum_options);
             if is_toggle {
                 bool_parameter(&path, label, group, Some(p.default_normalized >= 0.5))

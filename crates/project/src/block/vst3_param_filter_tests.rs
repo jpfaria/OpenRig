@@ -69,3 +69,16 @@ fn automatable_reserved_slot_is_skipped() {
         );
     }
 }
+
+#[test]
+fn unassigned_macro_slots_are_skipped() {
+    // #1011: ChowMatrix's "Assign 1".."Assign 8" are empty macro slots that do
+    // nothing until mapped inside the plugin's own editor.
+    for title in ["Assign 1", "Assign 8", "ASSIGN3"] {
+        assert!(
+            !is_user_facing(&param(title, CAN_AUTOMATE)),
+            "{title} must be hidden"
+        );
+    }
+    assert!(is_user_facing(&param("Assignment Mode", CAN_AUTOMATE)));
+}

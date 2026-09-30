@@ -6,6 +6,26 @@
 //! separator (`LATEDIFFUSIONFEEDBACK`) cannot be split without a dictionary, so
 //! they are only case-folded (#1011).
 
+/// `label` without the tab name it repeats: `Node 1: Delay` in the `Node 1`
+/// tab reads `Delay`. A label that is only the tab name stays as is.
+pub(crate) fn strip_group_prefix(label: &str, group: Option<&str>) -> String {
+    let group = group.map(|g| g.trim_end_matches(':').trim()).unwrap_or("");
+    if group.is_empty() || label.len() <= group.len() {
+        return label.to_string();
+    }
+    let (head, rest) = label.split_at(group.len());
+    let starts_new_word = rest.starts_with(|c: char| c == ':' || c == '-' || c.is_whitespace());
+    if !head.eq_ignore_ascii_case(group) || !starts_new_word {
+        return label.to_string();
+    }
+    let stripped = rest.trim_start_matches(|c: char| c == ':' || c == '-' || c.is_whitespace());
+    if stripped.is_empty() {
+        label.to_string()
+    } else {
+        capitalize_first(stripped)
+    }
+}
+
 /// The readable label for a parameter; empty when both titles are blank.
 pub(crate) fn humanize_param_label(title: &str, short_title: &str) -> String {
     let source = if title.trim().is_empty() {

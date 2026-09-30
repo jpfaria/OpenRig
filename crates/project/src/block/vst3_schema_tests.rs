@@ -134,3 +134,27 @@ fn continuous_knob_carries_the_plugin_value_texts() {
     let specs = specs_from_params(&[knob], &Default::default());
     assert_eq!(specs[0].value_labels, ["0.1 s", "2.5 s"]);
 }
+
+#[test]
+fn label_drops_the_tab_name_it_repeats() {
+    // #1011: ChowMatrix titles its knobs "Node 1: Delay" inside the "Node 1"
+    // tab, so every knob repeated the tab name.
+    let params = [
+        info(1, "Node 1: Delay", CAN_AUTOMATE),
+        info(2, "Node 1: Pan", CAN_AUTOMATE),
+        info(3, "Node 1: Feedback", CAN_AUTOMATE),
+        info(4, "Mix", CAN_AUTOMATE),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let labels: Vec<&str> = specs.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["Delay", "Pan", "Feedback", "Mix"]);
+}
+
+#[test]
+fn manifest_group_prefix_is_dropped_from_the_label() {
+    let params = [info(7, "Node 2 Gain", CAN_AUTOMATE)];
+    let groups = [(7u32, "Node 2".to_string())].into_iter().collect();
+    let specs = specs_from_params(&params, &groups);
+    assert_eq!(specs[0].label, "Gain");
+    assert_eq!(specs[0].group.as_deref(), Some("Node 2"));
+}
