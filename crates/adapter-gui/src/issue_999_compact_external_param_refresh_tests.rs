@@ -175,7 +175,10 @@ impl Harness {
             let session = borrow.as_ref().unwrap();
             drain.drain(session.dispatcher.as_ref(), 32)
         };
-        assert!(!events.is_empty(), "sanity: the command must produce events");
+        assert!(
+            !events.is_empty(),
+            "sanity: the command must produce events"
+        );
         apply_events_to_ui(&self.app, &self.nav_ctx, &events);
     }
 
