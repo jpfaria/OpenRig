@@ -247,6 +247,7 @@ pub fn run_desktop_app(
         Rc::clone(&tick_writes),
         project_chains.clone(),
         project_session.clone(),
+        infra_filesystem::default_looper_takes_path(),
     );
 
     crate::SettingsBridge::get(&project_settings_window)

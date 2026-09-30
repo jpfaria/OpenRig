@@ -23,13 +23,15 @@ use crate::state::ProjectSession;
 /// chain has its meter taps subscribed, polls them, and writes the
 /// per-chain peak dBFS into the matching `ProjectChainItem` rows of
 /// the `project_chains` VecModel. Timer is leaked (lives for the
-/// app's lifetime, like the other polling timers).
+/// app's lifetime, like the other polling timers). `looper_takes_dir` is the
+/// saved-take library every chain's DI picker lists (#827).
 pub fn start_meter_polling(
     taps: std::rc::Rc<dyn AudioTaps>,
     reads: std::rc::Rc<dyn LiveSource>,
     writes: std::rc::Rc<dyn RuntimeControl>,
     project_chains: std::rc::Rc<slint::VecModel<crate::ProjectChainItem>>,
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
+    looper_takes_dir: std::path::PathBuf,
 ) {
     use slint::TimerMode;
     // #715: ~15 Hz, not 30 Hz. The per-frame work of this timer (draining taps,
@@ -65,7 +67,7 @@ pub fn start_meter_polling(
     // #827: the saved looper takes DO change during a session; the catalog
     // re-lists the folder only when it moved (one stat per tick).
     let take_catalog = RefCell::new(crate::looper_take_catalog::TakeCatalog::new(
-        infra_filesystem::default_looper_takes_path(),
+        looper_takes_dir,
     ));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {

@@ -92,3 +92,51 @@ fn a_library_that_was_never_written_is_empty() {
     let tmp = tempfile::tempdir().expect("tempdir");
     assert!(list_takes(&tmp.path().join("never-created")).is_empty());
 }
+
+#[test]
+fn every_refusal_reads_as_a_sentence() {
+    assert_eq!(TakeSaveError::EmptyName.to_string(), "a take needs a name");
+    assert_eq!(
+        TakeSaveError::NameTaken("verse.wav".into()).to_string(),
+        "a take named verse.wav already exists"
+    );
+    assert_eq!(
+        TakeSaveError::NothingRecorded.to_string(),
+        "this looper holds no recorded audio"
+    );
+    assert_eq!(
+        TakeSaveError::Io("disk full".into()).to_string(),
+        "could not write the take: disk full"
+    );
+}
+
+#[test]
+fn a_take_the_file_system_cannot_create_is_an_io_error() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dir = tmp.path().join("looper-takes");
+    // Past every file system's 255-byte name limit: the folder exists, the
+    // file cannot be opened, and that is not "the name is taken".
+    let name = "a".repeat(300);
+    let pcm = vec![0.0_f32; 8];
+
+    let err = save_take(&dir, &name, &pcm, 48_000).expect_err("must fail");
+
+    assert!(matches!(err, TakeSaveError::Io(_)), "got {err:?}");
+}
+
+#[test]
+fn a_take_whose_audio_cannot_be_written_leaves_no_file_behind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dir = tmp.path().join("looper-takes");
+    // Stereo: an odd sample count leaves the last frame half-written, which
+    // the wav writer refuses on finalize.
+    let pcm = vec![0.1_f32; 3];
+
+    let err = save_take(&dir, "verse", &pcm, 48_000).expect_err("must fail");
+
+    assert!(matches!(err, TakeSaveError::Io(_)), "got {err:?}");
+    assert!(
+        list_takes(&dir).is_empty(),
+        "a half-written take must not show up in the DI picker"
+    );
+}

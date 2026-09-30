@@ -97,3 +97,46 @@ fn the_chain_playing_a_take_highlights_it() {
     assert_eq!(model.row_data(0).unwrap().di_loop_selected_index, -1);
     assert_eq!(model.row_data(1).unwrap().di_loop_selected_index, 1);
 }
+
+#[test]
+fn a_chain_without_a_row_yet_is_skipped() {
+    // The project can gain a chain a tick before the row list follows it.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain("rig:a"), chain("rig:b")],
+        midi: None,
+    };
+    let model = rows(1);
+    let takes = vec![PathBuf::from("/lib/looper-takes/riff.wav")];
+
+    apply_di_sources_to_rows(&model, &project, |_| None, &[], &takes);
+
+    assert_eq!(model.row_count(), 1, "no row is invented for rig:b");
+    assert_eq!(
+        sources(&model, 0),
+        vec!["riff.wav", crate::di_loop_ui_sources::CHOOSE_FILE_SENTINEL]
+    );
+}
+
+#[test]
+fn an_unchanged_row_is_not_rewritten() {
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain("rig:a")],
+        midi: None,
+    };
+    let model = rows(1);
+    let takes = vec![PathBuf::from("/lib/looper-takes/riff.wav")];
+    apply_di_sources_to_rows(&model, &project, |_| None, &[], &takes);
+    let first = model.row_data(0).unwrap().di_loop_sources;
+
+    apply_di_sources_to_rows(&model, &project, |_| None, &[], &takes);
+
+    assert!(
+        first == model.row_data(0).unwrap().di_loop_sources,
+        "the same list must keep the same model — a rewrite every tick \
+         re-renders every picker"
+    );
+}

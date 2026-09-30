@@ -174,4 +174,16 @@ mod wiring {
             .invoke_save_take(7, 1, "x".into());
         assert!(spy.seen.borrow().is_empty());
     }
+
+    #[test]
+    fn a_save_with_no_project_open_is_dropped() {
+        i_slint_backend_testing::init_no_event_loop();
+        let window = AppWindow::new().expect("window");
+        wire_looper_take_callbacks(&window, &Rc::new(RefCell::new(None)));
+        let editor = window.global::<LooperEditor>();
+
+        editor.invoke_save_take(0, 1, "verse".into());
+
+        assert_eq!(editor.get_take_status(), 0, "nothing was attempted");
+    }
 }
