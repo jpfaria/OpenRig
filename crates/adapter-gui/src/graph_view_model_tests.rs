@@ -4,7 +4,7 @@
 
 use super::{
     linear_chain_layout, validate_graph, BlockBlueprint, ChainStage, GraphEdge, GraphNode,
-    GridMetrics, NodeCategory, ParallelEnd,
+    GridMetrics, NodeCategory, NodeKind, ParallelEnd,
 };
 
 fn block(id: &str, label: &str, category: NodeCategory) -> BlockBlueprint {
@@ -79,6 +79,7 @@ mod topological_rank {
             id: id.into(),
             label: id.into(),
             category: NodeCategory::Other,
+            kind: NodeKind::Block,
             x: 0.0,
             y: 0.0,
             bypass: false,
@@ -142,6 +143,7 @@ mod topological_lane {
             id: id.into(),
             label: id.into(),
             category: NodeCategory::Other,
+            kind: NodeKind::Block,
             x: 0.0,
             y: 0.0,
             bypass: false,
@@ -198,6 +200,7 @@ mod reorder {
             id: id.into(),
             label: id.into(),
             category: NodeCategory::Other,
+            kind: NodeKind::Block,
             x: 0.0,
             y: 0.0,
             bypass: false,
@@ -525,6 +528,7 @@ mod validate_graph_invariants {
                 id: "a".into(),
                 label: "A".into(),
                 category: NodeCategory::Drive,
+                kind: NodeKind::Block,
                 x: 0.0,
                 y: 0.0,
                 bypass: false,
@@ -533,6 +537,7 @@ mod validate_graph_invariants {
                 id: "a".into(),
                 label: "A duplicate".into(),
                 category: NodeCategory::Drive,
+                kind: NodeKind::Block,
                 x: 0.0,
                 y: 0.0,
                 bypass: false,
@@ -551,6 +556,7 @@ mod validate_graph_invariants {
             id: "a".into(),
             label: "A".into(),
             category: NodeCategory::Drive,
+            kind: NodeKind::Block,
             x: 0.0,
             y: 0.0,
             bypass: false,
@@ -569,6 +575,7 @@ mod validate_graph_invariants {
             id: "a".into(),
             label: "A".into(),
             category: NodeCategory::Drive,
+            kind: NodeKind::Block,
             x: 0.0,
             y: 0.0,
             bypass: false,
@@ -752,5 +759,76 @@ mod fan_out_stage {
             x("out_a"),
             "auto layout must keep the Y outputs side by side"
         );
+    }
+}
+
+mod node_kinds {
+    use super::*;
+
+    /// Contract pin: these slugs are what the Slint `GraphNode.kind` field
+    /// carries (graph_view_types.slint).
+    #[test]
+    fn kind_slugs_match_the_slint_graph_node_contract() {
+        assert_eq!(NodeKind::Block.as_str(), "block");
+        assert_eq!(NodeKind::IoInput.as_str(), "io_input");
+        assert_eq!(NodeKind::IoOutput.as_str(), "io_output");
+        assert_eq!(NodeKind::Split.as_str(), "split");
+        assert_eq!(NodeKind::Mixer.as_str(), "mixer");
+    }
+
+    #[test]
+    fn a_blueprint_kind_reaches_its_positioned_node() {
+        let stages = [
+            ChainStage::Single(
+                block("in", "In 1", NodeCategory::Input).with_kind(NodeKind::IoInput),
+            ),
+            ChainStage::Single(block("od", "OD", NodeCategory::Drive)),
+            ChainStage::Single(
+                block("out", "Out 1", NodeCategory::Output).with_kind(NodeKind::IoOutput),
+            ),
+        ];
+        let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
+        assert_eq!(find_node(&nodes, "in").kind, NodeKind::IoInput);
+        assert_eq!(
+            find_node(&nodes, "od").kind,
+            NodeKind::Block,
+            "a plain blueprint is a block"
+        );
+        assert_eq!(find_node(&nodes, "out").kind, NodeKind::IoOutput);
+    }
+
+    #[test]
+    fn a_merge_parallel_marks_its_split_and_mixer_nodes() {
+        let stages = [ChainStage::Parallel {
+            lanes: vec![
+                vec![block("l", "L", NodeCategory::Amp)],
+                vec![block("r", "R", NodeCategory::Amp)],
+            ],
+            end: ParallelEnd::Merge,
+        }];
+        let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
+        assert_eq!(find_node(&nodes, "__split_1").kind, NodeKind::Split);
+        assert_eq!(find_node(&nodes, "__merge_1").kind, NodeKind::Mixer);
+    }
+
+    #[test]
+    fn a_fan_parallel_has_a_split_node_and_no_mixer() {
+        let stages = [ChainStage::Parallel {
+            lanes: vec![
+                vec![
+                    block("amp_a", "Amp A", NodeCategory::Amp),
+                    block("out_a", "Out A", NodeCategory::Output).with_kind(NodeKind::IoOutput),
+                ],
+                vec![block("out_b", "Out B", NodeCategory::Output).with_kind(NodeKind::IoOutput)],
+            ],
+            end: ParallelEnd::Fan,
+        }];
+        let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
+        assert_eq!(find_node(&nodes, "__split_1").kind, NodeKind::Split);
+        assert!(
+            nodes.iter().all(|n| n.kind != NodeKind::Mixer),
+            "a Y split has no mixer node"
+        );
+        assert_eq!(find_node(&nodes, "out_b").kind, NodeKind::IoOutput);
     }
 }

@@ -109,6 +109,7 @@ The host receives layout-space coords. To persist a moved node, write them back 
 | `GraphNode` | pure Rust mirror of the Slint struct |
 | `GraphEdge` | source/target id pair (no geometry) |
 | `NodeCategory` | enum of visual categories — `as_str()` produces the slug the Slint side expects |
+| `NodeKind` | what a node IS — `Block`, `IoInput`, `IoOutput`, `Split`, `Mixer`; `as_str()` gives the slug the Slint `GraphNode.kind` carries. The auto-generated split node is `Split`, the merge node `Mixer`; `BlockBlueprint::with_kind` marks the host's I/O nodes |
 | `BlockBlueprint` | one block in a logical chain — id, label, category, bypass |
 | `ChainStage` | `Single(...)` or `Parallel { lanes, end }` — `lanes` top to bottom |
 | `ParallelEnd` | `Merge`: the lanes meet again at an auto-generated merge node. `Fan`: no merge node; each lane's last blueprint is its terminal (a Y chain's output node), the terminals share the last column, and nothing may follow (#328) |

@@ -57,6 +57,36 @@ impl NodeCategory {
     }
 }
 
+/// What a node IS in the chain editor — picks the card the UI draws
+/// (#328). Distinct from [`NodeCategory`], which only picks a colour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum NodeKind {
+    /// A processing block.
+    #[default]
+    Block,
+    /// The chain's input node.
+    IoInput,
+    /// A chain output node (one per lane in a fan-out).
+    IoOutput,
+    /// Where the signal becomes parallel lanes.
+    Split,
+    /// Where parallel lanes are summed back into one.
+    Mixer,
+}
+
+impl NodeKind {
+    /// Slug the Slint `GraphNode.kind` field carries.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Block => "block",
+            Self::IoInput => "io_input",
+            Self::IoOutput => "io_output",
+            Self::Split => "split",
+            Self::Mixer => "mixer",
+        }
+    }
+}
+
 /// A node in the graph view. Coordinates are in **layout space**
 /// (logical pixels before zoom/pan). The component applies the
 /// viewport transform when rendering.
@@ -69,6 +99,8 @@ pub struct GraphNode {
     pub label: String,
     /// Visual category — drives node colour.
     pub category: NodeCategory,
+    /// What the node is — picks its card on the Slint side.
+    pub kind: NodeKind,
     /// X position in layout space.
     pub x: f32,
     /// Y position in layout space.
@@ -121,6 +153,9 @@ pub struct BlockBlueprint {
     pub label: String,
     pub category: NodeCategory,
     pub bypass: bool,
+    /// What the node is. [`BlockBlueprint::new`] makes a block; the host
+    /// marks its I/O nodes with [`BlockBlueprint::with_kind`].
+    pub kind: NodeKind,
 }
 
 impl BlockBlueprint {
@@ -130,7 +165,14 @@ impl BlockBlueprint {
             label: label.into(),
             category,
             bypass: false,
+            kind: NodeKind::Block,
         }
+    }
+
+    /// The same blueprint as another kind of node (#328).
+    pub fn with_kind(mut self, kind: NodeKind) -> Self {
+        self.kind = kind;
+        self
     }
 }
 

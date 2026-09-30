@@ -22,7 +22,8 @@ pub use layout::topological_layout;
 pub use palette::{default_palette, CategoryStyle};
 pub use reorder::reorder_for_drop;
 pub use types::{
-    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, ParallelEnd,
+    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
+    ParallelEnd,
 };
 pub use validation::{validate_graph, validate_stages};
 

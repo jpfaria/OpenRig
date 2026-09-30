@@ -13,7 +13,8 @@
 //!   terminals line up on the longest lane's last column (#328).
 
 use super::types::{
-    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, ParallelEnd,
+    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
+    ParallelEnd,
 };
 
 /// Build a positioned graph from a sequence of [`ChainStage`]s.
@@ -60,7 +61,12 @@ pub fn linear_chain_layout(
                 let split_col = col;
 
                 // Split node sits at split_col on the centre lane.
-                nodes.push(routing_node(&split_id, split_col, &metrics));
+                nodes.push(routing_node(
+                    &split_id,
+                    NodeKind::Split,
+                    split_col,
+                    &metrics,
+                ));
                 if let Some(prev) = prev_tail.take() {
                     edges.push(GraphEdge {
                         from_id: prev,
@@ -97,7 +103,12 @@ pub fn linear_chain_layout(
                         // Merge node sits on the column after the longest
                         // lane, on the centre lane.
                         let merge_col = split_col + longest + 1;
-                        nodes.push(routing_node(&merge_id, merge_col, &metrics));
+                        nodes.push(routing_node(
+                            &merge_id,
+                            NodeKind::Mixer,
+                            merge_col,
+                            &metrics,
+                        ));
                         prev_tail = Some(merge_id);
                         col = merge_col + 1;
                     }
@@ -133,12 +144,14 @@ fn lane_column(
 }
 
 /// An auto-generated split or merge node: no label, `Util` category, on
-/// the centre lane.
-fn routing_node(id: &str, col: usize, metrics: &GridMetrics) -> GraphNode {
+/// the centre lane. Its card is picked by `kind`; the label stays empty —
+/// the Slint card translates the name.
+fn routing_node(id: &str, kind: NodeKind, col: usize, metrics: &GridMetrics) -> GraphNode {
     GraphNode {
         id: id.to_string(),
         label: String::new(),
         category: NodeCategory::Util,
+        kind,
         x: metrics.origin_x + col as f32 * metrics.column_spacing,
         y: metrics.origin_y,
         bypass: false,
@@ -164,6 +177,7 @@ fn position_block_lane(
         id: block.id.clone(),
         label: block.label.clone(),
         category: block.category,
+        kind: block.kind,
         x: metrics.origin_x + col as f32 * metrics.column_spacing,
         y: metrics.origin_y + lane * metrics.lane_spacing,
         bypass: block.bypass,
