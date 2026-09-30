@@ -44,6 +44,7 @@ export component GraphNodeCard inherits Rectangle {
     property <bool> unavailable: root.is-block && root.node.block.unavailable;
     // The picker's default accent (block_icon.rs), which the split entries use.
     property <color> routing-accent: #7fb0ff;
+    property <length> disc: 44px * root.zoom;
     // BlockChip geometry (100×100 tile: 22px label, 6px gap, 68px art,
     // 12px LED 10px above the bottom), scaled by the zoom.
     property <length> label-h: max(22px, 22px * root.zoom);
@@ -172,18 +173,30 @@ export component GraphNodeCard inherits Rectangle {
     }
 
     // ── I/O, split, mixer ────────────────────────────────────────────
-    // Split / mixer: laid out like a block tile — the translated name on
-    // top, the routing artwork below — in the picker's routing accent.
-    if root.is-routing : Image {
-        x: 0px;
-        y: root.art-y;
-        width: parent.width;
-        height: root.art-h;
-        source: root.node.kind == "split"
-            ? @image-url("../assets/graph-split.svg")
-            : @image-url("../assets/graph-mix.svg");
-        image-fit: contain;
-        colorize: root.routing-accent;
+    // Split / mixer: an opaque junction disc on the wire (the wire stops at
+    // its rim, the lanes fork out of it) with the routing artwork inside and
+    // the translated name above, in the picker's routing accent.
+    if root.is-routing : Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.disc;
+        height: root.disc;
+        border-radius: root.disc / 2;
+        background: #171a20;
+        border-width: 2px;
+        border-color: root.routing-accent;
+
+        Image {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * 0.62;
+            height: parent.height * 0.62;
+            source: root.node.kind == "split"
+                ? @image-url("../assets/graph-split.svg")
+                : @image-url("../assets/graph-mix.svg");
+            image-fit: contain;
+            colorize: root.routing-accent;
+        }
     }
 
     if !root.is-block : Text {
