@@ -98,13 +98,9 @@ msgid "Volume"
 msgstr ""
 
 #. channels. Default is the channel wording every existing picker shows.
-#: crates/adapter-gui/ui/components/channel_picker.slint:97
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr "{} canaux"
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:129
-msgid "label-channels-selected"
-msgstr "Sélectionnés :"
 
 #: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
@@ -189,19 +185,23 @@ msgstr "Retirer"
 msgid "di-output-select-label"
 msgstr "Sortie du DI"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:61
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "GLOBAL"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
 msgid "btn-close"
 msgstr "Fermer"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:71
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
 msgid "hint-endpoint-checklist"
 msgstr "Les points décochés restent listés mais sont exclus de ce nœud."
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:79
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "Les E/S de cette chaîne n'ont aucun point pour ce nœud."
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:80
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
 msgid "label-endpoints-total"
 msgstr "{} points"
 
@@ -214,21 +214,17 @@ msgstr "Split"
 msgid "graph-node-mixer"
 msgstr "Mixer"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:151
+#: crates/adapter-gui/ui/components/graph_node_card.slint:142
 msgid "accessible-graph-node-bypass"
 msgstr "Activer ou désactiver le bloc"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:168
+#: crates/adapter-gui/ui/components/graph_node_card.slint:159
 msgid "accessible-graph-node-remove"
 msgstr "Retirer le bloc"
 
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
 msgstr "Graphe de la chaîne de signal"
-
-#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
-msgid "label-mixer-global"
-msgstr "GLOBAL"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -643,12 +639,11 @@ msgstr "Point"
 msgid "msg-pick-io-endpoint"
 msgstr "Choisissez une E/S et un point"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
+#: crates/adapter-gui/ui/pages/chain_row.slint:188
 msgid "label-meters"
 msgstr "ENTRÉE / SORTIE"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "Entrée"
 
@@ -754,34 +749,33 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:112
+#: crates/adapter-gui/ui/pages/project_chains.slint:113
 msgid "tooltip-back"
 msgstr "Retour"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:120
+#: crates/adapter-gui/ui/pages/project_chains.slint:121
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:128
+#: crates/adapter-gui/ui/pages/project_chains.slint:129
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:139
+#: crates/adapter-gui/ui/pages/project_chains.slint:140
 msgid "tooltip-metronome"
 msgstr "Métronome"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:147
-msgid "tooltip-project-settings"
-msgstr "Projet"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:156
-msgid "tooltip-save"
-msgstr "Enregistrer"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:164
 #: crates/adapter-gui/ui/pages/project_chains.slint:149
 msgid "tooltip-mixer"
 msgstr "Mixage"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:157
+msgid "tooltip-project-settings"
+msgstr "Projet"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:166
+msgid "tooltip-save"
+msgstr "Enregistrer"
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
@@ -1113,7 +1107,6 @@ msgstr "OpenRig · Configurer Insert"
 msgid "title-window-chain-port"
 msgstr "Port"
 
-#: crates/adapter-gui/ui/touch_main.slint:405
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

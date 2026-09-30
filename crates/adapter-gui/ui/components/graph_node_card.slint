@@ -3,7 +3,7 @@
 // face: a "block" card keeps parity with the chain row's BlockChip (type
 // label, icon or thumbnail, LED, unavailable tint, MIDI markers — every
 // state colour read from BlockTileStyle so the two tiles never disagree);
-// I/O cards show their connector over the endpoint names; the split and
+// I/O cards show only their name; the split and
 // the mixer show their routing artwork over a translated name.
 //
 // Input: the canvas's node TouchArea is declared UNDER this card and owns
@@ -170,15 +170,6 @@ export component GraphNodeCard inherits Rectangle {
     }
 
     // ── I/O, split, mixer ────────────────────────────────────────────
-    // I/O endpoint: its connector artwork above the endpoint names.
-    if root.is-io : EffectTypeIcon {
-        x: 0px;
-        y: 8px;
-        width: parent.width;
-        height: max(0px, parent.height - 38px);
-        icon-kind: root.node.kind == "io_input" ? "input" : "output";
-    }
-
     // Split / mixer: the routing artwork above the translated name. The
     // SVGs carry no text of their own (graph-split.svg / graph-mix.svg).
     if root.is-routing : Image {
@@ -195,9 +186,9 @@ export component GraphNodeCard inherits Rectangle {
 
     if !root.is-block : Text {
         x: 8px;
-        y: root.is-io || root.is-routing ? parent.height - 30px : 0px;
+        y: root.is-routing ? parent.height - 30px : 0px;
         width: parent.width - 16px;
-        height: root.is-io || root.is-routing ? 22px : parent.height;
+        height: root.is-routing ? 22px : parent.height;
         text: root.face-label;
         color: #f5f7fb;
         font-size: Theme.min-font;

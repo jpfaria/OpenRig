@@ -98,13 +98,9 @@ msgid "Volume"
 msgstr ""
 
 #. channels. Default is the channel wording every existing picker shows.
-#: crates/adapter-gui/ui/components/channel_picker.slint:97
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr "{} चैनल"
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:129
-msgid "label-channels-selected"
-msgstr "चयनित:"
 
 #: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
@@ -189,19 +185,23 @@ msgstr "हटाएं"
 msgid "di-output-select-label"
 msgstr "DI आउटपुट"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:61
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "ग्लोबल"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
 msgid "btn-close"
 msgstr "बंद करें"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:71
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
 msgid "hint-endpoint-checklist"
 msgstr "अनचेक किए गए एंडपॉइंट सूची में रहते हैं, पर इस नोड से बाहर रहते हैं।"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:79
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "इस चेन के E/S में इस नोड के लिए कोई एंडपॉइंट नहीं है।"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:80
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
 msgid "label-endpoints-total"
 msgstr "{} एंडपॉइंट"
 
@@ -214,21 +214,17 @@ msgstr "स्प्लिट"
 msgid "graph-node-mixer"
 msgstr "मिक्सर"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:151
+#: crates/adapter-gui/ui/components/graph_node_card.slint:142
 msgid "accessible-graph-node-bypass"
 msgstr "ब्लॉक चालू या बंद करें"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:168
+#: crates/adapter-gui/ui/components/graph_node_card.slint:159
 msgid "accessible-graph-node-remove"
 msgstr "ब्लॉक हटाएँ"
 
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
 msgstr "सिग्नल चेन ग्राफ़"
-
-#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
-msgid "label-mixer-global"
-msgstr "ग्लोबल"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -640,12 +636,11 @@ msgstr "एंडपॉइंट"
 msgid "msg-pick-io-endpoint"
 msgstr "एक I/O और एंडपॉइंट चुनें"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
+#: crates/adapter-gui/ui/pages/chain_row.slint:188
 msgid "label-meters"
 msgstr "इनपुट / आउटपुट"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "इनपुट"
 
@@ -749,34 +744,33 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:112
+#: crates/adapter-gui/ui/pages/project_chains.slint:113
 msgid "tooltip-back"
 msgstr "वापस"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:120
+#: crates/adapter-gui/ui/pages/project_chains.slint:121
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:128
+#: crates/adapter-gui/ui/pages/project_chains.slint:129
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:139
+#: crates/adapter-gui/ui/pages/project_chains.slint:140
 msgid "tooltip-metronome"
 msgstr "मेट्रोनोम"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:147
-msgid "tooltip-project-settings"
-msgstr "प्रोजेक्ट"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:156
-msgid "tooltip-save"
-msgstr "सहेजें"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:164
 #: crates/adapter-gui/ui/pages/project_chains.slint:149
 msgid "tooltip-mixer"
 msgstr "मिक्सर"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:157
+msgid "tooltip-project-settings"
+msgstr "प्रोजेक्ट"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:166
+msgid "tooltip-save"
+msgstr "सहेजें"
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
@@ -1106,7 +1100,6 @@ msgstr "OpenRig · Insert कॉन्फ़िगर करें"
 msgid "title-window-chain-port"
 msgstr "पोर्ट"
 
-#: crates/adapter-gui/ui/touch_main.slint:405
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

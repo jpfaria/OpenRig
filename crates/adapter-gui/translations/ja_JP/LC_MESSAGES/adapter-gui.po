@@ -98,13 +98,9 @@ msgid "Volume"
 msgstr ""
 
 #. channels. Default is the channel wording every existing picker shows.
-#: crates/adapter-gui/ui/components/channel_picker.slint:97
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr "{} チャンネル"
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:129
-msgid "label-channels-selected"
-msgstr "選択中:"
 
 #: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
@@ -189,20 +185,24 @@ msgstr "削除"
 msgid "di-output-select-label"
 msgstr "DI出力"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:61
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "グローバル"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
 msgid "btn-close"
 msgstr "閉じる"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:71
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
 msgid "hint-endpoint-checklist"
 msgstr ""
 "チェックを外したエンドポイントは一覧に残りますが、このノードからは外れます。"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:79
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "このチェーンのE/Sには、このノード用のエンドポイントがありません。"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:80
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
 msgid "label-endpoints-total"
 msgstr "{} 個のエンドポイント"
 
@@ -215,21 +215,17 @@ msgstr "スプリット"
 msgid "graph-node-mixer"
 msgstr "ミキサー"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:151
+#: crates/adapter-gui/ui/components/graph_node_card.slint:142
 msgid "accessible-graph-node-bypass"
 msgstr "ブロックのオン/オフ"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:168
+#: crates/adapter-gui/ui/components/graph_node_card.slint:159
 msgid "accessible-graph-node-remove"
 msgstr "ブロックを削除"
 
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
 msgstr "シグナルチェーンのグラフ"
-
-#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
-msgid "label-mixer-global"
-msgstr "グローバル"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -643,12 +639,11 @@ msgstr "エンドポイント"
 msgid "msg-pick-io-endpoint"
 msgstr "I/O とエンドポイントを選択"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
+#: crates/adapter-gui/ui/pages/chain_row.slint:188
 msgid "label-meters"
 msgstr "入力 / 出力"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "入力"
 
@@ -753,34 +748,33 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:112
+#: crates/adapter-gui/ui/pages/project_chains.slint:113
 msgid "tooltip-back"
 msgstr "戻る"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:120
+#: crates/adapter-gui/ui/pages/project_chains.slint:121
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:128
+#: crates/adapter-gui/ui/pages/project_chains.slint:129
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:139
+#: crates/adapter-gui/ui/pages/project_chains.slint:140
 msgid "tooltip-metronome"
 msgstr "メトロノーム"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:147
-msgid "tooltip-project-settings"
-msgstr "プロジェクト"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:156
-msgid "tooltip-save"
-msgstr "保存"
-
-#: crates/adapter-gui/ui/pages/project_chains.slint:164
 #: crates/adapter-gui/ui/pages/project_chains.slint:149
 msgid "tooltip-mixer"
 msgstr "ミキサー"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:157
+msgid "tooltip-project-settings"
+msgstr "プロジェクト"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:166
+msgid "tooltip-save"
+msgstr "保存"
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
@@ -1112,7 +1106,6 @@ msgstr "OpenRig · Insertを構成"
 msgid "title-window-chain-port"
 msgstr "ポート"
 
-#: crates/adapter-gui/ui/touch_main.slint:405
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
