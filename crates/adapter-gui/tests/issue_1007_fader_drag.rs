@@ -58,6 +58,23 @@ fn compact_view() -> CompactChainViewWindow {
     w.window().set_size(slint::LogicalSize::new(900.0, 900.0));
     set_strip(&w, 0.5);
     w.show().unwrap();
+    // The mixer section opens collapsed; expand it the way the user does.
+    let toggle = only(&w, "SectionToggle::area");
+    let at = LogicalPosition::new(
+        toggle.absolute_position().x + toggle.size().width / 2.0,
+        toggle.absolute_position().y + toggle.size().height / 2.0,
+    );
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: at });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: at,
+        button: PointerEventButton::Left,
+    });
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: at,
+        button: PointerEventButton::Left,
+    });
+    win.dispatch_event(WindowEvent::PointerExited);
     w
 }
 
