@@ -409,6 +409,16 @@ pipeline per distinct path set (routes that run the same paths share it). A mid
 `Output` after the insert rides only the first of them, so its route is still
 written once.
 
+The builder then shapes the Y split, per segment, into the split that segment
+runs (`split_segment_view`): a Split → Mix of only its paths, with a neutral
+mixer — each running path at unity, centred, B not inverted, master at unity,
+no sum — and the other path empty at level zero. One path: the output carries
+exactly that path, never delayed (an empty path has no latency). Both paths:
+their unity sum, time-aligned by the Split → Mix code. The split's own knobs
+(mode, level into each path, balance) apply; its mixer knobs are ignored, since
+Y has no mixer. A bypassed Y split passes the shared signal once to every
+checked output. An offline render (no per-output routing) hears both paths.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it

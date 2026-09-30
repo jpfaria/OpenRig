@@ -315,6 +315,7 @@ fn update_chain_runtime_state_impl(
             segment.output_route_indices.clone(),
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
+            segment.paths,
             prebuilt.as_mut(),
         ) {
             Ok(state) => state,
