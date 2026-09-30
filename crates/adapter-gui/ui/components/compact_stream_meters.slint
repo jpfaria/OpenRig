@@ -110,7 +110,8 @@ export component CompactStreamMeters inherits Rectangle {
         width: parent.width;
         height: root.row-h;
 
-        Rectangle {
+        // #1006: each input is listed once; its other outputs only fill the right.
+        if !stream.in_repeated : Rectangle {
             x: 60px; y: 0px;
             width: 418px + root.db-w; height: parent.height;
             // #928 + #1006: the E/S name, then the direction and channels

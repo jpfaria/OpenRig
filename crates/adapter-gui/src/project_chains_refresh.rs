@@ -107,6 +107,7 @@ pub(crate) fn replace_project_chains(
                     out_label: Default::default(),
                     in_channels: Default::default(),
                     out_channels: Default::default(),
+                    in_repeated: false,
                 },
                 // #771: the DI panel's output select — the chain's bound
                 // output endpoints + the persisted pick.
@@ -171,6 +172,7 @@ pub(crate) fn replace_project_chains(
                                 .get(i)
                                 .map(|l| l.output_channels.as_str().into())
                                 .unwrap_or_default(),
+                            in_repeated: crate::meter_wiring::input_repeated(&labels, i),
                         });
                     }
                     ModelRc::from(model)

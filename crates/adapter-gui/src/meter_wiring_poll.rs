@@ -233,6 +233,7 @@ fn refresh_chain_meter_row(
                     || a.out_label != b.out_label
                     || a.in_channels != b.in_channels
                     || a.out_channels != b.out_channels
+                    || a.in_repeated != b.in_repeated
             })
     };
     let aggregate_changed =
@@ -259,6 +260,7 @@ fn refresh_chain_meter_row(
         out_label: Default::default(),
         in_channels: Default::default(),
         out_channels: Default::default(),
+        in_repeated: false,
     };
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;

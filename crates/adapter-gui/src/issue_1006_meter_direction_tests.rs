@@ -23,6 +23,7 @@ fn meter() -> StreamMeter {
         out_label: BINDING.into(),
         in_channels: "1".into(),
         out_channels: "17,18".into(),
+        in_repeated: false,
     }
 }
 
@@ -85,4 +86,69 @@ fn the_row_payload_carries_the_channels_of_each_side() {
 
     assert_eq!(rows[0].in_channels.to_string(), "1");
     assert_eq!(rows[0].out_channels.to_string(), "17,18");
+}
+
+/// #1006: two streams of one input list the input ONCE on the left; every
+/// output keeps its own row on the right.
+#[test]
+fn an_input_feeding_two_outputs_is_listed_once() {
+    i_slint_backend_testing::init_no_event_loop();
+
+    let second = StreamMeter {
+        out_channels: "1,2".into(),
+        in_repeated: true,
+        ..meter()
+    };
+    let rows = || ModelRc::new(VecModel::from(vec![meter(), second.clone()]));
+
+    let app = AppWindow::new().unwrap();
+    app.window().set_size(LogicalSize::new(1400.0, 900.0));
+    let chain = ProjectChainItem {
+        title: "Chain".into(),
+        enabled: true,
+        stream_meters: rows(),
+        ..Default::default()
+    };
+    app.set_project_chains(ModelRc::new(VecModel::from(vec![chain])));
+    app.set_show_project_chains(true);
+    app.show().unwrap();
+
+    let compact = CompactChainViewWindow::new().unwrap();
+    compact.window().set_size(LogicalSize::new(1400.0, 900.0));
+    compact.set_stream_meters(rows());
+    compact.show().unwrap();
+
+    assert_eq!(
+        texts(&app, "ChainRowMeters::in-channels"),
+        vec!["IN 1".to_string()]
+    );
+    assert_eq!(texts(&app, "ChainRowMeters::out-channels").len(), 2);
+    assert_eq!(
+        texts(&compact, "CompactStreamMeters::in-channels"),
+        vec!["IN 1".to_string()]
+    );
+    assert_eq!(
+        texts(&compact, "CompactStreamMeters::out-channels").len(),
+        2
+    );
+}
+
+#[test]
+fn the_row_payload_marks_a_repeated_input() {
+    let label = |out: &str| engine::stream_io_labels::StreamIoLabels {
+        input: BINDING.into(),
+        output: BINDING.into(),
+        input_channels: "1".into(),
+        output_channels: out.into(),
+    };
+    let other_input = engine::stream_io_labels::StreamIoLabels {
+        input_channels: "2".into(),
+        ..label("3,4")
+    };
+    let labels = vec![label("17,18"), label("1,2"), other_input];
+
+    let rows = crate::meter_wiring::rebuild_stream_meters_row(&[], 3, &labels, 100.0, true);
+
+    let repeated: Vec<bool> = rows.iter().map(|r| r.in_repeated).collect();
+    assert_eq!(repeated, vec![false, true, false]);
 }

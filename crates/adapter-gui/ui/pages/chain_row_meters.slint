@@ -113,7 +113,8 @@ export component ChainRowMeters inherits Rectangle {
         height: root.row-height;
 
         // ── INPUT (left): label + bar + dB text ──
-        Rectangle {
+        // #1006: each input is listed once; its other outputs only fill the right.
+        if !stream.in_repeated : Rectangle {
             x: 60px; y: 0px;
             width: 476px; height: root.row-height;
             // #928 + #1006: the E/S name, then the direction and channels

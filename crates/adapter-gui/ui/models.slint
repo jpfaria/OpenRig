@@ -45,6 +45,9 @@ export struct StreamMeter {
     // output bars of one binding never read the same.
     in_channels: string,
     out_channels: string,
+    // #1006: this row's input was already listed on an earlier row — the
+    // left column shows each input once, the right column every output.
+    in_repeated: bool,
 }
 
 export struct ChainBlockItem {

@@ -63,6 +63,7 @@ pub fn rebuild_stream_meters_row(
                     out_label,
                     in_channels,
                     out_channels,
+                    in_repeated: input_repeated(labels, i),
                 },
                 None => crate::StreamMeter {
                     in_dbfs: SILENT_DBFS,
@@ -71,8 +72,20 @@ pub fn rebuild_stream_meters_row(
                     out_label,
                     in_channels,
                     out_channels,
+                    in_repeated: input_repeated(labels, i),
                 },
             }
         })
         .collect()
+}
+
+/// #1006: true when an earlier row already lists this row's input — the left
+/// column shows each input once while every output keeps its row.
+pub fn input_repeated(labels: &[StreamIoLabels], i: usize) -> bool {
+    let Some(row) = labels.get(i) else {
+        return false;
+    };
+    labels[..i]
+        .iter()
+        .any(|l| l.input == row.input && l.input_channels == row.input_channels)
 }
