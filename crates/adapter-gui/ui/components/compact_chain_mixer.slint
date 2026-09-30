@@ -1,0 +1,60 @@
+// Responsibility: renders one chain's own global-mixer strips inside the compact view.
+// #1007 — the host window's `MixerBridge` holds ONLY the strips that chain
+// plays through (its I/O bindings); inputs come first, then a divider, then
+// outputs. Same strip component and bridge as the Mixer window, so a move
+// here is the same command and shows there too.
+
+import { ScrollView } from "std-widgets.slint";
+import { MixerBridge } from "mixer_globals.slint";
+import { MixerSection } from "mixer_section.slint";
+
+export component CompactChainMixer inherits Rectangle {
+    // Height the host reserves when the chain has strips.
+    out property <length> preferred-area-height: 340px;
+    out property <bool> has-strips: MixerBridge.inputs.length + MixerBridge.outputs.length > 0;
+
+    private property <length> pitch: 120px;
+    private property <length> gap: 24px;
+    private property <length> inputs-width: MixerBridge.inputs.length * root.pitch;
+    private property <length> outputs-width: MixerBridge.outputs.length * root.pitch;
+    private property <length> divider-x:
+        root.inputs-width + (MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 ? root.gap / 2 : 0);
+    private property <length> outputs-x:
+        root.inputs-width + (MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 ? root.gap : 0);
+
+    background: #0c0e12;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 1px;
+        background: #1c2028;
+    }
+
+    ScrollView {
+        x: 16px; y: 8px;
+        width: parent.width - 32px;
+        height: parent.height - 8px;
+        viewport-width: max(self.width, root.outputs-x + root.outputs-width);
+        viewport-height: self.height;
+
+        MixerSection {
+            x: 0; y: 0;
+            width: root.inputs-width;
+            height: parent.height - 12px;
+            strips: MixerBridge.inputs;
+        }
+
+        if MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 : Rectangle {
+            x: root.divider-x - 1px; y: 8px;
+            width: 1px; height: parent.height - 28px;
+            background: #2c323d;
+        }
+
+        MixerSection {
+            x: root.outputs-x; y: 0;
+            width: root.outputs-width;
+            height: parent.height - 12px;
+            strips: MixerBridge.outputs;
+        }
+    }
+}

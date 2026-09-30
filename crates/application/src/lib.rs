@@ -15,6 +15,7 @@ pub mod block_factory;
 pub mod bridge;
 mod bridge_off_frontend;
 pub mod chain_factory;
+pub mod chain_mixer_strips;
 pub mod command;
 pub mod command_schema;
 pub mod di_loader;

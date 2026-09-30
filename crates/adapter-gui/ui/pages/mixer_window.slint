@@ -8,27 +8,8 @@
 
 import { ScrollView } from "std-widgets.slint";
 import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
-import { MixerStripView } from "../components/mixer_strip.slint";
+import { MixerSection } from "../components/mixer_section.slint";
 import { ParamTabBar } from "../components/param_tab_bar.slint";
-
-// One side of the mixer: its strips, side by side.
-component MixerSection inherits Rectangle {
-    in property <[MixerStripRow]> strips;
-
-    HorizontalLayout {
-        x: 0; y: 0;
-        height: parent.height;
-        spacing: 8px;
-        alignment: start;
-        for strip in root.strips : MixerStripView {
-            strip: strip;
-            fader-moved(id, position) => { MixerBridge.fader-moved(id, position); }
-            fader-reset(id) => { MixerBridge.fader-reset(id); }
-            mute-toggled(id) => { MixerBridge.mute-toggled(id); }
-            solo-toggled(id) => { MixerBridge.solo-toggled(id); }
-        }
-    }
-}
 
 export component MixerPanel inherits Rectangle {
     // The inline overlay needs a close button; the standalone window closes via

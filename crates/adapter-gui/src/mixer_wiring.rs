@@ -17,8 +17,8 @@ use application::mixer_view::MixerStripView;
 use slint::{ComponentHandle, Global, ModelRc, Timer, TimerMode, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
-use crate::mixer_fader_law::db_from_position;
 use crate::mixer_rows::mixer_rows;
+use crate::mixer_strip_intents::wire_strip_intents;
 use crate::state::ProjectSession;
 use crate::{AppWindow, MixerBridge, MixerWindow};
 
@@ -123,31 +123,7 @@ fn wire_open(bridge: &MixerBridge, ctx: &MixerCtx) {
 
 fn wire_strip_controls(bridge: &MixerBridge, ctx: &MixerCtx) {
     let c = ctx.clone();
-    bridge.on_fader_moved(move |id, position| {
-        c.dispatch(MixerCommand::SetMixerFader {
-            strip: id.to_string(),
-            gain_db: db_from_position(position),
-        });
-    });
-    let c = ctx.clone();
-    bridge.on_fader_reset(move |id| {
-        c.dispatch(MixerCommand::SetMixerFader {
-            strip: id.to_string(),
-            gain_db: 0.0,
-        });
-    });
-    let c = ctx.clone();
-    bridge.on_mute_toggled(move |id| {
-        c.dispatch(MixerCommand::ToggleMixerMute {
-            strip: id.to_string(),
-        });
-    });
-    let c = ctx.clone();
-    bridge.on_solo_toggled(move |id| {
-        c.dispatch(MixerCommand::ToggleMixerSolo {
-            strip: id.to_string(),
-        });
-    });
+    wire_strip_intents(bridge, Rc::new(move |command| c.dispatch(command)));
 }
 
 fn start_poll(ctx: &MixerCtx) {

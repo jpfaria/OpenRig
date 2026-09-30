@@ -118,3 +118,55 @@ fn a_soloed_strip_shows_its_solo_and_dims_the_rest_of_its_side() {
         "an output solo leaves the inputs alone"
     );
 }
+
+#[test]
+fn a_chain_keeps_only_its_own_strips() {
+    let all = [
+        view("in:0@dev", MixerDirection::Input, vec![0], 0.0, false),
+        view("in:1@dev", MixerDirection::Input, vec![1], 0.0, false),
+        view(
+            "out:0,1@dev",
+            MixerDirection::Output,
+            vec![0, 1],
+            0.0,
+            false,
+        ),
+        view(
+            "out:2,3@dev",
+            MixerDirection::Output,
+            vec![2, 3],
+            0.0,
+            false,
+        ),
+    ];
+    let keep = vec!["in:1@dev".to_string(), "out:0,1@dev".to_string()];
+    let (inputs, outputs) = mixer_rows_of(&all, &keep);
+    let ids = |rows: &[MixerStripRow]| rows.iter().map(|r| r.id.to_string()).collect::<Vec<_>>();
+    assert_eq!(ids(&inputs), vec!["in:1@dev"]);
+    assert_eq!(ids(&outputs), vec!["out:0,1@dev"]);
+}
+
+#[test]
+fn a_solo_outside_the_chain_still_dims_the_chain_strip() {
+    // The solo is global to its side: the chain's own view must show the
+    // strip as silenced even though the soloed strip is not in the chain.
+    let all = [
+        view(
+            "out:0,1@dev",
+            MixerDirection::Output,
+            vec![0, 1],
+            0.0,
+            false,
+        ),
+        soloed(view(
+            "out:2,3@dev",
+            MixerDirection::Output,
+            vec![2, 3],
+            0.0,
+            false,
+        )),
+    ];
+    let (_, outputs) = mixer_rows_of(&all, &["out:0,1@dev".to_string()]);
+    assert_eq!(outputs.len(), 1);
+    assert!(outputs[0].solo_silenced);
+}

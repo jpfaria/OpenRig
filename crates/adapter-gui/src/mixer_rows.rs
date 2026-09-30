@@ -18,6 +18,19 @@ pub(crate) fn mixer_rows(strips: &[MixerStripView]) -> (Vec<MixerStripRow>, Vec<
     (side_rows(&inputs), side_rows(&outputs))
 }
 
+/// The rows of the strips in `keep` only (one chain's own strips), still
+/// dimmed by a solo anywhere on their side.
+pub(crate) fn mixer_rows_of(
+    strips: &[MixerStripView],
+    keep: &[String],
+) -> (Vec<MixerStripRow>, Vec<MixerStripRow>) {
+    let (mut inputs, mut outputs) = mixer_rows(strips);
+    let kept = |row: &MixerStripRow| keep.iter().any(|id| id.as_str() == row.id.as_str());
+    inputs.retain(kept);
+    outputs.retain(kept);
+    (inputs, outputs)
+}
+
 /// One side's rows; a solo only dims the strips of its own side.
 fn side_rows(strips: &[&MixerStripView]) -> Vec<MixerStripRow> {
     let side_has_solo = strips.iter().any(|strip| strip.soloed);
