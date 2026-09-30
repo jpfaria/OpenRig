@@ -93,9 +93,24 @@ pub struct GraphEdge {
 pub enum ChainStage {
     /// A single block — sits alone in one column.
     Single(BlockBlueprint),
-    /// Parallel paths between an implicit split and merge. Each inner
-    /// `Vec` is one path; all paths share the same column range.
-    Parallel(Vec<Vec<BlockBlueprint>>),
+    /// Parallel lanes after an auto-generated split node. Each inner `Vec`
+    /// is one lane, top to bottom; `end` decides whether the lanes merge
+    /// again or fan out to one terminal each (#328).
+    Parallel {
+        lanes: Vec<Vec<BlockBlueprint>>,
+        end: ParallelEnd,
+    },
+}
+
+/// How a [`ChainStage::Parallel`] ends (#328).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParallelEnd {
+    /// The lanes meet again at an auto-generated merge node and the next
+    /// stage continues from it (Split → Mix).
+    Merge,
+    /// No merge node: each lane's last blueprint is its terminal — a Y
+    /// chain's output node — and nothing may follow (Y → A/B).
+    Fan,
 }
 
 /// Logical description of one block, without position. Position is

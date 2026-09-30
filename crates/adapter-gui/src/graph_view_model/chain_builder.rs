@@ -4,19 +4,26 @@
 //!
 //! - [`super::types::ChainStage::Single`] blocks sit on the central lane and
 //!   advance the column cursor by one.
-//! - `Parallel` places each inner path on its own lane (above/below the
-//!   centre, distributed symmetrically) and reserves columns equal to the
-//!   longest path. Split/merge utility nodes are inserted automatically so
-//!   the result is a connected DAG.
+//! - `Parallel` starts with an auto-generated split node and places each
+//!   lane on its own row (above/below the centre, distributed
+//!   symmetrically). With [`ParallelEnd::Merge`] the lanes meet again at an
+//!   auto-generated merge node on the column after the longest lane, and
+//!   the next stage continues from it. With [`ParallelEnd::Fan`] there is
+//!   no merge node: each lane's last blueprint is its terminal, and the
+//!   terminals line up on the longest lane's last column (#328).
 
-use super::types::{BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory};
+use super::types::{
+    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, ParallelEnd,
+};
 
 /// Build a positioned graph from a sequence of [`ChainStage`]s.
 ///
 /// Returns the (nodes, edges) pair ready to push to the Slint side. IDs
 /// must be unique across the whole input — duplicates produce undefined
 /// behaviour at the UI level (the panic-free contract is kept here, but
-/// the UI may render only one of the duplicates).
+/// the UI may render only one of the duplicates). A stage after a
+/// [`ParallelEnd::Fan`] has nothing to connect from and is left
+/// unconnected; `validate_stages` reports it.
 pub fn linear_chain_layout(
     stages: &[ChainStage],
     metrics: GridMetrics,
@@ -41,27 +48,19 @@ pub fn linear_chain_layout(
                 nodes.push(node);
                 col += 1;
             }
-            ChainStage::Parallel(paths) if paths.is_empty() => {
+            ChainStage::Parallel { lanes, .. } if lanes.is_empty() => {
                 // No-op — nothing to render, no column consumed.
             }
-            ChainStage::Parallel(paths) => {
+            ChainStage::Parallel { lanes, end } => {
                 split_counter += 1;
                 let split_id = format!("__split_{split_counter}");
                 let merge_id = format!("__merge_{split_counter}");
 
-                let longest = paths.iter().map(Vec::len).max().unwrap_or(0);
+                let longest = lanes.iter().map(Vec::len).max().unwrap_or(0);
                 let split_col = col;
-                let merge_col = col + longest + 1;
 
                 // Split node sits at split_col on the centre lane.
-                nodes.push(GraphNode {
-                    id: split_id.clone(),
-                    label: String::new(),
-                    category: NodeCategory::Util,
-                    x: metrics.origin_x + split_col as f32 * metrics.column_spacing,
-                    y: metrics.origin_y,
-                    bypass: false,
-                });
+                nodes.push(routing_node(&split_id, split_col, &metrics));
                 if let Some(prev) = prev_tail.take() {
                     edges.push(GraphEdge {
                         from_id: prev,
@@ -69,19 +68,15 @@ pub fn linear_chain_layout(
                     });
                 }
 
-                // Each path occupies its own lane. With N paths, lanes
-                // are -N/2..N/2 around the centre; 2 paths → -0.5 / +0.5.
-                let n_paths = paths.len() as f32;
-                for (lane_idx, path) in paths.iter().enumerate() {
-                    let lane_offset = lane_idx as f32 - (n_paths - 1.0) / 2.0;
+                // Each lane occupies its own row. With N lanes, rows are
+                // -N/2..N/2 around the centre; 2 lanes → -0.5 / +0.5.
+                let n_lanes = lanes.len() as f32;
+                for (lane_idx, lane) in lanes.iter().enumerate() {
+                    let lane_offset = lane_idx as f32 - (n_lanes - 1.0) / 2.0;
                     let mut last_in_lane = split_id.clone();
-                    for (block_idx, block) in path.iter().enumerate() {
-                        let node = position_block_lane(
-                            block,
-                            split_col + 1 + block_idx,
-                            lane_offset,
-                            &metrics,
-                        );
+                    for (block_idx, block) in lane.iter().enumerate() {
+                        let column = lane_column(*end, split_col, block_idx, lane.len(), longest);
+                        let node = position_block_lane(block, column, lane_offset, &metrics);
                         edges.push(GraphEdge {
                             from_id: last_in_lane,
                             to_id: node.id.clone(),
@@ -89,28 +84,65 @@ pub fn linear_chain_layout(
                         last_in_lane = node.id.clone();
                         nodes.push(node);
                     }
-                    edges.push(GraphEdge {
-                        from_id: last_in_lane,
-                        to_id: merge_id.clone(),
-                    });
+                    if *end == ParallelEnd::Merge {
+                        edges.push(GraphEdge {
+                            from_id: last_in_lane,
+                            to_id: merge_id.clone(),
+                        });
+                    }
                 }
 
-                // Merge node sits at merge_col on the centre lane.
-                nodes.push(GraphNode {
-                    id: merge_id.clone(),
-                    label: String::new(),
-                    category: NodeCategory::Util,
-                    x: metrics.origin_x + merge_col as f32 * metrics.column_spacing,
-                    y: metrics.origin_y,
-                    bypass: false,
-                });
-                prev_tail = Some(merge_id);
-                col = merge_col + 1;
+                match end {
+                    ParallelEnd::Merge => {
+                        // Merge node sits on the column after the longest
+                        // lane, on the centre lane.
+                        let merge_col = split_col + longest + 1;
+                        nodes.push(routing_node(&merge_id, merge_col, &metrics));
+                        prev_tail = Some(merge_id);
+                        col = merge_col + 1;
+                    }
+                    ParallelEnd::Fan => {
+                        // Every lane already ended at its own terminal.
+                        prev_tail = None;
+                        col = split_col + longest + 1;
+                    }
+                }
             }
         }
     }
 
     (nodes, edges)
+}
+
+/// Column of blueprint `index` in a lane of `len` blueprints. In a Fan the
+/// lane's last blueprint is its terminal and lines up with every other
+/// lane's terminal on the longest lane's last column, the way a Y chain's
+/// output nodes sit side by side.
+fn lane_column(
+    end: ParallelEnd,
+    split_col: usize,
+    index: usize,
+    len: usize,
+    longest: usize,
+) -> usize {
+    if end == ParallelEnd::Fan && index + 1 == len {
+        split_col + longest
+    } else {
+        split_col + 1 + index
+    }
+}
+
+/// An auto-generated split or merge node: no label, `Util` category, on
+/// the centre lane.
+fn routing_node(id: &str, col: usize, metrics: &GridMetrics) -> GraphNode {
+    GraphNode {
+        id: id.to_string(),
+        label: String::new(),
+        category: NodeCategory::Util,
+        x: metrics.origin_x + col as f32 * metrics.column_spacing,
+        y: metrics.origin_y,
+        bypass: false,
+    }
 }
 
 fn position_block(

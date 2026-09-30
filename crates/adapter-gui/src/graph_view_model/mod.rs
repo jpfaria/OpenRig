@@ -21,8 +21,10 @@ pub use chain_builder::linear_chain_layout;
 pub use layout::topological_layout;
 pub use palette::{default_palette, CategoryStyle};
 pub use reorder::reorder_for_drop;
-pub use types::{BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory};
-pub use validation::validate_graph;
+pub use types::{
+    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, ParallelEnd,
+};
+pub use validation::{validate_graph, validate_stages};
 
 #[cfg(test)]
 #[path = "../graph_view_model_tests.rs"]

@@ -110,12 +110,14 @@ The host receives layout-space coords. To persist a moved node, write them back 
 | `GraphEdge` | source/target id pair (no geometry) |
 | `NodeCategory` | enum of visual categories — `as_str()` produces the slug the Slint side expects |
 | `BlockBlueprint` | one block in a logical chain — id, label, category, bypass |
-| `ChainStage` | `Single(...)` or `Parallel(Vec<Vec<...>>)` |
+| `ChainStage` | `Single(...)` or `Parallel { lanes, end }` — `lanes` top to bottom |
+| `ParallelEnd` | `Merge`: the lanes meet again at an auto-generated merge node. `Fan`: no merge node; each lane's last blueprint is its terminal (a Y chain's output node), the terminals share the last column, and nothing may follow (#328) |
 | `GridMetrics` | column/lane spacing + origin |
 | `linear_chain_layout(stages, metrics)` | builds positioned nodes + edges, inserts split/merge utility nodes for parallel stages |
 | `validate_graph(nodes, edges)` | returns error strings (empty = valid). Catches duplicate ids, dangling edges, self-loops. |
+| `validate_stages(stages)` | returns error strings for a stage list: a stage after a `Fan`, an empty `Fan` lane |
 
-`linear_chain_layout` is pure — same input, same output. Used in tests + at runtime to compute positions from a logical chain description. Splits and merges are auto-generated with id prefix `__split_N` / `__merge_N`.
+`linear_chain_layout` is pure — same input, same output. Used in tests + at runtime to compute positions from a logical chain description. Splits and merges are auto-generated with id prefix `__split_N` / `__merge_N` (a `Fan` has no `__merge_N`). `topological_layout` (auto mode) moves every terminal — a node with inputs and no outputs — to the last column, so a fan-out's terminals stay side by side there too.
 
 ## Category → colour mapping
 
