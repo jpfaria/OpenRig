@@ -467,3 +467,75 @@ fn a_path_set_change_is_a_structural_change() {
         "#328: out-a now runs path A AND path B — its pipeline changed, so the chain needs new streams (#881)"
     );
 }
+
+/// The same edit on a chain whose Y sits behind a Split → Mix: the Y is not
+/// the chain's first split, and its path checklist must still reach the
+/// structure signature.
+#[test]
+fn a_y_path_set_change_behind_a_mix_is_a_structural_change() {
+    use domain::ids::{BlockId, ChainId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::split_params::default_split_params;
+    use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
+    use project::chain::Chain;
+    use project::endpoint_disables::{EndpointDisables, EndpointRef};
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![ep("in", 0)],
+        outputs: vec![ep("frfr", 0), ep("syn-5050", 1)],
+    }];
+    let off = |name: &str| EndpointRef {
+        io: "main".into(),
+        endpoint: name.into(),
+    };
+    let split = |id: &str, end: SplitEnd| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end,
+            params: default_split_params(),
+            a: vec![],
+            b: vec![],
+        }),
+    };
+    let chain = |path_b_outputs: Vec<EndpointRef>| Chain {
+        mix: Default::default(),
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![split("mix", SplitEnd::Mix), split("y", SplitEnd::Y)],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints: EndpointDisables {
+            inputs: vec![],
+            outputs: vec![],
+            path_a_outputs: vec![off("syn-5050")],
+            path_b_outputs,
+        },
+    };
+    // Path A → frfr. Path B → syn-5050 only, then → frfr too.
+    let before = chain(vec![off("frfr")]);
+    let after = chain(vec![]);
+
+    assert_eq!(
+        super::bound_io_signature(&before, &registry),
+        super::bound_io_signature(&after, &registry),
+        "fixture: both outputs stay open, so the I/O signature cannot tell"
+    );
+    assert_ne!(
+        super::chain_structure_signature(&before, &registry),
+        super::chain_structure_signature(&after, &registry),
+        "#328: behind a Mix, frfr now runs Y path A AND path B — the chain needs new streams (#881)"
+    );
+}
