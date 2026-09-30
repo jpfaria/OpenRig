@@ -28,6 +28,47 @@ pub(crate) fn replace_project_chains(
             // `latency_ms` with a measured value for up to 10 s when the
             // user clicks the probe button on the chain card.
             let latency_ms = 0.0_f32;
+            let input_label: SharedString = {
+                let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                if binding_name.is_empty() {
+                    // #716: device endpoints resolve from the binding
+                    // registry (never from block `entries`).
+                    let (resolved_inputs, _) =
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                    let input_chs: Vec<usize> = resolved_inputs
+                        .iter()
+                        .flat_map(|e| e.channels.iter().copied())
+                        .collect();
+                    chain_endpoint_label("In", &input_chs).into()
+                } else {
+                    binding_name.into()
+                }
+            };
+            let output_label: SharedString = {
+                let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                if binding_name.is_empty() {
+                    // #716: device endpoints resolve from the binding
+                    // registry (never from block `entries`).
+                    let (_, resolved_outputs) =
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                    let output_chs: Vec<usize> = resolved_outputs
+                        .iter()
+                        .flat_map(|e| e.channels.iter().copied())
+                        .collect();
+                    chain_endpoint_label("Out", &output_chs).into()
+                } else {
+                    binding_name.into()
+                }
+            };
+            // #328: the chain drawn as a graph for the desktop row (spec §5.2).
+            let io_labels = crate::endpoint_checklist_items::io_labels(
+                chain,
+                io_bindings,
+                &input_label,
+                &output_label,
+            );
+            let graph = crate::chain_graph_adapter::chain_graph(chain, &io_labels);
+            let graph_models = crate::chain_graph_models::row_graph_models(chain, &graph);
             ProjectChainItem {
                 instrument: chain.instrument.clone().into(),
                 title: chain
@@ -56,40 +97,10 @@ pub(crate) fn replace_project_chains(
                         format!("{} blocks", effect_block_count).into()
                     }
                 },
-                input_label: {
-                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
-                    if binding_name.is_empty() {
-                        // #716: device endpoints resolve from the binding
-                        // registry (never from block `entries`).
-                        let (resolved_inputs, _) =
-                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
-                        let input_chs: Vec<usize> = resolved_inputs
-                            .iter()
-                            .flat_map(|e| e.channels.iter().copied())
-                            .collect();
-                        chain_endpoint_label("In", &input_chs).into()
-                    } else {
-                        binding_name.into()
-                    }
-                },
+                input_label,
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
                     .into(),
-                output_label: {
-                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
-                    if binding_name.is_empty() {
-                        // #716: device endpoints resolve from the binding
-                        // registry (never from block `entries`).
-                        let (_, resolved_outputs) =
-                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
-                        let output_chs: Vec<usize> = resolved_outputs
-                            .iter()
-                            .flat_map(|e| e.channels.iter().copied())
-                            .collect();
-                        chain_endpoint_label("Out", &output_chs).into()
-                    } else {
-                        binding_name.into()
-                    }
-                },
+                output_label,
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices, io_bindings)
                     .into(),
                 latency_ms,
@@ -270,6 +281,11 @@ pub(crate) fn replace_project_chains(
                 // #323 phase 2: filled by the meter tick (needs the rig's bank);
                 // the initial seed is empty ⇒ the picker shows just "follow".
                 looper_preset_options: ModelRc::default(),
+                graph_nodes: graph_models.nodes,
+                graph_edges: graph_models.edges,
+                graph_anchors: graph_models.anchors,
+                graph_lanes: graph.lanes as i32,
+                graph_columns: graph.columns as i32,
             }
         })
         .collect::<Vec<_>>();
