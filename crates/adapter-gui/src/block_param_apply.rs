@@ -13,6 +13,7 @@ use std::rc::Rc;
 
 use application::command::{BlockCommand, Command};
 use application::event::Event;
+use domain::ids::{BlockId, ChainId};
 use domain::AudioDeviceDescriptor;
 use slint::VecModel;
 
@@ -95,6 +96,33 @@ pub(crate) fn apply_block_parameter(
         };
         (chain.id.clone(), block.id.clone())
     };
+    apply_parameter_to_block(
+        project_session,
+        chain_id,
+        block_id,
+        path,
+        value,
+        project_chains,
+        input_chain_devices,
+        output_chain_devices,
+    )
+}
+
+/// Commit `value` at `path` on the block `block_id` of chain `chain_id`: the
+/// command on the bus, the live resync, the republished rows. `Ok(false)` ⇒
+/// the dispatcher reported no change. #328: the split editor calls this
+/// directly — a split knob has a block id but no editor draft.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn apply_parameter_to_block(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    chain_id: ChainId,
+    block_id: BlockId,
+    path: &str,
+    value: ParamValue,
+    project_chains: &Rc<VecModel<ProjectChainItem>>,
+    input_chain_devices: &[AudioDeviceDescriptor],
+    output_chain_devices: &[AudioDeviceDescriptor],
+) -> Result<bool, ApplyParamError> {
     let command = match value {
         ParamValue::Number(value) => Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),

@@ -1,0 +1,150 @@
+// Responsibility: renders the split editor overlay.
+//
+// #328 (spec §5.1): a small root-level panel — not a PopupWindow, whose
+// content does not receive clicks (#749/#761) — with the split's or the
+// mixer's knobs drawn by the block editor's own grid. The split editor (kind
+// 0) also carries the Mix / Y switch (orchestrator decision 9). State lives in
+// ChainGraphOverlayState; a click outside the card closes it.
+
+import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
+import { BlockParamGrid } from "block_param_grid.slint";
+
+// One half of the Mix / Y switch.
+component EndSegment inherits Rectangle {
+    in property <string> label;
+    in property <bool> lit;
+    callback clicked();
+    border-radius: 6px;
+    background: root.lit ? #2f6fed : (ta.has-hover ? #2b3340 : #1b2230);
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checked: root.lit;
+    accessible-action-default => { root.clicked(); }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Text {
+        text: root.label;
+        color: root.lit ? #ffffff : #d8e0ff;
+        font-size: 18px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component SplitEditorOverlay inherits Rectangle {
+    private property <int> count: ChainGraphOverlayState.split-editor-items.length;
+    private property <int> cols: Math.max(1, Math.min(4, root.count));
+    private property <length> cell: 96px;
+    private property <length> grid-height: Math.ceil(root.count / root.cols) * root.cell;
+    private property <bool> has-end-switch: ChainGraphOverlayState.split-editor-kind == 0;
+    private property <length> end-switch-height: root.has-end-switch ? 44px + 12px : 0px;
+
+    x: 0;
+    y: 0;
+    visible: ChainGraphOverlayState.split-editor-open;
+
+    backdrop := TouchArea {
+        clicked => { ChainGraphOverlayState.split-editor-open = false; }
+    }
+
+    if ChainGraphOverlayState.split-editor-open : Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: Math.max(root.cols * root.cell, 280px) + 32px;
+        height: 16px + 44px + 12px + root.end-switch-height + root.grid-height + 16px;
+        background: #111114;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #27272a;
+        drop-shadow-blur: 20px;
+        drop-shadow-color: #000000c0;
+
+        // Swallow clicks on the card so only the backdrop closes it.
+        TouchArea { }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+
+            HorizontalLayout {
+                height: 44px;
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: ChainGraphOverlayState.split-editor-title;
+                    color: #f1f4f8;
+                    font-size: 22px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    width: 88px;
+                    border-radius: 6px;
+                    background: close-ta.has-hover ? #2b3340 : #1b2230;
+                    accessible-role: button;
+                    accessible-label: @tr("btn-close");
+                    close-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { ChainGraphOverlayState.split-editor-open = false; }
+                    }
+                    Text {
+                        text: @tr("btn-close");
+                        color: #d8e0ff;
+                        font-size: 18px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            if root.has-end-switch : HorizontalLayout {
+                height: 44px;
+                spacing: 8px;
+                EndSegment {
+                    horizontal-stretch: 1;
+                    label: ChainGraphOverlayState.split-editor-end-mix-label;
+                    lit: !ChainGraphOverlayState.split-editor-end-y;
+                    clicked => {
+                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, false);
+                    }
+                }
+                end-y-ta := EndSegment {
+                    horizontal-stretch: 1;
+                    label: ChainGraphOverlayState.split-editor-end-y-label;
+                    lit: ChainGraphOverlayState.split-editor-end-y;
+                    clicked => {
+                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, true);
+                    }
+                }
+            }
+
+            BlockParamGrid {
+                height: root.grid-height;
+                param-items: ChainGraphOverlayState.split-editor-items;
+                show-params: true;
+                show-overlays: false;
+                has-param-tabs: false;
+                has-eq-widget: false;
+                grid-area-x: 0px;
+                grid-cell-w: root.cell;
+                grid-cols: root.cols;
+                grid-base-y: 0px;
+                grid-row-stride: root.cell;
+                content-height: root.grid-height;
+                panel-text: #f1f4f8;
+                update-number(path, value) => {
+                    ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                }
+                select-option(path, index) => {
+                    ChainGraphOverlayState.split-editor-option(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, index);
+                }
+                update-bool(path, value) => {
+                    ChainGraphOverlayState.split-editor-bool(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                }
+                pick-file(path) => { }
+            }
+        }
+    }
+}

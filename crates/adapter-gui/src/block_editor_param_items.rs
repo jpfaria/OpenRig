@@ -16,7 +16,7 @@ use std::rc::Rc;
 use slint::{ModelRc, SharedString, VecModel};
 
 use project::block::schema_for_block_model;
-use project::param::{ParameterDomain, ParameterSet, ParameterWidget};
+use project::param::{ParameterDomain, ParameterSet, ParameterSpec, ParameterWidget};
 
 use crate::block_editor::numeric_widget_kind;
 use crate::block_editor_values::unit_label;
@@ -111,8 +111,15 @@ pub(crate) fn block_parameter_items_for_model(
     let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
         return Vec::new();
     };
-    schema
-        .parameters
+    block_parameter_items_for_specs(&schema.parameters, params)
+}
+
+/// One row per spec (#328: the split editor has specs but no catalog model).
+pub(crate) fn block_parameter_items_for_specs(
+    specs: &[ParameterSpec],
+    params: &ParameterSet,
+) -> Vec<BlockParameterItem> {
+    specs
         .iter()
         .filter(|spec| spec.path != "enabled")
         .map(|spec| {

@@ -26,6 +26,12 @@ export global ChainGraphOverlayState {
     callback split-editor-number(int, string, string, float);
     callback split-editor-option(int, string, string, int);
     callback split-editor-bool(int, string, string, bool);
+    // Mix / Y switch (split editor only): lit segment, labels, and the ask.
+    // Args: chain index, split block id, true = Y → A/B.
+    in-out property <bool> split-editor-end-y: false;
+    in-out property <string> split-editor-end-mix-label;
+    in-out property <string> split-editor-end-y-label;
+    callback split-editor-set-end(int, string, bool);
 
     // ── Endpoint checklist (spec §5.3) ──
     // Args: chain index, graph node id (`__io_input`, `__io_output`, …).

@@ -156,6 +156,9 @@ mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
+mod split_editor_items;
+mod split_editor_wiring;
+mod split_end_switch;
 mod split_insert;
 mod split_picker_entries;
 mod thumbnails;
@@ -411,6 +414,8 @@ mod issue_328_path_block_editor_tests;
 mod issue_328_split_picker_tests;
 #[cfg(test)]
 mod issue_328_split_chip_tests;
+#[cfg(test)]
+mod issue_328_split_editor_interaction_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

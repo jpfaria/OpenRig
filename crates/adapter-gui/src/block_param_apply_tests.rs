@@ -248,3 +248,33 @@ fn setting_a_parameter_to_the_value_it_already_has_still_counts_as_a_change() {
         Ok(true)
     );
 }
+
+/// #328 (spec §1.2): a split knob is an ordinary `SetBlockParameter*` on the
+/// split block — no draft, no model.
+#[test]
+fn a_split_knob_edit_reaches_the_split_params() {
+    use crate::chain_graph_fixtures_tests::{
+        chain_in, mix_chain, rows as graph_rows, session_with,
+    };
+    use project::block::split_params::MIX_PAN_A;
+    let session = session_with(vec![mix_chain()]);
+    let chain_id = chain_in(&session, 0).id;
+    super::apply_parameter_to_block(
+        &session,
+        chain_id,
+        BlockId("sp".into()),
+        MIX_PAN_A,
+        ParamValue::Number(-50.0),
+        &graph_rows(),
+        &[],
+        &[],
+    )
+    .expect("the split exists");
+    let AudioBlockKind::Split(split) = &chain_in(&session, 0).blocks[1].kind else {
+        panic!("block 1 is the split")
+    };
+    assert_eq!(
+        split.params.get(MIX_PAN_A).and_then(|v| v.as_f32()),
+        Some(-50.0)
+    );
+}

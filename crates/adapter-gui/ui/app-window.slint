@@ -29,7 +29,9 @@ import { LooperEditorHarness } from "components/looper_editor_test_harness.slint
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
 import { GraphViewHarness, GraphViewScrollHarness } from "components/graph_view_test_harness.slint";
 import { ChainRowGraphSplitMixHarness } from "components/chain_row_graph_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness }
+import { SplitEditorOverlay } from "components/split_editor_overlay.slint";
+import { SplitEditorHarness } from "components/split_editor_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -432,6 +434,8 @@ export component AppWindow inherits Window {
         run-diagnosis(ci) => { root.tone-doctor-run(ci); }
         apply-suggestion(ci) => { root.tone-doctor-apply(ci); }
     }
+    // #328: the split / mixer knobs (root level: never clipped by the chain list).
+    SplitEditorOverlay { width: root.width; height: root.height; }
 
     PresetSaveOverlay {
         x: 0; y: 0;

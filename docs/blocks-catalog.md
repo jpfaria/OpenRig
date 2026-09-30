@@ -96,6 +96,15 @@ Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and a
 
 Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): at most one split per chain; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split.
 
+In the GUI, clicking the split node of a chain graph (or the Split chip in touch and compact views) opens the
+**split editor** — a Split → Mix / Y → A/B switch (`SetSplitEnd`; a switch the chain refuses shows the error as a
+toast), mode, levels into A and B, balances — and clicking the mixer node opens the **mixer editor** — levels,
+pans, B polarity, master, master sum. Both are a small root-level panel drawn from `split_param_specs()` by the
+block editor's own grid; each knob is an ordinary `SetBlockParameter*` on the split block, so MIDI mapping, scenes
+and MCP reach them like any knob. Mode II needs a stereo or dual-mono signal before any mono block; with a mono
+source both balances give the same signal. On a one-channel output, pan has no audible effect (the route averages
+L and R).
+
 ### Split engine behaviour (#328)
 
 A Split → Mix runs inside the chain's own segment: shared blocks → split →
