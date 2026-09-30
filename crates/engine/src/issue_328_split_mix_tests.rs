@@ -591,7 +591,11 @@ fn a_knob_edit_keeps_the_alignment_history() {
     );
     update(
         &runtime,
-        &with_split_knob(&chain, split_params::MIX_MASTER, ParameterValue::Float(40.0)),
+        &with_split_knob(
+            &chain,
+            split_params::MIX_MASTER,
+            ParameterValue::Float(40.0),
+        ),
         &registry,
     );
     let mut after = 0.0_f32;
