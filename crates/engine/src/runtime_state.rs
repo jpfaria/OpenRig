@@ -167,6 +167,10 @@ pub(crate) struct OutputRoutingState {
 pub(crate) enum RuntimeProcessor {
     Audio(AudioProcessor),
     Select(SelectRuntimeState),
+    /// #328: a chain split — both paths and their mixer run inside this node.
+    // Task 14 builds split nodes from the model and removes this allow.
+    #[cfg_attr(not(test), allow(dead_code))]
+    Split(crate::runtime_split::state::SplitRuntimeState),
     Bypass,
 }
 
@@ -179,6 +183,7 @@ impl RuntimeProcessor {
         match self {
             RuntimeProcessor::Audio(_) => "audio",
             RuntimeProcessor::Select(_) => "select",
+            RuntimeProcessor::Split(_) => "split",
             RuntimeProcessor::Bypass => "bypass",
         }
     }

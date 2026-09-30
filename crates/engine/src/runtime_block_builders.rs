@@ -40,6 +40,8 @@ fn node_emits_mono_content(node: &BlockRuntimeNode, input_content_mono: bool) ->
         RuntimeProcessor::Audio(_) => false,
         RuntimeProcessor::Bypass => input_content_mono,
         RuntimeProcessor::Select(_) => false,
+        // A split mixes two paths and may pan them apart: stereo content.
+        RuntimeProcessor::Split(_) => false,
     }
 }
 

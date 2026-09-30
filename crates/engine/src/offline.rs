@@ -253,6 +253,13 @@ fn apply_block_offline(node: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
                 apply_block_offline(selected, frames);
             }
         }
+        RuntimeProcessor::Split(split) => {
+            crate::runtime_split::process::process_split(split, frames, |node, path| {
+                if node.block_snapshot.enabled {
+                    apply_block_offline(node, path);
+                }
+            });
+        }
         RuntimeProcessor::Bypass => {}
     }
 }

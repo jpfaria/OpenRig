@@ -19,8 +19,6 @@ pub(crate) mod knobs;
 #[path = "runtime_split_latency.rs"]
 pub(crate) mod latency;
 
-// Task 12 runs splits in the live callback and removes this allow.
-#[allow(dead_code)]
 #[path = "runtime_split_process.rs"]
 pub(crate) mod process;
 
@@ -33,7 +31,9 @@ pub(crate) mod state;
 #[path = "runtime_split_test_support.rs"]
 pub(crate) mod test_support;
 
-// Task 12 wires the math into the live processor and removes this allow.
-#[allow(dead_code)]
+#[cfg(test)]
+#[path = "runtime_split_dispatch_tests.rs"]
+mod dispatch_tests;
+
 #[path = "runtime_split_mix.rs"]
 pub(crate) mod mix;
