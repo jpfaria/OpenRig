@@ -19,6 +19,11 @@ pub(crate) mod knobs;
 #[path = "runtime_split_latency.rs"]
 pub(crate) mod latency;
 
+// Task 12 runs splits in the live callback and removes this allow.
+#[allow(dead_code)]
+#[path = "runtime_split_process.rs"]
+pub(crate) mod process;
+
 // Task 16 wires the history adoption into the builder and removes this allow.
 #[allow(dead_code)]
 #[path = "runtime_split_state.rs"]
