@@ -10,7 +10,7 @@
 //!
 //! Real-time safe: `push` never allocates, locks or blocks.
 
-const MAX_PERIOD: usize = 4096;
+const MAX_PERIOD: usize = 2048;
 const WINDOW_SECONDS: f32 = 0.25;
 const TRIP_WINDOWS: u32 = 4;
 const STEP_RATIO: f32 = 5.0;
@@ -82,6 +82,11 @@ impl InputSeamDetector {
             self.close_window();
         }
         self.tripped
+    }
+
+    /// The next buffer does not follow the last one (a buffer was lost).
+    pub fn discontinuity(&mut self) {
+        self.history_len = 0;
     }
 
     pub fn reset(&mut self) {

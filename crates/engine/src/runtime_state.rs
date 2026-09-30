@@ -85,6 +85,8 @@ pub(crate) struct InputProcessingState {
     pub(crate) di_gain: Arc<crate::mixer_gains::EndpointGain>,
     /// #1007: the DI fader gain this pipeline last played.
     pub(crate) di_current: f32,
+    /// #979: watches this pipeline's input channels for a stepped input.
+    pub(crate) seam_watch: crate::runtime_input_seams::InputSeamWatch,
 }
 
 pub(crate) struct ChainProcessingState {

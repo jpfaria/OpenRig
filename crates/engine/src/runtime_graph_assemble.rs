@@ -222,6 +222,7 @@ pub(crate) fn assemble_chain_runtime_state(
         // Issue #670 — audio-thread deadline accounting, zeroed at build.
         xrun_count: AtomicU64::new(0),
         input_busy_skips: AtomicU64::new(0),
+        input_stepped: std::sync::atomic::AtomicBool::new(false),
         peak_load_ppm: AtomicU64::new(0),
         // Issue #723 — remember the real build rate so the live probe beep
         // is synthesized at the device rate, never a hardcoded 48000.
@@ -334,6 +335,7 @@ pub(crate) fn build_input_processing_state(
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
+        seam_watch: crate::runtime_input_seams::InputSeamWatch::new(&input.channels, sample_rate),
         blocks,
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },

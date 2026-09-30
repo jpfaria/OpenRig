@@ -121,6 +121,30 @@ fn a_buffer_size_change_restarts_the_count() {
     );
 }
 
+/// A 196 Hz tone at -20 dBFS over the recorded clean floor with every fourth
+/// buffer lost (a busy processing lock): each loss is a jump at the start of
+/// the next buffer, which folds exactly like a seam unless the detector is told
+/// the stream broke there.
+#[test]
+fn lost_buffers_flagged_as_discontinuities_never_trip() {
+    let tone: Vec<f32> = samples(CLEAN)
+        .iter()
+        .enumerate()
+        .map(|(i, floor)| floor + 0.1 * (std::f32::consts::TAU * 196.0 * i as f32 / RATE).sin())
+        .collect();
+    let mut detector = InputSeamDetector::new(RATE);
+    for (k, chunk) in tone.chunks_exact(BUFFER).enumerate() {
+        if k % 4 == 3 {
+            detector.discontinuity();
+            continue;
+        }
+        assert!(
+            !detector.push(chunk, 1, 0),
+            "tripped on lost buffers at buffer {k}"
+        );
+    }
+}
+
 #[test]
 fn only_the_stepped_channel_of_an_interleaved_buffer_trips() {
     let stepped = samples(STEPPED);

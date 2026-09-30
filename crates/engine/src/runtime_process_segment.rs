@@ -129,6 +129,7 @@ pub(crate) fn process_single_segment(
         mixer_current,
         di_gain,
         di_current,
+        seam_watch: _,
     } = input_state;
 
     frame_buffer.clear();
