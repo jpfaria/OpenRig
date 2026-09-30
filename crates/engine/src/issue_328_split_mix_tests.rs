@@ -562,3 +562,46 @@ fn moving_a_block_out_of_a_path_keeps_its_processor() {
         "dragging to the shared blocks keeps the processor"
     );
 }
+
+#[test]
+fn a_knob_edit_keeps_the_alignment_history() {
+    let (chain, registry) = mono_chain(
+        "history",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[invert()],
+            vec![unit_impulse_ir_block("a_ir")],
+            vec![],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    let mut callback = 0;
+    let mut before = 0.0_f32;
+    for _ in 0..12 {
+        let out = drive_and_capture(&runtime, 1, &sine_block(256, callback * 256), 2);
+        if callback >= 8 {
+            before = before.max(peak_abs(&out));
+        }
+        callback += 1;
+    }
+    assert!(
+        before < 1e-4,
+        "precondition: the aligned paths cancel, peak {before}"
+    );
+    update(
+        &runtime,
+        &with_split_knob(&chain, split_params::MIX_MASTER, ParameterValue::Float(40.0)),
+        &registry,
+    );
+    let mut after = 0.0_f32;
+    for _ in 0..8 {
+        let out = drive_and_capture(&runtime, 1, &sine_block(256, callback * 256), 2);
+        after = after.max(peak_abs(&out));
+        callback += 1;
+    }
+    assert!(
+        after < 1e-4,
+        "a knob edit must not restart the delayed path from silence, peak {after}"
+    );
+}

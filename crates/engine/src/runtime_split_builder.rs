@@ -32,12 +32,20 @@ pub(crate) fn build_split_runtime_node(
     sample_rate: f32,
     reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
 ) -> Result<BlockRuntimeNode> {
-    let previous = reusable_nodes.remove(&block.id).filter(|node| {
+    let mut previous = reusable_nodes.remove(&block.id).filter(|node| {
         node.input_layout == input_layout && matches!(node.processor, RuntimeProcessor::Split(_))
     });
     if previous.is_none() && !block.enabled {
         return Ok(bypass_runtime_node(block, input_layout, content_mono));
     }
+    // #328: take the previous build's split state out of its node; its
+    // delay lines continue in the new state below.
+    let previous_state = previous.as_mut().and_then(|node| {
+        match std::mem::replace(&mut node.processor, RuntimeProcessor::Bypass) {
+            RuntimeProcessor::Split(state) => Some(state),
+            _ => None,
+        }
+    });
     let path_content_mono =
         content_mono || split.params.get_string(SPLIT_MODE) == Some(SPLIT_MODE_DUAL_MONO);
     let a_blocks: Vec<&AudioBlock> = split.a.iter().collect();
@@ -62,13 +70,16 @@ pub(crate) fn build_split_runtime_node(
         reusable_nodes,
         None,
     )?;
-    let state = SplitRuntimeState::new(
+    let mut state = SplitRuntimeState::new(
         matches!(split.end, SplitEnd::Mix),
         a,
         b,
         SplitKnobs::from_params(&split.params),
         &block.id,
     );
+    if let Some(previous_state) = previous_state {
+        state.adopt_history(previous_state);
+    }
     let (instance_serial, fade_state) = match previous {
         Some(node) => (
             node.instance_serial,

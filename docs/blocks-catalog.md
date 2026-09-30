@@ -122,6 +122,9 @@ there. A Y → A/B split meets its paths at unity: its mixer knobs do not apply.
 split sums it per path and delays the shorter path by the difference, in a ring
 preallocated up to 16384 samples; above that it clamps and logs. The longer
 path is never delayed, so the chain's latency does not change.
+A knob move or a path edit reuses every path processor by block id (also when
+a block is dragged between lanes or to the shared blocks) and continues the
+delay lines where they were, so it is not heard as a gap.
 
 | Source | Reported latency |
 |---|---|

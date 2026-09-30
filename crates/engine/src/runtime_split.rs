@@ -4,8 +4,6 @@
 //! the split's own buffer, never in another segment or runtime, so the
 //! stream-isolation law holds by construction.
 
-// Task 16 wires the history adoption into the builder and removes this allow.
-#[allow(dead_code)]
 #[path = "runtime_split_align.rs"]
 pub(crate) mod align;
 
@@ -21,8 +19,6 @@ pub(crate) mod latency;
 #[path = "runtime_split_process.rs"]
 pub(crate) mod process;
 
-// Task 16 wires the history adoption into the builder and removes this allow.
-#[allow(dead_code)]
 #[path = "runtime_split_state.rs"]
 pub(crate) mod state;
 
