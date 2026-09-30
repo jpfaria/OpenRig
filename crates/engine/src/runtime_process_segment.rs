@@ -127,6 +127,8 @@ pub(crate) fn process_single_segment(
         outgoing,
         mixer_gain,
         mixer_current,
+        di_gain,
+        di_current,
     } = input_state;
 
     frame_buffer.clear();
@@ -149,6 +151,10 @@ pub(crate) fn process_single_segment(
         }
         SegmentFeed::Loop(di_loop, start_pos) => {
             use crate::di_loop::DiFrame;
+            // #1007: the chain's DI fader, glided over the callback.
+            let target = di_gain.target();
+            let glide = GainGlide::begin(*di_current, target, num_frames);
+            *di_current = target;
             for i in 0..num_frames {
                 let f = di_loop.frame_at(start_pos.wrapping_add(i));
                 let chain_frame = match (*processing_layout, f) {
@@ -158,6 +164,10 @@ pub(crate) fn process_single_segment(
                     (AudioChannelLayout::Mono, DiFrame::Stereo([l, r])) => {
                         AudioFrame::Mono((l + r) * 0.5)
                     }
+                };
+                let chain_frame = match &glide {
+                    Some(glide) => chain_frame.scaled(glide.gain_at(i)),
+                    None => chain_frame,
                 };
                 frame_buffer.push(chain_frame);
             }

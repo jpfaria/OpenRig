@@ -146,7 +146,7 @@ pub(crate) fn assemble_chain_runtime_state(
         if insert_send {
             cushion = cushion.for_an_insert_send();
         }
-        let mut route = build_output_routing_state(output, cushion, route_rate);
+        let mut route = build_output_routing_state(&chain.id, output, cushion, route_rate);
         route.applies_chain_volume = !insert_send;
         output_routes.push(Some(Arc::new(route)));
     }
@@ -317,15 +317,20 @@ pub(crate) fn build_input_processing_state(
         prebuilt,
     )?;
 
-    let mixer_gain = crate::mixer_gains::endpoint_gain(
+    let mixer_gain = crate::endpoint_fader::EndpointFader::of(
+        &chain.id,
         MixerDirection::Input,
         &input.device_id.0,
         &input.channels,
     );
     let mixer_current = mixer_gain.target();
+    let di_gain = crate::chain_mix_gains::chain_di_gain(&chain.id);
+    let di_current = di_gain.target();
     Ok(InputProcessingState {
         mixer_gain,
         mixer_current,
+        di_gain,
+        di_current,
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
@@ -399,6 +404,7 @@ pub(crate) fn route_is_written(segments: &[ChainSegment], route_idx: usize) -> b
 }
 
 pub(crate) fn build_output_routing_state(
+    chain_id: &domain::ids::ChainId,
     output: &OutputEntry,
     cushion: crate::route_cushion::RouteCushion,
     sample_rate: f32,
@@ -415,7 +421,8 @@ pub(crate) fn build_output_routing_state(
     }
     // #965: a fresh route is born at its resting cushion (see `route_cushion`).
     buffer.prime(cushion.prime);
-    let mixer_gain = crate::mixer_gains::endpoint_gain(
+    let mixer_gain = crate::endpoint_fader::EndpointFader::of(
+        chain_id,
         MixerDirection::Output,
         &output.device_id.0,
         &output.channels,

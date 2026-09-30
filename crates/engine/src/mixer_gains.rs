@@ -20,7 +20,7 @@ pub struct EndpointGain {
 }
 
 impl EndpointGain {
-    fn unity() -> Self {
+    pub(crate) fn unity() -> Self {
         Self {
             target_bits: AtomicU32::new(1.0_f32.to_bits()),
         }
@@ -30,6 +30,12 @@ impl EndpointGain {
     #[inline]
     pub fn target(&self) -> f32 {
         f32::from_bits(self.target_bits.load(Ordering::Relaxed))
+    }
+
+    /// Set the linear target; live streams glide to it on their next callback.
+    pub(crate) fn store(&self, linear: f32) {
+        self.target_bits
+            .store(linear.max(0.0).to_bits(), Ordering::Relaxed);
     }
 }
 
@@ -41,9 +47,7 @@ pub fn set_endpoint_gain(
     channels: &[usize],
     linear: f32,
 ) {
-    endpoint_gain(direction, device_id, channels)
-        .target_bits
-        .store(linear.max(0.0).to_bits(), Ordering::Relaxed);
+    endpoint_gain(direction, device_id, channels).store(linear);
 }
 
 /// The current linear target of one physical endpoint.
