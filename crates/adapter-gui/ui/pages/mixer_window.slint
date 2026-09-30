@@ -19,6 +19,8 @@ export component MixerPanel inherits Rectangle {
     // 0 = inputs tab, 1 = outputs tab.
     private property <int> tab: 0;
     private property <[MixerStripRow]> shown: root.tab == 0 ? MixerBridge.inputs : MixerBridge.outputs;
+    // The host window fits its width to this (`mixer_window_size.rs`).
+    out property <int> shown-count: root.shown.length;
     private property <length> body-top: 128px;
 
     background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
@@ -127,7 +129,9 @@ export component MixerWindow inherits Window {
     preferred-height: 600px;
     background: #050608;
 
-    MixerPanel {
+    out property <int> shown-strip-count: panel.shown-count;
+
+    panel := MixerPanel {
         width: 100%;
         height: 100%;
         show-close-button: false;

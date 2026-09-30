@@ -11,9 +11,10 @@ use std::rc::Rc;
 use application::chain_mixer_strips::chain_mixer_strip_ids;
 use application::command::{Command, MixerCommand};
 use application::mixer_view::MixerStripView;
-use slint::{ComponentHandle, Global, ModelRc, Timer, TimerMode, VecModel};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::mixer_rows::mixer_rows_of;
+use crate::mixer_rows_sync::set_mixer_rows;
 use crate::mixer_strip_intents::wire_strip_intents;
 use crate::state::ProjectSession;
 use crate::{CompactChainViewWindow, MixerBridge};
@@ -53,9 +54,7 @@ impl CompactMixerCtx {
         };
         let drawn = self.current();
         let (inputs, outputs) = mixer_rows_of(&drawn.0, &drawn.1);
-        let bridge = MixerBridge::get(&w);
-        bridge.set_inputs(ModelRc::new(VecModel::from(inputs)));
-        bridge.set_outputs(ModelRc::new(VecModel::from(outputs)));
+        set_mixer_rows(&MixerBridge::get(&w), inputs, outputs);
         *self.rendered.borrow_mut() = Some(drawn);
     }
 

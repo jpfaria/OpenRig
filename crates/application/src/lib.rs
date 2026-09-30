@@ -70,6 +70,7 @@ pub mod looper_edit;
 /// tap history — owned by the dispatcher so every transport shares one truth.
 pub mod metronome_state;
 /// #1007: the global mixer's control-plane state.
+mod mixer_persist_coalesce;
 pub mod mixer_state;
 /// #1007: the global mixer strips as frontends read them.
 pub mod mixer_view;

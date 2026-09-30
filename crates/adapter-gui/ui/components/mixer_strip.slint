@@ -61,7 +61,7 @@ export component MixerStripView inherits Rectangle {
     private property <bool> silent: root.strip.muted || root.strip.solo-silenced;
     private property <length> cap-height: 20px;
     private property <length> fader-top: 36px;
-    // SOLO + MUTE + the two-line name + the channels line, bottom up.
+    // The one-line name + the channels line, then SOLO + MUTE above them.
     private property <length> label-height: 66px;
     private property <length> buttons-height: 66px;
     private property <length> fader-bottom: root.buttons-height + root.label-height + 16px;
@@ -81,6 +81,10 @@ export component MixerStripView inherits Rectangle {
         width: parent.width;
         height: parent.height - root.fader-top - root.fader-bottom;
         private property <length> travel: self.height - root.cap-height;
+        // While held, the cap follows the pointer itself instead of waiting
+        // for the app to redraw the strip from the dispatcher.
+        private property <float> drag-position;
+        private property <float> shown-position: fader-ta.pressed ? self.drag-position : root.strip.position;
 
         // Track.
         Rectangle {
@@ -95,7 +99,7 @@ export component MixerStripView inherits Rectangle {
         // Cap.
         cap := Rectangle {
             x: (parent.width - 44px) / 2;
-            y: (1 - root.strip.position) * parent.travel;
+            y: (1 - parent.shown-position) * parent.travel;
             width: 44px; height: root.cap-height;
             border-radius: 4px;
             background: fader-ta.pressed ? #d8e0ec : (fader-ta.has-hover ? #c5cdd9 : #aeb8c6);
@@ -118,11 +122,13 @@ export component MixerStripView inherits Rectangle {
                 max(0, min(1, 1 - (self.mouse-y - root.cap-height / 2) / parent.travel));
             pointer-event(ev) => {
                 if ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left {
+                    parent.drag-position = self.dragged;
                     root.fader-moved(root.strip.id, self.dragged);
                 }
             }
             moved => {
                 if self.pressed {
+                    parent.drag-position = self.dragged;
                     root.fader-moved(root.strip.id, self.dragged);
                 }
             }
@@ -166,34 +172,61 @@ export component MixerStripView inherits Rectangle {
     }
 
     // ── Label: which endpoint this is, at the bottom like a scribble strip ──
-    Rectangle {
+    // The name is ONE elided line and the box clips, so a long binding name
+    // can never climb over the buttons; hovering shows the full name.
+    label-box := Rectangle {
         x: 4px; y: parent.height - root.label-height - 4px;
         width: parent.width - 8px; height: root.label-height;
         border-radius: 4px;
         background: #121720;
+        clip: true;
 
         Text {
-            x: 4px; y: 0;
-            width: parent.width - 8px; height: 44px;
+            x: 4px; y: 6px;
+            width: parent.width - 8px; height: 30px;
             text: root.strip.name;
             color: #e5ebf2;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 0.5px;
-            wrap: word-wrap;
+            wrap: no-wrap;
             horizontal-alignment: center;
             vertical-alignment: center;
             overflow: elide;
         }
 
+        name-ta := TouchArea {}
+
         Text {
-            x: 4px; y: 44px;
+            x: 4px; y: 38px;
             width: parent.width - 8px; height: 22px;
             text: root.strip.detail;
             color: root.strip.is-input ? #7fc4ff : #ffb86b;
             font-family: "Bebas Neue";
             font-size: Theme.min-font;
             letter-spacing: 1.0px;
+            horizontal-alignment: center;
+        }
+    }
+
+    // Full name on hover, just above the label box (same look as IconTooltip).
+    if name-ta.has-hover : Rectangle {
+        x: 2px;
+        y: label-box.y - self.height - 2px;
+        width: parent.width - 4px;
+        height: full-name.preferred-height + 8px;
+        background: #11141aef;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+
+        full-name := Text {
+            x: 4px; y: 4px;
+            width: parent.width - 8px;
+            text: root.strip.name;
+            color: #dde4ef;
+            font-size: 18px;
+            wrap: word-wrap;
             horizontal-alignment: center;
         }
     }

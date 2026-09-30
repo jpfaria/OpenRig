@@ -15,6 +15,11 @@ use std::path::PathBuf;
 
 use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig};
 
+use crate::mixer_persist_coalesce::pending_strips;
+
+/// How long a queued mixer-strip write waits for a drag to settle.
+const MIXER_WRITE_SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
+
 /// Read-modify-write `config.yaml` on the persist worker, against the path
 /// bound NOW. `mutate` runs on the worker thread after the current config
 /// is loaded from that same fixed path.
@@ -68,8 +73,21 @@ pub fn persist_metronome(
 /// worker. Only callers holding an attached config path reach this (#701).
 /// A strip back at unity and unmuted leaves the file: the default needs no
 /// entry.
+///
+/// A fader drag sends a value per tick: the strip keeps ONE queued write, the
+/// later values replace the pending one, and the write lets the drag settle
+/// for `MIXER_WRITE_SETTLE` before taking the latest (`mixer_persist_coalesce`).
+/// It stays on the single worker, so `persist_worker::flush` still waits for it.
 pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
+    let id = strip.id.clone();
+    if !pending_strips().submit(config_path.clone(), strip) {
+        return;
+    }
     crate::persist_worker::run(move || {
+        std::thread::sleep(MIXER_WRITE_SETTLE);
+        let Some(strip) = pending_strips().take(&config_path, &id) else {
+            return;
+        };
         if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
             let at_default = strip.gain_db == 0.0 && !strip.muted && !strip.soloed;
             match config.mixer.iter().position(|s| s.id == strip.id) {

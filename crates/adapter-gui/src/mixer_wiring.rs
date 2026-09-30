@@ -9,16 +9,18 @@
 //! the dispatcher's strips with what is drawn, so a fader moved over MCP or
 //! MIDI follows on screen.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use application::command::{Command, MixerCommand};
 use application::mixer_view::MixerStripView;
-use slint::{ComponentHandle, Global, ModelRc, Timer, TimerMode, VecModel};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::mixer_rows::mixer_rows;
+use crate::mixer_rows_sync::set_mixer_rows;
 use crate::mixer_strip_intents::wire_strip_intents;
+use crate::mixer_window_size::fit_mixer_window;
 use crate::state::ProjectSession;
 use crate::{AppWindow, MixerBridge, MixerWindow};
 
@@ -34,6 +36,8 @@ struct MixerCtx {
     main_window: slint::Weak<AppWindow>,
     /// The strips currently drawn; the poll redraws only when they differ.
     rendered: Rc<RefCell<Option<Vec<MixerStripView>>>>,
+    /// Strip count the standalone window was last sized for.
+    fitted: Rc<Cell<Option<i32>>>,
 }
 
 impl MixerCtx {
@@ -56,10 +60,7 @@ impl MixerCtx {
     fn render(&self) {
         let strips = self.strips().unwrap_or_default();
         let (inputs, outputs) = mixer_rows(&strips);
-        self.for_each_bridge(|bridge| {
-            bridge.set_inputs(ModelRc::new(VecModel::from(inputs.clone())));
-            bridge.set_outputs(ModelRc::new(VecModel::from(outputs.clone())));
-        });
+        self.for_each_bridge(|bridge| set_mixer_rows(bridge, inputs.clone(), outputs.clone()));
         *self.rendered.borrow_mut() = Some(strips);
     }
 
@@ -91,6 +92,7 @@ pub(crate) fn wire_mixer(
         window: mixer_window.as_weak(),
         main_window: window.as_weak(),
         rendered: Rc::new(RefCell::new(None)),
+        fitted: Rc::new(Cell::new(None)),
     };
     for bridge in [MixerBridge::get(window), MixerBridge::get(mixer_window)] {
         wire_open(&bridge, &ctx);
@@ -116,6 +118,8 @@ fn wire_open(bridge: &MixerBridge, ctx: &MixerCtx) {
         if use_inline_block_editor(&main_w) {
             MixerBridge::get(&main_w).set_show(true);
         } else if let Some(mw) = ctx.window.upgrade() {
+            ctx.fitted.set(None);
+            fit_mixer_window(&mw, &ctx.fitted);
             show_child_window(main_w.window(), mw.window());
         }
     });
@@ -134,6 +138,12 @@ fn start_poll(ctx: &MixerCtx) {
             let changed = poll_ctx.rendered.borrow().as_ref() != current.as_ref();
             if changed {
                 poll_ctx.render();
+            }
+            // A tab switch changes the strip count: re-fit the window to it.
+            if let Some(mw) = poll_ctx.window.upgrade() {
+                if mw.window().is_visible() {
+                    fit_mixer_window(&mw, &poll_ctx.fitted);
+                }
             }
         });
 }
