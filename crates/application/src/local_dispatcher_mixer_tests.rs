@@ -241,3 +241,46 @@ fn a_fader_move_is_persisted_only_to_the_attached_config() {
         }]
     );
 }
+
+#[test]
+fn a_restored_strip_the_bindings_also_expose_is_applied_once_with_its_setting() {
+    let d = dispatcher();
+    with_bindings(
+        &d,
+        vec![ep("mxd-bound", ChannelMode::Mono, vec![0])],
+        vec![ep("mxd-bound", ChannelMode::Stereo, vec![0, 1])],
+    );
+    d.attach_mixer_state(Rc::new(RefCell::new(MixerControlState::restored(
+        &[MixerStripConfig {
+            id: "out:0,1@mxd-bound".into(),
+            gain_db: -8.0,
+            muted: false,
+            soloed: false,
+        }],
+        None,
+    ))));
+    let target = endpoint_gain_target(MixerDirection::Output, "mxd-bound", &[0, 1]);
+    assert!(
+        (target - strip_linear_gain(-8.0, false)).abs() < 1e-6,
+        "{target}"
+    );
+    let ids: Vec<String> = d.mixer_strips().into_iter().map(|s| s.id).collect();
+    assert_eq!(ids, vec!["in:0@mxd-bound", "out:0,1@mxd-bound"]);
+}
+
+#[test]
+#[should_panic(expected = "non-mixer command")]
+fn the_global_mixer_handler_refuses_a_non_mixer_command() {
+    let _ = dispatcher().handle_mixer(Command::Project(
+        crate::command::ProjectCommand::SaveProject,
+    ));
+}
+
+#[test]
+#[should_panic(expected = "chain mixer command routed to the global mixer")]
+fn the_global_mixer_handler_refuses_a_chain_fader_command() {
+    let _ = dispatcher().handle_mixer(Command::Mixer(MixerCommand::SetChainDiFader {
+        chain: domain::ids::ChainId("c".into()),
+        gain_db: 0.0,
+    }));
+}

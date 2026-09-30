@@ -240,3 +240,37 @@ fn the_di_fader_moves_only_that_chain() {
     assert_eq!(chain_di_gain_target(&ChainId("cmx-di-b".into())), 1.0);
     assert_eq!(mix_of(&d, "cmx-di-a").di_gain_db, -60.0);
 }
+
+#[test]
+fn a_garbage_strip_id_on_a_chain_fader_is_rejected() {
+    let dev = "cmx-garbage";
+    let d = rig(dev, "cmx-garbage-a", "cmx-garbage-b");
+    let err = d
+        .dispatch(Command::Mixer(MixerCommand::SetChainMixerFader {
+            chain: ChainId("cmx-garbage-a".into()),
+            strip: "not-a-strip".into(),
+            gain_db: -3.0,
+        }))
+        .expect_err("an unparseable strip must be an error");
+    assert!(err.to_string().contains("unknown mixer strip"), "{err}");
+    assert!(mix_of(&d, "cmx-garbage-a").is_unity());
+}
+
+#[test]
+#[should_panic(expected = "non-mixer command")]
+fn the_chain_mixer_handler_refuses_a_non_mixer_command() {
+    let d = rig("cmx-route-a", "cmx-route-a1", "cmx-route-a2");
+    let _ = d.handle_chain_mixer(Command::Project(
+        crate::command::ProjectCommand::SaveProject,
+    ));
+}
+
+#[test]
+#[should_panic(expected = "global mixer command routed to a chain")]
+fn the_chain_mixer_handler_refuses_a_global_strip_command() {
+    let d = rig("cmx-route-b", "cmx-route-b1", "cmx-route-b2");
+    let _ = d.handle_chain_mixer(Command::Mixer(MixerCommand::SetMixerMute {
+        strip: "out:0,1@cmx-route-b".into(),
+        muted: true,
+    }));
+}
