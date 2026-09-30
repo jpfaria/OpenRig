@@ -42,6 +42,8 @@ export component GraphNodeCard inherits Rectangle {
     property <bool> is-routing: root.node.kind == "split" || root.node.kind == "mixer";
     property <bool> enabled: !root.node.bypass;
     property <bool> unavailable: root.is-block && root.node.block.unavailable;
+    // The picker's default accent (block_icon.rs), which the split entries use.
+    property <color> routing-accent: #7fb0ff;
     // BlockChip geometry (100×100 tile: 22px label, 6px gap, 68px art,
     // 12px LED 10px above the bottom), scaled by the zoom.
     property <length> label-h: max(22px, 22px * root.zoom);
@@ -170,29 +172,30 @@ export component GraphNodeCard inherits Rectangle {
     }
 
     // ── I/O, split, mixer ────────────────────────────────────────────
-    // Split / mixer: the routing artwork above the translated name. The
-    // SVGs carry no text of their own (graph-split.svg / graph-mix.svg).
+    // Split / mixer: laid out like a block tile — the translated name on
+    // top, the routing artwork below — in the picker's routing accent.
     if root.is-routing : Image {
-        x: (parent.width - self.width) / 2;
-        y: 8px;
-        width: max(0px, parent.height - 38px);
-        height: max(0px, parent.height - 38px);
+        x: 0px;
+        y: root.art-y;
+        width: parent.width;
+        height: root.art-h;
         source: root.node.kind == "split"
             ? @image-url("../assets/graph-split.svg")
             : @image-url("../assets/graph-mix.svg");
         image-fit: contain;
-        colorize: #f5f7fb;
+        colorize: root.routing-accent;
     }
 
     if !root.is-block : Text {
-        x: 8px;
-        y: root.is-routing ? parent.height - 30px : 0px;
-        width: parent.width - 16px;
-        height: root.is-routing ? 22px : parent.height;
+        x: 4px;
+        y: 0px;
+        width: parent.width - 8px;
+        height: root.is-routing ? root.label-h : parent.height;
         text: root.face-label;
-        color: #f5f7fb;
+        color: root.is-routing ? root.routing-accent : #f5f7fb;
         font-size: Theme.min-font;
         font-weight: 700;
+        letter-spacing: root.is-routing ? 1px : 0px;
         horizontal-alignment: center;
         vertical-alignment: center;
         overflow: elide;

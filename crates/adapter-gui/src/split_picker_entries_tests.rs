@@ -58,3 +58,19 @@ fn each_entry_reads_as_a_split() {
         .iter()
         .all(|i| i.icon_kind.as_str() == "split" && !i.uses_model_catalog));
 }
+
+/// The picker card draws its label in the locale's display font. Bebas Neue
+/// (every Latin locale) carries ASCII only: a "→" made the whole label
+/// vanish and the entry showed as a bare gear.
+#[test]
+fn the_entry_labels_render_in_the_latin_display_font() {
+    for locale in ["en-US", "pt-BR", "es-ES", "fr-FR", "de-DE"] {
+        for key in ["picker-split-mix", "picker-split-y"] {
+            let label = rust_i18n::t!(key, locale = locale);
+            assert!(
+                label.chars().all(|c| c.is_ascii()),
+                "{locale} {key}: {label:?} has a glyph Bebas Neue lacks"
+            );
+        }
+    }
+}
