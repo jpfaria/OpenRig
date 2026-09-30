@@ -30,7 +30,8 @@ use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::helpers::use_inline_block_editor;
-use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
+use crate::block_picker_items::insert_type_picker_items;
+use crate::project_view::{block_model_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
 use crate::{
@@ -144,7 +145,25 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     is_select: false,
                     path: path.clone(),
                 });
-                block_type_options.set_vec(block_type_picker_items(&instrument));
+                // #328: "Split → Mix" / "Y → A/B" follow the block types (spec §5.1).
+                let split_ends = {
+                    let borrowed = project_session.borrow();
+                    borrowed
+                        .as_ref()
+                        .and_then(|s| {
+                            s.project.borrow().chains.get(chain_index as usize).map(|chain| {
+                                crate::split_picker_entries::split_picker_ends(
+                                    chain,
+                                    real_before_index,
+                                    path.as_ref(),
+                                )
+                            })
+                        })
+                        .unwrap_or_default()
+                };
+                let mut types = insert_type_picker_items(&instrument, path.as_ref());
+                types.extend(crate::split_picker_entries::split_picker_items(&split_ends));
+                block_type_options.set_vec(types);
                 block_model_options.set_vec(Vec::new());
                 filtered_block_model_options.set_vec(Vec::new());
                 block_model_option_labels.set_vec(Vec::new());

@@ -60,6 +60,30 @@ pub fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     items
 }
 
+/// The block types the add-block picker lists for an insert target. Inside a
+/// split path (#328, orchestrator decision 8) there is no Input, Output or
+/// Insert: the path holds processing blocks only. The insert and the
+/// choose-type flows both read this list, so a row index means the same type
+/// in both.
+pub(crate) fn insert_type_picker_items(
+    instrument: &str,
+    path: Option<&project::block::PathRef>,
+) -> Vec<BlockTypePickerItem> {
+    let items = block_type_picker_items(instrument);
+    if path.is_none() {
+        return items;
+    }
+    items
+        .into_iter()
+        .filter(|item| {
+            let effect_type = item.effect_type.as_str();
+            effect_type != block_core::constants::EFFECT_TYPE_INPUT
+                && effect_type != block_core::constants::EFFECT_TYPE_OUTPUT
+                && effect_type != "insert"
+        })
+        .collect()
+}
+
 pub(crate) fn block_model_picker_items(
     effect_type: &str,
     instrument: &str,

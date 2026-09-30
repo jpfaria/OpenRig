@@ -31,9 +31,9 @@ use crate::eq::{
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
-    block_model_picker_items, block_model_picker_labels, block_type_picker_items,
-    replace_project_chains,
+    block_model_picker_items, block_model_picker_labels, replace_project_chains,
 };
+use crate::block_picker_items::insert_type_picker_items;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{
     BlockEditorData, BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
@@ -128,7 +128,49 @@ pub(crate) fn wire(
             .as_ref()
             .map(|d| d.instrument.clone())
             .unwrap_or_else(|| block_core::DEFAULT_INSTRUMENT.to_string());
-        let block_types = block_type_picker_items(&instrument);
+        // #328: the same rows `begin_insert` published — a path hides I/O and
+        // Insert, and the split entries follow the block types.
+        let path = block_editor_draft
+            .borrow()
+            .as_ref()
+            .and_then(|d| d.path.clone());
+        let block_types = insert_type_picker_items(&instrument, path.as_ref());
+        let split_pick = block_editor_draft.borrow().as_ref().and_then(|draft| {
+            crate::split_insert::split_pick(
+                &project_session,
+                draft,
+                index as usize,
+                block_types.len(),
+            )
+        });
+        if let Some(pick) = split_pick {
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
+            let devices_in = input_chain_devices.borrow();
+            let devices_out = output_chain_devices.borrow();
+            let rows = crate::graph_gesture_actions::RowsTarget {
+                model: &project_chains,
+                inputs: &devices_in,
+                outputs: &devices_out,
+            };
+            match crate::split_insert::add_split(&project_session, &pick, &rows) {
+                Ok(()) => {
+                    if let Some(session) = project_session.borrow().as_ref() {
+                        sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    }
+                }
+                Err(error) => {
+                    log::warn!("[block-picker] split refused: {error:?}");
+                    let err = match error {
+                        crate::graph_gesture_actions::GestureError::Failed(err) => err,
+                        other => format!("{other:?}"),
+                    };
+                    window.set_status_message(
+                        rust_i18n::t!("error-graph-action", err = err).as_ref().into(),
+                    );
+                }
+            }
+            return;
+        }
         let Some(block_type) = block_types.get(index as usize) else {
             return;
         };
