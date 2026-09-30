@@ -557,3 +557,7 @@ mod issue_987_in_place_edit_paths;
 #[cfg(test)]
 #[path = "issue_328_split_mix_tests.rs"]
 mod issue_328_split_mix;
+
+#[cfg(test)]
+#[path = "issue_328_split_seam_tests.rs"]
+mod issue_328_split_seam;

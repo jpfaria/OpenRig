@@ -153,6 +153,37 @@ loop on, not 5; the streams of routes 2 and 3 must stay silent).
   before the ship. The infra-cpal reds are the unauthorized H5 pin and the
   H10 door-order test.
 
+## 2026-09-30 — came back on a build that carries the #979 fix
+
+Build: `feature/issue-328` (contains `bug/issue-979` up to `5a7d15a99`),
+debug `adapter-gui` from `.solvers/issue-328`. The owner: the sound "blew up
+out of nothing", "a box of bees", on every speaker, and stayed that way
+without switching the chain off.
+
+**Rig.** Chain `rig:input-4` (DIGITAL), preset AMBIENCE: Split → Mix
+(A `nam_fender_68_custom_deluxe_reverb`, B `nam_diezel_hagen`), then a VST3
+CloudReverb. E/S `guitarra-1` + `guitarra-1-syn5050`. Routes: group 0 →
+`[0,1]` (Main) and `[24,25]`; group 1 → `[4,5]`. HD 8, 44.1 kHz / 64. Path B
+had been swapped on the running chain a few minutes before.
+
+**Measured.**
+
+| Reading | Value |
+|---|---|
+| `openrig://routes`, during the symptom | group 0: underruns 3520 → 3776 (64-frame steps), dropped 1664 / 3712, `latency_trims` 9, `input_busy_skips` 50; group 1: underruns 1792 → 1856, dropped 5568, trims 2, skips 27; fill 64. Log warnings 21:54:15, 21:55:25, 21:56:53, 21:57:24Z. Then no change over 5 s while the sound was still broken. |
+| Main loopback (HD 8 In 9/10), 30 s | peak −27.8 dBFS, rms −42.6, no sample ≥ 0.98. A step at the edge of 73 % of the 64-frame buffers (second difference > 5× the buffer's interior; 23 % > 20×); energy at the buffer edge 8.6× the median phase: a 689 Hz (44100/64) buzz. |
+| Raw In 1, same 30 s, recorded by an independent client (Python `sounddevice`, not OpenRig) | second difference at the buffer edge: median 6.5e-4 vs 5.2e-6 inside (124×). The input the Mac hands to every client already had the steps. |
+| Offline render of the same preset (`openrig-render`, DI) | clean: A+B sum exactly, peak −3.1 dBFS. |
+| Host load | `qa_audit` (another session) 90 % → 662 % CPU, a `rustc` build ~87 %, `adapter-gui` 99–152 %. No CoreAudio overload in `log show`. |
+
+**Hypotheses.**
+
+| # | Hypothesis | Verdict | Evidence |
+|---|---|---|---|
+| H22 | A split feeding two outputs shares state between the two per-output pipelines (#85): each output's buffer is not the successor of its previous one | REFUTED | `issue_328_split_seam_tests::a_split_feeding_two_outputs_plays_a_continuous_tone_on_each` GREEN (split with stateful paths + a stateful tail block, outputs `[0,1]` and `[24,25]`). |
+| H23 | The in-place swap of path B leaves the split producing broken buffers | REFUTED | `issue_328_split_seam_tests::swapping_path_b_on_a_running_split_keeps_every_output_continuous` GREEN. |
+| H24 | The input stream CoreAudio delivers is already discontinuous (host overload at the device level), and the high-gain amps turn it into the buzz | OPEN — supported | the raw In 1 capture above (124×, a step on 95 % of the buffers), recorded outside OpenRig. Control: the owner's earlier DI takes of the same guitar (`~/.openrig/evaluations/gravity-john-mayer/di/jpfaria-*.wav`) read 1.05–1.19 on the same measure. Whether the device stream is broken by OpenRig (a chain restart clears the symptom) or by the host is not yet decided. |
+
 ## Related
 
 - #980 — the late dsp-worker (memory pressure) that triggered H3/H4 on the rig.
