@@ -81,6 +81,34 @@ fn y_split() -> AudioBlock {
     }
 }
 
+/// Two amps summed by a Split → Mix.
+fn mix_split() -> AudioBlock {
+    AudioBlock {
+        id: BlockId("mix".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Mix,
+            params: default_split_params(),
+            a: vec![effect("amp-1")],
+            b: vec![effect("amp-2")],
+        }),
+    }
+}
+
+/// The owner's tail: path A a cab, path B nothing.
+fn cab_or_nothing_y() -> AudioBlock {
+    AudioBlock {
+        id: BlockId("y".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Y,
+            params: default_split_params(),
+            a: vec![effect("cab")],
+            b: vec![],
+        }),
+    }
+}
+
 fn mid_output() -> AudioBlock {
     AudioBlock {
         id: BlockId("mid-out".into()),
@@ -314,5 +342,36 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
     assert_eq!(
         tap_writers, 1,
         "#328: the mid Output after the insert is written by ONE pipeline — two would double it on its route"
+    );
+}
+
+/// The owner's rig: a Split → Mix of two amps, shared blocks, then a Y whose
+/// path A (a cab) feeds out-a and whose empty path B feeds out-b. Each Y
+/// output is its own pipeline and runs the whole Mix section before its own
+/// Y path — the Mix is never shared between the two outputs' pipelines.
+#[test]
+fn a_mix_then_a_y_runs_the_mix_in_every_y_output() {
+    let disables = EndpointDisables {
+        inputs: vec![],
+        outputs: vec![],
+        path_a_outputs: vec![r("main", "out-b"), r("main", "out-ab")],
+        path_b_outputs: vec![r("main", "out-a"), r("main", "out-ab")],
+    };
+    let chain = chain(
+        &["main"],
+        vec![mix_split(), effect("drive"), cab_or_nothing_y()],
+        disables,
+    );
+    assert_eq!(
+        routing(&chain, &registry()),
+        vec![(vec![0, 1], SegmentPaths::A), (vec![2, 3], SegmentPaths::B)],
+        "#328: behind a Mix, the Y still routes out-a through path A and out-b through path B"
+    );
+    let (segs, _) = segments(&chain, &registry());
+    let blocks: Vec<Vec<usize>> = segs.iter().map(|s| s.block_indices.clone()).collect();
+    assert_eq!(
+        blocks,
+        vec![vec![0, 1, 2], vec![0, 1, 2]],
+        "#328: every Y output runs the Mix, the shared blocks and the Y"
     );
 }

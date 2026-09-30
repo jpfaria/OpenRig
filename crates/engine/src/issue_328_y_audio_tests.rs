@@ -224,3 +224,83 @@ fn an_offline_render_of_a_y_chain_plays_both_paths() {
         "#328: an offline render hears a Y chain as both paths summed at unity, got {last:?}"
     );
 }
+
+/// The owner's rig: Split → Mix of two amps, a shared block, then a Y whose
+/// path A is a cab and whose path B is empty. Input 0.5; the Mix sums path A
+/// at 50 % and path B at 100 % under its default master (×0.5):
+/// (0.25 + 0.5) × 0.5 = 0.375; the shared volume at 80 % gives 0.3. Path A
+/// (the cab at 50 %) feeds out-a = 0.15, path B feeds out-b = 0.3 (out-a is
+/// 6 dB below), and out-ab hears both at unity = 0.45.
+fn mix_then_y_chain(mix_params: ParameterSet) -> Chain {
+    let y = AudioBlock {
+        id: BlockId("split".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Y,
+            params: default_split_params(),
+            a: vec![volume("cab", 50.0)],
+            b: vec![],
+        }),
+    };
+    let mix = AudioBlock {
+        id: BlockId("mix".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Mix,
+            params: mix_params,
+            a: vec![volume("amp-1", 50.0)],
+            b: vec![volume("amp-2", 100.0)],
+        }),
+    };
+    let mut chain = y_chain(y);
+    chain.blocks.insert(0, volume("shared", 80.0));
+    chain.blocks.insert(0, mix);
+    chain
+}
+
+#[test]
+fn behind_a_mix_each_y_output_hears_the_mix_then_only_its_own_path() {
+    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    assert_peaks(
+        route_peaks(&runtime),
+        [0.15, 0.3, 0.45],
+        "#328: every Y output hears the whole Mix, then only the Y paths it checks",
+    );
+}
+
+#[test]
+fn a_mix_knob_edit_reaches_every_y_output() {
+    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    let _ = route_peaks(&runtime);
+    let mut params = default_split_params();
+    params.insert(MIX_MASTER, ParameterValue::Float(100.0));
+    update_chain_runtime_state(
+        &runtime,
+        &mix_then_y_chain(params),
+        48_000.0,
+        false,
+        &[DEFAULT_ELASTIC_TARGET; 3],
+        &registry(),
+    )
+    .expect("the in-place rebuild succeeds");
+    assert_peaks(
+        route_peaks(&runtime),
+        [0.3, 0.6, 0.9],
+        "#328: the Mix master doubled — each Y output, rebuilt live, doubles with it",
+    );
+}
+
+/// A Mix is not routing, so switching it off takes the in-place toggle; every
+/// Y output runs its own copy of the Mix, and every copy must go off.
+#[test]
+fn switching_the_mix_off_in_place_reaches_every_y_output() {
+    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    let _ = route_peaks(&runtime);
+    crate::runtime::set_block_enabled(&runtime, &BlockId("mix".into()), false)
+        .expect("the toggle is queued");
+    assert_peaks(
+        route_peaks(&runtime),
+        [0.2, 0.4, 0.6],
+        "#328: with the Mix off each output hears the input through the shared block and its own Y paths",
+    );
+}

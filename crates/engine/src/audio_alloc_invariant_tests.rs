@@ -110,7 +110,14 @@ unsafe impl GlobalAlloc for CountingAllocator {
 #[global_allocator]
 static GLOBAL: CountingAllocator = CountingAllocator;
 
+/// One measurement window at a time: the counter is process-wide, so a second
+/// window opening in parallel would reset it mid-count.
+static MEASURE_WINDOW: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub(super) fn measure_allocs<F: FnOnce()>(f: F) -> usize {
+    let _window = MEASURE_WINDOW
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     ALLOC_COUNT.store(0, Ordering::Relaxed);
     ALLOC_GUARD.with(|g| g.set(true));
     f();
@@ -339,7 +346,7 @@ pub(super) fn looper_record_overdub_and_undo_do_not_allocate() {
 /// lines its paths up through a preallocated ring (spec §4.1 / §4.3); none of
 /// it may allocate once warm. Not `#[ignore]`d — new ignores are forbidden,
 /// and this one needs none: the counter only counts the measuring thread, and
-/// every other measurer in this binary is ignored, so nothing resets it
+/// `measure_allocs` opens one window at a time, so nothing resets it
 /// concurrently.
 #[test]
 fn audio_callback_does_not_allocate_with_split_mix() {
@@ -396,6 +403,72 @@ fn audio_callback_does_not_allocate_with_split_mix() {
         "CLAUDE.md invariant #8 broken by the split: {allocs} heap allocations in \
          1000 steady-state callbacks — path B's buffer and the alignment rings \
          must be preallocated at build."
+    );
+}
+
+/// #328: a Split → Mix and, behind it, a Y in ONE segment (the one output
+/// checks both Y paths). Each split runs its own path-B buffer and alignment
+/// ring; none of it may allocate once warm.
+#[test]
+fn audio_callback_does_not_allocate_with_a_mix_then_a_y() {
+    use super::issue_328_split_mix::{split_block, unit_impulse_ir_block, volume_block};
+    use crate::runtime_state::RuntimeProcessor;
+    use project::block::SplitEnd;
+
+    let mut chain = chain();
+    chain.blocks = vec![
+        split_block(
+            "mix",
+            SplitEnd::Mix,
+            &[],
+            vec![unit_impulse_ir_block("amp_a"), volume_block("a_vol", 100.0)],
+            vec![volume_block("amp_b", 100.0)],
+        ),
+        volume_block("shared", 100.0),
+        split_block(
+            "y",
+            SplitEnd::Y,
+            &[],
+            vec![unit_impulse_ir_block("cab")],
+            vec![],
+        ),
+    ];
+    let runtime = Arc::new(
+        build_chain_runtime_state(
+            &chain,
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
+        )
+        .expect("mix + y runtime should build"),
+    );
+    {
+        let guard = runtime.processing.lock().expect("processing lock");
+        let splits = guard.input_states[0]
+            .blocks
+            .iter()
+            .filter(|node| matches!(node.processor, RuntimeProcessor::Split(_)))
+            .count();
+        assert_eq!(splits, 2, "the one segment must run both live split nodes");
+    }
+    let input_buf = vec![0.3_f32; 64];
+    let mut output_buf = vec![0.0_f32; 64 * 2];
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, 1);
+        process_output_f32(&runtime, 0, &mut output_buf, 2);
+    }
+    let allocs = measure_allocs(|| {
+        for _ in 0..1_000 {
+            process_input_f32(&runtime, 0, &input_buf, 1);
+            process_output_f32(&runtime, 0, &mut output_buf, 2);
+        }
+    });
+    eprintln!("[#328 alloc] mix then y @64: {allocs} allocations / 1000 callbacks");
+    assert_eq!(
+        allocs, 0,
+        "CLAUDE.md invariant #8 broken by a Mix then a Y: {allocs} heap allocations \
+         in 1000 steady-state callbacks — both splits' buffers and rings must be \
+         preallocated at build."
     );
 }
 
