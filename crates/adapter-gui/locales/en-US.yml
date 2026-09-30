@@ -97,3 +97,6 @@ tone-doctor-genre-none: "No genres"
 label-metronome-timbre-click: "Click"
 label-metronome-timbre-wood: "Wood"
 label-metronome-timbre-beep: "Beep"
+
+# --- #328 chain split graph
+label-endpoints-none: "None"

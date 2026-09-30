@@ -109,3 +109,6 @@ tone-doctor-genre-none: "Sem gêneros"
 label-metronome-timbre-click: "Clique"
 label-metronome-timbre-wood: "Madeira"
 label-metronome-timbre-beep: "Bipe"
+
+# --- #328 chain split graph
+label-endpoints-none: "Nenhuma"

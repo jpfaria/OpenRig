@@ -97,3 +97,6 @@ tone-doctor-genre-none: "Sin géneros"
 label-metronome-timbre-click: "Clic"
 label-metronome-timbre-wood: "Madera"
 label-metronome-timbre-beep: "Bip"
+
+# --- #328 chain split graph
+label-endpoints-none: "Ninguna"

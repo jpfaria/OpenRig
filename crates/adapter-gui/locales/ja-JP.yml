@@ -97,3 +97,6 @@ tone-doctor-genre-none: "ジャンルなし"
 label-metronome-timbre-click: "クリック"
 label-metronome-timbre-wood: "ウッド"
 label-metronome-timbre-beep: "ビープ"
+
+# --- #328 chain split graph
+label-endpoints-none: "なし"
