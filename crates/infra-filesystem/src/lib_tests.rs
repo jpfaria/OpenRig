@@ -282,3 +282,13 @@ fn app_config_save_and_load_filesystem_roundtrip() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// #827: saved looper takes live in ONE app-level folder of the OS data root,
+/// never beside a project, so every project sees them.
+#[test]
+fn looper_takes_live_in_the_user_data_root() {
+    assert_eq!(
+        default_looper_takes_path(),
+        user_data_root().join("looper-takes")
+    );
+}

@@ -61,12 +61,15 @@ use application::command_schema::command_variant_names;
 /// (`EditChainLooperAudio`/`UndoChainLooperEdit`/`RedoChainLooperEdit`) —
 /// trimming, cropping and cutting a recorded loop, so a headless client
 /// reshapes a take exactly as the waveform editor does.
-/// #328 bumped to 102 with `AddSplit`, `SetSplitEnd` and `RemoveSplit` —
+/// #827 bumped to 100 with `SaveChainLooperTake` — keeping a recorded loop as
+/// a named take in the app-wide library, so a headless client can save one
+/// and hand it to the DI exactly as the editor's Save button does.
+/// #328 bumped to 103 with `AddSplit`, `SetSplitEnd` and `RemoveSplit` —
 /// the chain split (Split → Mix, Y → A/B) created, switched and removed
 /// from any transport.
-/// #328 bumped to 103 with `SetChainEndpointEnabled` — the endpoint
+/// #328 bumped to 104 with `SetChainEndpointEnabled` — the endpoint
 /// checklist of the chain graph's input/output nodes.
-const COMMAND_VARIANT_COUNT: usize = 103;
+const COMMAND_VARIANT_COUNT: usize = 104;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

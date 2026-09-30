@@ -145,7 +145,6 @@ fn refresh(
         &NoWrites,
         model,
         &[],
-        &[],
         &counters.xruns,
         &counters.underruns,
     );
@@ -325,4 +324,43 @@ fn an_enabled_chain_renders_one_row_per_project_stream() {
     );
     let silent: StreamMeter = meters.row_data(0).expect("stream row");
     assert_eq!(silent.in_dbfs, engine::output_meter::SILENT_DBFS);
+}
+
+// ── the timer itself ─────────────────────────────────────────────────────
+
+/// #827: a take saved in the library shows up in the DI picker of a chain that
+/// is not running — the tick refreshes every chain's source list before it
+/// looks at the engine, which here hosts nothing at all.
+#[test]
+fn a_tick_lists_the_saved_takes_on_a_stopped_chain() {
+    i_slint_backend_testing::init_no_event_loop();
+    let takes = tempfile::tempdir().expect("tempdir");
+    std::fs::write(takes.path().join("riff.wav"), b"").expect("take");
+    let mut stopped = chain("chain:0", 100.0);
+    stopped.enabled = false;
+    let model = rows(1);
+
+    super::start_meter_polling(
+        Rc::new(application::audio_taps::NoAudioTaps),
+        Rc::new(FakeReads::default()),
+        Rc::new(NoWrites),
+        Rc::clone(&model),
+        Rc::new(RefCell::new(Some(session(vec![stopped])))),
+        takes.path().to_path_buf(),
+    );
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(
+        crate::meter_wiring::METER_POLL_TICK_MS + 1,
+    ));
+
+    let sources: Vec<String> = model
+        .row_data(0)
+        .expect("row")
+        .di_loop_sources
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert!(
+        sources.iter().any(|s| s == "riff.wav"),
+        "the saved take must be offered, got {sources:?}"
+    );
 }

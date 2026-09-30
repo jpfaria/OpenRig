@@ -1,0 +1,66 @@
+// Responsibility: renders the waveform editor's save-take row.
+// #827 — keep the open loop as a named take in the app-wide library, where
+// every chain's DI can pick it. A name field, one button, one status line: the
+// outcome is always said, because a silent Save is indistinguishable from a
+// broken one.
+
+import { LineEdit } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { LooperEditor } from "looper_panel_globals.slint";
+import { EditorButton } from "editor_button.slint";
+
+export component LooperTakeSaveRow inherits VerticalLayout {
+    // Blank ⇒ dead. A name of only spaces is refused by the core (status 5):
+    // what makes a name usable is decided there, not here.
+    private property <bool> can-save: !LooperEditor.take-name.is-empty;
+
+    spacing: 6px;
+
+    HorizontalLayout {
+        spacing: 8px;
+
+        Text {
+            vertical-alignment: center;
+            text: @tr("looper-take-save-title");
+            color: Theme.palette.text-primary;
+            font-size: Theme.min-font;
+            font-weight: 700;
+        }
+
+        name-edit := LineEdit {
+            horizontal-stretch: 1;
+            text <=> LooperEditor.take-name;
+            placeholder-text: @tr("looper-take-name-placeholder");
+            accessible-label: @tr("looper-take-name-placeholder");
+            edited => { LooperEditor.take-status = 0; }
+            accepted => {
+                if root.can-save {
+                    LooperEditor.save-take(LooperEditor.chain-index, LooperEditor.uid,
+                        LooperEditor.take-name);
+                }
+            }
+        }
+
+        EditorButton {
+            label: @tr("looper-take-save");
+            enabled: root.can-save;
+            clicked => {
+                LooperEditor.save-take(LooperEditor.chain-index, LooperEditor.uid,
+                    LooperEditor.take-name);
+            }
+        }
+    }
+
+    Text {
+        min-height: 18px;
+        wrap: word-wrap;
+        text: LooperEditor.take-status == 1 ? @tr("looper-take-saved")
+            : LooperEditor.take-status == 2 ? @tr("looper-take-name-taken")
+            : LooperEditor.take-status == 3 ? @tr("looper-take-nothing-recorded")
+            : LooperEditor.take-status == 4 ? @tr("looper-take-failed")
+            : LooperEditor.take-status == 5 ? @tr("looper-take-needs-name")
+            : "";
+        color: LooperEditor.take-status == 1 ? #7bd88f : #ffb454;
+        font-size: Theme.min-font;
+    }
+}

@@ -176,3 +176,98 @@ fn shift_selection_preserves_no_selection_sentinel() {
     let selected = -1;
     assert_eq!(shift_selected_chain_index_after_swap(selected, 0, 1), -1);
 }
+
+// ── `wire` on a REAL `AppWindow` ─────────────────────────────────────────
+
+mod wired {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use application::command::{Command, LooperCommand};
+    use application::dispatcher::CommandDispatcher;
+    use application::event::Event;
+    use application::live_source::NoLiveSource;
+    use domain::ids::ChainId;
+    use project::chain::{Chain, LooperConfig};
+    use project::project::Project;
+    use slint::{ComponentHandle, Timer, VecModel};
+
+    use super::super::{wire, ChainRowCtx};
+    use crate::state::ProjectSession;
+    use crate::{AppWindow, LooperEditor};
+
+    #[derive(Default)]
+    struct SpyDispatcher {
+        seen: RefCell<Vec<Command>>,
+        selection: std::sync::Arc<std::sync::RwLock<application::SelectionState>>,
+    }
+
+    impl CommandDispatcher for SpyDispatcher {
+        fn dispatch(&self, cmd: Command) -> anyhow::Result<Vec<Event>> {
+            self.seen.borrow_mut().push(cmd);
+            Ok(vec![])
+        }
+
+        fn selection_state(
+            &self,
+        ) -> std::sync::Arc<std::sync::RwLock<application::SelectionState>> {
+            std::sync::Arc::clone(&self.selection)
+        }
+    }
+
+    /// #827: the chain rows wire the waveform editor's Save take button too.
+    #[test]
+    fn the_editor_save_take_button_is_wired() {
+        i_slint_backend_testing::init_no_event_loop();
+        let window = AppWindow::new().expect("window");
+        let spy = Rc::new(SpyDispatcher::default());
+        let session = ProjectSession::with_dispatcher(
+            Project {
+                name: None,
+                device_settings: vec![],
+                chains: vec![Chain {
+                    id: ChainId("rig:in".into()),
+                    description: None,
+                    instrument: "electric_guitar".into(),
+                    enabled: false,
+                    volume: 100.0,
+                    io_binding_ids: vec![],
+                    blocks: vec![],
+                    di_output: None,
+                    loopers: vec![LooperConfig::new(1)],
+                }],
+                midi: None,
+            },
+            Rc::clone(&spy) as Rc<dyn CommandDispatcher>,
+            None,
+            None,
+            std::env::temp_dir().join("openrig-827-chain-row-tests"),
+        );
+        wire(
+            &window,
+            ChainRowCtx {
+                project_session: Rc::new(RefCell::new(Some(session))),
+                project_chains: Rc::new(VecModel::default()),
+                looper_live: Rc::new(NoLiveSource),
+                saved_project_snapshot: Rc::new(RefCell::new(None)),
+                project_dirty: Rc::new(RefCell::new(false)),
+                input_chain_devices: Rc::new(RefCell::new(vec![])),
+                output_chain_devices: Rc::new(RefCell::new(vec![])),
+                toast_timer: Rc::new(Timer::default()),
+                pending_delete_chain_id: Rc::new(RefCell::new(None)),
+            },
+        );
+
+        window
+            .global::<LooperEditor>()
+            .invoke_save_take(0, 1, "verse".into());
+
+        assert!(matches!(
+            spy.seen.borrow().as_slice(),
+            [Command::Looper(LooperCommand::SaveChainLooperTake {
+                looper: 1,
+                ..
+            })]
+        ));
+    }
+}

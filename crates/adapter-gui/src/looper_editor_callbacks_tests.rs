@@ -334,3 +334,14 @@ fn a_chain_index_that_names_no_chain_is_a_no_op() {
         "a stale index must never reshape whatever chain happens to be at it"
     );
 }
+
+#[test]
+fn opening_the_editor_clears_the_last_take_save_outcome() {
+    // #827: "Saved" from the previous loop must not sit under a new one.
+    let w = wire_with(FakeLive::default());
+    w.editor().set_take_status(1);
+
+    w.window.invoke_looper_edit(0, 1);
+
+    assert_eq!(w.editor().get_take_status(), 0);
+}

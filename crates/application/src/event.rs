@@ -458,6 +458,14 @@ pub enum Event {
         looper: u64,
     },
 
+    /// #827: a looper's mixdown was saved as a take; `path` is the wav in the
+    /// app-wide take library, ready to be a `DiLoopSource::File`.
+    ChainLooperTakeSaved {
+        chain: ChainId,
+        looper: u64,
+        path: PathBuf,
+    },
+
     /// #323: a looper parameter changed and was persisted on the chain.
     ChainLooperParamChanged {
         chain: ChainId,

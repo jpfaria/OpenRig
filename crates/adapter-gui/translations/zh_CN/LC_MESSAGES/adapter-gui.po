@@ -15,7 +15,7 @@ msgstr ""
 msgid "OpenRig"
 msgstr "OpenRig"
 
-#: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:275
+#: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:276
 msgid "btn-load-file"
 msgstr "Load"
 
@@ -23,11 +23,11 @@ msgstr "Load"
 msgid "–"
 msgstr "–"
 
-#: crates/adapter-gui/ui/components/block_value_widgets.slint:129
+#: crates/adapter-gui/ui/components/block_value_widgets.slint:132
 msgid "−"
 msgstr "−"
 
-#: crates/adapter-gui/ui/components/block_value_widgets.slint:195
+#: crates/adapter-gui/ui/components/block_value_widgets.slint:200
 msgid "+"
 msgstr "+"
 
@@ -53,31 +53,31 @@ msgstr ""
 msgid "Remove last scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:184
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:185
 msgid "tooltip-open-preset"
 msgstr "打开预设"
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:194
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:195
 msgid "tooltip-save-preset"
 msgstr "保存预设"
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:204
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:205
 msgid "Add preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:214
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:215
 msgid "Rename preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:225
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:226
 msgid "Remove preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:317
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:319
 msgid "Cancel"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:338
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:340
 msgid "OK"
 msgstr ""
 
@@ -101,46 +101,46 @@ msgstr "{} 个通道"
 msgid "placeholder-search-models"
 msgstr "搜索模型..."
 
-#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:106
+#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:107
 msgid "status-no-models-found"
 msgstr "未找到模型"
 
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:30
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:31
 msgid "title-dialog-delete-chain"
 msgstr "删除链"
 
 #. text directly.
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:40
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:42
 msgid "Excluir a chain \"{}\"?"
 msgstr "删除链 \"{}\"?"
 
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:59
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:61
 msgid "btn-cancel"
 msgstr "取消"
 
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:76
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:78
 msgid "btn-delete"
 msgstr "删除"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:28
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:29
 msgid "title-dialog-delete-block"
 msgstr "删除块"
 
 #. pt-BR source string with the placeholder.
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:37
+#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:39
 msgid "Excluir \"{}\"?"
 msgstr "删除 \"{}\" 吗？"
 
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:32
 msgid "title-dialog-delete-recent-project"
 msgstr "从最近移除"
 
 #. Literal pt-BR source string with `{}` placeholder.
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:39
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
 msgid "Remover o projeto \"{}\" dos recentes?"
 msgstr "从最近列表中移除项目 \"{}\"?"
 
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:77
 msgid "btn-remove"
 msgstr "移除"
 
@@ -152,59 +152,59 @@ msgstr "DI输出"
 msgid "accessible-language-selector"
 msgstr "语言选择器"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:93
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:62
 msgid "looper-editor-title"
 msgstr "编辑循环"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:125
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:94
 msgid "looper-editor-fit"
 msgstr "自动贴合"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:103
 msgid "looper-editor-trim"
 msgstr "修剪"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:112
 msgid "looper-editor-crop"
 msgstr "裁剪"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:152
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-cut"
 msgstr "剪切"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:164
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
 msgid "looper-editor-stop"
 msgstr "停止"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
 msgid "looper-editor-play"
 msgstr "播放"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:174
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
 msgid "looper-editor-undo"
 msgstr "撤销"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:180
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
 msgid "looper-editor-redo"
 msgstr "重做"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:186
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
 msgid "looper-editor-close"
 msgstr "关闭"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:195
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
 msgid "looper-editor-no-change"
 msgstr "没有可修剪的部分 — 这段已经很紧凑"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:196
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:166
 msgid "looper-editor-refused"
 msgstr "这次编辑会让音频剩得太少"
 
-#: crates/adapter-gui/ui/components/looper_overlay.slint:105
+#: crates/adapter-gui/ui/components/looper_overlay.slint:110
 msgid "looper-preset-picker-title"
 msgstr "通过预设播放"
 
-#: crates/adapter-gui/ui/components/looper_overlay.slint:132
+#: crates/adapter-gui/ui/components/looper_overlay.slint:137
 msgid "looper-preset-follow"
 msgstr "跟随链"
 
@@ -224,11 +224,11 @@ msgstr "全部停止"
 msgid "looper-add"
 msgstr "添加循环器"
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:160
+#: crates/adapter-gui/ui/components/looper_panel.slint:164
 msgid "looper-empty-title"
 msgstr "还没有循环器"
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:168
+#: crates/adapter-gui/ui/components/looper_panel.slint:172
 msgid "looper-empty-hint"
 msgstr "添加一个循环器来录制该链输入的乐句，并通过整条链回放。"
 
@@ -273,44 +273,76 @@ msgstr "已停止"
 msgid "looper-state-empty"
 msgstr "空"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:179
+#: crates/adapter-gui/ui/components/looper_row.slint:180
 msgid "looper-parameters"
 msgstr "参数"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:188
+#: crates/adapter-gui/ui/components/looper_row.slint:189
 msgid "looper-remove"
 msgstr "移除循环器"
 
 # Looper input/output selectors (#323)
-#: crates/adapter-gui/ui/components/looper_row.slint:207
+#: crates/adapter-gui/ui/components/looper_row.slint:209
 msgid "looper-input"
 msgstr "录音输入"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:214
+#: crates/adapter-gui/ui/components/looper_row.slint:217
 msgid "looper-output"
 msgstr "播放输出"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:230
+#: crates/adapter-gui/ui/components/looper_row.slint:237
 msgid "looper-preset"
 msgstr "预设"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:286
+#: crates/adapter-gui/ui/components/looper_row.slint:294
 msgid "looper-level"
 msgstr "电平"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:292
+#: crates/adapter-gui/ui/components/looper_row.slint:301
 msgid "looper-decay"
 msgstr "衰减"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:302
+#: crates/adapter-gui/ui/components/looper_row.slint:312
 msgid "looper-speed"
 msgstr "速度"
 
-#: crates/adapter-gui/ui/components/looper_row.slint:316
+#: crates/adapter-gui/ui/components/looper_row.slint:327
 msgid "looper-reverse"
 msgstr "倒放"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:111
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:24
+msgid "looper-take-save-title"
+msgstr "保存片段"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:33
+msgid "looper-take-name-placeholder"
+msgstr "片段名称"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:45
+msgid "looper-take-save"
+msgstr "保存"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:57
+msgid "looper-take-saved"
+msgstr "已保存 — 可作为任意链的 DI 来源"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:58
+msgid "looper-take-name-taken"
+msgstr "已存在同名片段"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:59
+msgid "looper-take-nothing-recorded"
+msgstr "此循环没有录音"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:60
+msgid "looper-take-failed"
+msgstr "无法保存片段"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
+msgid "looper-take-needs-name"
+msgstr "请输入片段名称"
+
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"
 
@@ -330,11 +362,11 @@ msgstr "保存预设"
 msgid "btn-save"
 msgstr "保存"
 
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:120
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:121
 msgid "title-dialog-overwrite-preset"
 msgstr "覆盖预设？"
 
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:127
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:128
 msgid "msg-overwrite-preset"
 msgstr "已存在名为 \"{}\" 的预设。是否覆盖？"
 
@@ -350,53 +382,57 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr "未找到预设"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:109
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"
 msgstr "Tone Doctor"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:115
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:119
 msgid "tone-doctor-analyze"
 msgstr "分析"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:129
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
 msgid "tone-doctor-genre"
 msgstr "风格"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:137
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:142
 msgid "tone-doctor-genre-default"
 msgstr "默认"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:138
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:143
 msgid "tone-doctor-genre-search"
 msgstr "搜索风格…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:139
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:144
 msgid "tone-doctor-genre-none"
 msgstr "无风格"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:164
 msgid "tone-doctor-no-signal"
 msgstr "播放 DI 或启用链"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:160
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:165
 msgid "tone-doctor-diagnosing"
 msgstr "诊断中…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:161
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:166
 msgid "tone-doctor-rerun"
 msgstr "重新诊断"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:162
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:167
 msgid "tone-doctor-diagnose"
 msgstr "诊断"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:222
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
 msgid "tone-doctor-suggestion"
 msgstr "建议修复"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:236
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:245
 msgid "tone-doctor-apply"
 msgstr "应用"
+
+#: crates/adapter-gui/ui/components/update_button.slint:15
+msgid "btn-update-to {}"
+msgstr "更新到 v{}"
 
 #: crates/adapter-gui/ui/components/waveform_view.slint:30
 msgid "looper-editor-waveform"
@@ -414,63 +450,63 @@ msgstr "选区终点"
 msgid "tooltip-delete"
 msgstr "删除"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:71
+#: crates/adapter-gui/ui/pages/chain_editor.slint:72
 msgid "instrument-guitar"
 msgstr "吉他"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:72
+#: crates/adapter-gui/ui/pages/chain_editor.slint:73
 msgid "instrument-acoustic-guitar"
 msgstr "木吉他"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:73
+#: crates/adapter-gui/ui/pages/chain_editor.slint:74
 msgid "instrument-bass"
 msgstr "贝斯"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:74
+#: crates/adapter-gui/ui/pages/chain_editor.slint:75
 msgid "instrument-voice"
 msgstr "人声"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:75
+#: crates/adapter-gui/ui/pages/chain_editor.slint:76
 msgid "instrument-keyboard"
 msgstr "键盘"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:76
+#: crates/adapter-gui/ui/pages/chain_editor.slint:77
 msgid "instrument-drums"
 msgstr "鼓"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:77
+#: crates/adapter-gui/ui/pages/chain_editor.slint:78
 msgid "instrument-other"
 msgstr "其他"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:93
+#: crates/adapter-gui/ui/pages/chain_editor.slint:94
 msgid "title-new-chain"
 msgstr "新建链"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:93
+#: crates/adapter-gui/ui/pages/chain_editor.slint:94
 msgid "title-configure-chain"
 msgstr "配置链"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:112
+#: crates/adapter-gui/ui/pages/chain_editor.slint:113
 msgid "label-name"
 msgstr "名称"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:139
+#: crates/adapter-gui/ui/pages/chain_editor.slint:140
 msgid "label-instrument"
 msgstr "乐器"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:219
+#: crates/adapter-gui/ui/pages/chain_editor.slint:220
 msgid "label-chain-io-bindings"
 msgstr "I/O 绑定"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:229
+#: crates/adapter-gui/ui/pages/chain_editor.slint:230
 msgid "empty-no-bindings-for-chain"
 msgstr "尚无 I/O 绑定 — 在设置 → I/O 绑定中创建"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:322
+#: crates/adapter-gui/ui/pages/chain_editor.slint:324
 msgid "btn-create-chain"
 msgstr "创建链"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:322
+#: crates/adapter-gui/ui/pages/chain_editor.slint:324
 msgid "btn-save-chain"
 msgstr "保存链"
 
@@ -514,15 +550,15 @@ msgstr "端点"
 msgid "msg-pick-io-endpoint"
 msgstr "选择 I/O 和端点"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:323
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:372
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
 msgid "label-input"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:418
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:419
 msgid "label-output"
 msgstr "输出"
 
@@ -574,15 +610,15 @@ msgstr "音色"
 msgid "label-click-volume"
 msgstr "音量"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:386
+#: crates/adapter-gui/ui/pages/metronome_window.slint:387
 msgid "label-metronome-output"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:395
+#: crates/adapter-gui/ui/pages/metronome_window.slint:396
 msgid "status-no-outputs"
 msgstr "项目未配置输出"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:426
+#: crates/adapter-gui/ui/pages/metronome_window.slint:427
 msgid "title-window-metronome"
 msgstr "节拍器"
 
@@ -590,19 +626,19 @@ msgstr "节拍器"
 msgid "·"
 msgstr "·"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:126
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:127
 msgid "label-description"
 msgstr "Description"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:145
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:146
 msgid "label-license"
 msgstr "License:"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:172
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:173
 msgid "↗"
 msgstr "↗"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:178
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:179
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
@@ -634,103 +670,103 @@ msgstr "保存"
 msgid "tooltip-new-chain"
 msgstr "新建 链"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:185
+#: crates/adapter-gui/ui/pages/project_launcher.slint:190
 msgid "placeholder-search-projects"
 msgstr "搜索项目"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:288
+#: crates/adapter-gui/ui/pages/project_launcher.slint:293
 msgid "tooltip-open-project"
 msgstr "打开项目"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:295
+#: crates/adapter-gui/ui/pages/project_launcher.slint:300
 msgid "btn-new-project"
 msgstr "新建项目"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:56
+#: crates/adapter-gui/ui/pages/project_setup.slint:57
 msgid "placeholder-project-name-example"
 msgstr "例如: 现场吉他"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:152
+#: crates/adapter-gui/ui/pages/project_setup.slint:153
 msgid "title-new-project"
 msgstr "新建项目"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:165
+#: crates/adapter-gui/ui/pages/project_setup.slint:166
 msgid "label-project-name"
 msgstr "项目名称"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:212
+#: crates/adapter-gui/ui/pages/project_setup.slint:214
 msgid "btn-create-project"
 msgstr "创建项目"
 
-#: crates/adapter-gui/ui/pages/settings.slint:134
+#: crates/adapter-gui/ui/pages/settings.slint:138
 msgid "nav-group-system"
 msgstr "系统"
 
-#: crates/adapter-gui/ui/pages/settings.slint:145
+#: crates/adapter-gui/ui/pages/settings.slint:149
 msgid "title-section-audio-interface"
 msgstr "音频接口"
 
-#: crates/adapter-gui/ui/pages/settings.slint:150
+#: crates/adapter-gui/ui/pages/settings.slint:154
 msgid "title-section-language"
 msgstr "语言"
 
-#: crates/adapter-gui/ui/pages/settings.slint:155
+#: crates/adapter-gui/ui/pages/settings.slint:159
 msgid "title-section-midi-devices"
 msgstr "MIDI 设备"
 
-#: crates/adapter-gui/ui/pages/settings.slint:160
+#: crates/adapter-gui/ui/pages/settings.slint:164
 msgid "title-section-paths"
 msgstr "路径"
 
-#: crates/adapter-gui/ui/pages/settings.slint:165
+#: crates/adapter-gui/ui/pages/settings.slint:169
 msgid "title-section-integrations"
 msgstr "集成"
 
-#: crates/adapter-gui/ui/pages/settings.slint:170
+#: crates/adapter-gui/ui/pages/settings.slint:174
 msgid "title-section-io-bindings"
 msgstr "输入/输出绑定"
 
-#: crates/adapter-gui/ui/pages/settings.slint:185
+#: crates/adapter-gui/ui/pages/settings.slint:189
 msgid "nav-group-project"
 msgstr "项目"
 
-#: crates/adapter-gui/ui/pages/settings.slint:196
+#: crates/adapter-gui/ui/pages/settings.slint:200
 msgid "title-section-project-meta"
 msgstr "元数据"
 
-#: crates/adapter-gui/ui/pages/settings.slint:287
+#: crates/adapter-gui/ui/pages/settings.slint:291
 msgid "btn-save-audio-settings"
 msgstr "应用"
 
-#: crates/adapter-gui/ui/pages/settings.slint:291
+#: crates/adapter-gui/ui/pages/settings.slint:295
 msgid "btn-close"
 msgstr "关闭"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:96
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:97
 msgid "label-endpoint-device"
 msgstr "设备"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:116
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:117
 msgid "label-endpoint-mode"
 msgstr "模式"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:128
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:129
 msgid "mode-mono"
 msgstr "单声道"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:128
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:129
 msgid "mode-stereo"
 msgstr "立体声"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:128
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:129
 msgid "mode-dual-mono"
 msgstr "双单声道"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:139
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:140
 msgid "label-endpoint-channels"
 msgstr "通道"
 
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:173
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:175
 msgid "btn-add-endpoint"
 msgstr "添加端点"
 
@@ -738,101 +774,101 @@ msgstr "添加端点"
 msgid "label-channels-prefix"
 msgstr "通道"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:204
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:205
 msgid "help-io-bindings"
 msgstr "将同一接口的输入和输出归为一组。每个链使用一个绑定。"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:208
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:209
 msgid "btn-new-binding"
 msgstr "新建绑定"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:221
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:223
 msgid "empty-no-bindings"
 msgstr "还没有绑定"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:222
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:224
 msgid "empty-no-bindings-hint"
 msgstr "创建一个，将接口的输入和输出归为一组。"
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:320
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:322
 msgid "label-group-inputs"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:321
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:323
 msgid "empty-no-input-endpoints"
 msgstr "暂无输入端点"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:334
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:336
 msgid "btn-add-input"
 msgstr "+ 添加输入"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:341
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:343
 msgid "placeholder-pick-device"
 msgstr "选择设备"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:349
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:351
 msgid "hint-channels-pick-device"
 msgstr "选择设备以列出其通道"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:355
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:357
 msgid "btn-add"
 msgstr "添加"
 
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
 msgid "label-group-outputs"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:375
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:377
 msgid "empty-no-output-endpoints"
 msgstr "暂无输出端点"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:388
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:390
 msgid "btn-add-output"
 msgstr "+ 添加输出"
 
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:57
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:62
 msgid "label-file"
 msgstr "文件"
 
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:65
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:70
 msgid "placeholder-project-unsaved"
 msgstr "(未保存)"
 
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:82
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:87
 msgid "btn-save-project"
 msgstr "保存项目"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:96
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:107
 msgid "label-hz"
 msgstr "Hz"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:119
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:120
 msgid "label-buffer"
 msgstr "Buffer"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:142
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:133
 msgid "label-bits"
 msgstr "Bits"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:38
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:39
 msgid "label-midi-enabled"
 msgstr "MIDI 控制"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:44
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
 msgid "desc-midi-enabled"
 msgstr "启用 MIDI/BLE-MIDI 适配器，让踏板控制 OpenRig"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:92
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
 msgid "label-mcp-enabled"
 msgstr "MCP 服务器"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:98
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:99
 msgid "desc-mcp-enabled"
 msgstr "在 127.0.0.1:4123 上为代理开放 MCP 服务器"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:133
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:134
 msgid "hint-restart-to-apply"
 msgstr "将在下次启动时生效。"
 
@@ -840,99 +876,99 @@ msgstr "将在下次启动时生效。"
 msgid "label-language"
 msgstr "语言"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:29
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:33
 msgid "label-presets-path"
 msgstr "预设文件夹"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:37
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:41
 msgid "placeholder-default-path"
 msgstr "(默认)"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:46
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:50
 msgid "btn-choose-path"
 msgstr "选择…"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:50
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:54
 msgid "btn-reset-path"
 msgstr "重置"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:61
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:65
 msgid "label-plugins-path"
 msgstr "插件文件夹"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:93
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:97
 msgid "label-evaluations-path"
 msgstr "评估文件夹"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:125
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:129
 msgid "label-plugin-catalog"
 msgstr "插件目录"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:133
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:137
 msgid "status-plugin-catalog-idle"
 msgstr "尚未重新加载"
 
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:142
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:146
 msgid "btn-reload-plugin-catalog"
 msgstr "重新加载"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:68
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:70
 msgid "—"
 msgstr "—"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:122
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:124
 msgid "20"
 msgstr "20"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:128
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:130
 msgid "100"
 msgstr "100"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:134
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:136
 msgid "1k"
 msgstr "1k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:140
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:142
 msgid "10k"
 msgstr "10k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:146
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:149
 msgid "20k"
 msgstr "20k"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:194
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:197
 msgid "label-spectrum"
 msgstr "SPECTRUM"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:236
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:239
 msgid "status-no-active-outputs"
 msgstr "NO ACTIVE OUTPUTS"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:246
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:250
 msgid "status-spectrum-empty-help"
 msgstr "打开频谱并启用带有配置输出的链。"
 
-#: crates/adapter-gui/ui/pages/spectrum_window.slint:274
+#: crates/adapter-gui/ui/pages/spectrum_window.slint:279
 msgid "title-window-spectrum"
 msgstr "OpenRig · Spectrum"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:58
+#: crates/adapter-gui/ui/pages/tuner_window.slint:59
 msgid "label-mute"
 msgstr "MUTE"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:312
+#: crates/adapter-gui/ui/pages/tuner_window.slint:313
 msgid "label-tuner"
 msgstr "TUNER"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:364
+#: crates/adapter-gui/ui/pages/tuner_window.slint:365
 msgid "status-no-active-inputs"
 msgstr "NO ACTIVE INPUTS"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:374
+#: crates/adapter-gui/ui/pages/tuner_window.slint:376
 msgid "status-tuner-empty-help"
 msgstr "启用带有配置输入的链以在此处查看调音器。"
 
-#: crates/adapter-gui/ui/pages/tuner_window.slint:402
+#: crates/adapter-gui/ui/pages/tuner_window.slint:405
 msgid "title-window-tuner"
 msgstr "OpenRig · Tuner"
 
@@ -964,9 +1000,6 @@ msgstr "端口"
 #: crates/adapter-gui/ui/touch_main.slint:407
 msgid "⌨"
 msgstr "⌨"
-
-msgid "btn-update-to {}"
-msgstr "更新到 v{}"
 
 msgid "accessible-graph-view"
 msgstr "信号链图"
