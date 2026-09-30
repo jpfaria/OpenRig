@@ -26,6 +26,16 @@ pub trait MonoProcessor: Send + Sync + 'static {
     ) -> bool {
         false
     }
+
+    /// Samples of delay this processor adds between a sample going in and the
+    /// same sample coming out: processing latency (block convolution,
+    /// oversampling filters, plugin look-ahead), never the musical delay of a
+    /// delay effect. A chain split sums it per path to line the two paths up
+    /// (#328). Called at build time and, after a block toggle, on the audio
+    /// thread: return a stored value — no allocation, no lock, no FFI call.
+    fn latency_samples(&self) -> usize {
+        0
+    }
 }
 
 pub trait StereoProcessor: Send + Sync + 'static {
@@ -47,5 +57,11 @@ pub trait StereoProcessor: Send + Sync + 'static {
         _sample_rate: f32,
     ) -> bool {
         false
+    }
+
+    /// Processing latency in samples — same contract as
+    /// [`MonoProcessor::latency_samples`] (#328).
+    fn latency_samples(&self) -> usize {
+        0
     }
 }
