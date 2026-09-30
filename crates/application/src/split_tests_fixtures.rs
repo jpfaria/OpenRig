@@ -88,6 +88,39 @@ pub(crate) fn y_chain() -> Vec<AudioBlock> {
     ]
 }
 
+/// `[pre, mix → Mix { a: [a_0], b: [b_0] }, mid, y → Y { a: [ya_0], b: [yb_0] }]`
+/// — the Mix first and the Y last, as spec §1.1 allows.
+pub(crate) fn mix_then_y_chain() -> Vec<AudioBlock> {
+    vec![
+        make_core_block("pre", true),
+        split(
+            "mix",
+            SplitEnd::Mix,
+            vec![make_core_block("a_0", true)],
+            vec![make_core_block("b_0", true)],
+        ),
+        make_core_block("mid", true),
+        split(
+            "y",
+            SplitEnd::Y,
+            vec![make_core_block("ya_0", true)],
+            vec![make_core_block("yb_0", true)],
+        ),
+    ]
+}
+
+/// The split `id` of the project's first chain (panics when it is missing).
+pub(crate) fn split_by_id(project: &Project, id: &str) -> SplitBlock {
+    project.chains[0]
+        .blocks
+        .iter()
+        .find_map(|b| match &b.kind {
+            AudioBlockKind::Split(split) if b.id.0 == id => Some(split.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("the first chain holds the split '{id}'"))
+}
+
 /// Dispatch a command given as its wire form — the exact road an MCP tool
 /// call or a `midi-map.yaml` line takes (`command_from_variant`).
 pub(crate) fn dispatch_json(

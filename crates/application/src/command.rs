@@ -78,7 +78,7 @@ pub enum Command {
     /// #323: per-chain loopers — membership, transport, params, endpoints and
     /// the linked preset (phase 2).
     Looper(LooperCommand),
-    /// #328: the chain's split — create it, switch Mix/Y, remove it.
+    /// #328: the chain's splits — create one, switch Mix/Y, remove one.
     Split(SplitCommand),
     /// #1007: the global mixer — one fader and one mute per I/O endpoint.
     Mixer(MixerCommand),

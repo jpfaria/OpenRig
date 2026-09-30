@@ -1,9 +1,9 @@
 //! Responsibility: handles the split lifecycle commands.
 //!
 //! #328 (spec §3): `AddSplit`, `SetSplitEnd` and `RemoveSplit` reshape the
-//! chain's top-level block list around its one split. Each runs through
-//! `edit_chain_blocks`, so the split rules (one split, Y last) are checked on
-//! the result and a refused command changes nothing.
+//! chain's top-level block list around the split they name. Each runs through
+//! `edit_chain_blocks`, so the split rules (at most one Mix and one Y, the Y
+//! last) are checked on the result and a refused command changes nothing.
 
 use anyhow::{anyhow, Result};
 

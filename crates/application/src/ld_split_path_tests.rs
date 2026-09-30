@@ -528,3 +528,52 @@ fn move_block_refuses_a_processing_block_after_a_y_split() {
     assert!(err.to_string().contains("Y split"), "{err}");
     assert_eq!(project.borrow().chains[0].blocks, before);
 }
+
+#[test]
+fn add_block_into_the_y_path_lands_in_the_y_behind_a_mix() {
+    let project = project_with(mix_then_y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({
+            "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 1,
+            "path": { "split": "y", "side": "a" }
+        }),
+    )
+    .expect("AddBlock into path A of the Y");
+
+    let y = split_by_id(&project.borrow(), "y");
+    assert_eq!(y.a.len(), 2, "path A of the Y = [ya_0, new]");
+    assert_eq!(added_id(&events), y.a[1].id);
+    assert_eq!(
+        ids(&split_by_id(&project.borrow(), "mix").a),
+        vec!["a_0"],
+        "the Mix's paths are untouched"
+    );
+}
+
+#[test]
+fn add_block_refuses_an_input_port_in_the_y_path_behind_a_mix() {
+    let project = project_with(mix_then_y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+
+    let err = dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({
+            "chain": CHAIN, "kind": "input", "model_id": "standard", "position": 0,
+            "path": { "split": "y", "side": "b" }
+        }),
+    )
+    .expect_err("every split's paths are checked, not only the first split's");
+
+    assert!(
+        err.to_string()
+            .contains("a path holds processing blocks only"),
+        "{err}"
+    );
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}
