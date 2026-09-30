@@ -392,6 +392,18 @@ in for the missing input.
 
 Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
 
+### Y → A/B outputs (issue #328)
+
+A Y → A/B chain keeps the stream model above: one segment per (input × output)
+pair (`split_chain_into_segments`). The segment of output `O` runs the shared
+blocks and then the paths whose output node has `O` checked — its
+`ChainSegment.paths` (`runtime_graph::segment_paths::route_paths`): `A`, `B` or
+`AB`. Both paths on one output are **one** segment; they are summed inside it,
+never by two segments on one route. An output no path checks is no port, so it
+has no route and no segment. The #716 pairing is unchanged: a head input still
+pairs only with its own E/S's outputs, so a path can only reach outputs of the
+E/S whose input feeds it.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it

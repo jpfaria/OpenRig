@@ -494,3 +494,6 @@ mod issue_592_elastic_prime_tests;
 #[cfg(test)]
 #[path = "issue_947_routes_owned_by_their_stream_tests.rs"]
 mod issue_947_routes_owned_by_their_stream_tests;
+
+#[path = "segment_paths.rs"]
+pub mod segment_paths;

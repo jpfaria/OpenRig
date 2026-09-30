@@ -45,4 +45,22 @@ pub(crate) struct ChainSegment {
     /// physical device, while split-mono siblings (same raw entry) stay
     /// together so the pinned g02/g03 sum-before-limiter math holds.
     pub(crate) entry_group: usize,
+    /// #328: the split paths this segment runs — `SegmentPaths::None` unless
+    /// the chain ends in a Y → A/B split and this segment reaches it.
+    pub(crate) paths: SegmentPaths,
+}
+
+/// Which paths of the chain's Y → A/B split one segment runs (#328). A
+/// segment writes one output, and that output's node checklist decides the
+/// set; the builder shapes the split into exactly those paths.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SegmentPaths {
+    /// The chain has no Y split, or this segment ends before it.
+    None,
+    /// Only path A feeds this segment's output.
+    A,
+    /// Only path B feeds this segment's output.
+    B,
+    /// Both paths feed it: summed at unity inside the segment.
+    AB,
 }

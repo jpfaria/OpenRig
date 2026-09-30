@@ -29,7 +29,7 @@ use domain::io_binding::IoBinding;
 use crate::runtime_endpoints::{resolve_chain_io_by_binding, InputEntry, OutputEntry};
 pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub(crate) use crate::segment_taps::taps_for_segment;
-pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
+pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentPaths, SegmentTap};
 
 /// Split a chain into segments at enabled Insert block boundaries.
 ///
@@ -85,6 +85,8 @@ pub(crate) fn split_chain_into_segments(
     let heads = |v: &[usize]| v[..regular_input_count.min(v.len())].to_vec();
 
     let (tail_routes, mid_taps, resolved_output_count) = classify_output_routes(chain, registry);
+    // #328: the split paths each route runs (a Y → A/B chain's outputs).
+    let route_paths = crate::runtime_graph::segment_paths::route_paths(chain, registry);
 
     if insert_positions.is_empty() {
         return segments_without_inserts(
@@ -98,6 +100,7 @@ pub(crate) fn split_chain_into_segments(
             &mid_taps,
             resolved_output_count,
             registry,
+            &route_paths,
         );
     }
 
@@ -198,6 +201,7 @@ fn segments_without_inserts(
     mid_taps: &[MidOutputTap],
     resolved_output_count: usize,
     registry: &[IoBinding],
+    route_paths: &[SegmentPaths],
 ) -> Vec<ChainSegment> {
     // Every effect block (NOT an I/O / Insert port). Disabled effect blocks
     // are KEPT — they become Bypass nodes so a live enable/disable is a
@@ -290,6 +294,11 @@ fn segments_without_inserts(
                 mid_output_taps: Vec::new(),
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
+                // #328: the paths this output's node checks (none before the split).
+                paths: route_paths
+                    .get(out_entry_idx)
+                    .copied()
+                    .unwrap_or(SegmentPaths::None),
             });
         }
     }
@@ -365,6 +374,7 @@ fn segments_with_inserts(
                     mid_output_taps: taps.clone(),
                     split_mono_sibling_count: split_positions.get(i).copied().unwrap_or(None),
                     entry_group: entry_groups.get(i).copied().unwrap_or(i),
+                    paths: SegmentPaths::None,
                 });
             }
         } else {
@@ -384,6 +394,7 @@ fn segments_with_inserts(
                     .get(prev_return_idx)
                     .copied()
                     .unwrap_or(prev_return_idx),
+                paths: SegmentPaths::None,
             });
         }
 
@@ -426,7 +437,12 @@ fn segments_with_inserts(
             .get(last_return_idx)
             .copied()
             .unwrap_or(last_return_idx),
+        paths: SegmentPaths::None,
     });
 
     segments
 }
+
+#[cfg(test)]
+#[path = "issue_328_y_segments_tests.rs"]
+mod issue_328_y_segments_tests;
