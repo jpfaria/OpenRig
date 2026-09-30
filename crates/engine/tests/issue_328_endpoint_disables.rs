@@ -112,3 +112,49 @@ fn complementary_unchecked_inputs_share_one_binding_without_a_tap_conflict() {
         "rig side: g2 must not be refused a tap g1 does not hold (#924: the detectors agree)"
     );
 }
+
+/// #328 — a rig input whose checklist leaves it no output plays nothing. The
+/// rig side must treat it as off, like the chain side (`chain_plays`): no
+/// runtime, no tap held, so the input sharing its E/S still comes up (#924:
+/// every detector agrees).
+#[test]
+fn a_silenced_input_holds_no_tap_on_the_rig_side() {
+    use engine::rig_runtime::RigRuntime;
+    use engine::runtime_endpoints::input_conflicting_chains;
+
+    // g1 has its only output unchecked; g2 plays. Both select the same E/S.
+    let every_output_off = EndpointDisables {
+        outputs: vec![EndpointRef {
+            io: "shared".into(),
+            endpoint: "out".into(),
+        }],
+        ..EndpointDisables::default()
+    };
+    let r = rig(every_output_off, EndpointDisables::default());
+    let registry = vec![shared_binding()];
+
+    assert_eq!(
+        input_conflicting_chains(rig_to_chains(&r).iter(), &registry),
+        Vec::<domain::ids::ChainId>::new(),
+        "chain side: the silenced g1 claims no tap"
+    );
+    let mut rt = RigRuntime::build(r, 48_000.0, registry).expect("the rig builds");
+    assert!(
+        !rt.is_enabled("g1"),
+        "#328: g1 has every output unchecked — nothing to play, so it is not brought up"
+    );
+    assert!(
+        rt.is_enabled("g2"),
+        "#328: rig side: g2 must not be refused a tap the silenced g1 does not play (#924: the detectors agree)"
+    );
+
+    rt.disable_input("g2").expect("g2 goes down");
+    rt.enable_input("g1")
+        .expect("#328: enabling a silenced input is a no-op, not an error");
+    assert!(
+        !rt.is_enabled("g1"),
+        "#328: enable_input leaves a silenced input off — it holds no tap"
+    );
+    rt.enable_input("g2")
+        .expect("#328: g2 comes back up — the silenced g1 holds no tap");
+}

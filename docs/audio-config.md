@@ -390,6 +390,13 @@ not invent its legacy fallback endpoint for it (`effective_inputs` /
 with no input it builds no segment at all — an insert's return must never stand
 in for the missing input.
 
+The stream layer treats such a chain as switched off: the graph, the input-tap
+claims (#716) and every activation gate read one rule,
+`engine::runtime_graph::chain_plays`. Its streams die like a switch-off (#929),
+it claims no input channel another chain wants, and it never fails the
+activation of the other chains. The rig runtime (`RigRuntime::build` /
+`enable_input`) reads the same rule, so its tap detector agrees (#924).
+
 Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
 
 ### Y → A/B outputs (issue #328)
