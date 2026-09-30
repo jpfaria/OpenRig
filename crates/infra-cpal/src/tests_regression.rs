@@ -663,3 +663,6 @@ mod issue_979_device_notifications;
 
 #[path = "issue_979_slack_rest_tests.rs"]
 mod issue_979_slack_rest;
+
+#[path = "issue_979_splice_tests.rs"]
+mod issue_979_splice;
