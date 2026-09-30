@@ -55,24 +55,15 @@ export component GraphNodeCard inherits Rectangle {
 
     width: root.card_width;
     height: root.card_height;
-    border-radius: root.is-block ? 6px : 8px;
-    background: root.is-block ? root.backdrop
-        : root.node.bypass ? root.node.fill.with-alpha(0.35)
-        : root.dragging ? root.node.fill.brighter(0.20)
-        : root.hovered ? root.node.fill.brighter(0.10)
-        : root.node.fill;
-    border-width: root.is-block
-        ? BlockTileStyle.marker-border-width(root.markers-visible, root.is-selected, root.is-neighbor)
-        : (root.is-selected ? 2px : 1px);
-    border-color: root.is-block
-        ? BlockTileStyle.marker-border-color(root.markers-visible, root.is-selected, root.is-neighbor, root.enabled)
-        : (root.is-selected ? #f5f7fb : root.node.border);
+    // Every card sits on the row like a BlockChip: the backdrop only hides
+    // the wires behind it, no coloured box of its own.
+    border-radius: 6px;
+    background: root.backdrop;
+    border-width: BlockTileStyle.marker-border-width(root.markers-visible, root.is-selected, root.is-neighbor);
+    border-color: BlockTileStyle.marker-border-color(root.markers-visible, root.is-selected, root.is-neighbor, root.enabled);
     opacity: root.unavailable ? BlockTileStyle.unavailable-opacity
         : (!root.is-block && root.node.bypass) ? 0.7
         : 1.0;
-    drop-shadow-blur: root.is-block ? 0px : root.dragging ? 12px : (root.hovered ? 6px : 2px);
-    drop-shadow-color: #00000080;
-    drop-shadow-offset-y: root.is-block ? 0px : 2px;
 
     // ── Block: BlockChip parity ──────────────────────────────────────
     // #591 marker tint over the backdrop.
