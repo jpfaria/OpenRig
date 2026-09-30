@@ -3,13 +3,14 @@
 //! #328 — the input and output nodes of a chain's graph each carry a checklist
 //! of the endpoints of the chain's own E/S (`Chain.disabled_endpoints`, copied
 //! from `RigInput`). Every endpoint is checked unless the node's list names
-//! it. A linear or Split → Mix chain has one output node; a Y → A/B chain has
-//! two (path A's, path B's) and no chain output node. A reference to an
-//! endpoint the E/S no longer has matches nothing, so it is ignored.
+//! it. A linear or Split → Mix chain has one output node; a chain holding a Y
+//! split, with or without a Mix before it, has two (path A's, path B's) and no
+//! chain output node. A reference to an endpoint the E/S no longer has matches
+//! nothing, so it is ignored.
 
 use domain::io_binding::IoBinding;
 
-use crate::block::{find_split, AudioBlockKind, SplitEnd};
+use crate::block::{has_y_split, AudioBlockKind};
 use crate::chain::Chain;
 use crate::endpoint_disables::{EndpointNode, EndpointRef};
 
@@ -18,9 +19,9 @@ use crate::endpoint_disables::{EndpointNode, EndpointRef};
 pub enum TailFeed {
     /// No node sends here: the endpoint is unchecked on every output node.
     Off,
-    /// The chain output node (linear and Split → Mix chains).
+    /// The chain output node (chains without a Y split).
     Chain,
-    /// Y → A/B: the path output nodes that have the endpoint checked — at
+    /// The Y split's path output nodes that have the endpoint checked — at
     /// least one of `a`, `b` is true.
     Paths { a: bool, b: bool },
 }
@@ -36,7 +37,7 @@ pub fn head_input_enabled(chain: &Chain, io: &str, endpoint: &str) -> bool {
 pub fn tail_feed(chain: &Chain, io: &str, endpoint: &str) -> TailFeed {
     let reference = endpoint_ref(io, endpoint);
     let disables = &chain.disabled_endpoints;
-    if !has_y_split(chain) {
+    if !has_y_split(&chain.blocks) {
         return if disables.is_enabled(EndpointNode::Output, &reference) {
             TailFeed::Chain
         } else {
@@ -90,11 +91,6 @@ pub fn outputs_all_unchecked(chain: &Chain, registry: &[IoBinding]) -> bool {
 /// allowed — the chain simply builds no segment).
 pub fn checklist_silences(chain: &Chain, registry: &[IoBinding]) -> bool {
     inputs_all_unchecked(chain, registry) || outputs_all_unchecked(chain, registry)
-}
-
-/// Whether the chain's one split (Part 1 `find_split`) ends in Y → A/B.
-fn has_y_split(chain: &Chain) -> bool {
-    find_split(&chain.blocks).is_some_and(|(_, split)| split.end == SplitEnd::Y)
 }
 
 fn has_enabled_block(chain: &Chain, is_port: fn(&AudioBlockKind) -> bool) -> bool {

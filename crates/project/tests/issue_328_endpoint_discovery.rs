@@ -124,6 +124,28 @@ fn a_y_output_lives_while_either_path_keeps_it() {
 }
 
 #[test]
+fn a_mix_then_a_y_output_lives_while_either_y_path_keeps_it() {
+    let mut mix = split(SplitEnd::Mix);
+    mix.id = BlockId("mix".into());
+    let mut y = split(SplitEnd::Y);
+    y.id = BlockId("y".into());
+    let c = chain(
+        vec![mix, y],
+        &[
+            (EndpointNode::PathAOutput, "out L"),
+            (EndpointNode::PathBOutput, "out L"),
+            (EndpointNode::PathBOutput, "out R"),
+            (EndpointNode::Output, "out R"),
+        ],
+    );
+    assert_eq!(
+        names(&c, PortDirection::Output),
+        vec!["out R"],
+        "the Y after the Mix ends the chain: path A || path B, not the chain output node"
+    );
+}
+
+#[test]
 fn unchecking_every_input_leaves_the_chain_without_inputs() {
     let c = chain(
         vec![],

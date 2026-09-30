@@ -190,6 +190,41 @@ fn a_y_output_both_paths_uncheck_is_off() {
     );
 }
 
+/// `[Mix, Y]`: the chain ends in the Y, so its path nodes send, not the
+/// chain output node.
+fn mix_then_y() -> Vec<AudioBlock> {
+    let mut mix = split(SplitEnd::Mix);
+    mix.id = BlockId("mix".into());
+    let mut y = split(SplitEnd::Y);
+    y.id = BlockId("y".into());
+    vec![mix, y]
+}
+
+#[test]
+fn a_mix_then_a_y_sends_each_output_from_the_y_paths() {
+    let fed = chain(
+        mix_then_y(),
+        disables(&[], &["out-1", "out-2"], &["out-2"], &["out-1"]),
+    );
+    assert_eq!(
+        tail_feed(&fed, "main", "out-1"),
+        TailFeed::Paths { a: true, b: false },
+        "#328: the Y is found even when a Mix comes first"
+    );
+    assert_eq!(
+        tail_feed(&fed, "main", "out-2"),
+        TailFeed::Paths { a: false, b: true }
+    );
+    let silent = chain(
+        mix_then_y(),
+        disables(&[], &[], &["out-1", "out-2"], &["out-1", "out-2"]),
+    );
+    assert!(
+        outputs_all_unchecked(&silent, &registry()),
+        "#328: judged on the Y path lists, not the chain output list"
+    );
+}
+
 #[test]
 fn a_reference_the_bindings_no_longer_have_is_ignored() {
     let chain = chain(vec![], disables(&["gone"], &["gone"], &[], &[]));

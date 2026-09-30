@@ -1,13 +1,15 @@
-//! #328 — the structural rules of a chain split (spec §1.1): at most one split
-//! per chain, a path holds processing blocks only (no split, select or port,
-//! so nesting stays one level deep), and a Y split ends the chain.
+//! #328 — the structural rules of a chain split (spec §1.1): at most one Mix
+//! split and one Y split per chain, the Y last (so a Mix comes before it), a
+//! path holds processing blocks only (no split, select or port, so nesting
+//! stays one level deep).
 
 use std::collections::BTreeMap;
 
 use domain::ids::BlockId;
 use project::block::{
-    find_split, schema_for_block_model, validate_split_layout, AudioBlock, AudioBlockKind,
-    CoreBlock, InputBlock, InsertBlock, OutputBlock, SelectBlock, SplitBlock, SplitEnd,
+    find_split, find_split_with_end, has_y_split, schema_for_block_model, splits,
+    validate_split_layout, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock,
+    OutputBlock, SelectBlock, SplitBlock, SplitEnd,
 };
 use project::param::ParameterSet;
 use project::rig::{RigInput, RigPreset, RigProject};
@@ -207,6 +209,24 @@ fn find_split_reports_the_split_and_where_it_sits() {
 }
 
 #[test]
+fn the_split_lookups_see_every_split() {
+    let blocks = vec![
+        delay("drive"),
+        split("mix", SplitEnd::Mix, vec![delay("amp1")]),
+        delay("delay"),
+        split("y", SplitEnd::Y, vec![delay("cab")]),
+    ];
+    let found: Vec<(usize, SplitEnd)> = splits(&blocks).map(|(p, s)| (p, s.end)).collect();
+    assert_eq!(found, vec![(1, SplitEnd::Mix), (3, SplitEnd::Y)]);
+    let (position, y) = find_split_with_end(&blocks, SplitEnd::Y).expect("the Y split");
+    assert_eq!(position, 3);
+    assert_eq!(y.a[0].id.0, "cab");
+    assert!(has_y_split(&blocks), "the Y sits behind a Mix");
+    assert!(!has_y_split(&blocks[..3]), "a Mix alone is not a Y");
+    assert!(find_split_with_end(&blocks[..3], SplitEnd::Y).is_none());
+}
+
+#[test]
 fn a_select_option_cannot_be_a_split() {
     let select = SelectBlock {
         selected_block_id: BlockId("s".into()),
@@ -241,4 +261,102 @@ fn a_rig_refuses_a_preset_that_breaks_the_split_rules() {
     ])
     .validate()
     .is_ok());
+}
+
+#[test]
+fn a_mix_then_a_y_is_accepted() {
+    assert!(
+        validate_split_layout(&[
+            delay("drive"),
+            split("mix", SplitEnd::Mix, vec![delay("amp1")]),
+            delay("delay"),
+            split("y", SplitEnd::Y, vec![delay("cab")]),
+            output_port("tail"),
+        ])
+        .is_ok(),
+        "one Mix, then blocks, then the Y last"
+    );
+}
+
+#[test]
+fn a_block_after_the_y_is_refused_when_a_mix_comes_first() {
+    let err = validate_split_layout(&[
+        split("mix", SplitEnd::Mix, vec![]),
+        split("y", SplitEnd::Y, vec![]),
+        delay("reverb"),
+    ])
+    .expect_err("a block after the Y split");
+    assert!(
+        err.contains("Y split") && err.contains("reverb"),
+        "the Y is judged from its own position, got: {err}"
+    );
+}
+
+#[test]
+fn a_y_before_a_mix_is_refused() {
+    let err = validate_split_layout(&[
+        split("y", SplitEnd::Y, vec![]),
+        split("mix", SplitEnd::Mix, vec![]),
+    ])
+    .expect_err("a Mix after the Y split");
+    assert!(
+        err.contains("Y split") && err.contains("mix"),
+        "the Mix follows the Y, got: {err}"
+    );
+}
+
+#[test]
+fn a_chain_holds_at_most_one_mix_and_one_y() {
+    for (blocks, what) in [
+        (
+            vec![
+                split("m1", SplitEnd::Mix, vec![]),
+                split("m2", SplitEnd::Mix, vec![]),
+                split("y", SplitEnd::Y, vec![]),
+            ],
+            "two Mix",
+        ),
+        (
+            vec![
+                split("m", SplitEnd::Mix, vec![]),
+                split("y1", SplitEnd::Y, vec![]),
+                split("y2", SplitEnd::Y, vec![]),
+            ],
+            "two Y",
+        ),
+    ] {
+        let err = validate_split_layout(&blocks).expect_err(what);
+        assert!(err.contains("at most one split"), "{what}, got: {err}");
+    }
+}
+
+#[test]
+fn a_rig_accepts_a_mix_then_a_y() {
+    assert!(rig(vec![
+        split("mix", SplitEnd::Mix, vec![delay("amp1")]),
+        delay("delay"),
+        split("y", SplitEnd::Y, vec![delay("cab")]),
+    ])
+    .validate()
+    .is_ok());
+}
+
+#[test]
+fn a_rig_refuses_a_port_or_select_in_the_y_path_behind_a_mix() {
+    for (bad, label) in [
+        (input_port("in"), "input"),
+        (output_port("out"), "output"),
+        (select("sel"), "select"),
+    ] {
+        let err = rig(vec![
+            split("mix", SplitEnd::Mix, vec![delay("amp1")]),
+            split("y", SplitEnd::Y, vec![bad]),
+        ])
+        .validate()
+        .expect_err("a forbidden block in the Y path");
+        assert!(
+            err.contains("preset 'p'") && err.contains(&format!("is a {label} block")),
+            "every split's paths are checked ({label}), got: {err}"
+        );
+    }
 }

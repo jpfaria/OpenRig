@@ -26,11 +26,11 @@ pub struct EndpointRef {
 pub enum EndpointNode {
     /// The chain's input node.
     Input,
-    /// The chain's output node (linear chains and Split → Mix).
+    /// The chain's output node (chains without a Y split).
     Output,
-    /// Y → A/B: path A's output node.
+    /// Path A's output node of the chain's Y split.
     PathAOutput,
-    /// Y → A/B: path B's output node.
+    /// Path B's output node of the chain's Y split.
     PathBOutput,
 }
 

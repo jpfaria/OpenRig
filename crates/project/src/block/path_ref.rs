@@ -1,7 +1,9 @@
-//! Responsibility: addresses one path of a chain's split.
+//! Responsibility: addresses one path of one of a chain's splits.
 //!
 //! #328 (spec §3): the commands that add, insert or move a block take an
-//! optional `PathRef`; `None` means the chain's top-level block list.
+//! optional `PathRef`; `None` means the chain's top-level block list. The
+//! split is named by its block id, so the address stays unambiguous when a
+//! chain holds a Mix split and a Y split.
 
 use domain::ids::BlockId;
 use serde::{Deserialize, Serialize};

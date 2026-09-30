@@ -12,7 +12,7 @@
 
 use domain::io_binding::{IoBinding, IoEndpoint};
 
-use crate::block::{find_split, AudioBlockKind, SplitEnd};
+use crate::block::{has_y_split, AudioBlockKind};
 use crate::chain::Chain;
 use crate::endpoint_disables::EndpointNode;
 
@@ -60,7 +60,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
     let find = |id: &str| registry.iter().find(|b| b.id == id);
     let tail = chain.blocks.len();
     let disabled = &chain.disabled_endpoints;
-    let y_split = find_split(&chain.blocks).is_some_and(|(_, split)| split.end == SplitEnd::Y);
+    let y_split = has_y_split(&chain.blocks);
     let mut ports = Vec::new();
 
     // Head inputs + tail outputs come from the bindings the chain selects.
