@@ -49,6 +49,10 @@ msgstr "LAT"
 msgid "looper-button-label"
 msgstr "循环器"
 
+#: crates/adapter-gui/ui/components/chain_meters_button.slint:38
+msgid "label-meters"
+msgstr "输入 / 输出"
+
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:78
 msgid "Scene {}"
 msgstr ""
@@ -102,35 +106,35 @@ msgstr ""
 msgid "label-channels-total"
 msgstr "{} 个通道"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:55
 msgid "label-mixer-no-inputs"
 msgstr "无输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-outputs"
 msgstr "无输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-loopers"
 msgstr "无循环器"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "label-mixer"
 msgstr "调音台"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-in"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-out"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-looper"
 msgstr "循环器"
 
@@ -636,10 +640,6 @@ msgstr "端点"
 msgid "msg-pick-io-endpoint"
 msgstr "选择 I/O 和端点"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:188
-msgid "label-meters"
-msgstr "输入 / 输出"
-
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "输入"
@@ -648,15 +648,15 @@ msgstr "输入"
 msgid "label-output"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:170
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:181
 msgid "tooltip-expand-blocks"
 msgstr "展开块"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:178
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:189
 msgid "tooltip-measure-latency"
 msgstr "测量延迟（发出哔声）"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "配置"
 

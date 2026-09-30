@@ -48,6 +48,9 @@ fn collapsed(inputs: Vec<MixerStripRow>, outputs: Vec<MixerStripRow>) -> Compact
     chain.set_di(model(vec![row("di", false)]));
     chain.set_loopers(model(vec![row("looper:7", false), row("looper:9", false)]));
     chain.set_master(model(vec![row("master", false)]));
+    // A running chain with its DI loop playing shows every tab.
+    w.set_chain_enabled(true);
+    w.set_di_loop_playing(true);
     w.show().unwrap();
     w
 }
@@ -236,23 +239,71 @@ fn master_is_the_first_fader_of_the_out_tab() {
     assert_eq!(*hits.borrow(), vec!["master".to_string()]);
 }
 
-/// The IN / OUT meter section's header, at the foot of the compact view.
-fn meters_toggle(w: &CompactChainViewWindow) -> ElementHandle {
-    ElementHandle::find_by_element_id(w, "CompactChainViewPage::meters-toggle")
+/// The IN / OUT meters button in the compact view's header.
+fn meters_button(w: &CompactChainViewWindow) -> Option<ElementHandle> {
+    ElementHandle::find_by_element_id(w, "ChainMetersButton::ta").next()
+}
+
+/// Where the mixer section starts: it sits right above the meter rows.
+fn mixer_top(w: &CompactChainViewWindow) -> f32 {
+    ElementHandle::find_by_element_id(w, "CompactChainMixer::mixer-toggle")
         .next()
-        .expect("meters toggle not found")
+        .expect("mixer toggle not found")
+        .absolute_position()
+        .y
 }
 
 #[test]
-fn the_meters_open_collapsed_and_their_header_expands_them() {
+fn the_meters_open_hidden_and_the_header_icon_shows_them() {
     let w = collapsed(vec![row("in:0@d", true)], vec![]);
-    let closed = meters_toggle(&w).absolute_position().y;
-    click_at(&w, &meters_toggle(&w));
-    let open = meters_toggle(&w).absolute_position().y;
+    let hidden = mixer_top(&w);
+    click_at(&w, &meters_button(&w).expect("meters button not found"));
+    let shown = mixer_top(&w);
     assert!(
-        open < closed,
-        "the meter rows must push the header up: {open} vs {closed}"
+        shown < hidden,
+        "the meter rows must push the mixer up: {shown} vs {hidden}"
     );
-    click_at(&w, &meters_toggle(&w));
-    assert_eq!(meters_toggle(&w).absolute_position().y, closed);
+    click_at(&w, &meters_button(&w).unwrap());
+    assert_eq!(mixer_top(&w), hidden);
+}
+
+#[test]
+fn a_stopped_chain_has_no_meters_button() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    w.set_chain_enabled(false);
+    assert!(meters_button(&w).is_none());
+}
+
+#[test]
+fn a_chain_without_a_playing_di_or_a_looper_shows_only_in_and_out() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    w.set_di_loop_playing(false);
+    ChainMixerBridge::get(&w).set_loopers(model(vec![]));
+    toggle(&w);
+    assert_eq!(tabs(&w).len(), 2);
+}
+
+#[test]
+fn without_a_playing_di_the_third_tab_is_the_looper() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    w.set_di_loop_playing(false);
+    toggle(&w);
+    assert_eq!(tabs(&w).len(), 3);
+    open_tab(&w, 2);
+    assert_eq!(visible(&w, "MixerStripView::fader-ta").len(), 2);
+}
+
+#[test]
+fn without_loopers_the_di_tab_stays() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    ChainMixerBridge::get(&w).set_loopers(model(vec![]));
+    toggle(&w);
+    assert_eq!(tabs(&w).len(), 3);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_single_fader_moved(move |id, _| h.borrow_mut().push(id.to_string()));
+    open_tab(&w, DI_TAB);
+    click_at(&w, &visible(&w, "MixerStripView::fader-ta")[0]);
+    assert_eq!(*hits.borrow(), vec!["di".to_string()]);
 }

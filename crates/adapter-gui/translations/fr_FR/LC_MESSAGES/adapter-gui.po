@@ -49,6 +49,10 @@ msgstr "LAT"
 msgid "looper-button-label"
 msgstr "Looper"
 
+#: crates/adapter-gui/ui/components/chain_meters_button.slint:38
+msgid "label-meters"
+msgstr "ENTRÉE / SORTIE"
+
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:78
 msgid "Scene {}"
 msgstr ""
@@ -102,35 +106,35 @@ msgstr ""
 msgid "label-channels-total"
 msgstr "{} canaux"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:55
 msgid "label-mixer-no-inputs"
 msgstr "Aucune entrée"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-outputs"
 msgstr "Aucune sortie"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-loopers"
 msgstr "Aucun looper"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "label-mixer"
 msgstr "MIXAGE"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-in"
 msgstr "ENTRÉE"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-out"
 msgstr "SORTIE"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-looper"
 msgstr "LOOPER"
 
@@ -639,10 +643,6 @@ msgstr "Point"
 msgid "msg-pick-io-endpoint"
 msgstr "Choisissez une E/S et un point"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:188
-msgid "label-meters"
-msgstr "ENTRÉE / SORTIE"
-
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "Entrée"
@@ -651,15 +651,15 @@ msgstr "Entrée"
 msgid "label-output"
 msgstr "Sortie"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:170
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:181
 msgid "tooltip-expand-blocks"
 msgstr "Développer les blocs"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:178
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:189
 msgid "tooltip-measure-latency"
 msgstr "Mesurer la latence (émet un bip)"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "Configurer"
 

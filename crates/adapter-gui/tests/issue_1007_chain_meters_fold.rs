@@ -1,7 +1,8 @@
 //! #1007 — HEADLESS proof that a chain card's IN / OUT meter section opens
-//! collapsed and that its header expands it: instantiate the real
-//! `ProjectChainsPage` (through `ProjectChainsHarness`), click the card's
-//! meters header and read the flag back from the row model the page writes.
+//! hidden and that the header's meters icon shows it, only on a running
+//! chain: instantiate the real `ProjectChainsPage` (through
+//! `ProjectChainsHarness`), click the icon and read the flag back from the
+//! row model the page writes.
 
 use adapter_gui::{ProjectChainItem, ProjectChainsHarness};
 use i_slint_backend_testing::ElementHandle;
@@ -9,11 +10,12 @@ use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, Model, ModelRc, VecModel};
 use std::rc::Rc;
 
-fn page() -> (ProjectChainsHarness, Rc<VecModel<ProjectChainItem>>) {
+fn page(enabled: bool) -> (ProjectChainsHarness, Rc<VecModel<ProjectChainItem>>) {
     i_slint_backend_testing::init_no_event_loop();
     let w = ProjectChainsHarness::new().unwrap();
     let chains = Rc::new(VecModel::from(vec![ProjectChainItem {
         title: "Guitar".into(),
+        enabled,
         ..Default::default()
     }]));
     w.set_chains(ModelRc::from(chains.clone()));
@@ -21,10 +23,8 @@ fn page() -> (ProjectChainsHarness, Rc<VecModel<ProjectChainItem>>) {
     (w, chains)
 }
 
-fn meters_toggle(w: &ProjectChainsHarness) -> ElementHandle {
-    ElementHandle::find_by_element_id(w, "ChainRow::meters-toggle")
-        .next()
-        .expect("meters toggle not found")
+fn meters_button(w: &ProjectChainsHarness) -> Option<ElementHandle> {
+    ElementHandle::find_by_element_id(w, "ChainMetersButton::ta").next()
 }
 
 fn click(w: &ProjectChainsHarness, el: &ElementHandle) {
@@ -49,15 +49,21 @@ fn expanded(chains: &VecModel<ProjectChainItem>) -> bool {
 
 #[test]
 fn a_chain_card_opens_with_its_meters_collapsed() {
-    let (_w, chains) = page();
+    let (_w, chains) = page(true);
     assert!(!expanded(&chains));
 }
 
 #[test]
-fn the_meters_header_expands_the_card_and_collapses_it_again() {
-    let (w, chains) = page();
-    click(&w, &meters_toggle(&w));
+fn a_stopped_chain_has_no_meters_button() {
+    let (w, _chains) = page(false);
+    assert!(meters_button(&w).is_none());
+}
+
+#[test]
+fn the_meters_icon_shows_the_bars_and_hides_them_again() {
+    let (w, chains) = page(true);
+    click(&w, &meters_button(&w).expect("meters button not found"));
     assert!(expanded(&chains));
-    click(&w, &meters_toggle(&w));
+    click(&w, &meters_button(&w).unwrap());
     assert!(!expanded(&chains));
 }
