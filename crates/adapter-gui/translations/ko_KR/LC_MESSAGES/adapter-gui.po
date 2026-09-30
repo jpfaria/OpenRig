@@ -970,3 +970,12 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "v{}(으)로 업데이트"
+
+msgid "accessible-graph-view"
+msgstr "신호 체인 그래프"
+
+msgid "graph-node-split"
+msgstr "스플릿"
+
+msgid "graph-node-mixer"
+msgstr "믹서"

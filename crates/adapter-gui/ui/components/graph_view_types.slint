@@ -3,6 +3,8 @@
 // node type without importing the canvas that imports the card — Slint
 // rejects cyclic imports.
 
+import { ChainBlockItem } from "../models.slint";
+
 export struct GraphNode {
     // Stable identifier — unique within the graph. Must match what the
     // host gave when computing the layout.
@@ -23,6 +25,19 @@ export struct GraphNode {
     // Visual state.
     bypass: bool,
     selected: bool,
+    // #328 §5.2: what the node IS — "block" | "io_input" | "io_output" |
+    // "split" | "mixer" (graph_view_model::NodeKind::as_str). The kind picks
+    // the card face; it replaced the `label == "" && category == "util"`
+    // routing-dot convention.
+    kind: string,
+    // #591 parity with BlockChip: the block the footswitch's neighbor toggle
+    // would act on (outlined lightly while MIDI markers show).
+    neighbor: bool,
+    // #328 parity with BlockChip: the block's own row item — type label,
+    // icon or thumbnail, accent, unavailable flag and the tooltip data. The
+    // host passes the same ChainBlockItem the chain row renders; empty for
+    // the other kinds. The LED follows `bypass`, never `block.enabled`.
+    block: ChainBlockItem,
 }
 
 export struct GraphEdge {

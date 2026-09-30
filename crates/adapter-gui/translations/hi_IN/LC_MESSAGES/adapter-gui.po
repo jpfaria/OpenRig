@@ -968,3 +968,12 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "v{} पर अपडेट करें"
+
+msgid "accessible-graph-view"
+msgstr "सिग्नल चेन ग्राफ़"
+
+msgid "graph-node-split"
+msgstr "स्प्लिट"
+
+msgid "graph-node-mixer"
+msgstr "मिक्सर"

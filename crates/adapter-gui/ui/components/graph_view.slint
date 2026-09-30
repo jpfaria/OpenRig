@@ -1,7 +1,7 @@
 // Responsibility: renders a node canvas.
-// GraphView — generic node-and-edge canvas with pan, zoom and per-node
-// drag. Knows nothing about signal-chain semantics; the host computes
-// positions and visual categories, this component just renders them.
+// GraphView — node-and-edge canvas with pan, zoom and per-node drag
+// (#435), grown into the chain editor's canvas (#328). The host computes
+// positions and node kinds; this component renders them.
 //
 // Coordinate system:
 //
@@ -28,9 +28,10 @@ export component GraphView inherits Rectangle {
     in-out property <length> pan_x: 0px;
     in-out property <length> pan_y: 0px;
 
-    // Visual constants — overridable by the host.
-    in property <length> node_width: 96px;
-    in property <length> node_height: 56px;
+    // Visual constants — overridable by the host. 100×100 is the chain
+    // row's BlockChip, the tile a block card keeps parity with (#328).
+    in property <length> node_width: 100px;
+    in property <length> node_height: 100px;
     in property <color> background_color: #11141a;
     in property <color> grid_color: #1a1f2a;
     in property <bool> show_grid: true;
@@ -85,7 +86,7 @@ export component GraphView inherits Rectangle {
     clip: true;
 
     accessible-role: list;
-    accessible-label: "Signal chain graph";
+    accessible-label: @tr("accessible-graph-view");
 
     // ── Pan / zoom on empty area ───────────────────────────────────
     // Declared FIRST so that node TouchAreas (later siblings) sit on
@@ -188,41 +189,20 @@ export component GraphView inherits Rectangle {
         stroke_thickness: 2px * root.zoom;
     }
 
-    // ── Routing dots for util nodes with no label ─────────────────
-    //
-    // Split/merge are real graph nodes (wires connect through them),
-    // but visually they are just routing points — a small dot, not a
-    // full card. Drawn here so they sit between wires and full cards.
+    // ── Nodes ──────────────────────────────────────────────────────
+    // Every node is a card, whatever its kind (#328 §5.2). The split and
+    // the mixer used to be 8px routing dots picked by an empty label,
+    // with a zero-size TouchArea — they could not be clicked. Position is
+    // the card centre at (layout * zoom + pan), shifted by half the card
+    // size so it lands geometrically centred.
     for node[idx] in root.nodes : Rectangle {
-        x: root.pan_x + node.layout_x * root.zoom - self.width / 2;
-        y: root.pan_y + node.layout_y * root.zoom - self.height / 2;
-        width: node.label == "" && node.category == "util"
-            ? 8px * root.zoom
-            : 0px;
-        height: self.width;
-        border-radius: self.width / 2;
-        background: node.label == "" && node.category == "util"
-            ? #8aaac8
-            : transparent;
-    }
-
-    // ── Nodes (full cards for labeled blocks) ─────────────────────
-    //
-    // Position is the card centre at (layout * zoom + pan), shifted
-    // by half the card size so it lands geometrically centred. The
-    // routing dots above skip rendering for util-with-empty-label;
-    // here we skip those entirely so the card doesn't draw on top of
-    // a routing dot.
-    for node[idx] in root.nodes : Rectangle {
-        property <bool> is-routing: node.label == "" && node.category == "util";
         property <length> w: root.node_width * root.zoom;
         property <length> h: root.node_height * root.zoom;
 
         x: root.pan_x + node.layout_x * root.zoom - self.w / 2;
         y: root.pan_y + node.layout_y * root.zoom - self.h / 2;
-        width: self.is-routing ? 0px : self.w;
-        height: self.is-routing ? 0px : self.h;
-        visible: !self.is-routing;
+        width: self.w;
+        height: self.h;
 
         GraphNodeCard {
             x: 0px;
@@ -234,7 +214,7 @@ export component GraphView inherits Rectangle {
             dragging: root.drag_id == node.id;
         }
 
-        TouchArea {
+        node-ta := TouchArea {
             x: 0px;
             y: 0px;
             width: parent.width;

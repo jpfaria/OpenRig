@@ -49,3 +49,47 @@ fn block_chip_paints_its_states_from_block_tile_style() {
         );
     }
 }
+
+/// Spec §5.2: the kind drives the card, not `label == ""`.
+#[test]
+fn the_graph_view_no_longer_picks_routing_dots_by_an_empty_label() {
+    for file in ["graph_view.slint", "graph_node_card.slint"] {
+        assert!(
+            !read_component(file).contains("label == \"\""),
+            "{file} still derives a node's face from an empty label; the face comes \
+             from `node.kind` (#328 §5.2)"
+        );
+    }
+}
+
+/// Spec §5.2: the accessible label uses @tr.
+#[test]
+fn the_graph_views_accessible_labels_go_through_tr() {
+    for file in ["graph_view.slint", "graph_node_card.slint"] {
+        assert!(
+            !read_component(file).contains("accessible-label: \""),
+            "{file} has a raw accessible-label literal; use @tr (#328 §5.2)"
+        );
+    }
+}
+
+/// Spec §5.2: the split and mixer cards draw routing artwork with no text
+/// baked into the SVG. The card prints the translated name; SVG text would
+/// stay English, and it needs a font the Orange Pi may not have.
+#[test]
+fn the_routing_cards_draw_artwork_without_baked_in_text() {
+    let card = read_component("graph_node_card.slint");
+    let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/assets");
+    for name in ["graph-split.svg", "graph-mix.svg"] {
+        assert!(
+            card.contains(name),
+            "graph_node_card.slint must draw the split and mixer art from {name}"
+        );
+        let svg = std::fs::read_to_string(assets.join(name))
+            .unwrap_or_else(|e| panic!("read {name}: {e}"));
+        assert!(
+            !svg.contains("<text"),
+            "{name} bakes text into the artwork; the card prints the translated name"
+        );
+    }
+}

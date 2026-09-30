@@ -967,3 +967,12 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "更新到 v{}"
+
+msgid "accessible-graph-view"
+msgstr "信号链图"
+
+msgid "graph-node-split"
+msgstr "分路"
+
+msgid "graph-node-mixer"
+msgstr "混音器"

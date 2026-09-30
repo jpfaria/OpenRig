@@ -965,3 +965,12 @@ msgstr ""
 
 msgid "btn-update-to {}"
 msgstr ""
+
+msgid "accessible-graph-view"
+msgstr ""
+
+msgid "graph-node-split"
+msgstr ""
+
+msgid "graph-node-mixer"
+msgstr ""

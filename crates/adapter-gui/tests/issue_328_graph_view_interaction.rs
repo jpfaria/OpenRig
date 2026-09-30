@@ -183,3 +183,43 @@ fn cmd_or_ctrl_wheel_zooms_the_graph_and_leaves_the_list_still() {
         "a zoom gesture must not also scroll the list"
     );
 }
+
+fn typed(id: &str, kind: &str, label: &str, x: f32, y: f32) -> GraphNode {
+    let routing = kind == "split" || kind == "mixer";
+    GraphNode {
+        kind: kind.into(),
+        category: if routing { "util" } else { "drive" }.into(),
+        ..node(id, label, x, y)
+    }
+}
+
+/// in → split → amp → mixer → out: one card per kind, the way
+/// graph_view_model emits them (routing nodes: empty label, "util").
+fn one_of_each_kind() -> Vec<GraphNode> {
+    vec![
+        typed("in", "io_input", "In 1", 80.0, 200.0),
+        typed("__split_1", "split", "", 240.0, 200.0),
+        typed("amp", "block", "Amp", 400.0, 200.0),
+        typed("__merge_1", "mixer", "", 560.0, 200.0),
+        typed("out", "io_output", "Out 1", 720.0, 200.0),
+    ]
+}
+
+#[test]
+fn every_node_kind_is_a_clickable_card() {
+    let nodes = one_of_each_kind();
+    let w = harness(nodes.clone());
+    let clicked = recorder::<String>();
+    let c = clicked.clone();
+    w.on_node_clicked(move |id| c.borrow_mut().push(id.to_string()));
+
+    for n in &nodes {
+        click_at(&w, at(n.layout_x, n.layout_y));
+    }
+
+    assert_eq!(
+        *clicked.borrow(),
+        ["in", "__split_1", "amp", "__merge_1", "out"],
+        "the split and the mixer must be clickable cards, not 8px routing dots (#328 §5.2)"
+    );
+}

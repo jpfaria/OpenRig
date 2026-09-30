@@ -56,12 +56,17 @@ The host **never** computes viewport coords — only emits layout coords. The co
 ```slint
 struct GraphNode {
     id: string;
-    label: string;
-    category: string;     // "drive", "amp", "reverb", "util", ...
+    label: string;          // endpoint names on I/O cards; empty on split/mixer
+    category: string;       // "drive", "amp", "reverb", "util", ...
+    fill: color;            // host-resolved from default_palette()
+    border: color;
     layout_x: length;
     layout_y: length;
     bypass: bool;
     selected: bool;
+    kind: string;           // "block" | "io_input" | "io_output" | "split" | "mixer"
+    neighbor: bool;         // MIDI neighbor marker (parity with BlockChip)
+    block: ChainBlockItem;  // the chain row's item for a block card; empty otherwise
 }
 
 struct GraphEdgeGeometry {
@@ -76,6 +81,10 @@ struct GraphEdgeGeometry {
 
 `GraphEdgeGeometry` is the resolved form of an edge — coordinates are already looked up from the node list so Slint doesn't search per frame.
 
+### Node kinds
+
+`kind` picks the card face (#328): `block` — the block tile; `io_input` / `io_output` — connector artwork over the endpoint names (`label`); `split` / `mixer` — routing artwork (`ui/assets/graph-split.svg` / `graph-mix.svg`, text-free and colorized) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
+
 ### Properties
 
 | Property | Direction | Type | Default | Purpose |
@@ -84,7 +93,7 @@ struct GraphEdgeGeometry {
 | `edges` | `in` | `[GraphEdgeGeometry]` | — | resolved edges to render |
 | `zoom` | `in-out` | `float` | `1.0` | viewport scale, clamped to `[min_zoom, max_zoom]` |
 | `pan_x`, `pan_y` | `in-out` | `length` | `0px` | viewport offset |
-| `node_width`, `node_height` | `in` | `length` | `96px` × `56px` | per-node card size in layout space |
+| `node_width`, `node_height` | `in` | `length` | `100px` × `100px` | per-node card size in layout space — the chain row's BlockChip size |
 | `background_color` | `in` | `color` | `#11141a` | canvas background |
 | `grid_color` | `in` | `color` | `#1a1f2a` | grid hint colour |
 | `show_grid` | `in` | `bool` | `true` | render origin-cross grid hint |
@@ -124,12 +133,7 @@ The host receives layout-space coords. To persist a moved node, write them back 
 
 ## Category → colour mapping
 
-Centralised in the Slint `CategoryPalette` component (single source of truth). Adding a new category:
-
-1. Add a variant to `NodeCategory` and its `as_str()` slug.
-2. Add one ternary arm in `CategoryPalette` in `graph_view.slint`.
-
-No other file touches. This is the **only authorised** brand-of-conditional in this component (an exception explicit in `slint-best-practices`: Slint cannot select assets/colours via runtime strings without a ternary chain).
+The component owns no colours. The host resolves each node's `fill`/`border` from `default_palette()` (Rust, `graph_view_model/palette.rs`, the single source of truth) and writes them onto the node; they paint the I/O, split and mixer cards. Adding a category is one `NodeCategory` variant, its `as_str()` slug and one palette entry.
 
 ## Interactivity contract
 

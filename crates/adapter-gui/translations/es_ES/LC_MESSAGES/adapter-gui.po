@@ -972,3 +972,12 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "Actualizar a v{}"
+
+msgid "accessible-graph-view"
+msgstr "Grafo de la cadena de señal"
+
+msgid "graph-node-split"
+msgstr "Split"
+
+msgid "graph-node-mixer"
+msgstr "Mixer"

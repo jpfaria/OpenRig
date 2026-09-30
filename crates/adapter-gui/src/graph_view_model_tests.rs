@@ -340,12 +340,9 @@ mod linear_layout_parallel_stage {
         );
     }
 
-    // GraphView.slint relies on this convention to render split/merge as
-    // a small routing dot instead of a full block card. If the layout
-    // helper starts emitting labels or a non-Util category for split or
-    // merge, the Slint side will draw empty grey rectangles where the
-    // wires meet — exactly the regression we hit before this test
-    // landed.
+    // The routing nodes carry no host label and the Util category: since
+    // #328 the Slint card picks their face from `kind` and translates
+    // their name itself, so a host label here would never be shown.
     #[test]
     fn split_and_merge_use_routing_node_convention() {
         let stages = [ChainStage::Parallel {

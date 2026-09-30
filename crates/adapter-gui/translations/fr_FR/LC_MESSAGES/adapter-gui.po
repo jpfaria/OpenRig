@@ -973,3 +973,12 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "Mettre à jour vers v{}"
+
+msgid "accessible-graph-view"
+msgstr "Graphe de la chaîne de signal"
+
+msgid "graph-node-split"
+msgstr "Split"
+
+msgid "graph-node-mixer"
+msgstr "Mixer"
