@@ -1,26 +1,48 @@
-// Responsibility: renders one chain's own global-mixer strips inside the compact view.
-// #1007 — the host window's `MixerBridge` holds ONLY the strips that chain
-// plays through (its I/O bindings); inputs come first, then a divider, then
-// outputs. Same strip component and bridge as the Mixer window, so a move
-// here is the same command and shows there too.
+// Responsibility: renders one chain's mixer inside the compact view.
+// #1007 — tabs IN | OUT | DI | LOOPER | MASTER. IN and OUT show one dual
+// strip per endpoint the chain plays through: the endpoint's GLOBAL fader
+// (`MixerBridge`, the same one the Mixer window moves) beside this chain's
+// own fader on it (`ChainMixerBridge`). DI, LOOPER and MASTER are single
+// faders of this chain only (MASTER is the chain volume). The section opens
+// collapsed every time: only its header shows until it is expanded.
 
 import { ScrollView } from "std-widgets.slint";
-import { MixerBridge } from "mixer_globals.slint";
-import { MixerSection } from "mixer_section.slint";
+import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
+import { ChainMixerBridge } from "chain_mixer_globals.slint";
+import { DualMixerStripView } from "dual_mixer_strip.slint";
+import { MixerStripView } from "mixer_strip.slint";
+import { ParamTabBar } from "param_tab_bar.slint";
+import { SectionToggle } from "section_toggle.slint";
 
 export component CompactChainMixer inherits Rectangle {
-    // Height the host reserves when the chain has strips.
-    out property <length> preferred-area-height: 340px;
-    out property <bool> has-strips: MixerBridge.inputs.length + MixerBridge.outputs.length > 0;
+    private property <bool> expanded: false;
+    private property <length> header-height: 36px;
+    // Height the host reserves for the mixer: just the header while collapsed.
+    out property <length> preferred-area-height: root.expanded ? 416px : root.header-height;
+    // Every chain has at least its MASTER fader.
+    out property <bool> has-strips: true;
 
-    private property <length> pitch: 120px;
-    private property <length> gap: 24px;
-    private property <length> inputs-width: MixerBridge.inputs.length * root.pitch;
-    private property <length> outputs-width: MixerBridge.outputs.length * root.pitch;
-    private property <length> divider-x:
-        root.inputs-width + (MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 ? root.gap / 2 : 0);
-    private property <length> outputs-x:
-        root.inputs-width + (MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 ? root.gap : 0);
+    // 0 IN, 1 OUT, 2 DI, 3 LOOPER, 4 MASTER.
+    private property <int> tab: 0;
+    private property <bool> dual-tab: root.tab < 2;
+    private property <[MixerStripRow]> no-rows: [];
+    private property <[MixerStripRow]> dual-rows:
+        root.tab == 0 ? MixerBridge.inputs : (root.tab == 1 ? MixerBridge.outputs : root.no-rows);
+    private property <[MixerStripRow]> chain-rows:
+        root.tab == 0 ? ChainMixerBridge.inputs : ChainMixerBridge.outputs;
+    private property <[MixerStripRow]> single-rows:
+        root.tab == 2 ? ChainMixerBridge.di
+        : (root.tab == 3 ? ChainMixerBridge.loopers
+        : (root.tab == 4 ? ChainMixerBridge.master : root.no-rows));
+    private property <int> count: root.dual-tab ? root.dual-rows.length : root.single-rows.length;
+    private property <length> dual-pitch: 188px;
+    private property <length> single-pitch: 120px;
+    private property <length> content-width:
+        root.count * (root.dual-tab ? root.dual-pitch : root.single-pitch);
+    private property <length> tabs-height: 34px;
+    private property <string> empty-text:
+        root.tab == 0 ? @tr("label-mixer-no-inputs")
+        : (root.tab == 1 ? @tr("label-mixer-no-outputs") : @tr("label-mixer-no-loopers"));
 
     background: #0c0e12;
 
@@ -30,31 +52,60 @@ export component CompactChainMixer inherits Rectangle {
         background: #1c2028;
     }
 
-    ScrollView {
-        x: 16px; y: 8px;
+    SectionToggle {
+        x: 0; y: 1px;
+        width: parent.width; height: root.header-height - 1px;
+        title: @tr("label-mixer");
+        expanded <=> root.expanded;
+    }
+
+    if root.expanded : ParamTabBar {
+        x: 16px; y: root.header-height + 6px;
+        width: parent.width - 32px; height: root.tabs-height;
+        groups: [
+            @tr("tab-mixer-in"),
+            @tr("tab-mixer-out"),
+            @tr("tab-mixer-di"),
+            @tr("tab-mixer-looper"),
+            @tr("tab-mixer-master"),
+        ];
+        active: root.tab;
+        select(i) => { root.tab = i; }
+    }
+
+    if root.expanded : ScrollView {
+        x: 16px; y: root.header-height + root.tabs-height + 14px;
         width: parent.width - 32px;
-        height: parent.height - 8px;
-        viewport-width: max(self.width, root.outputs-x + root.outputs-width);
+        height: parent.height - self.y;
+        viewport-width: max(self.width, root.content-width);
         viewport-height: self.height;
 
-        MixerSection {
-            x: 0; y: 0;
-            width: root.inputs-width;
+        for strip[i] in root.dual-rows : DualMixerStripView {
+            x: i * root.dual-pitch; y: 0;
             height: parent.height - 12px;
-            strips: MixerBridge.inputs;
+            global: strip;
+            chain: root.chain-rows[i];
         }
 
-        if MixerBridge.inputs.length > 0 && MixerBridge.outputs.length > 0 : Rectangle {
-            x: root.divider-x - 1px; y: 8px;
-            width: 1px; height: parent.height - 28px;
-            background: #2c323d;
-        }
-
-        MixerSection {
-            x: root.outputs-x; y: 0;
-            width: root.outputs-width;
+        for strip[i] in root.single-rows : MixerStripView {
+            x: i * root.single-pitch; y: 0;
             height: parent.height - 12px;
-            strips: MixerBridge.outputs;
+            strip: strip;
+            has-solo: false;
+            has-mute: false;
+            fader-moved(id, position) => { ChainMixerBridge.single-fader-moved(id, position); }
+            fader-reset(id) => { ChainMixerBridge.single-fader-reset(id); }
         }
+    }
+
+    if root.expanded && root.count == 0 : Text {
+        x: 16px; y: root.header-height + root.tabs-height + 14px;
+        width: parent.width - 32px; height: 60px;
+        text: root.empty-text;
+        color: #6f7a8a;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.0px;
+        vertical-alignment: center;
     }
 }

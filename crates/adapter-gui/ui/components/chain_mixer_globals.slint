@@ -1,0 +1,25 @@
+// Responsibility: carries one chain's own mixer faders for the compact view.
+// #1007 — the compact view's mixer pairs every global strip (on `MixerBridge`)
+// with the chain's OWN fader on that endpoint. `inputs` / `outputs` list the
+// chain rows in the same order as `MixerBridge.inputs` / `.outputs`; the
+// single faders (DI, one per looper, MASTER) have their own lists.
+
+import { MixerStripRow } from "mixer_globals.slint";
+
+export global ChainMixerBridge {
+    in-out property <[MixerStripRow]> inputs;
+    in-out property <[MixerStripRow]> outputs;
+    in-out property <[MixerStripRow]> di;
+    in-out property <[MixerStripRow]> loopers;
+    in-out property <[MixerStripRow]> master;
+
+    // ── Intent, routed by the wiring ──
+    // The chain's own fader on strip `id` moved to `position` (0..1).
+    callback chain-fader-moved(string, float);
+    // Double-click on it: back to unity.
+    callback chain-fader-reset(string);
+    callback chain-mute-toggled(string);
+    // A single fader (`di`, `master`, `looper:<uid>`) moved / was reset.
+    callback single-fader-moved(string, float);
+    callback single-fader-reset(string);
+}

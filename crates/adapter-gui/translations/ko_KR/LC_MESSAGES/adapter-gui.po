@@ -97,6 +97,38 @@ msgstr "선택됨:"
 msgid "label-channels-total"
 msgstr "채널 {}개"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+msgid "label-mixer-no-inputs"
+msgstr "입력 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-outputs"
+msgstr "출력 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-loopers"
+msgstr "루퍼 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+msgid "tab-mixer-in"
+msgstr "입력"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+msgid "tab-mixer-out"
+msgstr "출력"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+msgid "tab-mixer-looper"
+msgstr "루퍼"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "tab-mixer-master"
+msgstr "마스터"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "모델 검색..."
@@ -147,6 +179,10 @@ msgstr "제거"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "DI 출력"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "글로벌"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -343,11 +379,11 @@ msgstr "테이크를 저장할 수 없습니다"
 msgid "looper-take-needs-name"
 msgstr "테이크 이름을 입력하세요"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:145
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
 msgid "action-mixer-solo"
 msgstr "솔로"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:161
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
 msgid "action-mixer-mute"
 msgstr "음소거"
 

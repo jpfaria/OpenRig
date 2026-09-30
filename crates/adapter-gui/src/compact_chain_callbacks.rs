@@ -314,7 +314,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         );
 
         crate::compact_chain_header_wiring::start_header_poll(&window, &compact_win, ci);
-        crate::compact_mixer_wiring::wire(&compact_win, ci, &project_session);
+        crate::compact_mixer_wiring::wire(
+            &compact_win,
+            ci,
+            &project_session,
+            crate::compact_mixer_wiring::CompactMixerDirty {
+                main_window: window.as_weak(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+            },
+        );
 
         // Wire choose-block-type — when user picks a type from the compact view picker
         {

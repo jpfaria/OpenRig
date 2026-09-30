@@ -1,11 +1,11 @@
-// Responsibility: renders one global mixer strip.
+// Responsibility: renders one mixer fader strip.
 // #1007 — level readout, a vertical fader, SOLO and MUTE, and the strip's
 // label at the bottom (binding name + interface channels, like the scribble
 // strip under a console fader). The strip only reports intent: the fader
 // position it was dragged to, a double-click reset, a solo or mute press.
 
 import { MixerStripRow } from "mixer_globals.slint";
-import { Theme } from "../theme.slint";
+import { StripLabel } from "strip_label.slint";
 
 // A console button (SOLO / MUTE): lit in its colour while its state is on.
 component StripButton inherits Rectangle {
@@ -50,11 +50,18 @@ export component MixerStripView inherits Rectangle {
     callback fader-reset(string);
     callback mute-toggled(string);
     callback solo-toggled(string);
+    // The compact view's dual strip hosts two faders in one frame with one
+    // shared label; its single faders (DI, LOOPER, MASTER) have no buttons.
+    in property <bool> has-solo: true;
+    in property <bool> has-mute: true;
+    in property <bool> has-label: true;
+    in property <bool> framed: true;
+    in property <brush> face: #0c0f14;
 
     width: 112px;
     border-radius: 6px;
-    background: #0c0f14;
-    border-width: 1px;
+    background: root.face;
+    border-width: root.framed ? 1px : 0px;
     border-color: root.strip.soloed ? #b8962e : #1f2530;
 
     // Muted, or silenced by another strip's solo: the strip reads dim.
@@ -62,8 +69,8 @@ export component MixerStripView inherits Rectangle {
     private property <length> cap-height: 20px;
     private property <length> fader-top: 36px;
     // The one-line name + the channels line, then SOLO + MUTE above them.
-    private property <length> label-height: 66px;
-    private property <length> buttons-height: 66px;
+    private property <length> label-height: root.has-label ? 66px : 0px;
+    private property <length> buttons-height: root.has-solo ? 66px : (root.has-mute ? 30px : 0px);
     private property <length> fader-bottom: root.buttons-height + root.label-height + 16px;
 
     Text {
@@ -139,8 +146,8 @@ export component MixerStripView inherits Rectangle {
         accessible-value: root.strip.gain-label;
     }
 
-    solo-btn := StripButton {
-        x: 10px; y: parent.height - root.label-height - root.buttons-height - 8px;
+    if root.has-solo : solo-btn := StripButton {
+        x: 10px; y: parent.height - root.label-height - 74px;
         width: parent.width - 20px;
         label: @tr("action-mixer-solo");
         lit: root.strip.soloed;
@@ -155,8 +162,8 @@ export component MixerStripView inherits Rectangle {
         }
     }
 
-    mute-btn := StripButton {
-        x: 10px; y: solo-btn.y + 36px;
+    if root.has-mute : mute-btn := StripButton {
+        x: 10px; y: parent.height - root.label-height - 38px;
         width: parent.width - 20px;
         label: @tr("action-mixer-mute");
         lit: root.strip.muted;
@@ -172,62 +179,12 @@ export component MixerStripView inherits Rectangle {
     }
 
     // ── Label: which endpoint this is, at the bottom like a scribble strip ──
-    // The name is ONE elided line and the box clips, so a long binding name
-    // can never climb over the buttons; hovering shows the full name.
-    label-box := Rectangle {
+    StripLabel {
         x: 4px; y: parent.height - root.label-height - 4px;
         width: parent.width - 8px; height: root.label-height;
-        border-radius: 4px;
-        background: #121720;
-        clip: true;
-
-        Text {
-            x: 4px; y: 6px;
-            width: parent.width - 8px; height: 30px;
-            text: root.strip.name;
-            color: #e5ebf2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 0.5px;
-            wrap: no-wrap;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            overflow: elide;
-        }
-
-        name-ta := TouchArea {}
-
-        Text {
-            x: 4px; y: 38px;
-            width: parent.width - 8px; height: 22px;
-            text: root.strip.detail;
-            color: root.strip.is-input ? #7fc4ff : #ffb86b;
-            font-family: "Bebas Neue";
-            font-size: Theme.min-font;
-            letter-spacing: 1.0px;
-            horizontal-alignment: center;
-        }
-    }
-
-    // Full name on hover, just above the label box (same look as IconTooltip).
-    if name-ta.has-hover : Rectangle {
-        x: 2px;
-        y: label-box.y - self.height - 2px;
-        width: parent.width - 4px;
-        height: full-name.preferred-height + 8px;
-        background: #11141aef;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-
-        full-name := Text {
-            x: 4px; y: 4px;
-            width: parent.width - 8px;
-            text: root.strip.name;
-            color: #dde4ef;
-            font-size: 18px;
-            wrap: word-wrap;
-            horizontal-alignment: center;
-        }
+        visible: root.has-label;
+        name: root.strip.name;
+        detail: root.strip.detail;
+        is-input: root.strip.is-input;
     }
 }

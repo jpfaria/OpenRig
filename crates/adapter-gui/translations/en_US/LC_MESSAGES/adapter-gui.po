@@ -100,6 +100,38 @@ msgstr "Selected:"
 msgid "label-channels-total"
 msgstr "{} channels"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+msgid "label-mixer-no-inputs"
+msgstr "No inputs"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-outputs"
+msgstr "No outputs"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-loopers"
+msgstr "No loopers"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+msgid "tab-mixer-in"
+msgstr "IN"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+msgid "tab-mixer-out"
+msgstr "OUT"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+msgid "tab-mixer-looper"
+msgstr "LOOPER"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "tab-mixer-master"
+msgstr "MASTER"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "Search models..."
@@ -150,6 +182,10 @@ msgstr "Remove"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "DI output"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "GLOBAL"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -347,11 +383,11 @@ msgstr "Could not save the take"
 msgid "looper-take-needs-name"
 msgstr "Type a name for the take"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:145
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
 msgid "action-mixer-solo"
 msgstr "SOLO"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:161
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
 msgid "action-mixer-mute"
 msgstr "MUTE"
 

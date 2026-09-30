@@ -97,6 +97,38 @@ msgstr "चयनित:"
 msgid "label-channels-total"
 msgstr "{} चैनल"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+msgid "label-mixer-no-inputs"
+msgstr "कोई इनपुट नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-outputs"
+msgstr "कोई आउटपुट नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+msgid "label-mixer-no-loopers"
+msgstr "कोई लूपर नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+msgid "tab-mixer-in"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+msgid "tab-mixer-out"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+msgid "tab-mixer-looper"
+msgstr "लूपर"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "tab-mixer-master"
+msgstr "मास्टर"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "मॉडल खोजें..."
@@ -147,6 +179,10 @@ msgstr "हटाएं"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "DI आउटपुट"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "ग्लोबल"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -342,11 +378,11 @@ msgstr "टेक सहेजा नहीं जा सका"
 msgid "looper-take-needs-name"
 msgstr "टेक के लिए नाम लिखें"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:145
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
 msgid "action-mixer-solo"
 msgstr "सोलो"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:161
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
 msgid "action-mixer-mute"
 msgstr "म्यूट"
 

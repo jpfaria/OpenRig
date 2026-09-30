@@ -379,6 +379,10 @@ bindings:
 
 The chain faders send no controller feedback (only the global strips do).
 
+The compact view's other chain faders map to existing commands: MASTER is
+the chain volume (`SetChainVolume`) and each LOOPER fader is that looper's
+mix (`SetChainLooperParam` with `Mix`).
+
 ---
 
 ## Scope & guarantees

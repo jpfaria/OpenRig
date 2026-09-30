@@ -97,3 +97,7 @@ tone-doctor-genre-none: "Keine Genres"
 label-metronome-timbre-click: "Klick"
 label-metronome-timbre-wood: "Holz"
 label-metronome-timbre-beep: "Piep"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "MASTER"
+mixer-strip-looper: "LOOPER %{n}"

@@ -1,13 +1,18 @@
 //! #1007 — HEADLESS proof that the compact chain view carries the chain's own
-//! mixer strips and that they are operable: instantiate the real
-//! `CompactChainViewWindow`, feed its `MixerBridge` the chain's strips and
-//! press them. Same strip component and same bridge as the Mixer window, so
-//! the wiring dispatches the same commands.
+//! mixer and that it is operable: instantiate the real
+//! `CompactChainViewWindow`, feed its `MixerBridge` (the global strips) and
+//! its `ChainMixerBridge` (the chain's own faders) and press them.
+//!
+//! Tabs IN | OUT | DI | LOOPER | MASTER. IN / OUT show one dual strip per
+//! endpoint: the GLOBAL fader on the left (reports through `MixerBridge`, the
+//! same bridge as the Mixer window), the chain's own fader on the right
+//! (reports through `ChainMixerBridge`). No SOLO in the compact view.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use adapter_gui::{CompactChainViewWindow, MixerBridge, MixerStripRow};
+use adapter_gui::{ChainMixerBridge, CompactChainViewWindow, MixerBridge, MixerStripRow};
+use i_slint_backend_testing::ElementHandle;
 use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, Global, LogicalPosition, ModelRc, VecModel};
 
@@ -25,25 +30,49 @@ fn row(id: &str, is_input: bool) -> MixerStripRow {
     }
 }
 
-fn window(inputs: Vec<MixerStripRow>, outputs: Vec<MixerStripRow>) -> CompactChainViewWindow {
+fn model(rows: Vec<MixerStripRow>) -> ModelRc<MixerStripRow> {
+    ModelRc::new(VecModel::from(rows))
+}
+
+/// The compact view as it opens: the mixer section collapsed.
+fn collapsed(inputs: Vec<MixerStripRow>, outputs: Vec<MixerStripRow>) -> CompactChainViewWindow {
     i_slint_backend_testing::init_no_event_loop();
     let w = CompactChainViewWindow::new().unwrap();
     w.window().set_size(slint::LogicalSize::new(900.0, 900.0));
     let bridge = MixerBridge::get(&w);
-    bridge.set_inputs(ModelRc::new(VecModel::from(inputs)));
-    bridge.set_outputs(ModelRc::new(VecModel::from(outputs)));
+    bridge.set_inputs(model(inputs.clone()));
+    bridge.set_outputs(model(outputs.clone()));
+    let chain = ChainMixerBridge::get(&w);
+    chain.set_inputs(model(inputs));
+    chain.set_outputs(model(outputs));
+    chain.set_di(model(vec![row("di", false)]));
+    chain.set_loopers(model(vec![row("looper:7", false), row("looper:9", false)]));
+    chain.set_master(model(vec![row("master", false)]));
     w.show().unwrap();
     w
 }
 
-fn count(w: &CompactChainViewWindow, id: &str) -> usize {
-    i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).count()
+/// The mixer section's header toggle (collapse / expand).
+fn toggle(w: &CompactChainViewWindow) {
+    let header = ElementHandle::find_by_element_id(w, "SectionToggle::area")
+        .next()
+        .expect("mixer toggle not found");
+    click_at(w, &header);
 }
 
-fn press(w: &CompactChainViewWindow, id: &str, nth: usize) {
-    let el = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
-        .nth(nth)
-        .unwrap_or_else(|| panic!("{id} #{nth} not found"));
+/// The compact view with its mixer section expanded.
+fn window(inputs: Vec<MixerStripRow>, outputs: Vec<MixerStripRow>) -> CompactChainViewWindow {
+    let w = collapsed(inputs, outputs);
+    toggle(&w);
+    w
+}
+
+/// Every instance of `id` on screen (a strip without SOLO/MUTE has none).
+fn visible(w: &CompactChainViewWindow, id: &str) -> Vec<ElementHandle> {
+    ElementHandle::find_by_element_id(w, id).collect()
+}
+
+fn click_at(w: &CompactChainViewWindow, el: &ElementHandle) {
     let (pos, size) = (el.absolute_position(), el.size());
     let at = LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0);
     let win = w.window();
@@ -59,31 +88,132 @@ fn press(w: &CompactChainViewWindow, id: &str, nth: usize) {
     win.dispatch_event(WindowEvent::PointerExited);
 }
 
+/// The mixer tabs, in order: IN, OUT, DI, LOOPER, MASTER. Found by element
+/// id, not label, so the tests hold in any locale the bundled catalog picks.
+fn tabs(w: &CompactChainViewWindow) -> Vec<ElementHandle> {
+    ElementHandle::find_by_element_id(w, "ParamTabBar::tab-ta").collect()
+}
+
+fn open_tab(w: &CompactChainViewWindow, index: usize) {
+    let tab = tabs(w)
+        .into_iter()
+        .nth(index)
+        .unwrap_or_else(|| panic!("tab {index} not found"));
+    click_at(w, &tab);
+}
+
+const OUT_TAB: usize = 1;
+const DI_TAB: usize = 2;
+const LOOPER_TAB: usize = 3;
+const MASTER_TAB: usize = 4;
+
 #[test]
-fn the_compact_view_shows_the_chain_inputs_and_outputs_together() {
-    let w = window(vec![row("in:0@d", true)], vec![row("out:0,1@d", false)]);
-    assert_eq!(count(&w, "MixerStripView::mute-ta"), 2);
+fn the_in_tab_is_open_first_with_one_dual_strip_per_input() {
+    let w = window(
+        vec![row("in:0@d", true), row("in:1@d", true)],
+        vec![row("out:0,1@d", false)],
+    );
+    // Two inputs, two faders each (global + chain), each with its MUTE.
+    assert_eq!(visible(&w, "MixerStripView::mute-ta").len(), 4);
 }
 
 #[test]
-fn a_chain_without_strips_shows_no_mixer() {
-    let w = window(vec![], vec![]);
-    assert_eq!(count(&w, "MixerStripView::mute-ta"), 0);
-}
-
-#[test]
-fn the_compact_strips_report_mute_and_solo_through_the_mixer_bridge() {
+fn the_out_tab_shows_the_outputs() {
     let w = window(vec![row("in:0@d", true)], vec![row("out:0,1@d", false)]);
     let hits = Rc::new(RefCell::new(Vec::<String>::new()));
-    let bridge = MixerBridge::get(&w);
     let h = hits.clone();
-    bridge.on_mute_toggled(move |id| h.borrow_mut().push(format!("mute {id}")));
+    MixerBridge::get(&w).on_mute_toggled(move |id| h.borrow_mut().push(id.to_string()));
+    open_tab(&w, OUT_TAB);
+    let mutes = visible(&w, "MixerStripView::mute-ta");
+    assert_eq!(mutes.len(), 2);
+    click_at(&w, &mutes[0]);
+    assert_eq!(*hits.borrow(), vec!["out:0,1@d".to_string()]);
+}
+
+#[test]
+fn a_chain_without_endpoints_shows_no_dual_strip() {
+    let w = window(vec![], vec![]);
+    assert!(visible(&w, "MixerStripView::mute-ta").is_empty());
+}
+
+#[test]
+fn the_left_mute_is_global_and_the_right_mute_is_the_chains() {
+    let w = window(vec![row("in:0@d", true)], vec![]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
     let h = hits.clone();
-    bridge.on_solo_toggled(move |id| h.borrow_mut().push(format!("solo {id}")));
-    press(&w, "MixerStripView::mute-ta", 1);
-    press(&w, "MixerStripView::solo-ta", 0);
+    MixerBridge::get(&w).on_mute_toggled(move |id| h.borrow_mut().push(format!("global {id}")));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_chain_mute_toggled(move |id| h.borrow_mut().push(format!("chain {id}")));
+    let mutes = visible(&w, "MixerStripView::mute-ta");
+    assert!(mutes[0].absolute_position().x < mutes[1].absolute_position().x);
+    click_at(&w, &mutes[0]);
+    click_at(&w, &mutes[1]);
     assert_eq!(
         *hits.borrow(),
-        vec!["mute out:0,1@d".to_string(), "solo in:0@d".to_string()]
+        vec!["global in:0@d".to_string(), "chain in:0@d".to_string()]
     );
+}
+
+#[test]
+fn the_chain_fader_reports_through_the_chain_bridge_by_strip_id() {
+    let w = window(vec![row("in:0@d", true)], vec![]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    MixerBridge::get(&w).on_fader_moved(move |id, _| h.borrow_mut().push(format!("global {id}")));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_chain_fader_moved(move |id, _| h.borrow_mut().push(format!("chain {id}")));
+    let faders = visible(&w, "MixerStripView::fader-ta");
+    click_at(&w, &faders[1]);
+    assert_eq!(*hits.borrow(), vec!["chain in:0@d".to_string()]);
+}
+
+#[test]
+fn the_compact_view_has_no_solo() {
+    let w = window(vec![row("in:0@d", true)], vec![row("out:0,1@d", false)]);
+    assert!(visible(&w, "MixerStripView::solo-ta").is_empty());
+}
+
+#[test]
+fn the_looper_tab_shows_one_fader_per_looper() {
+    let w = window(vec![row("in:0@d", true)], vec![]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_single_fader_moved(move |id, _| h.borrow_mut().push(id.to_string()));
+    open_tab(&w, LOOPER_TAB);
+    let faders = visible(&w, "MixerStripView::fader-ta");
+    assert_eq!(faders.len(), 2);
+    assert!(visible(&w, "MixerStripView::mute-ta").is_empty());
+    click_at(&w, &faders[1]);
+    assert_eq!(*hits.borrow(), vec!["looper:9".to_string()]);
+}
+
+#[test]
+fn the_di_and_master_tabs_show_one_fader_each() {
+    let w = window(vec![], vec![]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_single_fader_moved(move |id, _| h.borrow_mut().push(id.to_string()));
+    for tab in [DI_TAB, MASTER_TAB] {
+        open_tab(&w, tab);
+        let faders = visible(&w, "MixerStripView::fader-ta");
+        assert_eq!(faders.len(), 1, "{tab}");
+        click_at(&w, &faders[0]);
+    }
+    assert_eq!(*hits.borrow(), vec!["di".to_string(), "master".to_string()]);
+}
+
+#[test]
+fn the_mixer_opens_collapsed_and_its_header_toggles_it() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    assert!(tabs(&w).is_empty());
+    assert!(visible(&w, "MixerStripView::fader-ta").is_empty());
+    toggle(&w);
+    assert_eq!(tabs(&w).len(), 5);
+    assert_eq!(visible(&w, "MixerStripView::fader-ta").len(), 2);
+    toggle(&w);
+    assert!(visible(&w, "MixerStripView::fader-ta").is_empty());
 }

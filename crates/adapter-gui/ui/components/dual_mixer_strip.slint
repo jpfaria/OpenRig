@@ -1,0 +1,87 @@
+// Responsibility: renders one endpoint's global fader beside a chain's own fader.
+// #1007 — the compact view's IN / OUT strip: one frame, a console dual-fader
+// width, one shared label at the bottom. The LEFT fader is the endpoint's
+// GLOBAL strip (tinted, captioned, the same one the Mixer window moves); the
+// RIGHT fader is this chain's own gain on that endpoint. Each fader keeps its
+// own readout and MUTE; there is no SOLO here.
+
+import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
+import { ChainMixerBridge } from "chain_mixer_globals.slint";
+import { MixerStripView } from "mixer_strip.slint";
+import { StripLabel } from "strip_label.slint";
+import { Theme } from "../theme.slint";
+
+export component DualMixerStripView inherits Rectangle {
+    in property <MixerStripRow> global;
+    in property <MixerStripRow> chain;
+
+    private property <length> half: 84px;
+    private property <length> pad: 4px;
+    private property <length> caption-height: 22px;
+    private property <length> label-height: 66px;
+    private property <length> faders-height: root.height - root.label-height - 3 * root.pad;
+
+    width: 2 * root.half + 3 * root.pad;
+    border-radius: 6px;
+    background: #0c0f14;
+    border-width: 1px;
+    border-color: #1f2530;
+
+    // ── GLOBAL half: tinted, so it never reads as the chain's own fader ──
+    Rectangle {
+        x: root.pad; y: root.pad;
+        width: root.half; height: root.faders-height;
+        border-radius: 5px;
+        background: #121c2a;
+        border-width: 1px;
+        border-color: #22324a;
+    }
+
+    Text {
+        x: root.pad; y: root.pad + 4px;
+        width: root.half; height: root.caption-height - 6px;
+        text: @tr("label-mixer-global");
+        color: #7fa6d6;
+        font-family: "Bebas Neue";
+        font-size: Theme.min-font;
+        letter-spacing: 1.5px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    MixerStripView {
+        x: root.pad; y: root.pad + root.caption-height;
+        width: root.half; height: root.faders-height - root.caption-height;
+        strip: root.global;
+        has-solo: false;
+        has-label: false;
+        framed: false;
+        face: transparent;
+        fader-moved(id, position) => { MixerBridge.fader-moved(id, position); }
+        fader-reset(id) => { MixerBridge.fader-reset(id); }
+        mute-toggled(id) => { MixerBridge.mute-toggled(id); }
+    }
+
+    // ── CHAIN half: this chain's own gain on the same endpoint ──
+    MixerStripView {
+        x: 2 * root.pad + root.half; y: root.pad + root.caption-height;
+        width: root.half; height: root.faders-height - root.caption-height;
+        strip: root.chain;
+        has-solo: false;
+        has-label: false;
+        framed: false;
+        face: transparent;
+        // The chain fader is addressed by the global strip it sits on.
+        fader-moved(_, position) => { ChainMixerBridge.chain-fader-moved(root.global.id, position); }
+        fader-reset(_) => { ChainMixerBridge.chain-fader-reset(root.global.id); }
+        mute-toggled(_) => { ChainMixerBridge.chain-mute-toggled(root.global.id); }
+    }
+
+    StripLabel {
+        x: root.pad; y: root.height - root.label-height - root.pad;
+        width: root.width - 2 * root.pad; height: root.label-height;
+        name: root.global.name;
+        detail: root.global.detail;
+        is-input: root.global.is-input;
+    }
+}

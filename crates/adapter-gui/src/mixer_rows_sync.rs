@@ -25,7 +25,7 @@ pub fn set_mixer_rows(
 
 /// Write `rows` into `current` row by row when both list the same strips;
 /// otherwise the new model to install.
-fn updated_in_place(
+pub(crate) fn updated_in_place(
     current: ModelRc<MixerStripRow>,
     rows: Vec<MixerStripRow>,
 ) -> Option<ModelRc<MixerStripRow>> {

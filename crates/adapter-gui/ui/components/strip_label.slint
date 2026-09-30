@@ -1,0 +1,67 @@
+// Responsibility: renders the scribble-strip label under a mixer fader.
+// #1007 — which endpoint a strip is: the binding name on ONE elided line
+// (the box clips, so a long name can never climb over the buttons) and the
+// interface channels below it. Hovering shows the full name just above the
+// box, over whatever sits there (same look as IconTooltip).
+
+import { Theme } from "../theme.slint";
+
+export component StripLabel inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    in property <bool> is-input;
+
+    label-box := Rectangle {
+        border-radius: 4px;
+        background: #121720;
+        clip: true;
+
+        Text {
+            x: 4px; y: 6px;
+            width: parent.width - 8px; height: 30px;
+            text: root.name;
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 0.5px;
+            wrap: no-wrap;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        name-ta := TouchArea {}
+
+        Text {
+            x: 4px; y: 38px;
+            width: parent.width - 8px; height: 22px;
+            text: root.detail;
+            color: root.is-input ? #7fc4ff : #ffb86b;
+            font-family: "Bebas Neue";
+            font-size: Theme.min-font;
+            letter-spacing: 1.0px;
+            horizontal-alignment: center;
+        }
+    }
+
+    if name-ta.has-hover : Rectangle {
+        x: -2px;
+        y: -self.height - 2px;
+        width: parent.width + 4px;
+        height: full-name.preferred-height + 8px;
+        background: #11141aef;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+
+        full-name := Text {
+            x: 4px; y: 4px;
+            width: parent.width - 8px;
+            text: root.name;
+            color: #dde4ef;
+            font-size: 18px;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+        }
+    }
+}
