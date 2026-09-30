@@ -195,6 +195,14 @@ mod chain_editor;
     )
 )]
 mod chain_block_lists;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "#328 part 6: first production caller lands in a later task"
+    )
+)]
+mod chain_graph_adapter;
 // Several fixtures are first used by later tasks' tests (the last one,
 // `recording_session`, in Task 15): until then a test build would warn.
 #[cfg(test)]
