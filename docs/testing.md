@@ -46,11 +46,34 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
 - **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
+- **CI time budget (#991)**: the Test Suite runs under `timeout 1500` (25 min) and
+  Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
+  both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
+  pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
+  Instrumentation is what makes long simulations expensive: in CI the engine lib
+  tests took 372 s under llvm-cov against 22 s in the Test Suite, and locally the
+  long #979 simulations ran ~6x slower instrumented. A test that simulates minutes
+  of audio or sweeps many seeds costs minutes of Coverage.
 - **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
   localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
   cruzado com `git diff --unified=0 <base>...HEAD`), respeitando o `ignore:` do
   `codecov.yml`. O relatório é reaproveitado enquanto a árvore não muda (`--fresh`
   força de novo); `--files` lista o que ainda falta; `PATCH_COV_OFF=1` pula.
+
+### CI measures the Linux + JACK build (#987)
+
+The coverage job runs `cargo llvm-cov --workspace` on Linux, where
+`adapter-gui` turns on `infra-cpal/jack` (and through it `engine/jack`). Every
+test gated `#[cfg(not(all(target_os = "linux", feature = "jack")))]` — which
+includes the controller-driven click tests and most controller harnesses — is
+compiled OUT there. It guards macOS, but it produces **no coverage and no
+regression signal in CI**. A behaviour that must be guarded in CI needs a test
+that runs in both builds: drive the layer below the controller (a
+`LiveRuntimeSlot` with runtimes from `build_chain_runtime_state`, or
+`update_chain_runtime_state` on the engine side), or build the controller with
+`ProjectRuntimeController::for_testing`, which works in both.
+`issue_987_slot_handover_tests.rs` and `issue_987_in_place_edit_paths_tests.rs`
+are the reference.
 
 ### What is deliberately outside the coverage target (#913)
 

@@ -49,6 +49,25 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # #991: rust-cache keys on the members' manifests and Cargo.lock, not on
+      # the root manifest, whose profiles and workspace features rebuild every
+      # dependency when they change. Its RUST* env vars are part of the key.
+      # The release version line is left out: it changes on every release.
+      - name: Key the cache on the root manifest
+        run: echo "RUST_CACHE_ROOT_MANIFEST=$(grep -v '^version = ' Cargo.toml | sha256sum | cut -c1-16)" >> "$GITHUB_ENV"
+
+      # #991: with no cache every run compiled 516 third-party crates (557
+      # with the workspace) from scratch — ~12 of the job's ~20 minutes. Only
+      # branch pushes save, so a PR run restores its base branch's cache
+      # instead of adding its own to the repo's 10 GB quota. Workspace crates
+      # are never cached. A failed run still saves: its dependencies built.
+      - name: Cache cargo registry and dependency builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-debug
+          save-if: ${{ github.event_name == 'push' }}
+          cache-on-failure: true
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -100,6 +119,18 @@ jobs:
         if: steps.vendor.outputs.bumped == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Key the cache on the root manifest
+        if: steps.vendor.outputs.bumped == 'true'
+        run: echo "RUST_CACHE_ROOT_MANIFEST=$(grep -v '^version = ' Cargo.toml | sha256sum | cut -c1-16)" >> "$GITHUB_ENV"
+
+      # #991: same debug build as the Test Suite, so it reads that job's cache.
+      - name: Restore the Test Suite's dependency cache
+        if: steps.vendor.outputs.bumped == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-debug
+          save-if: false
+
       - name: Install system dependencies
         if: steps.vendor.outputs.bumped == 'true'
         run: |
@@ -137,6 +168,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Key the cache on the root manifest
+        run: echo "RUST_CACHE_ROOT_MANIFEST=$(grep -v '^version = ' Cargo.toml | sha256sum | cut -c1-16)" >> "$GITHUB_ENV"
+
+      # #991: the instrumented build has its own cache (separate
+      # target/llvm-cov-target); same save rules as the Test Suite. Saving on
+      # failure matters here: a cold run can hit the 30-min step limit after
+      # its dependencies are built, and without it the next run is cold again.
+      - name: Cache cargo registry and dependency builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage-instrumented
+          save-if: ${{ github.event_name == 'push' }}
+          cache-on-failure: true
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -146,8 +191,11 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
 
+      # #991: prebuilt binary; `cargo install` compiled it from source (~1 min).
       - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
 
       - name: Generate coverage report
         timeout-minutes: 30
