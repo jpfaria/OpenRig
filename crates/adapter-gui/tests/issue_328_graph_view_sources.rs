@@ -30,3 +30,22 @@ fn the_graph_card_wire_and_types_each_live_in_their_own_file() {
         );
     }
 }
+
+/// Spec §5.1: the graph block card keeps parity with BlockChip. The state
+/// colours (unavailable amber, disabled grey, drag grey, MIDI markers) live
+/// in ONE global both tiles read.
+#[test]
+fn block_chip_paints_its_states_from_block_tile_style() {
+    let chip = read_component("block_chip.slint");
+    assert!(
+        chip.contains("BlockTileStyle."),
+        "block_chip.slint must read its state colours from BlockTileStyle \
+         (#328: one source for BlockChip and the graph block card)"
+    );
+    for literal in ["#b07a3c", "#5c6678", "#8b95a5", "#f0a020"] {
+        assert!(
+            !chip.contains(literal),
+            "block_chip.slint still hard-codes {literal}; it belongs in block_tile_style.slint"
+        );
+    }
+}
