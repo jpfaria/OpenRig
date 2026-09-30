@@ -208,6 +208,14 @@ mod chain_graph_fixtures_tests;
     )
 )]
 mod chain_graph_ids;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "#328 part 6: first production caller lands in a later task"
+    )
+)]
+mod graph_anchor;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
