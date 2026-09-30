@@ -97,31 +97,35 @@ msgstr "चयनित:"
 msgid "label-channels-total"
 msgstr "{} चैनल"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
 msgstr "कोई इनपुट नहीं"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-outputs"
 msgstr "कोई आउटपुट नहीं"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-loopers"
 msgstr "कोई लूपर नहीं"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "मिक्सर"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "tab-mixer-in"
 msgstr "इनपुट"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
 msgid "tab-mixer-out"
 msgstr "आउटपुट"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
 msgid "tab-mixer-looper"
 msgstr "लूपर"
 
@@ -590,6 +594,10 @@ msgstr "एंडपॉइंट"
 msgid "msg-pick-io-endpoint"
 msgstr "एक I/O और एंडपॉइंट चुनें"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "इनपुट / आउटपुट"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -661,10 +669,6 @@ msgstr "कोई प्रोजेक्ट आउटपुट कॉन्फ
 #: crates/adapter-gui/ui/pages/metronome_window.slint:427
 msgid "title-window-metronome"
 msgstr "मेट्रोनोम"
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:51
-msgid "label-mixer"
-msgstr "मिक्सर"
 
 #: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"

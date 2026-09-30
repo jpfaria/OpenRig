@@ -97,31 +97,35 @@ msgstr "Ausgewählt:"
 msgid "label-channels-total"
 msgstr "{} Kanäle"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
 msgstr "Keine Eingänge"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-outputs"
 msgstr "Keine Ausgänge"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-loopers"
 msgstr "Keine Looper"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "MISCHPULT"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "tab-mixer-in"
 msgstr "EIN"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
 msgid "tab-mixer-out"
 msgstr "AUS"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
 msgid "tab-mixer-looper"
 msgstr "LOOPER"
 
@@ -594,6 +598,10 @@ msgstr "Endpunkt"
 msgid "msg-pick-io-endpoint"
 msgstr "E/A und Endpunkt wählen"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "EINGANG / AUSGANG"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -665,10 +673,6 @@ msgstr "Keine Projektausgänge konfiguriert"
 #: crates/adapter-gui/ui/pages/metronome_window.slint:427
 msgid "title-window-metronome"
 msgstr "Metronom"
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:51
-msgid "label-mixer"
-msgstr "MISCHPULT"
 
 #: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"

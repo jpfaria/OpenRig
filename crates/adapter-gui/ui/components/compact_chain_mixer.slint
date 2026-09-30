@@ -54,11 +54,12 @@ export component CompactChainMixer inherits Rectangle {
         background: #1c2028;
     }
 
-    SectionToggle {
+    mixer-toggle := SectionToggle {
         x: 0; y: 1px;
         width: parent.width; height: root.header-height - 1px;
         title: @tr("label-mixer");
-        expanded <=> root.expanded;
+        expanded: root.expanded;
+        toggled(expanded) => { root.expanded = expanded; }
     }
 
     if root.expanded : ParamTabBar {

@@ -97,31 +97,35 @@ msgstr "已选择："
 msgid "label-channels-total"
 msgstr "{} 个通道"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
 msgstr "无输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-outputs"
 msgstr "无输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-loopers"
 msgstr "无循环器"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "调音台"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "tab-mixer-in"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
 msgid "tab-mixer-out"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
 msgid "tab-mixer-looper"
 msgstr "循环器"
 
@@ -590,6 +594,10 @@ msgstr "端点"
 msgid "msg-pick-io-endpoint"
 msgstr "选择 I/O 和端点"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "输入 / 输出"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -661,10 +669,6 @@ msgstr "项目未配置输出"
 #: crates/adapter-gui/ui/pages/metronome_window.slint:427
 msgid "title-window-metronome"
 msgstr "节拍器"
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:51
-msgid "label-mixer"
-msgstr "调音台"
 
 #: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"

@@ -393,6 +393,8 @@ mod compact_block_search_wiring_tests;
 mod chain_io_chip_label_tests;
 
 #[cfg(test)]
+mod chain_meter_fold_tests;
+#[cfg(test)]
 mod project_view_loopers_tests;
 #[cfg(test)]
 mod project_view_stream_meters_tests;

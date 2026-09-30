@@ -1,12 +1,13 @@
 // Responsibility: renders the clickable header of a collapsible section.
 // #1007 — a chevron (right = collapsed, down = expanded) and the section's
-// title across the whole header; a click flips `expanded`. The owner keeps
-// the state, so every view decides for itself (the compact mixer always
-// opens collapsed).
+// title across the whole header; a click asks for the opposite state through
+// `toggled`. The owner keeps the state and feeds it back into `expanded`, so
+// every view decides for itself where it lives (the compact mixer in the
+// view, a chain card in its row model) and always opens collapsed.
 
 export component SectionToggle inherits Rectangle {
     in property <string> title;
-    in-out property <bool> expanded: false;
+    in property <bool> expanded: false;
     callback toggled(bool);
 
     background: area.has-hover ? #141820 : transparent;
@@ -15,8 +16,7 @@ export component SectionToggle inherits Rectangle {
     accessible-action-default => { root.flip(); }
 
     function flip() {
-        root.expanded = !root.expanded;
-        root.toggled(root.expanded);
+        root.toggled(!root.expanded);
     }
 
     Image {

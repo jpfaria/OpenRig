@@ -3,7 +3,7 @@
 //! `CompactChainViewWindow`, feed its `MixerBridge` (the global strips) and
 //! its `ChainMixerBridge` (the chain's own faders) and press them.
 //!
-//! Tabs IN | OUT | DI | LOOPER | MASTER. IN / OUT show one dual strip per
+//! Tabs IN | OUT | DI | LOOPER; OUT opens with the chain's MASTER. IN / OUT show one dual strip per
 //! endpoint: the GLOBAL fader on the left (reports through `MixerBridge`, the
 //! same bridge as the Mixer window), the chain's own fader on the right
 //! (reports through `ChainMixerBridge`). No SOLO in the compact view.
@@ -54,7 +54,7 @@ fn collapsed(inputs: Vec<MixerStripRow>, outputs: Vec<MixerStripRow>) -> Compact
 
 /// The mixer section's header toggle (collapse / expand).
 fn toggle(w: &CompactChainViewWindow) {
-    let header = ElementHandle::find_by_element_id(w, "SectionToggle::area")
+    let header = ElementHandle::find_by_element_id(w, "CompactChainMixer::mixer-toggle")
         .next()
         .expect("mixer toggle not found");
     click_at(w, &header);
@@ -88,7 +88,7 @@ fn click_at(w: &CompactChainViewWindow, el: &ElementHandle) {
     win.dispatch_event(WindowEvent::PointerExited);
 }
 
-/// The mixer tabs, in order: IN, OUT, DI, LOOPER, MASTER. Found by element
+/// The mixer tabs, in order: IN, OUT, DI, LOOPER. Found by element
 /// id, not label, so the tests hold in any locale the bundled catalog picks.
 fn tabs(w: &CompactChainViewWindow) -> Vec<ElementHandle> {
     ElementHandle::find_by_element_id(w, "ParamTabBar::tab-ta").collect()
@@ -105,7 +105,6 @@ fn open_tab(w: &CompactChainViewWindow, index: usize) {
 const OUT_TAB: usize = 1;
 const DI_TAB: usize = 2;
 const LOOPER_TAB: usize = 3;
-const MASTER_TAB: usize = 4;
 
 #[test]
 fn the_in_tab_is_open_first_with_one_dual_strip_per_input() {
@@ -191,13 +190,14 @@ fn the_looper_tab_shows_one_fader_per_looper() {
 }
 
 #[test]
-fn the_di_and_master_tabs_show_one_fader_each() {
+fn the_di_tab_and_an_empty_out_tab_show_one_fader_each() {
     let w = window(vec![], vec![]);
     let hits = Rc::new(RefCell::new(Vec::<String>::new()));
     let h = hits.clone();
     ChainMixerBridge::get(&w)
         .on_single_fader_moved(move |id, _| h.borrow_mut().push(id.to_string()));
-    for tab in [DI_TAB, MASTER_TAB] {
+    // Without outputs, OUT holds just the chain's MASTER.
+    for tab in [DI_TAB, OUT_TAB] {
         open_tab(&w, tab);
         let faders = visible(&w, "MixerStripView::fader-ta");
         assert_eq!(faders.len(), 1, "{tab}");
@@ -212,8 +212,47 @@ fn the_mixer_opens_collapsed_and_its_header_toggles_it() {
     assert!(tabs(&w).is_empty());
     assert!(visible(&w, "MixerStripView::fader-ta").is_empty());
     toggle(&w);
-    assert_eq!(tabs(&w).len(), 5);
+    assert_eq!(tabs(&w).len(), 4);
     assert_eq!(visible(&w, "MixerStripView::fader-ta").len(), 2);
     toggle(&w);
     assert!(visible(&w, "MixerStripView::fader-ta").is_empty());
+}
+
+#[test]
+fn master_is_the_first_fader_of_the_out_tab() {
+    let w = window(vec![], vec![row("out:0,1@d", false)]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_single_fader_moved(move |id, _| h.borrow_mut().push(id.to_string()));
+    open_tab(&w, OUT_TAB);
+    let faders = visible(&w, "MixerStripView::fader-ta");
+    assert_eq!(faders.len(), 3);
+    let leftmost = faders
+        .iter()
+        .min_by(|a, b| a.absolute_position().x.total_cmp(&b.absolute_position().x))
+        .unwrap();
+    click_at(&w, leftmost);
+    assert_eq!(*hits.borrow(), vec!["master".to_string()]);
+}
+
+/// The IN / OUT meter section's header, at the foot of the compact view.
+fn meters_toggle(w: &CompactChainViewWindow) -> ElementHandle {
+    ElementHandle::find_by_element_id(w, "CompactChainViewPage::meters-toggle")
+        .next()
+        .expect("meters toggle not found")
+}
+
+#[test]
+fn the_meters_open_collapsed_and_their_header_expands_them() {
+    let w = collapsed(vec![row("in:0@d", true)], vec![]);
+    let closed = meters_toggle(&w).absolute_position().y;
+    click_at(&w, &meters_toggle(&w));
+    let open = meters_toggle(&w).absolute_position().y;
+    assert!(
+        open < closed,
+        "the meter rows must push the header up: {open} vs {closed}"
+    );
+    click_at(&w, &meters_toggle(&w));
+    assert_eq!(meters_toggle(&w).absolute_position().y, closed);
 }

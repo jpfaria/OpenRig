@@ -97,31 +97,35 @@ msgstr "선택됨:"
 msgid "label-channels-total"
 msgstr "채널 {}개"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:41
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
 msgid "label-mixer-no-inputs"
 msgstr "입력 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-outputs"
 msgstr "출력 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:42
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
 msgid "label-mixer-no-loopers"
 msgstr "루퍼 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "믹서"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "tab-mixer-in"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:57
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
 msgid "tab-mixer-out"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:58
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:59
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
 msgid "tab-mixer-looper"
 msgstr "루퍼"
 
@@ -591,6 +595,10 @@ msgstr "엔드포인트"
 msgid "msg-pick-io-endpoint"
 msgstr "I/O와 엔드포인트를 선택하세요"
 
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "입력 / 출력"
+
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
 msgid "label-lat"
 msgstr "LAT"
@@ -662,10 +670,6 @@ msgstr "구성된 프로젝트 출력 없음"
 #: crates/adapter-gui/ui/pages/metronome_window.slint:427
 msgid "title-window-metronome"
 msgstr "메트로놈"
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:51
-msgid "label-mixer"
-msgstr "믹서"
 
 #: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"

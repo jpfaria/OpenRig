@@ -7,6 +7,7 @@ import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
 import { CompactStreamMeters } from "../components/compact_stream_meters.slint";
 import { CompactChainMixer } from "../components/compact_chain_mixer.slint";
+import { SectionToggle } from "../components/section_toggle.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -150,7 +151,11 @@ export component CompactChainViewPage inherits Rectangle {
     property <int> meter-row-count:
         (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
         + (root.di-loop-playing ? 1 : 0);
-    property <length> meter-footer-height: root.meter-row-count * meters.row-pitch + 6px;
+    // #1007: the meter rows sit under a collapsible header, collapsed on open.
+    property <bool> meters-expanded: false;
+    property <length> meters-toggle-height: 36px;
+    property <length> meter-footer-height: root.meters-toggle-height
+        + (root.meters-expanded ? root.meter-row-count * meters.row-pitch + 6px : 0px);
     // #1007: the chain's own mixer strips sit between the rows and the meters.
     property <length> mixer-height: chain-mixer.has-strips ? chain-mixer.preferred-area-height : 0px;
 
@@ -424,8 +429,17 @@ export component CompactChainViewPage inherits Rectangle {
 
     // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
     // Extracted to `compact_stream_meters.slint` (file-size cap).
+    meters-toggle := SectionToggle {
+        x: 0; y: parent.height - root.meter-footer-height;
+        width: parent.width; height: root.meters-toggle-height;
+        title: @tr("label-meters");
+        expanded: root.meters-expanded;
+        toggled(expanded) => { root.meters-expanded = expanded; }
+    }
+
     meters := CompactStreamMeters {
         x: 0; y: 0; width: 100%; height: 100%;
+        visible: root.meters-expanded;
         stream-meters: root.stream-meters;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;
