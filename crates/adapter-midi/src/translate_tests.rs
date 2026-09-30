@@ -263,3 +263,27 @@ fn pitch_bend_projects_to_pitch_bend_source() {
         Source::PitchBend { channel: 5 }
     );
 }
+
+#[test]
+fn a_solo_button_resolves_to_toggle_mixer_solo() {
+    let map = map(r#"
+bindings:
+  - source: { kind: note_on, channel: 1, note: 8 }
+    command: ToggleMixerSolo
+    args: { strip: "out:0,1@dev" }
+"#);
+    let cmd = resolve(
+        &map,
+        &MidiMessage::NoteOn {
+            channel: 1,
+            note: 8,
+            velocity: 127,
+        },
+    );
+    match cmd {
+        Some(Command::Mixer(application::command::MixerCommand::ToggleMixerSolo { strip })) => {
+            assert_eq!(strip, "out:0,1@dev");
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}

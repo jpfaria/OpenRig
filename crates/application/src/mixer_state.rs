@@ -1,12 +1,12 @@
 //! Responsibility: holds the global mixer's control-plane state.
-//! #1007: every strip's fader and mute, keyed by the strip's wire id, plus the
+//! #1007: every strip's fader, mute and solo, keyed by the strip's wire id, plus the
 //! per-machine `config.yaml` they persist to.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use domain::mixer_gain::clamp_gain_db;
-use domain::mixer_strip::MixerStripId;
+use domain::mixer_strip::{MixerDirection, MixerStripId};
 use infra_filesystem::MixerStripConfig;
 
 /// One strip's setting. The default is unity and unmuted.
@@ -14,6 +14,7 @@ use infra_filesystem::MixerStripConfig;
 pub struct MixerStripSetting {
     pub gain_db: f32,
     pub muted: bool,
+    pub soloed: bool,
 }
 
 /// The dispatcher's mixer state.
@@ -39,6 +40,7 @@ impl MixerControlState {
                     MixerStripSetting {
                         gain_db: clamp_gain_db(s.gain_db),
                         muted: s.muted,
+                        soloed: s.soloed,
                     },
                 )
             })
@@ -62,6 +64,14 @@ impl MixerControlState {
     /// Record a strip's setting.
     pub fn set(&mut self, strip: &str, setting: MixerStripSetting) {
         self.settings.insert(strip.to_string(), setting);
+    }
+
+    /// Whether any strip on `direction`'s side is soloed — the side a solo
+    /// silences.
+    pub fn group_has_solo(&self, direction: MixerDirection) -> bool {
+        self.settings.iter().any(|(id, setting)| {
+            setting.soloed && MixerStripId::parse(id).is_some_and(|id| id.direction == direction)
+        })
     }
 
     /// Every strip ever moved, with its setting.

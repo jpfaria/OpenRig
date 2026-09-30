@@ -316,9 +316,17 @@ strip (see `docs/screens.md` → Mixer). The strip id is the one
 | `SetMixerFader` | Move a strip's fader (dB, `-60..=+12`, 0 = unity) | `{ strip: text, gain_db: num }` — fader via `scale: { min: -60, max: 12, into: gain_db }` |
 | `SetMixerMute` | Mute / unmute a strip | `{ strip: text, muted: bool }` |
 | `ToggleMixerMute` | Flip a strip's mute (a MUTE button) | `{ strip: text }` |
+| `SetMixerSolo` | Solo / unsolo a strip | `{ strip: text, soloed: bool }` |
+| `ToggleMixerSolo` | Flip a strip's solo (a SOLO button) | `{ strip: text }` |
+
+SOLO silences every strip of the **same side** that is not soloed (an input
+solo never touches the outputs, and the other way round). Several solos on
+one side add up; clearing the last one restores the side. A solo never
+moves the stored fader and adds no latency.
 
 A Mackie Control surface (e.g. SMC-Mixer) sends each strip's fader as
-Pitch Bend on channels 1–8 and each MUTE button as Note On `16..=23`:
+Pitch Bend on channels 1–8, each SOLO button as Note On `8..=15` and each
+MUTE button as Note On `16..=23`:
 
 ```yaml
 input: SMC-Mixer
@@ -327,6 +335,9 @@ bindings:
     command: SetMixerFader
     args: { strip: "in:0@<device>" }
     scale: { min: -60.0, max: 12.0, into: gain_db }
+  - source: { kind: note_on, channel: 1, note: 8 }
+    command: ToggleMixerSolo
+    args: { strip: "in:0@<device>" }
   - source: { kind: note_on, channel: 1, note: 16 }
     command: ToggleMixerMute
     args: { strip: "in:0@<device>" }
@@ -335,8 +346,8 @@ bindings:
 **Feedback (motor faders, LEDs).** With a map loaded through
 `--midi=PATH`, OpenRig sends each mixer change back to the controller,
 whoever made it (GUI, MCP, the surface): a `pitch_bend` fader gets its
-14-bit position, a `cc` fader its 0–127 position, a `note_on` mute gets
-velocity 127 (lit) or 0 (dark). Feedback goes only to the MIDI outputs
+14-bit position, a `cc` fader its 0–127 position, a `note_on` mute or
+solo button gets velocity 127 (lit) or 0 (dark). Feedback goes only to the MIDI outputs
 whose name contains the map's `input:` — no `input:`, no feedback, so
 unrelated gear never receives fader bytes. The profile path (`--midi`
 without a path) has no per-strip bindings and sends no feedback; the

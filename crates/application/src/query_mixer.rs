@@ -1,5 +1,5 @@
 //! Responsibility: serializes the global mixer strips for a read.
-//! #1007: one entry per configured endpoint, with the fader and mute the
+//! #1007: one entry per configured endpoint, with the fader, mute and solo the
 //! dispatcher holds — the read half of the mixer commands.
 
 use crate::mixer_view::MixerStripView;
@@ -17,6 +17,7 @@ pub fn mixer_state_json(strips: &[MixerStripView]) -> String {
                 "channels": s.channels,
                 "gain_db": s.gain_db,
                 "muted": s.muted,
+                "soloed": s.soloed,
             })
         })
         .collect();

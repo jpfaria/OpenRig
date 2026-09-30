@@ -51,10 +51,10 @@ page for the working rule.
   the output device it clicks through only exists on this machine. The on/off
   flag is deliberately **not** persisted: the metronome always opens off, so no
   config file can make a session start clicking.
-- `mixer` (#1007) — the global mixer: a list of `{id, gain_db, muted}`, one
-  per strip the user moved. `id` addresses a configured endpoint
+- `mixer` (#1007) — the global mixer: a list of `{id, gain_db, muted, soloed}`,
+  one per strip the user moved. `id` addresses a configured endpoint
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists
-  on this machine. Strips at unity and unmuted are not stored; a missing
+  on this machine. Strips at unity, unmuted and not soloed are not stored; a missing
   entry means 0 dB, so a config without `mixer` changes nothing.
 - MIDI device profile (`midi-profile.yaml`) — which controller port to listen to.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has

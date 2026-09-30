@@ -122,6 +122,10 @@ mod local_dispatcher_tests;
 mod local_dispatcher_mixer_tests;
 
 #[cfg(test)]
+#[path = "local_dispatcher_mixer_solo_tests.rs"]
+mod local_dispatcher_mixer_solo_tests;
+
+#[cfg(test)]
 #[path = "ld_block2_tests.rs"]
 mod ld_block2;
 

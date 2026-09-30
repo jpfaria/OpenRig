@@ -19,6 +19,8 @@ fn row(id: &str, is_input: bool, muted: bool) -> MixerStripRow {
         position: 0.5,
         gain_label: "-12.0 dB".into(),
         muted,
+        soloed: false,
+        solo_silenced: false,
     }
 }
 
@@ -62,13 +64,28 @@ fn count(w: &MixerHarness, id: &str) -> usize {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).count()
 }
 
+/// #1007 review: inputs and outputs live on their own tab.
+fn open_outputs_tab(w: &MixerHarness) {
+    press_release(w, center(w, "ParamTabBar::tab-ta", 1));
+}
+
 #[test]
-fn one_strip_per_endpoint_on_each_side() {
+fn the_inputs_tab_shows_only_the_inputs() {
     let w = harness(
         vec![row("in:0@d", true, false), row("in:1@d", true, false)],
         vec![row("out:0,1@d", false, false)],
     );
-    assert_eq!(count(&w, "MixerStripView::mute-ta"), 3);
+    assert_eq!(count(&w, "MixerStripView::mute-ta"), 2);
+}
+
+#[test]
+fn the_outputs_tab_shows_only_the_outputs() {
+    let w = harness(
+        vec![row("in:0@d", true, false), row("in:1@d", true, false)],
+        vec![row("out:0,1@d", false, false)],
+    );
+    open_outputs_tab(&w);
+    assert_eq!(count(&w, "MixerStripView::mute-ta"), 1);
 }
 
 #[test]
@@ -80,8 +97,22 @@ fn mute_press_reports_the_strip() {
     let got = Rc::new(RefCell::new(Vec::<String>::new()));
     let g = got.clone();
     MixerBridge::get(&w).on_mute_toggled(move |id| g.borrow_mut().push(id.to_string()));
-    press_release(&w, center(&w, "MixerStripView::mute-ta", 1));
+    open_outputs_tab(&w);
+    press_release(&w, center(&w, "MixerStripView::mute-ta", 0));
     assert_eq!(*got.borrow(), vec!["out:0,1@d".to_string()]);
+}
+
+#[test]
+fn solo_press_reports_the_strip() {
+    let w = harness(
+        vec![row("in:0@d", true, false), row("in:1@d", true, false)],
+        vec![],
+    );
+    let got = Rc::new(RefCell::new(Vec::<String>::new()));
+    let g = got.clone();
+    MixerBridge::get(&w).on_solo_toggled(move |id| g.borrow_mut().push(id.to_string()));
+    press_release(&w, center(&w, "MixerStripView::solo-ta", 1));
+    assert_eq!(*got.borrow(), vec!["in:1@d".to_string()]);
 }
 
 #[test]

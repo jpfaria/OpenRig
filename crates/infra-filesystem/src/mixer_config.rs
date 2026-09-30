@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// One strip's fader and mute, keyed by its wire id (`out:0,1@<device>`).
+/// One strip's fader, mute and solo, keyed by its wire id (`out:0,1@<device>`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MixerStripConfig {
     pub id: String,
@@ -15,4 +15,7 @@ pub struct MixerStripConfig {
     pub gain_db: f32,
     #[serde(default)]
     pub muted: bool,
+    /// SOLO: silences the other strips of the same side while set.
+    #[serde(default)]
+    pub soloed: bool,
 }

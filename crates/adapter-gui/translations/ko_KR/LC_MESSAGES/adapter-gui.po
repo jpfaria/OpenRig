@@ -311,7 +311,11 @@ msgstr "속도"
 msgid "looper-reverse"
 msgstr "역방향"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:125
+#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+msgid "action-mixer-solo"
+msgstr "솔로"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:155
 msgid "action-mixer-mute"
 msgstr "음소거"
 
@@ -595,23 +599,24 @@ msgstr "구성된 프로젝트 출력 없음"
 msgid "title-window-metronome"
 msgstr "메트로놈"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:76
+#: crates/adapter-gui/ui/pages/mixer_window.slint:68
 msgid "label-mixer"
 msgstr "믹서"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:112
-msgid "status-mixer-no-endpoints"
-msgstr "구성된 입력 또는 출력이 없습니다. I/O 설정에서 엔드포인트를 추가하세요."
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:133
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-inputs"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-outputs"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:152
+#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+msgid "status-mixer-no-endpoints"
+msgstr ""
+"구성된 입력 또는 출력이 없습니다. I/O 설정에서 엔드포인트를 추가하세요."
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:142
 msgid "title-window-mixer"
 msgstr "믹서"
 

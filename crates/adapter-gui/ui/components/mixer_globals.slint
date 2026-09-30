@@ -18,6 +18,9 @@ export struct MixerStripRow {
     position: float,
     gain-label: string,
     muted: bool,
+    soloed: bool,
+    // Another strip of the same side is soloed, so this one is silent.
+    solo-silenced: bool,
 }
 
 export global MixerBridge {
@@ -34,4 +37,5 @@ export global MixerBridge {
     // Double-click on the fader: back to unity.
     callback fader-reset(string);
     callback mute-toggled(string);
+    callback solo-toggled(string);
 }

@@ -21,6 +21,7 @@ fn view(
         channels,
         gain_db,
         muted,
+        soloed: false,
     }
 }
 
@@ -61,7 +62,7 @@ fn a_row_carries_the_setting_pre_computed() {
 }
 
 #[test]
-fn the_detail_names_the_channels_one_based() {
+fn the_detail_names_the_side_and_channels_one_based() {
     let (inputs, outputs) = mixer_rows(&[
         view("in:14@dev", MixerDirection::Input, vec![14], 0.0, false),
         view(
@@ -79,7 +80,41 @@ fn the_detail_names_the_channels_one_based() {
             false,
         ),
     ]);
-    assert_eq!(inputs[0].detail.as_str(), "CH 15");
-    assert_eq!(outputs[0].detail.as_str(), "CH 1-2");
-    assert_eq!(outputs[1].detail.as_str(), "CH 1, 3");
+    // #1007 review: the user could not tell inputs from outputs — the side
+    // travels with the channels, like the chain meters (#1006).
+    assert_eq!(inputs[0].detail.as_str(), "IN 15");
+    assert_eq!(outputs[0].detail.as_str(), "OUT 1,2");
+    assert_eq!(outputs[1].detail.as_str(), "OUT 1,3");
+}
+
+fn soloed(mut strip: MixerStripView) -> MixerStripView {
+    strip.soloed = true;
+    strip
+}
+
+#[test]
+fn a_soloed_strip_shows_its_solo_and_dims_the_rest_of_its_side() {
+    let (inputs, outputs) = mixer_rows(&[
+        view("in:0@dev", MixerDirection::Input, vec![0], 0.0, false),
+        soloed(view(
+            "out:0,1@dev",
+            MixerDirection::Output,
+            vec![0, 1],
+            0.0,
+            false,
+        )),
+        view(
+            "out:2,3@dev",
+            MixerDirection::Output,
+            vec![2, 3],
+            0.0,
+            false,
+        ),
+    ]);
+    assert!(outputs[0].soloed && !outputs[0].solo_silenced);
+    assert!(!outputs[1].soloed && outputs[1].solo_silenced);
+    assert!(
+        !inputs[0].solo_silenced,
+        "an output solo leaves the inputs alone"
+    );
 }

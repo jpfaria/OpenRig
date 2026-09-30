@@ -62,8 +62,9 @@ use application::command_schema::command_variant_names;
 /// trimming, cropping and cutting a recorded loop, so a headless client
 /// reshapes a take exactly as the waveform editor does.
 /// #1007 bumped to 102 with `SetMixerFader`/`SetMixerMute`/`ToggleMixerMute`
-/// — the global mixer's per-endpoint fader and mute.
-const COMMAND_VARIANT_COUNT: usize = 102;
+/// — the global mixer's per-endpoint fader and mute — then to 104 with
+/// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO.
+const COMMAND_VARIANT_COUNT: usize = 104;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

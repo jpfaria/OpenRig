@@ -20,6 +20,7 @@ pub struct MixerStripView {
     pub channels: Vec<usize>,
     pub gain_db: f32,
     pub muted: bool,
+    pub soloed: bool,
 }
 
 /// Every strip the bindings expose, inputs first.
@@ -37,6 +38,7 @@ pub fn mixer_view(bindings: &[IoBinding], state: &MixerControlState) -> Vec<Mixe
                 channels: strip.id.channels,
                 gain_db: setting.gain_db,
                 muted: setting.muted,
+                soloed: setting.soloed,
             }
         })
         .collect()

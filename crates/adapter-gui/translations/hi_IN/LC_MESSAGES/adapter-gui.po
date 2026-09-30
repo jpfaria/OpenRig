@@ -310,7 +310,11 @@ msgstr "गति"
 msgid "looper-reverse"
 msgstr "उल्टा"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:125
+#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+msgid "action-mixer-solo"
+msgstr "सोलो"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:155
 msgid "action-mixer-mute"
 msgstr "म्यूट"
 
@@ -594,23 +598,23 @@ msgstr "कोई प्रोजेक्ट आउटपुट कॉन्फ
 msgid "title-window-metronome"
 msgstr "मेट्रोनोम"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:76
+#: crates/adapter-gui/ui/pages/mixer_window.slint:68
 msgid "label-mixer"
 msgstr "मिक्सर"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:112
-msgid "status-mixer-no-endpoints"
-msgstr "कोई इनपुट या आउटपुट कॉन्फ़िगर नहीं है। I/O सेटिंग्स में एंडपॉइंट जोड़ें।"
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:133
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-inputs"
 msgstr "इनपुट"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-outputs"
 msgstr "आउटपुट"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:152
+#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+msgid "status-mixer-no-endpoints"
+msgstr "कोई इनपुट या आउटपुट कॉन्फ़िगर नहीं है। I/O सेटिंग्स में एंडपॉइंट जोड़ें।"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:142
 msgid "title-window-mixer"
 msgstr "मिक्सर"
 

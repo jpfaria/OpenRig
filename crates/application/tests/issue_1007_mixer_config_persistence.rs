@@ -18,6 +18,7 @@ fn strip(id: &str, gain_db: f32, muted: bool) -> MixerStripConfig {
         id: id.to_string(),
         gain_db,
         muted,
+        soloed: false,
     }
 }
 

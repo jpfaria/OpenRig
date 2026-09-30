@@ -1,6 +1,6 @@
 // Responsibility: renders the global mixer window.
 // #1007 — one strip per input and output endpoint configured in the I/O
-// bindings, grouped by side. Header mirrors the metronome's; the body scrolls
+// bindings, one tab per side (inputs, outputs). Header mirrors the metronome's; the body scrolls
 // sideways when a machine has more endpoints than the window is wide.
 //
 // The panel reads its state from `MixerBridge`, so the same component serves
@@ -9,25 +9,15 @@
 import { ScrollView } from "std-widgets.slint";
 import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
 import { MixerStripView } from "../components/mixer_strip.slint";
+import { ParamTabBar } from "../components/param_tab_bar.slint";
 
-// One side of the mixer: a caption over its strips.
+// One side of the mixer: its strips, side by side.
 component MixerSection inherits Rectangle {
-    in property <string> caption;
     in property <[MixerStripRow]> strips;
 
-    Text {
-        x: 0; y: 0;
-        width: parent.width; height: 22px;
-        text: root.caption;
-        color: #93a1b7;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 2.0px;
-    }
-
     HorizontalLayout {
-        x: 0; y: 28px;
-        height: parent.height - 28px;
+        x: 0; y: 0;
+        height: parent.height;
         spacing: 8px;
         alignment: start;
         for strip in root.strips : MixerStripView {
@@ -35,6 +25,7 @@ component MixerSection inherits Rectangle {
             fader-moved(id, position) => { MixerBridge.fader-moved(id, position); }
             fader-reset(id) => { MixerBridge.fader-reset(id); }
             mute-toggled(id) => { MixerBridge.mute-toggled(id); }
+            solo-toggled(id) => { MixerBridge.solo-toggled(id); }
         }
     }
 }
@@ -44,9 +35,10 @@ export component MixerPanel inherits Rectangle {
     // its own chrome.
     in property <bool> show-close-button: false;
 
-    private property <length> section-gap: 24px;
-    private property <length> inputs-width: MixerBridge.inputs.length * 104px;
-    private property <length> outputs-width: MixerBridge.outputs.length * 104px;
+    // 0 = inputs tab, 1 = outputs tab.
+    private property <int> tab: 0;
+    private property <[MixerStripRow]> shown: root.tab == 0 ? MixerBridge.inputs : MixerBridge.outputs;
+    private property <length> body-top: 128px;
 
     background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
@@ -105,10 +97,19 @@ export component MixerPanel inherits Rectangle {
         }
     }
 
-    // ── Empty state — nothing configured to mix ──────────────────────────
-    if MixerBridge.inputs.length + MixerBridge.outputs.length == 0 : Text {
-        x: 24px; y: 72px;
-        width: parent.width - 48px; height: parent.height - 72px;
+    // ── Tabs — one side at a time ────────────────────────────────────────
+    ParamTabBar {
+        x: 16px; y: 80px;
+        width: parent.width - 32px; height: 36px;
+        groups: [@tr("label-mixer-inputs"), @tr("label-mixer-outputs")];
+        active: root.tab;
+        select(i) => { root.tab = i; }
+    }
+
+    // ── Empty state — nothing on this side to mix ────────────────────────
+    if root.shown.length == 0 : Text {
+        x: 24px; y: root.body-top;
+        width: parent.width - 48px; height: parent.height - root.body-top;
         text: @tr("status-mixer-no-endpoints");
         color: #6a6a82;
         font-size: 18px;
@@ -117,30 +118,19 @@ export component MixerPanel inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ── Strips — inputs, then outputs ────────────────────────────────────
+    // ── Strips of the active tab ─────────────────────────────────────────
     ScrollView {
-        x: 16px; y: 88px;
+        x: 16px; y: root.body-top;
         width: parent.width - 32px;
-        height: parent.height - 104px;
-        viewport-width: max(self.width,
-            root.inputs-width + root.section-gap + root.outputs-width);
+        height: parent.height - root.body-top - 16px;
+        viewport-width: max(self.width, root.shown.length * 120px);
         viewport-height: self.height;
 
-        if MixerBridge.inputs.length > 0 : MixerSection {
+        MixerSection {
             x: 0; y: 0;
-            width: root.inputs-width;
+            width: root.shown.length * 120px;
             height: parent.height - 12px;
-            caption: @tr("label-mixer-inputs");
-            strips: MixerBridge.inputs;
-        }
-
-        if MixerBridge.outputs.length > 0 : MixerSection {
-            x: MixerBridge.inputs.length > 0 ? root.inputs-width + root.section-gap : 0;
-            y: 0;
-            width: root.outputs-width;
-            height: parent.height - 12px;
-            caption: @tr("label-mixer-outputs");
-            strips: MixerBridge.outputs;
+            strips: root.shown;
         }
     }
 }
@@ -151,9 +141,9 @@ export component MixerWindow inherits Window {
     default-font-size: 18px;
     title: @tr("title-window-mixer");
     min-width: 360px;
-    min-height: 420px;
+    min-height: 520px;
     preferred-width: 720px;
-    preferred-height: 480px;
+    preferred-height: 600px;
     background: #050608;
 
     MixerPanel {

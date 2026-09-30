@@ -576,9 +576,9 @@ fn the_mixer_state_lists_every_strip_with_its_setting() {
         json,
         serde_json::json!({"strips": [
             {"id": "in:0@mxr-read", "direction": "input", "name": "Guitar",
-             "device_id": "mxr-read", "channels": [0], "gain_db": 0.0, "muted": false},
+             "device_id": "mxr-read", "channels": [0], "gain_db": 0.0, "muted": false, "soloed": false},
             {"id": "out:0,1@mxr-read", "direction": "output", "name": "Main",
-             "device_id": "mxr-read", "channels": [0, 1], "gain_db": 0.0, "muted": true},
+             "device_id": "mxr-read", "channels": [0, 1], "gain_db": 0.0, "muted": true, "soloed": false},
         ]})
     );
 }

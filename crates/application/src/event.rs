@@ -278,6 +278,7 @@ pub enum Event {
         strip: String,
         gain_db: f32,
         muted: bool,
+        soloed: bool,
     },
 
     /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`

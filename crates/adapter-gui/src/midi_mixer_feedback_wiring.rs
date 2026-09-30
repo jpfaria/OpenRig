@@ -47,8 +47,14 @@ pub(crate) fn start(
             None => return,
         };
         for strip in strips {
-            if tracker.changed(&strip.id, strip.gain_db, strip.muted) {
-                for message in strip_feedback(&bindings, &strip.id, strip.gain_db, strip.muted) {
+            if tracker.changed(&strip.id, strip.gain_db, strip.muted, strip.soloed) {
+                for message in strip_feedback(
+                    &bindings,
+                    &strip.id,
+                    strip.gain_db,
+                    strip.muted,
+                    strip.soloed,
+                ) {
                     output.send(&message);
                 }
             }

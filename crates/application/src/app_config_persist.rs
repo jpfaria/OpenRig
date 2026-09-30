@@ -71,7 +71,7 @@ pub fn persist_metronome(
 pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
     crate::persist_worker::run(move || {
         if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
-            let at_default = strip.gain_db == 0.0 && !strip.muted;
+            let at_default = strip.gain_db == 0.0 && !strip.muted && !strip.soloed;
             match config.mixer.iter().position(|s| s.id == strip.id) {
                 Some(i) if at_default => {
                     config.mixer.remove(i);

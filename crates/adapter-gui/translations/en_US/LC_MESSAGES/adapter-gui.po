@@ -315,7 +315,11 @@ msgstr "Speed"
 msgid "looper-reverse"
 msgstr "Reverse"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:125
+#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+msgid "action-mixer-solo"
+msgstr "SOLO"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:155
 msgid "action-mixer-mute"
 msgstr "MUTE"
 
@@ -600,23 +604,23 @@ msgstr "No project outputs configured"
 msgid "title-window-metronome"
 msgstr "Metronome"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:76
+#: crates/adapter-gui/ui/pages/mixer_window.slint:68
 msgid "label-mixer"
 msgstr "MIXER"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:112
-msgid "status-mixer-no-endpoints"
-msgstr "No input or output configured. Add endpoints in the I/O settings."
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:133
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-inputs"
 msgstr "INPUTS"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-outputs"
 msgstr "OUTPUTS"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:152
+#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+msgid "status-mixer-no-endpoints"
+msgstr "No input or output configured. Add endpoints in the I/O settings."
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:142
 msgid "title-window-mixer"
 msgstr "Mixer"
 

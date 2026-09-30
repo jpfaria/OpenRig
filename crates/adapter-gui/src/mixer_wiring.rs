@@ -142,6 +142,12 @@ fn wire_strip_controls(bridge: &MixerBridge, ctx: &MixerCtx) {
             strip: id.to_string(),
         });
     });
+    let c = ctx.clone();
+    bridge.on_solo_toggled(move |id| {
+        c.dispatch(MixerCommand::ToggleMixerSolo {
+            strip: id.to_string(),
+        });
+    });
 }
 
 fn start_poll(ctx: &MixerCtx) {

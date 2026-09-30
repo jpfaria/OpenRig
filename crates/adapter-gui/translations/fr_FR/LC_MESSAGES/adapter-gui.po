@@ -312,7 +312,11 @@ msgstr "Vitesse"
 msgid "looper-reverse"
 msgstr "Inverse"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:125
+#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+msgid "action-mixer-solo"
+msgstr "SOLO"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:155
 msgid "action-mixer-mute"
 msgstr "MUET"
 
@@ -597,23 +601,25 @@ msgstr "Aucune sortie configurée dans le projet"
 msgid "title-window-metronome"
 msgstr "Métronome"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:76
+#: crates/adapter-gui/ui/pages/mixer_window.slint:68
 msgid "label-mixer"
 msgstr "MIXAGE"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:112
-msgid "status-mixer-no-endpoints"
-msgstr "Aucune entrée ni sortie configurée. Ajoutez des points de terminaison dans les réglages E/S."
-
-#: crates/adapter-gui/ui/pages/mixer_window.slint:133
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-inputs"
 msgstr "ENTRÉES"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:104
 msgid "label-mixer-outputs"
 msgstr "SORTIES"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:152
+#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+msgid "status-mixer-no-endpoints"
+msgstr ""
+"Aucune entrée ni sortie configurée. Ajoutez des points de terminaison dans "
+"les réglages E/S."
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:142
 msgid "title-window-mixer"
 msgstr "Mixage"
 

@@ -15,6 +15,7 @@ use anyhow::{bail, Result};
 
 use domain::io_binding::ChannelMode;
 use domain::mixer_gain::{clamp_gain_db, strip_linear_gain};
+use domain::mixer_solo::solo_silenced;
 use domain::mixer_strip::MixerStripId;
 use domain::mixer_strips::strips_from_bindings;
 use infra_filesystem::MixerStripConfig;
@@ -40,14 +41,26 @@ impl LocalDispatcher {
         mixer_view(&self.current_io_bindings(), &state)
     }
 
-    /// Push every stored strip to the engine again — after the bindings
-    /// changed, a strip's channel mode (and so its fan-out) may have too.
+    /// Push every strip to the engine again — the stored ones and every one
+    /// the bindings expose (a solo silences strips nobody ever moved). After
+    /// the bindings changed, a strip's channel mode (and so its fan-out) may
+    /// have too.
     pub(crate) fn apply_all_mixer_strips(&self) {
-        let entries = self.mixer.borrow().borrow().entries();
-        for (wire, setting) in entries {
+        let state = self.mixer.borrow().clone();
+        let mut ids: Vec<MixerStripId> = strips_from_bindings(&self.current_io_bindings())
+            .into_iter()
+            .map(|strip| strip.id)
+            .collect();
+        for (wire, _) in state.borrow().entries() {
             if let Some(id) = MixerStripId::parse(&wire) {
-                self.apply_mixer_strip(&id, setting);
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
             }
+        }
+        for id in ids {
+            let setting = state.borrow().get(&id.to_wire());
+            self.apply_mixer_strip(&id, setting);
         }
     }
 
@@ -64,15 +77,25 @@ impl LocalDispatcher {
                 (strip, Box::new(move |s| s.muted = muted))
             }
             MixerCommand::ToggleMixerMute { strip } => (strip, Box::new(|s| s.muted = !s.muted)),
+            MixerCommand::SetMixerSolo { strip, soloed } => {
+                (strip, Box::new(move |s| s.soloed = soloed))
+            }
+            MixerCommand::ToggleMixerSolo { strip } => (strip, Box::new(|s| s.soloed = !s.soloed)),
         };
         let Some(id) = MixerStripId::parse(&strip) else {
             bail!("unknown mixer strip {strip:?}: expected in:<channels>@<device> or out:<channels>@<device>");
         };
         let state = self.mixer.borrow().clone();
-        let mut setting = state.borrow().get(&strip);
+        let before = state.borrow().get(&strip);
+        let mut setting = before;
         change(&mut setting);
         state.borrow_mut().set(&strip, setting);
-        self.apply_mixer_strip(&id, setting);
+        if setting.soloed != before.soloed {
+            // A solo changes what the whole side hears, not just this strip.
+            self.apply_all_mixer_strips();
+        } else {
+            self.apply_mixer_strip(&id, setting);
+        }
         if let Some(path) = state.borrow().config_path() {
             persist_mixer_strip(
                 path,
@@ -80,6 +103,7 @@ impl LocalDispatcher {
                     id: strip.clone(),
                     gain_db: setting.gain_db,
                     muted: setting.muted,
+                    soloed: setting.soloed,
                 },
             );
         }
@@ -87,14 +111,18 @@ impl LocalDispatcher {
             strip,
             gain_db: setting.gain_db,
             muted: setting.muted,
+            soloed: setting.soloed,
         }])
     }
 
     /// Write the strip's linear gain into every engine endpoint slot it
-    /// feeds. Control thread only — the audio thread reads the atomics.
+    /// feeds. A strip silenced by a solo on its side writes 0 and keeps its
+    /// fader. Control thread only — the audio thread reads the atomics.
     fn apply_mixer_strip(&self, id: &MixerStripId, setting: MixerStripSetting) {
         let mode = self.mixer_strip_mode(id);
-        let linear = strip_linear_gain(setting.gain_db, setting.muted);
+        let group_has_solo = self.mixer.borrow().borrow().group_has_solo(id.direction);
+        let silent = setting.muted || solo_silenced(setting.soloed, group_has_solo);
+        let linear = strip_linear_gain(setting.gain_db, silent);
         for channels in id.runtime_channel_groups(mode) {
             engine::mixer_gains::set_endpoint_gain(id.direction, &id.device_id, &channels, linear);
         }

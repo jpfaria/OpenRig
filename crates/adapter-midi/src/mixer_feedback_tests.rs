@@ -25,46 +25,67 @@ const SURFACE: &str = r#"
   command: SaveProject
 "#;
 
+const SOLO_SURFACE: &str = r#"
+- source: { kind: note_on, channel: 1, note: 8 }
+  command: ToggleMixerSolo
+  args: { strip: "in:0@dev" }
+- source: { kind: note_on, channel: 1, note: 9 }
+  command: SetMixerSolo
+  args: { strip: "out:0,1@dev", soloed: true }
+"#;
+
 #[test]
 fn pitch_bend_fader_moves_to_the_strip_gain() {
-    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 12.0, false);
+    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 12.0, false, false);
     // Top of the travel: 16383 → LSB 0x7F, MSB 0x7F on channel 2 (0xE1).
     assert!(out.contains(&[0xE1, 0x7F, 0x7F]), "got {out:02X?}");
 }
 
 #[test]
 fn pitch_bend_fader_bottom_is_zero() {
-    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", -60.0, false);
+    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", -60.0, false, false);
     assert!(out.contains(&[0xE1, 0x00, 0x00]), "got {out:02X?}");
 }
 
 #[test]
 fn mute_led_lights_when_muted() {
-    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, true);
+    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, true, false);
     assert!(out.contains(&[0x90, 17, 127]), "got {out:02X?}");
 }
 
 #[test]
 fn mute_led_goes_dark_when_unmuted() {
-    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, false);
+    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, false, false);
     assert!(out.contains(&[0x90, 17, 0]), "got {out:02X?}");
 }
 
 #[test]
 fn cc_fader_sends_seven_bit_position() {
-    let out = strip_feedback(&bindings(SURFACE), "out:0,1@dev", 12.0, true);
+    let out = strip_feedback(&bindings(SURFACE), "out:0,1@dev", 12.0, true, false);
     assert!(out.contains(&[0xB0, 7, 127]), "got {out:02X?}");
     assert!(out.contains(&[0x90, 18, 127]), "got {out:02X?}");
 }
 
 #[test]
 fn other_strips_and_commands_send_nothing() {
-    let out = strip_feedback(&bindings(SURFACE), "in:9@other", 0.0, true);
+    let out = strip_feedback(&bindings(SURFACE), "in:9@other", 0.0, true, false);
     assert!(out.is_empty(), "got {out:02X?}");
 }
 
 #[test]
 fn only_the_strip_s_own_bindings_answer() {
-    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, false);
+    let out = strip_feedback(&bindings(SURFACE), "in:0@dev", 0.0, false, false);
     assert_eq!(out.len(), 2, "got {out:02X?}");
+}
+
+#[test]
+fn solo_led_lights_when_soloed() {
+    let out = strip_feedback(&bindings(SOLO_SURFACE), "in:0@dev", 0.0, false, true);
+    assert_eq!(out, vec![[0x90, 8, 127]]);
+}
+
+#[test]
+fn solo_led_goes_dark_when_not_soloed() {
+    let out = strip_feedback(&bindings(SOLO_SURFACE), "out:0,1@dev", 0.0, true, false);
+    assert_eq!(out, vec![[0x90, 9, 0]]);
 }

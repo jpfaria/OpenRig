@@ -21,4 +21,12 @@ pub enum MixerCommand {
 
     /// Flip a strip's mute — the shape a surface's MUTE button sends.
     ToggleMixerMute { strip: String },
+
+    /// Solo or unsolo a strip. While any strip of a side (inputs, or
+    /// outputs) is soloed, the strips of that side NOT soloed are silent.
+    /// Solos add up; the faders are never touched.
+    SetMixerSolo { strip: String, soloed: bool },
+
+    /// Flip a strip's solo — the shape a surface's SOLO button sends.
+    ToggleMixerSolo { strip: String },
 }

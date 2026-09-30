@@ -64,6 +64,7 @@ fn changed(events: &[Event]) -> (String, f32, bool) {
                 strip,
                 gain_db,
                 muted,
+                ..
             } => Some((strip.clone(), *gain_db, *muted)),
             _ => None,
         })
@@ -206,6 +207,7 @@ fn attaching_restored_settings_applies_them_to_the_engine() {
             id: "out:0,1@mxd-restore".into(),
             gain_db: -12.0,
             muted: false,
+            soloed: false,
         }],
         None,
     );
@@ -235,6 +237,7 @@ fn a_fader_move_is_persisted_only_to_the_attached_config() {
             id: "out:0,1@mxd-persist".into(),
             gain_db: -5.0,
             muted: false,
+            soloed: false,
         }]
     );
 }

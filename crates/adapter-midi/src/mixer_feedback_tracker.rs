@@ -6,14 +6,14 @@ use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 pub struct MixerFeedbackTracker {
-    last: HashMap<String, (f32, bool)>,
+    last: HashMap<String, (f32, bool, bool)>,
 }
 
 impl MixerFeedbackTracker {
-    /// `true` (and remembers the new state) when `strip` is new or its gain
-    /// or mute differs from what was last reported.
-    pub fn changed(&mut self, strip: &str, gain_db: f32, muted: bool) -> bool {
-        let state = (gain_db, muted);
+    /// `true` (and remembers the new state) when `strip` is new or its gain,
+    /// mute or solo differs from what was last reported.
+    pub fn changed(&mut self, strip: &str, gain_db: f32, muted: bool, soloed: bool) -> bool {
+        let state = (gain_db, muted, soloed);
         if self.last.get(strip) == Some(&state) {
             return false;
         }
