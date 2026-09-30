@@ -25,8 +25,8 @@ const BARE_GATES: &[&str] = &[
 fn every_stream_gate_reads_chain_plays() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for file in GATE_FILES {
-        let source = std::fs::read_to_string(root.join(file))
-            .unwrap_or_else(|e| panic!("read {file}: {e}"));
+        let source =
+            std::fs::read_to_string(root.join(file)).unwrap_or_else(|e| panic!("read {file}: {e}"));
         for gate in BARE_GATES {
             assert!(
                 !source.contains(gate),

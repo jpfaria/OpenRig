@@ -110,7 +110,11 @@ fn y_disables() -> EndpointDisables {
     }
 }
 
-fn chain(bindings: &[&str], blocks: Vec<AudioBlock>, disabled_endpoints: EndpointDisables) -> Chain {
+fn chain(
+    bindings: &[&str],
+    blocks: Vec<AudioBlock>,
+    disabled_endpoints: EndpointDisables,
+) -> Chain {
     Chain {
         id: ChainId("rig:input-1".into()),
         description: None,
@@ -176,7 +180,10 @@ fn an_output_no_path_checks_has_no_pipeline() {
     let chain = chain(&["main"], vec![y_split()], disables);
     assert_eq!(
         routing(&chain, &registry()),
-        vec![(vec![0, 1], SegmentPaths::A), (vec![4, 5], SegmentPaths::AB)],
+        vec![
+            (vec![0, 1], SegmentPaths::A),
+            (vec![4, 5], SegmentPaths::AB)
+        ],
         "#328: out-b is checked on no path — no route, no segment"
     );
 }
@@ -239,7 +246,10 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
             id: "main".into(),
             name: "MAIN".into(),
             inputs: vec![mono("in", "dev", 0)],
-            outputs: vec![stereo("out-a", "dev", [0, 1]), stereo("out-b", "dev", [2, 3])],
+            outputs: vec![
+                stereo("out-a", "dev", [0, 1]),
+                stereo("out-b", "dev", [2, 3]),
+            ],
         },
         IoBinding {
             id: "fx".into(),
@@ -276,7 +286,10 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
         .filter(|s| s.block_indices == vec![2])
         .map(|s| {
             (
-                s.output_route_indices.iter().map(|&r| outs[r].clone()).collect(),
+                s.output_route_indices
+                    .iter()
+                    .map(|&r| outs[r].clone())
+                    .collect(),
                 s.paths,
             )
         })
@@ -291,7 +304,11 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
     );
     let tap_writers = segs
         .iter()
-        .filter(|s| s.mid_output_taps.iter().any(|t| outs[t.route_idx] == vec![6, 7]))
+        .filter(|s| {
+            s.mid_output_taps
+                .iter()
+                .any(|t| outs[t.route_idx] == vec![6, 7])
+        })
         .count();
     assert_eq!(
         tap_writers, 1,

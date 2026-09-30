@@ -4,7 +4,12 @@ use super::{group_routes_by_paths, SegmentPaths};
 
 #[test]
 fn routes_group_by_path_set_in_first_seen_order() {
-    let paths = [SegmentPaths::B, SegmentPaths::A, SegmentPaths::B, SegmentPaths::AB];
+    let paths = [
+        SegmentPaths::B,
+        SegmentPaths::A,
+        SegmentPaths::B,
+        SegmentPaths::AB,
+    ];
     assert_eq!(
         group_routes_by_paths(&[0, 1, 2, 3], &paths),
         vec![
