@@ -28,6 +28,7 @@ fn recorded_chain() -> Chain {
             audio_file: Some("rig-in-looper-1.wav".into()),
             ..LooperConfig::new(1)
         }],
+        mix: Default::default(),
     }
 }
 

@@ -222,6 +222,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtime_arc = Arc::new(
         engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
@@ -405,6 +406,7 @@ fn two_device_chain() -> project::chain::Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -536,6 +538,7 @@ fn same_device_chain() -> project::chain::Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

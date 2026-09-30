@@ -100,6 +100,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         },
     );
     RigProject {
@@ -333,6 +334,7 @@ fn replacement_chain_without_output() -> Chain {
         di_output: None,
         disabled_endpoints: Default::default(),
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

@@ -69,6 +69,7 @@ fn project_of(blocks: Vec<AudioBlock>) -> Project {
         name: None,
         device_settings: Vec::new(),
         chains: vec![Chain {
+            mix: Default::default(),
             id: ChainId("c".into()),
             description: None,
             instrument: "electric_guitar".into(),

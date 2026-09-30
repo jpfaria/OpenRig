@@ -106,6 +106,38 @@ msgstr "채널 {}개"
 msgid "label-channels-selected"
 msgstr "선택됨:"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+msgid "label-mixer-no-inputs"
+msgstr "입력 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-outputs"
+msgstr "출력 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-loopers"
+msgstr "루퍼 없음"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "믹서"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+msgid "tab-mixer-in"
+msgstr "입력"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+msgid "tab-mixer-out"
+msgstr "출력"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+msgid "tab-mixer-looper"
+msgstr "루퍼"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "모델 검색..."
@@ -193,6 +225,10 @@ msgstr "블록 제거"
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
 msgstr "신호 체인 그래프"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "글로벌"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -388,6 +424,14 @@ msgstr "테이크를 저장할 수 없습니다"
 #: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
 msgid "looper-take-needs-name"
 msgstr "테이크 이름을 입력하세요"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
+msgid "action-mixer-solo"
+msgstr "솔로"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
+msgid "action-mixer-mute"
+msgstr "음소거"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
@@ -598,6 +642,11 @@ msgid "msg-pick-io-endpoint"
 msgstr "I/O와 엔드포인트를 선택하세요"
 
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "입력 / 출력"
+
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
 msgid "label-input"
 msgstr "입력"
 
@@ -665,6 +714,23 @@ msgstr "구성된 프로젝트 출력 없음"
 msgid "title-window-metronome"
 msgstr "메트로놈"
 
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-inputs"
+msgstr "입력"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-outputs"
+msgstr "출력"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
+msgid "status-mixer-no-endpoints"
+msgstr ""
+"구성된 입력 또는 출력이 없습니다. I/O 설정에서 엔드포인트를 추가하세요."
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
+msgid "title-window-mixer"
+msgstr "믹서"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:88
 msgid "·"
 msgstr "·"
@@ -710,6 +776,11 @@ msgid "tooltip-save"
 msgstr "저장"
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:164
+#: crates/adapter-gui/ui/pages/project_chains.slint:149
+msgid "tooltip-mixer"
+msgstr "믹서"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
 msgstr "새 체인"
 
@@ -1039,5 +1110,6 @@ msgid "title-window-chain-port"
 msgstr "포트"
 
 #: crates/adapter-gui/ui/touch_main.slint:405
+#: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

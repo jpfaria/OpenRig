@@ -90,6 +90,7 @@ impl ChainYaml {
             di_output: None,
             loopers: self.loopers,
             disabled_endpoints: self.disabled_endpoints,
+            mix: Default::default(),
         })
     }
 

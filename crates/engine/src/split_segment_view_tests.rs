@@ -171,6 +171,7 @@ fn a_mix_split_and_every_other_block_are_themselves() {
 #[test]
 fn a_chain_is_shaped_only_where_its_y_split_sits() {
     let chain = |blocks: Vec<AudioBlock>| Chain {
+        mix: Default::default(),
         id: ChainId("rig:input-1".into()),
         description: None,
         instrument: "electric_guitar".into(),

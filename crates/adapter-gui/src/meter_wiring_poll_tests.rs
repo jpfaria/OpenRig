@@ -84,6 +84,7 @@ fn chain(id: &str, volume: f32) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

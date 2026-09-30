@@ -47,6 +47,7 @@ fn project_with_saved_loop(audio_file: String) -> Project {
             di_output: None,
             loopers: vec![looper],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }

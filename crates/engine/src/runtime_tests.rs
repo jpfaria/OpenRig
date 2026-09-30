@@ -66,6 +66,7 @@ pub(super) fn empty_chain(id: &str) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -171,6 +172,7 @@ pub(super) fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -346,6 +348,7 @@ pub(super) fn io_passthrough_chain(id: &str) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -377,6 +380,7 @@ pub(super) fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -579,6 +583,7 @@ pub(super) fn insert_chain() -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

@@ -163,6 +163,7 @@ fn chain_with_io(id: &str, input: IoEndpoint, output: IoEndpoint) -> (Chain, Vec
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let registry = vec![IoBinding {
         id: "io".into(),

@@ -108,4 +108,15 @@ pub enum QueryKind {
     /// Serialized by [`crate::query_output_routes::output_routes_json`];
     /// MCP serves it as `openrig://routes`.
     OutputRoutes,
+    /// #1007: the global mixer — one strip per configured input and output
+    /// endpoint, with its fader and mute. Read parity for the mixer
+    /// commands. Serialized by [`crate::query_mixer::mixer_state_json`];
+    /// MCP serves it as `openrig://mixer`.
+    MixerState,
+    /// #1007: one chain's own faders — its fader and mute on each strip it
+    /// plays through, plus its DI-loop fader. Read parity for the chain
+    /// mixer commands. Serialized by
+    /// [`crate::query_chain_mixer::chain_mixer_json`]; MCP serves it as
+    /// `openrig://chains/{chain}/mixer`.
+    ChainMixer { chain: domain::ids::ChainId },
 }

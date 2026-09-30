@@ -57,6 +57,7 @@ fn one_block_chain(effect_type: &str, model: &str) -> Chain {
                 params,
             }),
         }],
+        mix: Default::default(),
     }
 }
 

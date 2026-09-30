@@ -74,6 +74,8 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             // #328: capture the graph's endpoint checklists so an unchecked
             // endpoint stays unchecked after save + reopen.
             rig_input.disabled_endpoints = chain.disabled_endpoints.clone();
+            // #1007: the chain's own faders are project data too.
+            rig_input.mix = chain.mix.clone();
         }
     }
     sync_chain_order(rig, project);

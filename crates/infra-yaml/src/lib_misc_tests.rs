@@ -114,6 +114,7 @@ fn project_with_multiple_chains_roundtrips() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             },
             Chain {
                 id: ChainId("chain:1".into()),
@@ -145,6 +146,7 @@ fn project_with_multiple_chains_roundtrips() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             },
         ],
         midi: None,
@@ -301,6 +303,7 @@ fn chain_volume_150_roundtrips_through_yaml() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -332,6 +335,7 @@ fn chain_io_binding_ids_roundtrip_through_yaml() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

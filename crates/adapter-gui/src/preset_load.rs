@@ -77,6 +77,7 @@ pub(crate) fn load_preset_onto_chain(
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     assign_new_block_ids(&mut staged);
 

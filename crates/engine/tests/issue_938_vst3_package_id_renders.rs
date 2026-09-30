@@ -73,6 +73,7 @@ fn vst3_block_named_by_its_package_id_renders_in_stereo() {
                 params,
             }),
         }],
+        mix: Default::default(),
     };
     let source: Vec<[f32; 2]> = (0..(SR as usize))
         .map(|n| {

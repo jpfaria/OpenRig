@@ -112,3 +112,7 @@ title-endpoints-input: "입력"
 title-endpoints-output: "출력"
 title-endpoints-path-a: "경로 A 출력"
 title-endpoints-path-b: "경로 B 출력"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "마스터"
+mixer-strip-looper: "루퍼 %{n}"

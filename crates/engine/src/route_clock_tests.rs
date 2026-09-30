@@ -47,6 +47,7 @@ fn the_tail_after_an_insert_is_fed_by_the_return_and_the_send_by_the_guitar() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     assert_eq!(
         route_producers(&chain, &registry),

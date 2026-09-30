@@ -9,7 +9,7 @@ use domain::AudioDeviceDescriptor;
 use infra_filesystem::IoBinding;
 use project::block::AudioBlockKind;
 use project::project::Project;
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 
 pub(crate) fn replace_project_chains(
@@ -286,7 +286,17 @@ pub(crate) fn replace_project_chains(
                 graph_anchors: graph_models.anchors,
                 graph_lanes: graph.lanes as i32,
                 graph_columns: graph.columns as i32,
+                meters_expanded: false,
             }
+        })
+        .enumerate()
+        .map(|(index, mut item)| {
+            // #1007: nearly every edit rebuilds the rows; an expanded meter
+            // section stays open while the same chain sits in that place.
+            item.meters_expanded = model
+                .row_data(index)
+                .is_some_and(|old| old.meters_expanded && old.title == item.title);
+            item
         })
         .collect::<Vec<_>>();
     model.set_vec(items);

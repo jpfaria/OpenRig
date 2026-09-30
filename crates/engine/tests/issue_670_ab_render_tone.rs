@@ -53,6 +53,7 @@ fn render_beat_it_green_day_to_wav() {
         volume: 139.0,
         io_binding_ids: vec!["io".into()],
         blocks,
+        mix: Default::default(),
     };
 
     // 12 s of the real Green Day DI.

@@ -112,3 +112,7 @@ title-endpoints-input: "输入"
 title-endpoints-output: "输出"
 title-endpoints-path-a: "路径 A 的输出"
 title-endpoints-path-b: "路径 B 的输出"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "总音量"
+mixer-strip-looper: "循环器 %{n}"

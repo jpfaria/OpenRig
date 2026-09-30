@@ -110,3 +110,39 @@ fn source_is_continuous_only_for_cc() {
     }
     .is_continuous());
 }
+
+// ── #1007: Pitch Bend (Mackie Control faders) ──────────────────────────────
+
+#[test]
+fn pitch_bend_source_uses_snake_case_kind_and_is_continuous() {
+    let src = Source::PitchBend { channel: 3 };
+    let yaml = serde_yaml::to_string(&src).unwrap();
+    assert!(yaml.contains("kind: pitch_bend"), "got: {yaml}");
+    assert!(yaml.contains("channel: 3"), "got: {yaml}");
+    assert!(src.is_continuous());
+}
+
+#[test]
+fn scale_apply_unit_maps_zero_one_onto_min_max() {
+    let s = Scale {
+        min: -60.0,
+        max: 12.0,
+        into: "gain_db".into(),
+    };
+    assert!((s.apply_unit(0.0) - -60.0).abs() < 1e-9);
+    assert!((s.apply_unit(1.0) - 12.0).abs() < 1e-9);
+    assert!((s.apply_unit(0.5) - -24.0).abs() < 1e-9);
+}
+
+#[test]
+fn scale_unit_of_inverts_apply_unit_and_clamps() {
+    let s = Scale {
+        min: -60.0,
+        max: 12.0,
+        into: "gain_db".into(),
+    };
+    assert!((s.unit_of(-24.0) - 0.5).abs() < 1e-9);
+    assert!((s.unit_of(12.0) - 1.0).abs() < 1e-9);
+    assert!((s.unit_of(99.0) - 1.0).abs() < 1e-9);
+    assert!((s.unit_of(-99.0) - 0.0).abs() < 1e-9);
+}

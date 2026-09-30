@@ -93,6 +93,7 @@ fn endpoint(name: &str) -> EndpointRef {
 /// Path A → out-a + out-ab; path B → out-b + out-ab.
 fn y_chain(split: AudioBlock) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId("issue-328-y".into()),
         description: None,
         instrument: "electric_guitar".into(),

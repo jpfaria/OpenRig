@@ -23,6 +23,7 @@ fn unchecked_input(endpoint: &str) -> EndpointDisables {
 
 fn input(disabled_endpoints: EndpointDisables) -> RigInput {
     RigInput {
+        mix: Default::default(),
         label: None,
         bank: BTreeMap::from([(1, "p".to_string())]),
         active_preset: 1,

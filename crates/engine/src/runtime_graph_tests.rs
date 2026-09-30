@@ -22,6 +22,7 @@ fn build_runtime_graph_skips_disabled_chains() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -193,6 +194,7 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }
     }
 
@@ -427,6 +429,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
         ],

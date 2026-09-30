@@ -56,6 +56,7 @@ fn session_with_one_block() -> Rc<RefCell<Option<ProjectSession>>> {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }];
     Rc::new(RefCell::new(Some(session)))
 }

@@ -71,6 +71,7 @@ fn rig(active_scene: usize) -> RigProject {
         inputs: BTreeMap::from([(
             "g".to_string(),
             RigInput {
+                mix: Default::default(),
                 label: None,
                 bank: BTreeMap::from([(1, "p".to_string())]),
                 active_preset: 1,
@@ -101,6 +102,7 @@ fn capture(rig: &mut RigProject, edit: impl FnOnce(&mut Vec<AudioBlock>)) {
         name: None,
         device_settings: Vec::new(),
         chains: vec![Chain {
+            mix: Default::default(),
             id: ChainId("rig:g".into()),
             description: None,
             instrument: "electric_guitar".into(),

@@ -17,6 +17,7 @@ fn chain_with(loopers: Vec<LooperConfig>) -> Chain {
         di_output: None,
         loopers,
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

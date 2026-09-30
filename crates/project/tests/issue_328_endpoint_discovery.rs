@@ -42,6 +42,7 @@ fn chain(blocks: Vec<AudioBlock>, unchecked: &[(EndpointNode, &str)]) -> Chain {
         );
     }
     Chain {
+        mix: Default::default(),
         id: ChainId("rig:g".into()),
         description: None,
         instrument: "electric_guitar".into(),

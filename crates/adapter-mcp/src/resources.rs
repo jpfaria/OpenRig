@@ -25,6 +25,9 @@ pub const URI_METRONOME: &str = "openrig://metronome";
 /// #923: what each output route's device stream pulled (callbacks, underruns,
 /// peak since the last read) per (chain, runtime group, route).
 pub const URI_ROUTES: &str = "openrig://routes";
+/// #1007: the global mixer — one strip per configured endpoint with its
+/// fader and mute. Read parity for the mixer commands.
+pub const URI_MIXER: &str = "openrig://mixer";
 /// #829: per-chain latency probe. Concrete URIs look like
 /// `openrig://chains/<chain_id>/latency`.
 pub const URI_CHAIN_LATENCY_TEMPLATE: &str = "openrig://chains/{chain}/latency";
@@ -67,6 +70,9 @@ pub const URI_CHAIN_QUALITY_TEMPLATE: &str = "openrig://chains/{chain}/quality";
 /// #323: parameterised resource — one chain's loopers (persisted parameters
 /// plus live transport state), e.g. `openrig://chains/chain:1/loopers`.
 pub const URI_CHAIN_LOOPERS_TEMPLATE: &str = "openrig://chains/{chain}/loopers";
+/// #1007: parameterised resource — one chain's own mixer faders, e.g.
+/// `openrig://chains/rig:guitar/mixer`.
+pub const URI_CHAIN_MIXER_TEMPLATE: &str = "openrig://chains/{chain}/mixer";
 /// #791: URI template for the chain's last Tone Doctor verdict (symptom,
 /// culprit block, measurements, measured fix). Concrete URIs look like
 /// `openrig://chains/<chain_id>/tone`. The verdict is produced by
@@ -129,6 +135,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_MIXER,
+                "Global mixer strips (one per configured endpoint: fader dB, mute) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_CHAIN_LATENCY_TEMPLATE,
                 "Measured chain latency (replace {chain} with a chain id) — JSON",
             ),
@@ -170,6 +183,13 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(
                 URI_CHAIN_LOOPERS_TEMPLATE,
                 "Chain loopers: state, position, length, layers and parameters (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_CHAIN_MIXER_TEMPLATE,
+                "Chain's own mixer faders: its fader and mute on each strip it plays through, plus its DI fader (replace {chain} with a chain id) — JSON",
             ),
             None,
         ),
@@ -226,6 +246,10 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
         QueryKind::ChainLoopers {
             chain: ChainId(chain_id),
         }
+    } else if let Some(chain_id) = parse_chain_suffix_uri(uri, "/mixer") {
+        QueryKind::ChainMixer {
+            chain: ChainId(chain_id),
+        }
     } else if let Some(chain_id) = parse_chain_latency_uri(uri) {
         QueryKind::ChainLatency {
             chain: ChainId(chain_id),
@@ -255,6 +279,7 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_DI => QueryKind::DiLoopState,
             URI_METRONOME => QueryKind::MetronomeState,
             URI_ROUTES => QueryKind::OutputRoutes,
+            URI_MIXER => QueryKind::MixerState,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
@@ -287,6 +312,8 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::DiLoopState => URI_DI.to_string(),
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
+        QueryKind::MixerState => URI_MIXER.to_string(),
+        QueryKind::ChainMixer { chain } => format!("openrig://chains/{}/mixer", chain.0),
         QueryKind::ChainLatency { chain } => {
             format!("openrig://chains/{}/latency", chain.0)
         }
@@ -321,6 +348,15 @@ pub fn uri_for(kind: &QueryKind) -> String {
 fn parse_chain_presets_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/presets"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Extract `<chain>` from `openrig://chains/<chain><suffix>`. Returns `None`
+/// for any other URI shape or an empty chain id.
+fn parse_chain_suffix_uri(uri: &str, suffix: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix(suffix))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
 }

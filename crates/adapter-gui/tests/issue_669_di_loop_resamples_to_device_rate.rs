@@ -61,6 +61,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))
@@ -80,6 +81,7 @@ fn make_controller_at(chain_id: &ChainId, sr: u32) -> ProjectRuntimeController {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtime_arc = Arc::new(
         build_chain_runtime_state(&chain, sr as f32, &[DEFAULT_ELASTIC_TARGET], &[])

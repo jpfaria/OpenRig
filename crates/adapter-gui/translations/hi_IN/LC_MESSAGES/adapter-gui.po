@@ -106,6 +106,38 @@ msgstr "{} चैनल"
 msgid "label-channels-selected"
 msgstr "चयनित:"
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+msgid "label-mixer-no-inputs"
+msgstr "कोई इनपुट नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-outputs"
+msgstr "कोई आउटपुट नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-loopers"
+msgstr "कोई लूपर नहीं"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr "मिक्सर"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+msgid "tab-mixer-in"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+msgid "tab-mixer-out"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+msgid "tab-mixer-di"
+msgstr "DI"
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+msgid "tab-mixer-looper"
+msgstr "लूपर"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "मॉडल खोजें..."
@@ -193,6 +225,10 @@ msgstr "ब्लॉक हटाएँ"
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
 msgstr "सिग्नल चेन ग्राफ़"
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
+msgstr "ग्लोबल"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -387,6 +423,14 @@ msgstr "टेक सहेजा नहीं जा सका"
 #: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
 msgid "looper-take-needs-name"
 msgstr "टेक के लिए नाम लिखें"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
+msgid "action-mixer-solo"
+msgstr "सोलो"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
+msgid "action-mixer-mute"
+msgstr "म्यूट"
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
@@ -597,6 +641,11 @@ msgid "msg-pick-io-endpoint"
 msgstr "एक I/O और एंडपॉइंट चुनें"
 
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr "इनपुट / आउटपुट"
+
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
 msgid "label-input"
 msgstr "इनपुट"
 
@@ -664,6 +713,22 @@ msgstr "कोई प्रोजेक्ट आउटपुट कॉन्फ
 msgid "title-window-metronome"
 msgstr "मेट्रोनोम"
 
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-inputs"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-outputs"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
+msgid "status-mixer-no-endpoints"
+msgstr "कोई इनपुट या आउटपुट कॉन्फ़िगर नहीं है। I/O सेटिंग्स में एंडपॉइंट जोड़ें।"
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
+msgid "title-window-mixer"
+msgstr "मिक्सर"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:88
 msgid "·"
 msgstr "·"
@@ -709,6 +774,11 @@ msgid "tooltip-save"
 msgstr "सहेजें"
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:164
+#: crates/adapter-gui/ui/pages/project_chains.slint:149
+msgid "tooltip-mixer"
+msgstr "मिक्सर"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
 msgstr "नई चेन"
 
@@ -1037,5 +1107,6 @@ msgid "title-window-chain-port"
 msgstr "पोर्ट"
 
 #: crates/adapter-gui/ui/touch_main.slint:405
+#: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"

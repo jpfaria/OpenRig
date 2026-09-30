@@ -34,6 +34,7 @@ fn rig() -> RigProject {
             io_binding_ids: vec!["io1".to_string()],
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         },
     );
     RigProject {

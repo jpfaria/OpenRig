@@ -24,6 +24,7 @@ fn build_cost_of_the_isolated_runtime() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let pcm = engine::DiPcm::new(vec![0.3; 44_100 * 2], 44_100, 2);
 

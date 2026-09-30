@@ -119,6 +119,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))
@@ -215,6 +216,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))

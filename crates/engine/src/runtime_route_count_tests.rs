@@ -30,6 +30,7 @@ fn chain_with_outputs(outputs: Vec<IoEndpoint>) -> (Chain, Vec<IoBinding>) {
         outputs,
     }];
     let chain = Chain {
+        mix: Default::default(),
         id: ChainId("issue-328-routes".into()),
         description: None,
         instrument: "electric_guitar".into(),

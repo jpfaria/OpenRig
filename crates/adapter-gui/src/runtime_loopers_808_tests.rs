@@ -52,6 +52,7 @@ fn stopped_session(loopers: Vec<LooperConfig>) -> ProjectSession {
             di_output: None,
             loopers,
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

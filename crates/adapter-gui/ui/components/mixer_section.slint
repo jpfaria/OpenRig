@@ -1,0 +1,26 @@
+// Responsibility: lays out a row of global-mixer strips wired to the MixerBridge.
+// #1007 — shared by the Mixer window (one tab per side) and the compact chain
+// view (the chain's own inputs and outputs), so both drive the same commands.
+
+import { MixerBridge, MixerStripRow } from "mixer_globals.slint";
+import { MixerStripView } from "mixer_strip.slint";
+
+export component MixerSection inherits Rectangle {
+    in property <[MixerStripRow]> strips;
+    // Horizontal distance between the left edges of two strips.
+    out property <length> strip-pitch: 120px;
+
+    HorizontalLayout {
+        x: 0; y: 0;
+        height: parent.height;
+        spacing: root.strip-pitch - 112px;
+        alignment: start;
+        for strip in root.strips : MixerStripView {
+            strip: strip;
+            fader-moved(id, position) => { MixerBridge.fader-moved(id, position); }
+            fader-reset(id) => { MixerBridge.fader-reset(id); }
+            mute-toggled(id) => { MixerBridge.mute-toggled(id); }
+            solo-toggled(id) => { MixerBridge.solo-toggled(id); }
+        }
+    }
+}

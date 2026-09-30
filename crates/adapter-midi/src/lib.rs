@@ -21,9 +21,12 @@
 
 pub mod daemon;
 pub mod enumerate;
+pub mod feedback_output;
 pub mod learn;
 mod mapping;
 mod message;
+pub mod mixer_feedback;
+pub mod mixer_feedback_tracker;
 pub mod pipeline;
 pub mod profile;
 pub mod resolve;

@@ -43,6 +43,7 @@ fn reopened_project_restores_selected_binding_in_checklist() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
 
     // Simulate save + reopen: round-trip the chain through YAML (the project

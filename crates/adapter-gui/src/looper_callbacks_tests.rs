@@ -53,6 +53,7 @@ fn chain(id: &str) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -105,6 +106,7 @@ fn rig_playing(preset_id: &str) -> RigProject {
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             },
         )]),
         outputs: BTreeMap::new(),

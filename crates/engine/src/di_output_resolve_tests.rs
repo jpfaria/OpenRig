@@ -14,6 +14,7 @@ fn chain_with(binding_ids: &[&str]) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

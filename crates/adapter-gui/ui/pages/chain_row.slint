@@ -9,6 +9,7 @@ import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav }
 import { ChainRowHeader } from "chain_row_header.slint";
 import { ChainRowMeters } from "chain_row_meters.slint";
 import { ChainRowBlocks } from "chain_row_blocks.slint";
+import { SectionToggle } from "../components/section_toggle.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
@@ -59,6 +60,8 @@ export component ChainRow inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback open-compact-chain-view(int);
+    // #1007: the IN/OUT meter section was expanded (true) or collapsed.
+    callback meters-toggled(bool);
     // Drag state is SHARED across rows (a chip can be dragged from one chain
     // into another), so the page owns it and each row passes it into its strip.
     in-out property <int> dragging-chain-index: -1;
@@ -104,12 +107,14 @@ export component ChainRow inherits Rectangle {
     // downward from the base meter `y`: every extra stream beyond the
     // first adds one meter row pitch so the card grows and the rows don't bleed
     // into the next chain card (user feedback: "tem que dar espaço").
+    // #1007: the meter rows sit under a collapsible header and start collapsed;
+    // collapsed, the header takes the place of the first meter row.
     height: 106px + (root.content-row-count * 108px)
-        + (root.chain.stream_meters.length > 1
-            ? (root.chain.stream_meters.length - 1) * meters.row-pitch
-            : 0px)
+        + (root.chain.meters_expanded ? Math.max(1, root.chain.stream_meters.length) * meters.row-pitch : 0px)
         // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
-        + (root.chain.di_loop_playing ? meters.row-pitch : 0px);
+        + (root.chain.meters_expanded && root.chain.di_loop_playing ? meters.row-pitch : 0px);
+    property <length> meters-toggle-height: 28px;
+    property <length> meter-rows-height: root.height - 106px - root.content-row-count * 108px;
 
     ChainRowHeader {
         x: 0px;
@@ -175,12 +180,23 @@ export component ChainRow inherits Rectangle {
         markers-visible: root.midi-selection-active;
     }
 
+    meters-toggle := SectionToggle {
+        x: 0px;
+        y: root.height - root.meter-rows-height - root.meters-toggle-height;
+        width: root.width;
+        height: root.meters-toggle-height;
+        title: @tr("label-meters");
+        expanded: root.chain.meters_expanded;
+        toggled(expanded) => { root.meters-toggled(expanded); }
+    }
+
     meters := ChainRowMeters {
         x: 0px;
         y: 0px;
         width: root.width;
         height: root.height;
         chain: root.chain;
+        visible: root.chain.meters_expanded;
     }
 }
 

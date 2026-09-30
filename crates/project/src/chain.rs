@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InsertBlock, OutputBlock};
 pub use crate::chain_bus_layout::bus_layout_after;
+pub use crate::chain_mix::{ChainEndpointMix, ChainMix};
 pub use crate::chain_modes::{
     processing_layout, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
 };
@@ -51,6 +52,9 @@ pub struct Chain {
     /// empty keeps every endpoint.
     #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
     pub disabled_endpoints: EndpointDisables,
+    /// #1007: the chain's own faders (per endpoint and DI). Unity when absent.
+    #[serde(default, skip_serializing_if = "ChainMix::is_unity")]
+    pub mix: ChainMix,
 }
 
 impl Chain {

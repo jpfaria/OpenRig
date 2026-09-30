@@ -41,6 +41,7 @@ fn off(endpoint: &str) -> EndpointRef {
 
 fn chain(id: &str, enabled: bool, disabled_endpoints: EndpointDisables) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),

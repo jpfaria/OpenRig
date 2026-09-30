@@ -33,3 +33,26 @@ fn a_saved_looper_take_belongs_to_its_chain() {
         Some(&c)
     );
 }
+
+#[test]
+fn chain_mixer_events_are_scoped_to_their_chain() {
+    let c = ChainId("rig:guitar".into());
+    assert_eq!(
+        Event::ChainMixerStripChanged {
+            chain: c.clone(),
+            strip: "out:0,1@hd8".into(),
+            gain_db: -6.0,
+            muted: false,
+        }
+        .chain(),
+        Some(&c)
+    );
+    assert_eq!(
+        Event::ChainDiFaderChanged {
+            chain: c.clone(),
+            gain_db: -3.0,
+        }
+        .chain(),
+        Some(&c)
+    );
+}

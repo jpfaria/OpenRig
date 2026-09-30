@@ -54,6 +54,7 @@ fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
             io_binding_ids: vec!["main".to_string()],
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         },
     );
     RigProject {

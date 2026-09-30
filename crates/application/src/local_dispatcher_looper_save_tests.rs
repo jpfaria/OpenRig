@@ -59,6 +59,7 @@ fn chain_with(uids: &[u64], audio_file: Option<&str>) -> Chain {
                 ..LooperConfig::new(*uid)
             })
             .collect(),
+        mix: Default::default(),
     }
 }
 

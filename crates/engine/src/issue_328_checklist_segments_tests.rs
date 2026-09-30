@@ -49,6 +49,7 @@ fn off(endpoint: &str) -> EndpointRef {
 
 fn chain(blocks: Vec<AudioBlock>, disabled_endpoints: EndpointDisables) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId("rig:input-1".into()),
         description: None,
         instrument: "electric_guitar".into(),

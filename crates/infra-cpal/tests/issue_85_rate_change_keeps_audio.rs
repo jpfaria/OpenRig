@@ -182,6 +182,7 @@ fn changing_the_sample_rate_keeps_the_rig_audible() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

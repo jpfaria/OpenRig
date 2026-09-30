@@ -70,6 +70,7 @@ fn chain_with_only_io_blocks_roundtrips() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -310,6 +311,7 @@ fn serialize_project_produces_valid_yaml_string() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -557,6 +559,7 @@ fn chain_loopers_survive_a_project_roundtrip() {
                 mix: 0.5,
                 ..LooperConfig::new(5)
             }],
+            mix: Default::default(),
         }],
         midi: None,
     };

@@ -60,6 +60,7 @@ fn chain_with_looper(id: &str) -> Chain {
             }),
             ..LooperConfig::new(UID)
         }],
+        mix: Default::default(),
     }
 }
 

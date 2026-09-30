@@ -10,7 +10,7 @@
 | `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`), overriding config for this run. |
 | `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
-| `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). |
+| `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). A map that binds mixer strips also gets motor-fader / LED feedback on the outputs named by its `input:` (#1007, see `docs/midi.md`). |
 
 > **#712 — these flags are overrides, not the only switch.** Packaged builds launch the binary with no arguments, so MIDI/MCP enablement is driven by the per-machine `config.yaml` master switches `midi_enabled` / `mcp_enabled` (both default `false`; toggle them in Settings or by hand). A present `--midi` / `--mcp` flag forces the subsystem on for that single run regardless of config. See [`config-taxonomy.md`](config-taxonomy.md).
 

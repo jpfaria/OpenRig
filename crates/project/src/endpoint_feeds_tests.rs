@@ -93,6 +93,7 @@ fn mid_output() -> AudioBlock {
 
 fn chain(blocks: Vec<AudioBlock>, disabled_endpoints: EndpointDisables) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId("rig:input-1".into()),
         description: None,
         instrument: "electric_guitar".into(),

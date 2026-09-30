@@ -26,6 +26,7 @@ fn unchecked() -> EndpointDisables {
 
 fn chain(id: &str, disabled_endpoints: EndpointDisables) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId(id.into()),
         description: Some("Guitar".into()),
         instrument: "electric_guitar".into(),
@@ -55,6 +56,7 @@ fn a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input() {
         inputs: BTreeMap::from([(
             "g".to_string(),
             RigInput {
+                mix: Default::default(),
                 label: None,
                 bank: BTreeMap::from([(1, "p".to_string())]),
                 active_preset: 1,

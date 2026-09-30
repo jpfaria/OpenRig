@@ -84,6 +84,7 @@ fn two_heads_chain(insert_enabled: bool) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -441,6 +442,7 @@ fn a_cut_after_a_disabled_insert_uses_its_own_send_and_return() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let (ins, outs) = resolve_chain_io(&chain, &registry);
     let (eff_in, cpal, split, groups) = effective_inputs(&chain, &ins, &registry);
@@ -509,6 +511,7 @@ fn a_chain_with_no_output_never_plays_out_a_disabled_inserts_send() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let (ins, outs) = resolve_chain_io(&chain, &registry);
     let (eff_in, cpal, split, groups) = effective_inputs(&chain, &ins, &registry);
@@ -584,6 +587,7 @@ fn an_in_place_update_builds_a_new_tail_at_its_devices_rate() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let rates: std::collections::HashMap<DeviceId, f32> = [
         (DeviceId("scarlett".into()), 44_100.0),
@@ -674,6 +678,7 @@ fn a_route_rebuilt_in_place_starts_with_a_fresh_resampler() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let rates: std::collections::HashMap<DeviceId, f32> = [
         (DeviceId("scarlett".into()), 44_100.0),
@@ -769,6 +774,7 @@ fn a_runtime_owns_what_it_writes_and_a_single_runtime_owns_its_loops_send() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }
     }
     fn runtimes(chain: &Chain, registry: &[IoBinding]) -> Vec<(usize, Arc<ChainRuntimeState>)> {

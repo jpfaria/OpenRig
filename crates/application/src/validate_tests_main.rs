@@ -69,6 +69,7 @@ fn validate_project_binding_bound_chain_succeeds() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let project = Project {
         name: None,

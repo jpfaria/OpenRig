@@ -119,6 +119,7 @@ fn a_label_that_names_no_source_dispatches_nothing() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             }],
             midi: None,
         },

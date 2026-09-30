@@ -10,6 +10,7 @@ use crate::gui_settings::GuiAudioDeviceSettings;
 use crate::io_bindings::IoBinding;
 use crate::metronome_config::MetronomeConfig;
 use crate::midi_device::MidiDeviceSelection;
+use crate::mixer_config::MixerStripConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
@@ -67,6 +68,10 @@ pub struct AppConfig {
     /// on purpose — see [`MetronomeConfig`].
     #[serde(default)]
     pub metronome: MetronomeConfig,
+    /// Per-machine global mixer (#1007, ADR 0003): only the strips moved
+    /// away from unity or muted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mixer: Vec<MixerStripConfig>,
 }
 
 fn default_true() -> bool {

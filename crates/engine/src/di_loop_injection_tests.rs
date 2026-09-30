@@ -50,6 +50,7 @@ fn passthrough_runtime() -> Arc<super::ChainRuntimeState> {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     Arc::new(
         build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)
@@ -173,6 +174,7 @@ fn two_source_runtime() -> Arc<super::ChainRuntimeState> {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     Arc::new(
         build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)

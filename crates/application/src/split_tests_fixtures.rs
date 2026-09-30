@@ -114,6 +114,7 @@ pub(crate) fn rig_with_presets(presets: Vec<(&str, Vec<AudioBlock>)>) -> RigProj
         );
     }
     let input = RigInput {
+        mix: Default::default(),
         label: None,
         bank,
         active_preset: 1,

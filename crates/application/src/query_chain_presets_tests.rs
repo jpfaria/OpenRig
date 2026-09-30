@@ -22,6 +22,7 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     for (idx, name) in bank {
         input.bank.insert(idx, name.to_string());

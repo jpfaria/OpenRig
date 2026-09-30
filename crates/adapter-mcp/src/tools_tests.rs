@@ -69,7 +69,13 @@ use application::command_schema::command_variant_names;
 /// from any transport.
 /// #328 bumped to 104 with `SetChainEndpointEnabled` — the endpoint
 /// checklist of the chain graph's input/output nodes.
-const COMMAND_VARIANT_COUNT: usize = 104;
+/// #1007 bumped to 103 with `SetMixerFader`/`SetMixerMute`/`ToggleMixerMute`
+/// — the global mixer's per-endpoint fader and mute — then to 105 with
+/// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO, then to 109 with a
+/// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
+/// `ToggleChainMixerMute`/`SetChainDiFader`).
+/// Both merged (#328 + #1007): 100 + 4 + 9.
+const COMMAND_VARIANT_COUNT: usize = 113;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

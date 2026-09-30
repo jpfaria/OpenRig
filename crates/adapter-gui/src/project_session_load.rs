@@ -69,6 +69,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     if let Ok(app_config) = FilesystemStorage::load_app_config() {
         *session.io_bindings.borrow_mut() = app_config.io_bindings;
     }
+    crate::session_mixer::restore_mixer_state(session.dispatcher.as_ref());
     session
 }
 
@@ -154,6 +155,7 @@ pub(crate) fn load_project_session(
             .join(presets_path),
     );
     *session.io_bindings.borrow_mut() = registry_bindings;
+    crate::session_mixer::restore_mixer_state(session.dispatcher.as_ref());
     let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
     // #436: the dispatcher owns the rig so rig-nav goes through Command
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.

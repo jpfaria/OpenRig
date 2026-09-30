@@ -177,6 +177,7 @@ fn disabling_and_re_enabling_a_chain_brings_the_audio_back() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let mut project = Project {
         name: Some("issue-85-toggle".into()),

@@ -52,6 +52,7 @@ fn chain(id: &str, looper_uids: &[u64]) -> Chain {
             .map(|uid| LooperConfig::new(*uid))
             .collect(),
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

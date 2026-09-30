@@ -55,6 +55,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

@@ -63,6 +63,7 @@ pub(crate) fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>, b: Vec<AudioBlo
 
 pub(crate) fn chain(blocks: Vec<AudioBlock>) -> Chain {
     Chain {
+        mix: Default::default(),
         id: ChainId("chain:0".into()),
         description: None,
         instrument: "electric_guitar".into(),

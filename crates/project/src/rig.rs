@@ -100,6 +100,10 @@ pub struct RigInput {
     /// endpoint, so pre-#328 files load unchanged and it needs no version bump.
     #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
     pub disabled_endpoints: EndpointDisables,
+    /// #1007: the chain's own faders, persisted here for the same reason
+    /// as `loopers` — the projected chain is rebuilt from the rig.
+    #[serde(default, skip_serializing_if = "crate::chain::ChainMix::is_unity")]
+    pub mix: crate::chain::ChainMix,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

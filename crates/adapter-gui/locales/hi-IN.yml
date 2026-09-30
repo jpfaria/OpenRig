@@ -112,3 +112,7 @@ title-endpoints-input: "इनपुट"
 title-endpoints-output: "आउटपुट"
 title-endpoints-path-a: "पाथ A के आउटपुट"
 title-endpoints-path-b: "पाथ B के आउटपुट"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "मास्टर"
+mixer-strip-looper: "लूपर %{n}"

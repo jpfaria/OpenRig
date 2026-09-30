@@ -243,6 +243,8 @@ pub(crate) fn build_per_input_runtimes(
     elastic_targets: &[usize],
     registry: &[IoBinding],
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
+    // #1007: the chain's own faders reach the engine before any state reads them.
+    crate::chain_mix_gains::apply_chain_mix(chain, registry);
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);
@@ -397,6 +399,8 @@ pub fn build_chain_runtime_state_with_device_rates(
     elastic_targets: &[usize],
     registry: &[IoBinding],
 ) -> Result<ChainRuntimeState> {
+    // #1007: the chain's own faders reach the engine before any state reads them.
+    crate::chain_mix_gains::apply_chain_mix(chain, registry);
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);

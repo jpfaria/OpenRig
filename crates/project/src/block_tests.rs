@@ -253,6 +253,7 @@ fn insert_block_in_chain_structure() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let inserts = chain.insert_blocks();
     assert_eq!(inserts.len(), 1);

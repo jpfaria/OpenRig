@@ -53,6 +53,7 @@ fn rig_with_a_recorded_loop() -> RigProject {
                 ..LooperConfig::new(1)
             }],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         },
     );
     RigProject {

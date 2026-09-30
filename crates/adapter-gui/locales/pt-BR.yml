@@ -124,3 +124,7 @@ title-endpoints-input: "Entradas"
 title-endpoints-output: "Saídas"
 title-endpoints-path-a: "Saídas do caminho A"
 title-endpoints-path-b: "Saídas do caminho B"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "MASTER"
+mixer-strip-looper: "LOOPER %{n}"

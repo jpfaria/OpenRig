@@ -103,6 +103,7 @@ fn p670_real_rig_chain() -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -169,6 +170,7 @@ fn p670_isolated(block: AudioBlock) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -332,6 +334,7 @@ fn audio_callback_does_not_allocate_with_two_nam_instances() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtime = std::sync::Arc::new(
         build_chain_runtime_state(
@@ -382,6 +385,7 @@ fn audio_callback_does_not_allocate_with_user_rig_input1() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtime = std::sync::Arc::new(
         build_chain_runtime_state(

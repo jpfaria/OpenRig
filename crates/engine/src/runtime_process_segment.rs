@@ -12,6 +12,7 @@ use std::sync::Arc;
 use block_core::AudioChannelLayout;
 use crossbeam_queue::ArrayQueue;
 
+use crate::mixer_ramp::GainGlide;
 use crate::runtime_audio_frame::{read_input_frame, AudioFrame};
 use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
 use crate::runtime_mid_output_tap::emit_mid_output_taps;
@@ -124,6 +125,10 @@ pub(crate) fn process_single_segment(
         split_mono_sibling_count,
         plays_di_loop: _,
         outgoing,
+        mixer_gain,
+        mixer_current,
+        di_gain,
+        di_current,
     } = input_state;
 
     frame_buffer.clear();
@@ -146,6 +151,10 @@ pub(crate) fn process_single_segment(
         }
         SegmentFeed::Loop(di_loop, start_pos) => {
             use crate::di_loop::DiFrame;
+            // #1007: the chain's DI fader, glided over the callback.
+            let target = di_gain.target();
+            let glide = GainGlide::begin(*di_current, target, num_frames);
+            *di_current = target;
             for i in 0..num_frames {
                 let f = di_loop.frame_at(start_pos.wrapping_add(i));
                 let chain_frame = match (*processing_layout, f) {
@@ -156,12 +165,24 @@ pub(crate) fn process_single_segment(
                         AudioFrame::Mono((l + r) * 0.5)
                     }
                 };
+                let chain_frame = match &glide {
+                    Some(glide) => chain_frame.scaled(glide.gain_at(i)),
+                    None => chain_frame,
+                };
                 frame_buffer.push(chain_frame);
             }
             let _ = (input_read_layout, input_channels);
         }
         SegmentFeed::Live => {
-            for frame in data.chunks(input_total_channels).take(num_frames) {
+            // #1007: this input's global-mixer fader, glided over the callback.
+            let target = mixer_gain.target();
+            let glide = GainGlide::begin(*mixer_current, target, num_frames);
+            *mixer_current = target;
+            for (i, frame) in data
+                .chunks(input_total_channels)
+                .take(num_frames)
+                .enumerate()
+            {
                 let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
                 let chain_frame = match (*input_read_layout, *processing_layout) {
                     (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
@@ -172,6 +193,10 @@ pub(crate) fn process_single_segment(
                         AudioFrame::Stereo([sample, sample])
                     }
                     _ => raw_frame,
+                };
+                let chain_frame = match &glide {
+                    Some(glide) => chain_frame.scaled(glide.gain_at(i)),
+                    None => chain_frame,
                 };
                 frame_buffer.push(chain_frame);
             }

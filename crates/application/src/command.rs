@@ -25,6 +25,7 @@ pub mod io_binding;
 pub mod looper;
 pub mod metronome;
 pub mod midi;
+pub mod mixer;
 pub mod plugin;
 pub mod project;
 pub mod selection;
@@ -38,6 +39,7 @@ pub use io_binding::IoBindingCommand;
 pub use looper::LooperCommand;
 pub use metronome::MetronomeCommand;
 pub use midi::MidiCommand;
+pub use mixer::MixerCommand;
 pub use plugin::PluginCommand;
 pub use project::ProjectCommand;
 pub use selection::SelectionCommand;
@@ -78,6 +80,8 @@ pub enum Command {
     Looper(LooperCommand),
     /// #328: the chain's split — create it, switch Mix/Y, remove it.
     Split(SplitCommand),
+    /// #1007: the global mixer — one fader and one mute per I/O endpoint.
+    Mixer(MixerCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.

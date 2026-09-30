@@ -315,6 +315,7 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let registry = vec![IoBinding {
         id: "io1".into(),

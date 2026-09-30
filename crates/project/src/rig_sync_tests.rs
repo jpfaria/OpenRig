@@ -24,6 +24,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             },
         );
         presets.insert(
@@ -65,6 +66,7 @@ fn project_with_chain_ids(ids: &[&str]) -> Project {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             })
             .collect(),
         midi: None,
@@ -148,6 +150,27 @@ fn sync_captures_chain_loopers_into_the_rig_input() {
             ..LooperConfig::new(7)
         }],
         "a looper recorded on the projected chain must persist into the rig input"
+    );
+}
+
+#[test]
+fn sync_captures_chain_mix_into_the_rig_input() {
+    // #1007: the chain's own faders are project data; the projected chain
+    // is rebuilt from the rig on open, so they must be written back.
+    use domain::mixer_strip::MixerDirection;
+    let mut rig = rig_with_inputs(&["a"]);
+    let mut proj = project_with_chain_ids(&["rig:a"]);
+    proj.chains[0].mix.di_gain_db = -3.0;
+    proj.chains[0]
+        .mix
+        .endpoint_mut(MixerDirection::Output, "io", "Main")
+        .gain_db = -9.0;
+
+    sync_synthetic_into_rig(&mut rig, &proj);
+
+    assert_eq!(
+        rig.inputs["a"].mix, proj.chains[0].mix,
+        "the chain's own faders must persist into the rig input"
     );
 }
 

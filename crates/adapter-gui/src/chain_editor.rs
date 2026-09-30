@@ -64,6 +64,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             di_output: existing.di_output.clone(),
             loopers: existing.loopers.clone(),
             disabled_endpoints: existing.disabled_endpoints.clone(),
+            mix: existing.mix.clone(),
         }
     } else {
         // Create mode: a new chain has no blocks. Its input/output is
@@ -81,6 +82,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }
     }
 }

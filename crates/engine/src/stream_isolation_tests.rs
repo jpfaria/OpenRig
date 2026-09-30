@@ -82,6 +82,7 @@ pub(super) fn bound_chain(id: &str, description: Option<String>, blocks: Vec<Aud
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

@@ -118,6 +118,7 @@ pub(super) fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -269,6 +270,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let project = Project {
         name: None,

@@ -173,6 +173,8 @@ export struct ProjectChainItem {
     graph_lanes: int,
     /// Columns the graph spans: the row fits the whole chain on first paint.
     graph_columns: int,
+    /// #1007: the card's IN/OUT meter section is expanded. Starts collapsed.
+    meters_expanded: bool,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the

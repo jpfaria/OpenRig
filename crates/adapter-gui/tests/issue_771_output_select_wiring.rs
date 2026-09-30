@@ -69,6 +69,7 @@ fn test_chain(chain_id: &ChainId) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

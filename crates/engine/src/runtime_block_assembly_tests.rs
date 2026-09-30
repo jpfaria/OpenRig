@@ -31,6 +31,7 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -259,6 +260,7 @@ fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "should build with fallback I/O");

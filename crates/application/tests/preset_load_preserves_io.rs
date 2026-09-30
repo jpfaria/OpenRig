@@ -75,6 +75,7 @@ fn dispatcher_with_chain_having_io() -> (LocalDispatcher, Rc<RefCell<Project>>) 
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let project = Rc::new(RefCell::new(Project {
         name: Some("test".into()),

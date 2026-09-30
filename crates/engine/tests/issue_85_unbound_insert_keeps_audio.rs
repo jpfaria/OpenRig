@@ -86,6 +86,7 @@ fn chain_with(blocks: Vec<AudioBlock>) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

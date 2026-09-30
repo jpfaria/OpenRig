@@ -25,6 +25,8 @@ use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -146,6 +148,14 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         self.inner.metronome_snapshot()
+    }
+
+    fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
+        self.inner.attach_mixer_state(state)
+    }
+
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        self.inner.mixer_strips()
     }
 }
 

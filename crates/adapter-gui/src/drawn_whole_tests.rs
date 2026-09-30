@@ -71,6 +71,7 @@ fn project_with(effect_type: &str, model: &str) -> project::project::Project {
             di_output: None,
             loopers: vec![],
             disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }

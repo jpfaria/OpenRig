@@ -58,6 +58,7 @@ fn chain_bound_to(binding_id: &str, enabled: bool) -> Chain {
         di_output: None,
         loopers: vec![],
         disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

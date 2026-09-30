@@ -75,6 +75,7 @@ fn a_checklist_edit_changes_the_legacy_serialization_the_dirty_check_compares() 
         name: None,
         device_settings: Vec::new(),
         chains: vec![Chain {
+            mix: Default::default(),
             id: ChainId("rig:g".into()),
             description: None,
             instrument: "electric_guitar".into(),

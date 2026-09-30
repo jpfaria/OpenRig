@@ -105,6 +105,38 @@ msgstr ""
 msgid "label-channels-selected"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+msgid "label-mixer-no-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+msgid "label-mixer-no-loopers"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+msgid "label-mixer"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+msgid "tab-mixer-in"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+msgid "tab-mixer-out"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+msgid "tab-mixer-di"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+msgid "tab-mixer-looper"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr ""
@@ -191,6 +223,10 @@ msgstr ""
 
 #: crates/adapter-gui/ui/components/graph_view.slint:119
 msgid "accessible-graph-view"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
+msgid "label-mixer-global"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
@@ -384,6 +420,14 @@ msgstr ""
 
 #: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
 msgid "looper-take-needs-name"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:152
+msgid "action-mixer-solo"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:168
+msgid "action-mixer-mute"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
@@ -595,6 +639,11 @@ msgid "msg-pick-io-endpoint"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
+#: crates/adapter-gui/ui/pages/chain_row.slint:167
+msgid "label-meters"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
 msgid "label-input"
 msgstr ""
 
@@ -662,6 +711,22 @@ msgstr ""
 msgid "title-window-metronome"
 msgstr ""
 
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
+msgid "label-mixer-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
+msgid "status-mixer-no-endpoints"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
+msgid "title-window-mixer"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:88
 msgid "·"
 msgstr ""
@@ -707,6 +772,11 @@ msgid "tooltip-save"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:164
+#: crates/adapter-gui/ui/pages/project_chains.slint:149
+msgid "tooltip-mixer"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-new-chain"
 msgstr ""
 
@@ -1034,5 +1104,6 @@ msgid "title-window-chain-port"
 msgstr ""
 
 #: crates/adapter-gui/ui/touch_main.slint:405
+#: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr ""

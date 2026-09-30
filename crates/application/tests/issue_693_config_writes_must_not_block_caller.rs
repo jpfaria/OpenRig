@@ -108,6 +108,7 @@ fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             }],
             midi: None,
         })));
@@ -173,6 +174,7 @@ fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
                 di_output: None,
                 loopers: vec![],
                 disabled_endpoints: Default::default(),
+                mix: Default::default(),
             }],
             midi: None,
         })));

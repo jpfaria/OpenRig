@@ -36,6 +36,9 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
     let daemon_selection: Arc<RwLock<SelectionState>> =
         Arc::new(RwLock::new(SelectionState::default()));
 
+    // #1007: motor-fader / LED feedback for mixer bindings (legacy map only —
+    // profiles carry no per-strip args). Kept alive by the drain timer below.
+    let mut mixer_feedback: Option<Timer> = None;
     match arg {
         MidiMapArg::Default => {
             let learn = adapter_midi::learn_state();
@@ -43,6 +46,8 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
                 crate::start_midi_profiles(bridge.clone(), Arc::clone(&daemon_selection), learn);
         }
         MidiMapArg::Path(map_path) => {
+            mixer_feedback =
+                crate::midi_mixer_feedback_wiring::start(&map_path, ctx.project_session.clone());
             log::info!(
                 "MIDI adapter listening (legacy map: {})",
                 map_path.display()
@@ -70,6 +75,7 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
         slint::TimerMode::Repeated,
         std::time::Duration::from_millis(16),
         move || {
+            let _keep_feedback_alive = &mixer_feedback;
             // #548: mirror the authoritative selection state (kept on
             // the !Send `LocalDispatcher`) into the daemon's snapshot
             // so MIDI slots that read "active chain / active block"
