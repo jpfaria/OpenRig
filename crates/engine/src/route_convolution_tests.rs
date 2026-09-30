@@ -168,3 +168,26 @@ fn a_mid_tap_before_the_cab_is_not_fed_by_the_convolver() {
         "the tap hears only the drive before the cab — no convolver feeds it"
     );
 }
+
+// ── #328: a cab inside a split path convolves into the split's routes ──
+
+#[test]
+fn a_cab_inside_a_split_path_counts_as_convolution() {
+    use project::block::split_params::default_split_params;
+    use project::block::{SplitBlock, SplitEnd};
+
+    let split = AudioBlock {
+        id: BlockId("split".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Mix,
+            params: default_split_params(),
+            a: vec![core("gain", "fuzz_ge")],
+            b: vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+        }),
+    };
+    assert!(
+        block_is_convolution(&split),
+        "path B's cab convolves into the split's output"
+    );
+}

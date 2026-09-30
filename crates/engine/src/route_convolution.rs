@@ -22,6 +22,12 @@ pub(crate) fn block_is_convolution(block: &AudioBlock) -> bool {
                     || core.model.starts_with("ir_")
             }
             AudioBlockKind::Nam(nam) => nam.model.starts_with("ir_"),
+            // #328: a split convolves when either of its paths does.
+            AudioBlockKind::Split(split) => split
+                .a
+                .iter()
+                .chain(split.b.iter())
+                .any(block_is_convolution),
             _ => false,
         }
 }
