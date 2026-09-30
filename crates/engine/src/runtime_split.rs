@@ -9,13 +9,12 @@
 #[path = "runtime_split_align.rs"]
 pub(crate) mod align;
 
-// Task 14 builds split nodes from these knobs and removes this allow.
-#[allow(dead_code)]
+#[path = "runtime_split_builder.rs"]
+pub(crate) mod builder;
+
 #[path = "runtime_split_knobs.rs"]
 pub(crate) mod knobs;
 
-// Task 14 aligns built split nodes from these sums and removes this allow.
-#[allow(dead_code)]
 #[path = "runtime_split_latency.rs"]
 pub(crate) mod latency;
 

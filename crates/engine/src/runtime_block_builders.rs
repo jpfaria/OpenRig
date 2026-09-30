@@ -128,6 +128,23 @@ pub(crate) fn build_nodes_for(
     let mut content_mono = source_is_mono;
 
     for &block in block_iter {
+        // #328: a split builds its own node, on or off — a split switched off
+        // must fade out through its real paths, not through an empty shell.
+        if let AudioBlockKind::Split(split) = &block.kind {
+            let node = crate::runtime_split::builder::build_split_runtime_node(
+                chain,
+                block,
+                split,
+                current_layout,
+                content_mono,
+                sample_rate,
+                reusable_nodes,
+            )?;
+            current_layout = node.output_layout;
+            content_mono = node_emits_mono_content(&node, content_mono);
+            blocks.push(node);
+            continue;
+        }
         // Disabled blocks: try to reuse existing node (keeps processor alive
         // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
@@ -288,10 +305,15 @@ pub(crate) fn build_block_runtime_node(
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
             bypass_runtime_node(block, input_layout, content_mono)
         }
-        // #328: minimal arm — the engine part (spec §4.1) builds
-        // `RuntimeProcessor::Split` here. Until then a split passes the bus
-        // through untouched.
-        AudioBlockKind::Split(_) => bypass_runtime_node(block, input_layout, content_mono),
+        AudioBlockKind::Split(split) => crate::runtime_split::builder::build_split_runtime_node(
+            chain,
+            block,
+            split,
+            input_layout,
+            content_mono,
+            sample_rate,
+            &mut HashMap::new(),
+        )?,
     })
 }
 

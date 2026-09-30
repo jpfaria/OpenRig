@@ -418,6 +418,22 @@ again, so the GUI reached the audio by one road and MCP/MIDI by another. All
 three assertions run against the source with `//` comments stripped, so no prose
 can satisfy them or trip them.
 
+## Chain split runs inside one segment (#328)
+
+`RuntimeProcessor::Split` is a node of the segment like any block. It holds
+both paths of a Split → Mix, path B's buffer (preallocated to
+`SEGMENT_FRAME_CAPACITY`), one alignment delay line per path and the knobs as
+atomics loaded once per callback. The mix is DSP inside that node — never a sum
+of two segments or two runtimes — so each segment of a chain runs its own split
+and stream isolation holds by construction.
+
+Files: `runtime_split.rs` routes `runtime_split_builder.rs` (model → node),
+`runtime_split_state.rs` (what a split keeps), `runtime_split_process.rs` (one
+callback), `runtime_split_mix.rs` (pure per-sample math),
+`runtime_split_align.rs` (delay line), `runtime_split_knobs.rs` (atomics) and
+`runtime_split_latency.rs` (path latency, from each processor's
+`latency_samples()`).
+
 ## Registry auto-gerado
 
 `crates/block-preamp/build.rs` (e equivalentes nos outros block-*) escaneia `src/*.rs` procurando `MODEL_DEFINITION` e gera `generated_registry.rs`. Novo modelo = criar `.rs` com `pub const MODEL_DEFINITION: PreampModelDefinition = ...`.

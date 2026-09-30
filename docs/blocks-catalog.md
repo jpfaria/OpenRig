@@ -96,6 +96,46 @@ Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and a
 
 Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): at most one split per chain; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split.
 
+### Split engine behaviour (#328)
+
+A Split → Mix runs inside the chain's own segment: shared blocks → split →
+path A and path B → mixer → shared blocks. Nothing is summed across segments
+or runtimes (stream isolation); path B runs in the split's own buffer,
+preallocated at build for a 1024-frame callback.
+
+**Into the paths.** Mode I (`split_mode: same`): each path gets the bus ×
+`level_to_a` / `level_to_b` (`x/100`). Mode II (`dual_mono`): each path gets
+the one channel its balance picks — −50 = L, 0 = (L+R)/2, +50 = R, linear in
+between — as dual mono, × its level. Mode II only means something when the bus
+is still stereo at the split (a stereo or dual-mono source, before any mono
+block); with a mono source both paths get the same signal.
+
+**Mixer.** Per path: balance law (centre = unity on both sides; toward one side
+the other side falls linearly to 0 at ±50) × `mix_level` (`x/100`); path B ×
+−1 with `mix_b_polarity: invert`; the sum × `mix_master` (`x/100`); with
+`mix_master_sum` on, both sides become `(L+R)/2`. At the defaults two identical
+paths come out at unity (`mix_master` 50 halves the doubled sum). The split's
+output is always stereo; a 1-channel output averages L/R, so pan does nothing
+there. A Y → A/B split meets its paths at unity: its mixer knobs do not apply.
+
+**Alignment.** Every block reports the processing latency it adds. At build the
+split sums it per path and delays the shorter path by the difference, in a ring
+preallocated up to 16384 samples; above that it clamps and logs. The longer
+path is never delayed, so the chain's latency does not change.
+
+| Source | Reported latency |
+|---|---|
+| IR convolution (cab, body, `generic_ir`) | 64 samples (one partition) |
+| 2× oversampler round trip (ring modulator) | 15 samples |
+| Brick wall limiter | its look-ahead: `lookahead_ms` in samples (144 at the 3 ms default, 48 kHz) |
+| VST3 | `IAudioProcessor::getLatencySamples()`, read at load |
+| LV2 | the `lv2:reportsLatency` output port, read once at build |
+| everything else | 0 |
+
+Not aligned by design: delays and the pitch shifter (their delay is the
+effect), the IR reverb's dry/wet blend and the ring modulator below 100 % mix
+(their dry part is not delayed inside the block).
+
 ## Backends de áudio
 
 - **Native** — DSP em Rust, mais rápido
