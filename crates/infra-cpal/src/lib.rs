@@ -49,6 +49,9 @@ mod cpu_affinity;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_handlers;
 
+#[cfg(any(test, all(target_os = "linux", feature = "jack")))]
+mod jack_route_ports;
+
 mod active_runtime;
 
 // #127: `AudioDeviceDescriptor` used to be DEFINED here, which meant every UI

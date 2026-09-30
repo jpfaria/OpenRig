@@ -436,6 +436,19 @@ gets brand-new streams (#881), never an in-place knob-style rebuild. On
 Linux/JACK the structure signature is not consulted (#672); there the edit
 is an in-place rebuild, which already runs the new path sets.
 
+On Linux with JACK-direct, one JACK client carries a chain's whole runtime.
+Every output route of that runtime (`ChainRuntimeState::output_route_count`)
+gets **its own set of output ports**, one per device channel
+(`jack_route_ports`): route 0 keeps the historical `out_N` names, route `r`
+registers `route<r>_out_N`, and each port is connected to
+`system:playback_N`. The callback pops each route into its own ports; when two
+routes write the same channel, JACK sums them at the playback port — our code
+never adds two routes together. The callback used to pop route 0 only, which
+left path B's output — and any chain's second output or insert send — silent.
+A single-output chain registers exactly the ports it always did. Adding or
+removing an output changes the stream signature's output count, so the client
+is rebuilt with the new port sets.
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it

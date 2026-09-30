@@ -11,8 +11,9 @@
 //!    ride out the libjack "shm not yet up" race documented in #294 /
 //!    #308.
 //! 3. Register one input port per max(device_in_ch, chain's selected
-//!    channels) and one output port per max(device_out_ch, …) so the
-//!    AsyncClient port shape stays stable across channel-toggle edits.
+//!    channels) and, per output route of the runtime (#328), one output
+//!    port per max(device_out_ch, …) so the AsyncClient port shape stays
+//!    stable across channel-toggle edits.
 //! 4. Allocate the SPSC ring + scratch buffers at MAX_JACK_FRAMES so a
 //!    later `jack_set_buffer_size` cannot trigger a realloc on the audio
 //!    thread.
@@ -39,7 +40,10 @@ use project::chain::Chain;
 
 use crate::active_runtime::DspWorkerHandle;
 use crate::cpu_affinity::{detect_big_cores, pin_thread_to_cpus};
-use crate::jack_handlers::{JackProcessHandler, JackShutdownHandler, SpscRingBuffer};
+use crate::jack_handlers::{
+    JackProcessHandler, JackRouteOutput, JackShutdownHandler, SpscRingBuffer,
+};
+use crate::jack_route_ports::route_ports;
 use crate::jack_supervisor;
 use crate::resolved::MAX_JACK_FRAMES;
 use crate::usb_proc::{detect_all_usb_audio_cards, jack_server_is_running_for};
@@ -188,12 +192,26 @@ pub(crate) fn build_jack_direct_chain(
         input_ports.push(port);
     }
 
-    let mut output_ports = Vec::new();
-    for i in 0..max_out_ch {
-        let port = client
-            .register_port(&format!("out_{}", i + 1), jack::AudioOut::default())
-            .map_err(|e| anyhow!("failed to register JACK output port {}: {:?}", i, e))?;
-        output_ports.push(port);
+    // #328: every output route of the runtime gets its own port set, one
+    // port per device channel (route 0 keeps the historical `out_N` names).
+    // Two routes on one channel are summed by JACK at the playback port.
+    let route_layout = route_ports(runtime.output_route_count(), max_out_ch);
+    let mut outputs = Vec::with_capacity(route_layout.len());
+    for group in &route_layout {
+        let mut ports = Vec::with_capacity(group.ports.len());
+        for port in &group.ports {
+            let registered = client
+                .register_port(&port.name, jack::AudioOut::default())
+                .map_err(|e| {
+                    anyhow!("failed to register JACK output port {}: {:?}", port.name, e)
+                })?;
+            ports.push(registered);
+        }
+        outputs.push(JackRouteOutput {
+            route: group.route,
+            buf: vec![0.0f32; MAX_JACK_FRAMES * ports.len().max(1)],
+            ports,
+        });
     }
 
     // Set up DSP worker thread with ring buffer. Size the slot for the
@@ -215,9 +233,8 @@ pub(crate) fn build_jack_direct_chain(
         // JackProcessHandler::process never reallocates when jackd raises
         // the per-callback `n_frames` via jack_set_buffer_size.
         input_buf: vec![0.0f32; MAX_JACK_FRAMES * input_ports.len().max(1)],
-        output_buf: vec![0.0f32; MAX_JACK_FRAMES * output_ports.len().max(1)],
         input_ports,
-        output_ports,
+        outputs,
         runtime: Arc::clone(&runtime),
         input_ring: Some(Arc::clone(&ring)),
         worker_wake: Some(Arc::clone(&wake)),
@@ -348,10 +365,10 @@ pub(crate) fn build_jack_direct_chain(
             log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
         }
     }
-    for i in 0..max_out_ch {
-        let src = format!("{}:out_{}", client_name, i + 1);
-        let dst = format!("system:playback_{}", i + 1);
-        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+    for port in route_layout.iter().flat_map(|group| group.ports.iter()) {
+        let src = format!("{}:{}", client_name, port.name);
+        let dst = &port.playback;
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, dst) {
             log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
         }
     }
