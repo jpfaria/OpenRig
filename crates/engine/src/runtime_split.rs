@@ -14,6 +14,15 @@ pub(crate) mod align;
 #[path = "runtime_split_knobs.rs"]
 pub(crate) mod knobs;
 
+// Task 14 aligns built split nodes from these sums and removes this allow.
+#[allow(dead_code)]
+#[path = "runtime_split_latency.rs"]
+pub(crate) mod latency;
+
+#[cfg(test)]
+#[path = "runtime_split_test_support.rs"]
+pub(crate) mod test_support;
+
 // Task 12 wires the math into the live processor and removes this allow.
 #[allow(dead_code)]
 #[path = "runtime_split_mix.rs"]
