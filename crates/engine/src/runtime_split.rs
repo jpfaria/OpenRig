@@ -9,6 +9,11 @@
 #[path = "runtime_split_align.rs"]
 pub(crate) mod align;
 
+// Task 14 builds split nodes from these knobs and removes this allow.
+#[allow(dead_code)]
+#[path = "runtime_split_knobs.rs"]
+pub(crate) mod knobs;
+
 // Task 12 wires the math into the live processor and removes this allow.
 #[allow(dead_code)]
 #[path = "runtime_split_mix.rs"]
