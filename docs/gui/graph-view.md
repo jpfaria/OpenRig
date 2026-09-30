@@ -182,23 +182,25 @@ The component owns no colours. The host resolves each node's `fill`/`border` fro
 
 ## Tests
 
-Layout helper has 17 tests in `crates/adapter-gui/src/graph_view_model_tests.rs` covering:
+Rust model — `crates/adapter-gui/src/graph_view_model_tests.rs`, `graph_view_model_anchor_tests.rs`, `graph_view_model_drop_tests.rs` (`cargo test -p adapter-gui --lib graph_view_model`):
 
-- Empty input → empty output
-- Single block → 1 node, 0 edges
-- Sequential blocks connected left-to-right
-- Column spacing math (origin + N × column_spacing)
-- Parallel stage inserts split + merge nodes
-- Symmetric lane offsets (N paths → offsets `-N/2..N/2`)
-- Split connects to each path's first block
-- Each path's last block connects to merge
-- Merge column accounts for longest path
-- Singles after parallel continue past merge
-- Empty parallel stage is a no-op
-- `validate_graph` reports duplicate ids, dangling edges, self-loops
-- The output of `linear_chain_layout` is always valid
+- stage layout: singles; merge parallels (split + merge nodes, symmetric lanes, merge column); fan parallels (no merge node, one terminal per lane on a shared last column, path A above path B)
+- `validate_stages` (nothing after a fan, no empty fan lane) and `validate_graph` (duplicate ids, dangling edges, self-loops; layout output always valid)
+- node kinds (`as_str` slugs, a blueprint's kind reaches its node, split/mixer kinds)
+- auto layout (ranks, lanes, reorder, fan terminals aligned)
+- anchors (one per wire, slots, midpoints, empty segments visible)
+- drop resolution (nearest anchor, cross-lane, own wire = none, blocks only, reach)
 
-Pointer behaviour is proven headlessly: `crates/adapter-gui/tests/issue_328_graph_view_interaction.rs` dispatches real pointer events at `GraphViewHarness` (`ui/components/graph_view_test_harness.slint`, test-only, exported through `app-window.slint`). `tests/issue_328_graph_view_sources.rs` pins the file split.
+Slint — REAL pointer, wheel and key events through `i-slint-backend-testing` against `GraphViewHarness` / `GraphViewScrollHarness` (`ui/components/graph_view_test_harness.slint`), in `crates/adapter-gui/tests/issue_328_graph_view_interaction.rs`:
+
+- click vs drag; every node kind is a clickable card
+- a plain wheel scrolls the surrounding list, Cmd/Ctrl + wheel zooms
+- the LED toggles bypass, the × removes (hover only), both hit zones scale with the zoom, the tooltip shows on hover, an unavailable block reads as disabled
+- a "+" fires `add-requested`; a block dragged onto another lane's anchor fires `node-dropped`; a drop on its own wire fires nothing
+
+Source pins — `tests/issue_328_graph_view_sources.rs`: the file split, no empty-label routing dots, translated accessible labels, text-free split/mixer artwork, block tile colours from `BlockTileStyle`.
+
+Render — `ui/components/_harness_graph_view.slint` (not compiled into the app): `LinearChain`, `LinearChainZoomedOut`, `SplitMixChain`, `SplitYChain`, rendered with `tools/slint-render` (command in the `openrig-tooling` skill). The interpreter has no translation catalog, so `@tr` text renders as its key.
 
 ## Future work
 
