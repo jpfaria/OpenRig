@@ -1,12 +1,14 @@
 // Responsibility: draws the window's root-level modal dialogs.
 //
 // #328: moved verbatim out of app-window.slint (498/500 lines) so the chain
-// graph's overlays fit. Everything here reads `OverlayBridge` only; the host
+// graph's overlays fit. Everything here reads `OverlayBridge` (and, for the
+// chain graph's dialogs, `ChainGraphOverlayState`); the host
 // sizes this component to the whole window, so `root` below is the window
 // area exactly as it was in AppWindow. Declaration order is paint order and is
 // unchanged: the three confirm dialogs, the toast, then the preset picker.
 
 import { OverlayBridge } from "../overlay_globals.slint";
+import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
 import { Toast } from "toast.slint";
 import { ConfirmDeleteBlockDialog } from "confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "confirm_delete_chain_dialog.slint";
@@ -36,6 +38,18 @@ export component RootModalOverlays inherits Rectangle {
         project-name: OverlayBridge.confirm-delete-recent-project-name;
         cancel => { OverlayBridge.cancel-delete-recent-project(); }
         confirm => { OverlayBridge.confirm-delete-recent-project(); }
+    }
+
+    // #328: removing a split whose path B holds blocks deletes them (spec §3).
+    if ChainGraphOverlayState.confirm-remove-split-open : ConfirmDeleteBlockDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        block-name: ChainGraphOverlayState.confirm-remove-split-name;
+        cancel => { ChainGraphOverlayState.confirm-remove-split-open = false; }
+        confirm => {
+            ChainGraphOverlayState.confirm-remove-split-open = false;
+            ChainGraphOverlayState.confirm-remove-split();
+        }
     }
 
     Toast {

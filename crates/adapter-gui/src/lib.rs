@@ -186,16 +186,11 @@ mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "#328 part 6: first production caller lands in a later task"
-    )
-)]
 mod chain_block_lists;
 mod chain_editor;
 mod chain_graph_adapter;
+mod chain_graph_drag;
+mod chain_graph_drop;
 mod chain_graph_models;
 // Several fixtures are first used by later tasks' tests (the last one,
 // `recording_session`, in Task 15): until then a test build would warn.
@@ -203,6 +198,7 @@ mod chain_graph_models;
 #[expect(dead_code, reason = "#328 part 6: fixtures of later tasks")]
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
+mod chain_graph_wiring;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
@@ -212,14 +208,9 @@ mod device_selection_items;
 mod device_settings_resolve;
 mod endpoint_checklist_items;
 mod eq;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "#328 part 6: first production caller lands in a later task"
-    )
-)]
 mod graph_anchor;
+mod graph_click;
+mod graph_gesture_actions;
 pub mod graph_view_model;
 mod gui_live_source;
 mod helpers;

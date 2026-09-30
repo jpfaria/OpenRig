@@ -100,3 +100,5 @@ label-metronome-timbre-beep: "蜂鸣"
 
 # --- #328 chain split graph
 label-endpoints-none: "无"
+confirm-remove-split-name: "分路（+ 路径 B 中的 %{n} 个模块）"
+error-graph-action: "无法应用更改：%{err}"

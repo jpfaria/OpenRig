@@ -100,3 +100,5 @@ label-metronome-timbre-beep: "बीप"
 
 # --- #328 chain split graph
 label-endpoints-none: "कोई नहीं"
+confirm-remove-split-name: "स्प्लिट (+ पाथ B में %{n} ब्लॉक)"
+error-graph-action: "बदलाव लागू नहीं हो सका: %{err}"

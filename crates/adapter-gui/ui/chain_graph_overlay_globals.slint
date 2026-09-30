@@ -1,0 +1,40 @@
+// Responsibility: holds the chain graph overlays' state.
+//
+// #328. The split editor, the mixer editor, the endpoint checklist and the
+// remove-split confirmation are root-level overlays (a PopupWindow's content
+// does not receive clicks, #749/#761). The graph opens them through the
+// callbacks below; Rust fills them. Mirrors `OverlayBridge` (#873).
+
+import { ChannelOptionItem, BlockParameterItem } from "models.slint";
+
+export global ChainGraphOverlayState {
+    // ── Remove-split confirmation (spec §3: path B's blocks go with it) ──
+    in-out property <bool> confirm-remove-split-open: false;
+    in-out property <int> confirm-remove-split-chain-index: -1;
+    in-out property <string> confirm-remove-split-name;
+    callback confirm-remove-split();
+
+    // ── Split / mixer editor (spec §1.2, §5.1) — kind 0 = split, 1 = mixer ──
+    callback open-split-editor(int, int);
+    in-out property <bool> split-editor-open: false;
+    in-out property <int> split-editor-chain-index: -1;
+    in-out property <int> split-editor-kind: 0;
+    in-out property <string> split-editor-split-id;
+    in-out property <string> split-editor-title;
+    in-out property <[BlockParameterItem]> split-editor-items;
+    // Args: chain index, split block id, parameter path, value.
+    callback split-editor-number(int, string, string, float);
+    callback split-editor-option(int, string, string, int);
+    callback split-editor-bool(int, string, string, bool);
+
+    // ── Endpoint checklist (spec §5.3) ──
+    // Args: chain index, graph node id (`__io_input`, `__io_output`, …).
+    callback open-checklist(int, string);
+    in-out property <bool> checklist-open: false;
+    in-out property <int> checklist-chain-index: -1;
+    in-out property <string> checklist-node;
+    in-out property <string> checklist-title;
+    in-out property <[ChannelOptionItem]> checklist-items;
+    // Args: chain index, node id, row, new checked state.
+    callback checklist-toggled(int, string, int, bool);
+}

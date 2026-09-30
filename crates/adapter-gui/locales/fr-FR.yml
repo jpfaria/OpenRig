@@ -100,3 +100,5 @@ label-metronome-timbre-beep: "Bip"
 
 # --- #328 chain split graph
 label-endpoints-none: "Aucune"
+confirm-remove-split-name: "Split (+ %{n} blocs du chemin B)"
+error-graph-action: "Impossible d'appliquer la modification : %{err}"

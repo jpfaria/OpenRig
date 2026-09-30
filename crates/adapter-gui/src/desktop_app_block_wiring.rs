@@ -304,4 +304,15 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             toast_timer: deps.toast_timer.clone(),
         },
     );
+    // --- #328: chain graph gestures (click, "+", bypass, remove, drag) ---
+    crate::chain_graph_wiring::wire(
+        deps.window,
+        crate::chain_graph_wiring::ChainGraphWiringCtx {
+            project_session: deps.project_session.clone(),
+            project_chains: deps.project_chains.clone(),
+            input_chain_devices: deps.input_chain_devices.clone(),
+            output_chain_devices: deps.output_chain_devices.clone(),
+            toast_timer: deps.toast_timer.clone(),
+        },
+    );
 }

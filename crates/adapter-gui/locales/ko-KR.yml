@@ -100,3 +100,5 @@ label-metronome-timbre-beep: "비프"
 
 # --- #328 chain split graph
 label-endpoints-none: "없음"
+confirm-remove-split-name: "스플릿 (+ 경로 B의 블록 %{n}개)"
+error-graph-action: "변경을 적용할 수 없음: %{err}"

@@ -66,3 +66,91 @@ fn hovering_a_block_card_shows_its_tooltip_and_a_routing_node_does_not() {
     }); // split node
     assert_eq!(tooltips(), 0, "the split node has no model to describe");
 }
+
+use std::cell::Cell;
+
+use crate::chain_graph_fixtures_tests::{chain, core, split};
+use crate::graph_anchor::{move_target, parse_anchor};
+use project::block::{PathSide, SplitEnd};
+
+#[test]
+fn dragging_a_lane_a_card_onto_lane_b_drops_it_into_path_b() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = ChainRowGraphSplitMixHarness::new().unwrap();
+    // The harness row is `od → split(A: a1 | B: b1) → rev`, laid out exactly
+    // as `chain_graph_adapter` lays this chain out.
+    let row = chain(vec![
+        core("od"),
+        split("sp", SplitEnd::Mix, vec![core("a1")], vec![core("b1")]),
+        core("rev"),
+    ]);
+    let bridge = ChainGraphBridge::get(&h);
+    {
+        let row = row.clone();
+        bridge.on_resolve_drop_anchor(move |_, id, x, y| {
+            crate::chain_graph_drop::drop_anchor_id(&row, &id, x, y).into()
+        });
+    }
+    let dropped: Rc<RefCell<Option<(String, String)>>> = Rc::new(RefCell::new(None));
+    let seen = dropped.clone();
+    bridge.on_node_dropped(move |_, id, anchor| {
+        *seen.borrow_mut() = Some((id.to_string(), anchor.to_string()));
+    });
+    h.show().unwrap();
+    let win = h.window();
+    // a1 → next to the b1 → mixer wire (midpoint 512, 131), lane B.
+    let (from, to) = (at(446.0, 50.0), at(512.0, 150.0));
+    win.dispatch_event(WindowEvent::PointerMoved { position: from });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: from,
+        button: PointerEventButton::Left,
+    });
+    for step in 1..=10 {
+        let t = step as f32 / 10.0;
+        let p = LogicalPosition::new(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+        win.dispatch_event(WindowEvent::PointerMoved { position: p });
+    }
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: to,
+        button: PointerEventButton::Left,
+    });
+
+    let (id, anchor) = dropped
+        .borrow()
+        .clone()
+        .expect("the drop reached the bridge");
+    assert_eq!((id.as_str(), anchor.as_str()), ("a1", "lane:2:1:1"));
+    let target = parse_anchor(&anchor)
+        .and_then(|slot| move_target(&row, "a1", &slot))
+        .unwrap_or_else(|| panic!("anchor {anchor:?} names no place"));
+    assert_eq!(target.path.map(|p| p.side), Some(PathSide::B));
+}
+
+#[test]
+fn the_confirm_dialog_fires_the_split_removal() {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = crate::AppWindow::new().unwrap();
+    let fired = Rc::new(Cell::new(false));
+    let f = fired.clone();
+    let overlay = crate::ChainGraphOverlayState::get(&w);
+    overlay.on_confirm_remove_split(move || f.set(true));
+    overlay.set_confirm_remove_split_name("Split (+ 1 blocks in path B)".into());
+    overlay.set_confirm_remove_split_open(true);
+    w.show().unwrap();
+    let button = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &w,
+        "ConfirmDeleteBlockDialog::confirm-area",
+    )
+    .next()
+    .expect("the confirmation is up");
+    let (pos, size) = (button.absolute_position(), button.size());
+    click_at(
+        &w,
+        LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0),
+    );
+    assert!(fired.get(), "confirm reached Rust");
+    assert!(
+        !overlay.get_confirm_remove_split_open(),
+        "the dialog closed"
+    );
+}
