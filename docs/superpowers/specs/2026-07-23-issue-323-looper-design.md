@@ -93,7 +93,7 @@ The existing `adapter-midi` maps a footswitch/CC to `SetChainLooperTransport`. D
 
 ## 6. Persistence
 
-- **Parameters** (looper count, mix/decay/speed/reverse per looper) live in the chain inside `project.openrig`, next to `di_output`.
+- **Parameters** (looper count, mix/decay/speed/reverse per looper) live in the chain inside `project.yaml`, next to `di_output`.
 - **Audio** auto-saves with the project: each non-empty looper's mixdown is written as a dry wav under `<project>.loops/looper-<id>.wav` and reloaded when the project opens, restored as a single base layer (undo history is not persisted). Writing happens off the audio thread, on project save.
 
 Rationale for storing the mixdown rather than the layers: the layers only exist to support undo within a session, and 8 × 23 MB per looper on disk per project is not a trade the feature earns.

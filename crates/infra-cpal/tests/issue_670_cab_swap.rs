@@ -427,6 +427,15 @@ fn owner_saved_broken_preset_plays_clean() {
 /// chains + a vocal chain with autotune/harmonizer LV2s), loaded through the
 /// production project loader, all streams up, DI playing through the guitar
 /// chain. "Só de ligar já explode" — so just START IT and PLAY. This stays
+/// The owner's project `.yaml` through the production loader, every input
+/// projected as an enabled chain.
+fn load_owner_project(path: &std::path::Path) -> project::project::Project {
+    let rig = infra_yaml::load_project_file(path)
+        .expect("the owner's project must load through the production loader");
+    let enabled = rig.inputs.keys().cloned().collect();
+    engine::rig_runtime::rig_to_legacy_project(&rig, &enabled)
+}
+
 /// RED until the full rig holds the deadline.
 #[test]
 fn owner_full_project_plays_clean() {
@@ -441,10 +450,7 @@ fn owner_full_project_plays_clean() {
 
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets/owner_project_as_is.yaml");
-    let repo = infra_yaml::YamlProjectRepository { path };
-    let project = repo
-        .load_current_project()
-        .expect("the owner's project must load through the production loader");
+    let project = load_owner_project(&path);
     eprintln!(
         "[#670 PROJECT] loaded {} chains: {:?}",
         project.chains.len(),
@@ -514,8 +520,7 @@ fn enabling_the_preset_chain_live_is_clean() {
 
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets/owner_project_as_is.yaml");
-    let repo = infra_yaml::YamlProjectRepository { path };
-    let mut project = repo.load_current_project().expect("owner project");
+    let mut project = load_owner_project(&path);
 
     // Put the saved Beat It preset into the guitar chain and DISABLE it —
     // the state right before the owner's gesture.

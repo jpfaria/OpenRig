@@ -65,9 +65,7 @@ pub struct ReadContext<'a> {
 /// Resolve one read into the payload every transport hands back.
 pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String> {
     match kind {
-        QueryKind::ProjectYaml => {
-            infra_yaml::serialize_project(ctx.project).map_err(|e| e.to_string())
-        }
+        QueryKind::ProjectYaml => serde_yaml::to_string(ctx.project).map_err(|e| e.to_string()),
         // The core never enumerates: the list is whatever the frontend that
         // owns an audio host supplies. No host ⇒ an empty listing, not an
         // error — the resource stays addressable. A host that IS there and

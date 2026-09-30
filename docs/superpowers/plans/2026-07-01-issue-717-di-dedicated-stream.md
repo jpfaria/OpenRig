@@ -4,7 +4,7 @@
 
 **Goal:** An armed DI loop plays on its own isolated runtime (a copy of the chain's block graph), routed to a per-chain chosen output, with its own on-screen graph + meters — never on the guitar's stream.
 
-**Architecture:** Add a second, input-less runtime per chain built only while the DI is armed. It reads the DI buffer, runs an independent copy of the chain's blocks, and writes to the chosen output route at that output's rate (reusing #749's per-output resample). The guitar runtime is untouched (invariant #4). The chosen output is persisted per-chain in `project.openrig`.
+**Architecture:** Add a second, input-less runtime per chain built only while the DI is armed. It reads the DI buffer, runs an independent copy of the chain's blocks, and writes to the chosen output route at that output's rate (reusing #749's per-output resample). The guitar runtime is untouched (invariant #4). The chosen output is persisted per-chain in `project.yaml`.
 
 **Tech Stack:** Rust (engine, application, infra-cpal, domain, project, adapter-gui), Slint (UI), cpal (audio backend).
 
@@ -75,7 +75,7 @@ Expected: FAIL (assertion or unresolved API).
 
 - [ ] **Step 1: Write the failing test** — a `Chain` with `di_output = Some(...)` round-trips through the project (YAML) serialize→deserialize unchanged; a legacy chain without the field deserializes to `None`.
 - [ ] **Step 2: Run — expect FAIL** (unknown field). `cargo test -p project di_output`
-- [ ] **Step 3: Add the field** (`#[serde(default, skip_serializing_if = "Option::is_none")]`) so existing `.openrig` files are unaffected.
+- [ ] **Step 3: Add the field** (`#[serde(default, skip_serializing_if = "Option::is_none")]`) so existing `project.yaml` files are unaffected.
 - [ ] **Step 4: Run — expect PASS.**
 - [ ] **Step 5: Commit.**
 

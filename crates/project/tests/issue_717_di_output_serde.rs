@@ -1,5 +1,5 @@
 //! Issue #717 — the chain's chosen DI-loop output persists per-chain in the
-//! project (ADR 0003: it travels with the `.openrig`). A chain with
+//! project (ADR 0003: it travels with the `project.yaml`). A chain with
 //! `di_output = Some(..)` round-trips through YAML unchanged; a legacy chain
 //! without the field deserializes to `None` (existing projects unaffected).
 

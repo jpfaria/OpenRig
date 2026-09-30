@@ -1,6 +1,6 @@
 //! Responsibility: describes the MIDI bindings a project carries.
 //! Project-level MIDI binding data types — owned by [`crate::rig::RigProject`]
-//! so they travel with the `.openrig` file (ADR 0003 / #499).
+//! so they travel with the `project.yaml` file (ADR 0003 / #499).
 //!
 //! Bindings used to live in `adapter-midi` (issue #22). They moved here when
 //! the `midi-map.yaml` single-file model split into a system **device profile**
@@ -114,7 +114,7 @@ fn value_is_null(v: &Value) -> bool {
 }
 
 /// Project-level MIDI configuration — the `midi:` block inside
-/// `project.openrig`. Holds only the bindings (project layer); the device
+/// `project.yaml`. Holds only the bindings (project layer); the device
 /// profile (which controller to listen to) lives system-side per ADR 0003.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 pub struct RigProjectMidi {

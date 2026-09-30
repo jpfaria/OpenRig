@@ -193,13 +193,10 @@ impl LocalDispatcher {
 
     /// Side-effect for `ProjectCommand::SaveProject`. Writes:
     ///
-    /// 1. The canonical `.openrig` (always — `load_project_any` prefers
-    ///    it on reload regardless of the user-visible path's extension).
-    /// 2. The legacy `.yaml` snapshot, but only when `project_path`
-    ///    points at one — keeps existing recents / shortcuts resolving.
-    /// 3. The sidecar `config.yaml` with the in-project `presets_path`
+    /// 1. The project `.yaml` at `project_path` (the rig).
+    /// 2. The sidecar `config.yaml` with the in-project `presets_path`
     ///    pointer (currently a hardcoded `./presets`).
-    /// 4. The sibling `presets/` directory so the chain-preset save
+    /// 3. The sibling `presets/` directory so the chain-preset save
     ///    path has somewhere to write.
     ///
     /// #693: serialization stays on the dispatching thread (cheap,
@@ -248,14 +245,13 @@ impl LocalDispatcher {
         drop(current_rig);
         drop(rig_borrow);
 
-        // #716: persist the rig to the project path itself (always `.yaml`).
-        // Never generate a separate `.openrig` sibling, and no legacy `.yaml`
-        // sidecar — the project file IS the rig, serialized as YAML.
-        let rig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
+        // #716/#1014: the project file IS the rig, serialized as YAML at the
+        // project path itself — no sibling file, no second format.
+        let project_doc = infra_yaml::serialize_project(&rig_to_save)
             .map_err(|e| anyhow!("failed to serialize {project_path:?}: {e}"))?;
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
             project_path.clone(),
-            rig_yaml.into_bytes(),
+            project_doc.into_bytes(),
         ));
 
         // Sidecar config.yaml (the in-project pointer to the preset

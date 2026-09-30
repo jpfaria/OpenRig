@@ -56,7 +56,7 @@ fn project_with_saved_loop(audio_file: String) -> Project {
 /// Lives in a temp dir the test owns — never the user's own files.
 fn saved_project(dir: &std::path::Path) -> (std::path::PathBuf, Project) {
     std::fs::create_dir_all(dir).expect("test dir");
-    let project_path = dir.join("song.openrig");
+    let project_path = dir.join("song.yaml");
     let pcm = vec![0.5_f32; FRAMES * 2];
     let file =
         application::looper_audio::write_loop_wav(&project_path, &chain_id(), UID, &pcm, RATE)

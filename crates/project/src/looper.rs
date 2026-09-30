@@ -21,7 +21,7 @@ pub enum LooperSpeed {
     Double,
 }
 
-/// #323: one per-chain looper as it travels in `project.openrig`. The recorded
+/// #323: one per-chain looper as it travels in `project.yaml`. The recorded
 /// audio itself lives beside the project (`audio_file`), not in the YAML.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct LooperConfig {

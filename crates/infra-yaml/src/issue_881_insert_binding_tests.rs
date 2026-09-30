@@ -14,7 +14,6 @@ use super::*;
 fn insert_binding_roundtrips_through_the_project_file() {
     let temp_dir = tempdir().expect("temp dir");
     let path = temp_dir.path().join("insert.yaml");
-    let repo = YamlProjectRepository { path: path.clone() };
     let project = Project {
         name: Some("insert".into()),
         device_settings: Vec::new(),
@@ -40,10 +39,12 @@ fn insert_binding_roundtrips_through_the_project_file() {
         midi: None,
     };
 
-    repo.save_project(&project).expect("save should succeed");
-    let loaded = repo.load_current_project().expect("load should succeed");
+    let rig = project::migrate::migrate_legacy_project(&project);
+    save_project_file(&path, &rig).expect("save should succeed");
+    let loaded = load_project_file(&path).expect("load should succeed");
 
-    let AudioBlockKind::Insert(ref ib) = loaded.chains[0].blocks[0].kind else {
+    let preset = loaded.presets.values().next().expect("one preset");
+    let AudioBlockKind::Insert(ref ib) = preset.blocks[0].kind else {
         panic!("the insert must come back as an Insert block");
     };
     assert_eq!(

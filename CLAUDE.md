@@ -4,7 +4,7 @@ Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Win
 
 ## LEI ZERO — A PASTA PRINCIPAL É INTOCÁVEL PELO AGENTE
 
-**Nenhum agent JAMAIS toca a pasta principal do repo.** Sem `git`, sem `Edit`/`Write`, sem stage, sem worktree, sem `.openrig` — NADA. A pasta principal é exclusiva do usuário.
+**Nenhum agent JAMAIS toca a pasta principal do repo.** Sem `git`, sem `Edit`/`Write`, sem stage, sem worktree — NADA. A pasta principal é exclusiva do usuário.
 
 **O agente trabalha SOMENTE em `.solvers/issue-N/`** — um clone isolado da branch. Edita ali, commita ali, dá push dali. A entrega termina no push; o usuário puxa a branch na pasta dele por conta própria.
 
@@ -132,7 +132,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 - **Tela não tem regra de negócio.** Slint é dispatcher puro: callback → `Event` → função pura testável. Sem `AppWindow` em teste.
 - **Backend transport-agnostic.** Core (`State`/`Event`/`Command`/`SideEffect`) sem dependência de Slint. Vai virar gRPC + MCP + remoto.
 - **Conteúdo de repo sempre em inglês.** Todo `.md` (`docs/**`, `CLAUDE.md`, READMEs, specs/plans), comentários de código, commits, branches, PRs e comentários de issue no GitHub: inglês. Única exceção: `README.pt-BR.md` / `README.es-ES.md`.
-- **Config: sistema vs projeto (ADR 0003).** Setting nasce em `config.yaml` (sistema) ou dentro de `project.openrig` (projeto) por uma regra única: *"se eu mandar o `.openrig` pra outra máquina, esse valor tem que ir junto?"* Sim → projeto. Não → sistema. Precedência no load: projeto sobrescreve sistema. Spec: `docs/adr/0003-system-vs-project-config.md` + `docs/config-taxonomy.md`.
+- **Config: sistema vs projeto (ADR 0003).** Setting nasce em `config.yaml` (sistema) ou dentro de `project.yaml` (projeto) por uma regra única: *"se eu mandar o `project.yaml` pra outra máquina, esse valor tem que ir junto?"* Sim → projeto. Não → sistema. Precedência no load: projeto sobrescreve sistema. Spec: `docs/adr/0003-system-vs-project-config.md` + `docs/config-taxonomy.md`.
 
 ## Diretrizes de trabalho (agente)
 

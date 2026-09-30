@@ -11,7 +11,7 @@ rule between them:
 
 - `config.yaml` (per-OS config dir) — recent projects, asset paths, GUI audio settings,
   language. Treated as global/app-level.
-- `project.openrig` ([`RigProject`](../projects/project-openrig-format.md)) — chains,
+- `project.yaml` ([`RigProject`](../projects/project-format.md)) — chains,
   blocks, devices, scenes. Treated as project-level.
 - `midi-map.yaml` (per-OS config dir, ADR for #22) — a single global controller mapping
   shared by every project. Per-project mapping was explicitly **out of scope for v1**
@@ -27,14 +27,14 @@ Without a rule, each new setting requires a fresh debate and the next file migra
 
 ## Decision
 
-A setting belongs to **PROJECT** if the answer to *"if I send this `.openrig` to another
+A setting belongs to **PROJECT** if the answer to *"if I send this `project.yaml` to another
 machine, does this value have to travel with it?"* is **yes**. Otherwise it belongs to
 **SYSTEM**.
 
 - **System config** = belongs to the installation / machine / user. Lives in
   `config.yaml` (per-OS config dir). Same person, same value, regardless of which project
   is open.
-- **Project config** = belongs to the rig / setlist. Lives inside `project.openrig`.
+- **Project config** = belongs to the rig / setlist. Lives inside `project.yaml`.
   Travels with the file when the user moves it to another machine.
 - **Precedence at load time** = project overrides system where both can describe the
   same dimension. System provides defaults; project pins.
@@ -53,7 +53,7 @@ machine, does this value have to travel with it?"* is **yes**. Otherwise it belo
 - **MIDI device profile** — describes *which* controller to listen to (input port
   substring match). Belongs to the machine because it's the user's hardware.
 
-**Project (`project.openrig`):**
+**Project (`project.yaml`):**
 
 - Chains / blocks / presets / scenes (already there).
 - Project-scoped interface layout that is part of the rig (e.g. a pedalboard arrangement
@@ -68,7 +68,7 @@ machine, does this value have to travel with it?"* is **yes**. Otherwise it belo
 1. **MIDI device profile** — `input: Option<String>` only. Lives in
    `~/.config/OpenRig/midi-profile.yaml` (and per-OS equivalents). One per machine.
 2. **MIDI binding map** — `bindings: Vec<Binding>`. Lives under
-   `RigProject.midi.bindings` inside `project.openrig`. Travels with the project. A
+   `RigProject.midi.bindings` inside `project.yaml`. Travels with the project. A
    fallback `~/.config/OpenRig/midi-bindings.yaml` provides system-wide defaults when a
    project has no `midi:` field; the shipped `examples/midi-map.default.yaml` is the
    ultimate fallback.
@@ -124,4 +124,4 @@ the principle written down.
   the in-app editor for the project layer).
 - Migrating a `midi-map.yaml` from before #499 happens silently on first load; no user
   action.
-- Older `project.openrig` files remain valid because `midi:` defaults to `None`.
+- Older `project.yaml` files remain valid because `midi:` defaults to `None`.

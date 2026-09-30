@@ -1,5 +1,5 @@
 //! #716 RED: a rig input that references an I/O binding (`io_binding_ids`) MUST
-//! project that reference onto the chain it becomes. The user's `project.openrig`
+//! project that reference onto the chain it becomes. The user's `project.yaml`
 //! has `input-1` with `io_binding_ids: [io-1-1d68]`, yet activation reports
 //! "chain 'rig:input-1' has no input blocks configured" — meaning the projected
 //! chain reached the runtime WITHOUT its binding ids, so I/O could not be
@@ -37,7 +37,7 @@ project:
 
 #[test]
 fn rig_projection_carries_io_binding_ids_onto_the_chain() {
-    let rig = infra_yaml::parse_rig_project(RIG_YAML).expect("parse rig");
+    let rig = infra_yaml::parse_project(RIG_YAML).expect("parse rig");
     let chains = engine::rig_runtime::rig_to_chains(&rig);
     let chain = chains
         .iter()
