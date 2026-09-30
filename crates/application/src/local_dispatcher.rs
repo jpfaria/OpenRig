@@ -93,6 +93,10 @@ pub struct LocalDispatcher {
     /// and the per-machine registry must NOT follow it there. `None` ⇒
     /// `FilesystemStorage::app_config_path()`; tests attach a temp path.
     pub(crate) io_config_path: RefCell<Option<PathBuf>>,
+    /// #827: the app-wide looper take library. `None` ⇒
+    /// `infra_filesystem::default_looper_takes_path()`; tests attach a temp
+    /// dir so they never write into the user's real data folder.
+    pub(crate) looper_takes_path: RefCell<Option<PathBuf>>,
     /// #548: which chain / block the user has active on the Chains
     /// screen, plus snapshots of the toggle states. MIDI slots and the
     /// GUI both mutate this through `Command`s; `QueryKind::Selection`
@@ -200,6 +204,7 @@ impl LocalDispatcher {
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
             io_config_path: RefCell::new(None),
+            looper_takes_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(REFERENCE_SAMPLE_RATE),

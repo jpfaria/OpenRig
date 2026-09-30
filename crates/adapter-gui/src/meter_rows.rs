@@ -45,20 +45,47 @@ pub fn rebuild_stream_meters_row(
                 .get(i)
                 .map(|l| (l.input.as_str().into(), l.output.as_str().into()))
                 .unwrap_or_default();
+            // #1006: and the channels of each side.
+            let (in_channels, out_channels) = labels
+                .get(i)
+                .map(|l| {
+                    (
+                        l.input_channels.as_str().into(),
+                        l.output_channels.as_str().into(),
+                    )
+                })
+                .unwrap_or_default();
             match engine_readings.get(i) {
                 Some(r) => crate::StreamMeter {
                     in_dbfs: r.in_dbfs,
                     out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
                     in_label,
                     out_label,
+                    in_channels,
+                    out_channels,
+                    in_repeated: input_repeated(labels, i),
                 },
                 None => crate::StreamMeter {
                     in_dbfs: SILENT_DBFS,
                     out_dbfs: SILENT_DBFS,
                     in_label,
                     out_label,
+                    in_channels,
+                    out_channels,
+                    in_repeated: input_repeated(labels, i),
                 },
             }
         })
         .collect()
+}
+
+/// #1006: true when an earlier row already lists this row's input — the left
+/// column shows each input once while every output keeps its row.
+pub fn input_repeated(labels: &[StreamIoLabels], i: usize) -> bool {
+    let Some(row) = labels.get(i) else {
+        return false;
+    };
+    labels[..i]
+        .iter()
+        .any(|l| l.input == row.input && l.input_channels == row.input_channels)
 }

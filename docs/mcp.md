@@ -163,6 +163,10 @@ follow-up.
     OS default a consumer would compute itself. Skills (e.g.
     `openrig-tone-analyzer`) read this instead of hard-coding
     `~/Library/Application Support/OpenRig/…`.
+    `looper_takes_path` (#827) is the app-wide looper take library: a
+    take saved with `save_chain_looper_take` lands there as
+    `<name>.wav`, and handing that path to `set_chain_di_loop_source`
+    as `{"File": "<path>"}` plays it on any chain's DI.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.

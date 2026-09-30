@@ -55,4 +55,14 @@ export global LooperEditor {
     // Whether the edit history has anything to step through.
     in-out property <bool> can-undo;
     in-out property <bool> can-redo;
+    // #827: the name typed for a take, kept on a refusal so it can be fixed
+    // instead of retyped; Rust clears it once the take is saved.
+    in-out property <string> take-name;
+    // What the last save did: 0 quiet, 1 saved, 2 name taken, 3 nothing
+    // recorded, 4 could not write, 5 the name has nothing usable. Mapped in
+    // Rust from the typed refusal.
+    in-out property <int> take-status;
+    // (chain-index, uid, name) — keep this loop as a named take in the
+    // app-wide library, where every chain's DI can pick it.
+    callback save-take(int, int, string);
 }

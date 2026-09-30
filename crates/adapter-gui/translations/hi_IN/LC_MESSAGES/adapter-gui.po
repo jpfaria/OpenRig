@@ -152,51 +152,51 @@ msgstr "DI आउटपुट"
 msgid "accessible-language-selector"
 msgstr "भाषा चयनकर्ता"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:96
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:62
 msgid "looper-editor-title"
 msgstr "लूप संपादित करें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:128
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:94
 msgid "looper-editor-fit"
 msgstr "फ़िट करें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:137
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:103
 msgid "looper-editor-trim"
 msgstr "ट्रिम"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:146
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:112
 msgid "looper-editor-crop"
 msgstr "क्रॉप"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-cut"
 msgstr "काटें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
 msgid "looper-editor-stop"
 msgstr "रोकें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:168
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
 msgid "looper-editor-play"
 msgstr "चलाएँ"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
 msgid "looper-editor-undo"
 msgstr "पूर्ववत करें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
 msgid "looper-editor-redo"
 msgstr "फिर करें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:189
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
 msgid "looper-editor-close"
 msgstr "बंद करें"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:199
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
 msgid "looper-editor-no-change"
 msgstr "काटने को कुछ नहीं — टेक पहले से सटीक है"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:200
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:166
 msgid "looper-editor-refused"
 msgstr "इस संपादन से बहुत कम ऑडियो बचेगा"
 
@@ -310,11 +310,43 @@ msgstr "गति"
 msgid "looper-reverse"
 msgstr "उल्टा"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:24
+msgid "looper-take-save-title"
+msgstr "टेक सहेजें"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:33
+msgid "looper-take-name-placeholder"
+msgstr "टेक का नाम"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:45
+msgid "looper-take-save"
+msgstr "सहेजें"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:57
+msgid "looper-take-saved"
+msgstr "सहेजा गया — इसे किसी भी चेन के DI स्रोत के रूप में चुनें"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:58
+msgid "looper-take-name-taken"
+msgstr "इस नाम का टेक पहले से मौजूद है"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:59
+msgid "looper-take-nothing-recorded"
+msgstr "इस लूप में कुछ रिकॉर्ड नहीं है"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:60
+msgid "looper-take-failed"
+msgstr "टेक सहेजा नहीं जा सका"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
+msgid "looper-take-needs-name"
+msgstr "टेक के लिए नाम लिखें"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:145
 msgid "action-mixer-solo"
 msgstr "सोलो"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:155
+#: crates/adapter-gui/ui/components/mixer_strip.slint:161
 msgid "action-mixer-mute"
 msgstr "म्यूट"
 
@@ -598,23 +630,23 @@ msgstr "कोई प्रोजेक्ट आउटपुट कॉन्फ
 msgid "title-window-metronome"
 msgstr "मेट्रोनोम"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:68
+#: crates/adapter-gui/ui/pages/mixer_window.slint:51
 msgid "label-mixer"
 msgstr "मिक्सर"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"
 msgstr "इनपुट"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-outputs"
 msgstr "आउटपुट"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
 msgid "status-mixer-no-endpoints"
 msgstr "कोई इनपुट या आउटपुट कॉन्फ़िगर नहीं है। I/O सेटिंग्स में एंडपॉइंट जोड़ें।"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
 msgid "title-window-mixer"
 msgstr "मिक्सर"
 

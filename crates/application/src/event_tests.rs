@@ -18,3 +18,18 @@ fn chain_accessor_returns_the_affected_chain() {
     assert_eq!(Event::ProjectSaved.chain(), None);
     assert_eq!(Event::ProjectMutated.chain(), None);
 }
+
+#[test]
+fn a_saved_looper_take_belongs_to_its_chain() {
+    // #827: saving a take re-syncs only the chain whose looper it came from.
+    let c = ChainId("rig:guitar".into());
+    assert_eq!(
+        Event::ChainLooperTakeSaved {
+            chain: c.clone(),
+            looper: 1,
+            path: std::path::PathBuf::from("verse.wav"),
+        }
+        .chain(),
+        Some(&c)
+    );
+}

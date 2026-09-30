@@ -12,10 +12,14 @@ fn labels() -> Vec<StreamIoLabels> {
         StreamIoLabels {
             input: "GUITARRA 1 - MAIN".into(),
             output: "GUITARRA 1 - MAIN".into(),
+            input_channels: String::new(),
+            output_channels: String::new(),
         },
         StreamIoLabels {
             input: "GUITARRA 1 - SYN5050".into(),
             output: "GUITARRA 1 - SYN5050".into(),
+            input_channels: String::new(),
+            output_channels: String::new(),
         },
     ]
 }

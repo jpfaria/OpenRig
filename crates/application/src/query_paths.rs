@@ -23,6 +23,10 @@ pub struct ResolvedPaths {
     /// `config.yaml`, otherwise `<data_root>/evaluations` per
     /// [`infra_filesystem::default_evaluations_path`].
     pub evaluations_path: String,
+    /// #827: the app-wide looper take library
+    /// ([`infra_filesystem::default_looper_takes_path`]). Not configurable;
+    /// reported so a client can find a saved take and hand it to the DI.
+    pub looper_takes_path: String,
 }
 
 impl ResolvedPaths {
@@ -53,6 +57,9 @@ impl ResolvedPaths {
                 .to_string_lossy()
                 .into_owned(),
             evaluations_path: evaluations.to_string_lossy().into_owned(),
+            looper_takes_path: infra_filesystem::default_looper_takes_path()
+                .to_string_lossy()
+                .into_owned(),
         }
     }
 

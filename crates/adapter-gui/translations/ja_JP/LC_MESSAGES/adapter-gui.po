@@ -152,51 +152,51 @@ msgstr "DI出力"
 msgid "accessible-language-selector"
 msgstr "言語セレクター"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:96
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:62
 msgid "looper-editor-title"
 msgstr "ループを編集"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:128
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:94
 msgid "looper-editor-fit"
 msgstr "自動調整"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:137
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:103
 msgid "looper-editor-trim"
 msgstr "トリム"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:146
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:112
 msgid "looper-editor-crop"
 msgstr "切り抜き"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-cut"
 msgstr "カット"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
 msgid "looper-editor-stop"
 msgstr "停止"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:168
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
 msgid "looper-editor-play"
 msgstr "再生"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
 msgid "looper-editor-undo"
 msgstr "元に戻す"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
 msgid "looper-editor-redo"
 msgstr "やり直す"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:189
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
 msgid "looper-editor-close"
 msgstr "閉じる"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:199
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
 msgid "looper-editor-no-change"
 msgstr "カットする箇所がありません — すでに収まっています"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:200
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:166
 msgid "looper-editor-refused"
 msgstr "この編集では音が短くなりすぎます"
 
@@ -312,11 +312,43 @@ msgstr "速度"
 msgid "looper-reverse"
 msgstr "リバース"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:24
+msgid "looper-take-save-title"
+msgstr "テイクを保存"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:33
+msgid "looper-take-name-placeholder"
+msgstr "テイク名"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:45
+msgid "looper-take-save"
+msgstr "保存"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:57
+msgid "looper-take-saved"
+msgstr "保存しました — どのチェーンの DI ソースにも選べます"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:58
+msgid "looper-take-name-taken"
+msgstr "この名前のテイクはすでにあります"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:59
+msgid "looper-take-nothing-recorded"
+msgstr "このループには録音がありません"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:60
+msgid "looper-take-failed"
+msgstr "テイクを保存できませんでした"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
+msgid "looper-take-needs-name"
+msgstr "テイクの名前を入力してください"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:145
 msgid "action-mixer-solo"
 msgstr "ソロ"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:155
+#: crates/adapter-gui/ui/components/mixer_strip.slint:161
 msgid "action-mixer-mute"
 msgstr "ミュート"
 
@@ -600,24 +632,24 @@ msgstr "プロジェクトの出力が未設定"
 msgid "title-window-metronome"
 msgstr "メトロノーム"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:68
+#: crates/adapter-gui/ui/pages/mixer_window.slint:51
 msgid "label-mixer"
 msgstr "ミキサー"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"
 msgstr "入力"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-outputs"
 msgstr "出力"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
 msgid "status-mixer-no-endpoints"
 msgstr ""
 "入力も出力も設定されていません。I/O 設定でエンドポイントを追加してください。"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
 msgid "title-window-mixer"
 msgstr "ミキサー"
 

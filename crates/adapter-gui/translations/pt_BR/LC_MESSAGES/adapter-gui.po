@@ -161,51 +161,51 @@ msgstr "Saída do DI"
 msgid "accessible-language-selector"
 msgstr "Seletor de idioma"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:96
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:62
 msgid "looper-editor-title"
 msgstr "Editar loop"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:128
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:94
 msgid "looper-editor-fit"
 msgstr "Encaixar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:137
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:103
 msgid "looper-editor-trim"
 msgstr "Aparar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:146
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:112
 msgid "looper-editor-crop"
 msgstr "Recortar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-cut"
 msgstr "Cortar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
 msgid "looper-editor-stop"
 msgstr "Parar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:168
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
 msgid "looper-editor-play"
 msgstr "Tocar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
 msgid "looper-editor-undo"
 msgstr "Desfazer"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
 msgid "looper-editor-redo"
 msgstr "Refazer"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:189
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
 msgid "looper-editor-close"
 msgstr "Fechar"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:199
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
 msgid "looper-editor-no-change"
 msgstr "Nada a cortar — o take já está justo"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:200
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:166
 msgid "looper-editor-refused"
 msgstr "Esse corte deixaria áudio de menos"
 
@@ -321,11 +321,43 @@ msgstr "Velocidade"
 msgid "looper-reverse"
 msgstr "Reverso"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:24
+msgid "looper-take-save-title"
+msgstr "Salvar take"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:33
+msgid "looper-take-name-placeholder"
+msgstr "Nome do take"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:45
+msgid "looper-take-save"
+msgstr "Salvar"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:57
+msgid "looper-take-saved"
+msgstr "Salvo — escolha como fonte do DI de qualquer chain"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:58
+msgid "looper-take-name-taken"
+msgstr "Já existe um take com esse nome"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:59
+msgid "looper-take-nothing-recorded"
+msgstr "Esse loop não tem nada gravado"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:60
+msgid "looper-take-failed"
+msgstr "Não foi possível salvar o take"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
+msgid "looper-take-needs-name"
+msgstr "Digite um nome para o take"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:145
 msgid "action-mixer-solo"
 msgstr "SOLO"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:155
+#: crates/adapter-gui/ui/components/mixer_strip.slint:161
 msgid "action-mixer-mute"
 msgstr "MUDO"
 
@@ -609,25 +641,25 @@ msgstr "Nenhuma saída configurada no projeto"
 msgid "title-window-metronome"
 msgstr "Metrônomo"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:68
+#: crates/adapter-gui/ui/pages/mixer_window.slint:51
 msgid "label-mixer"
 msgstr "MIXER"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"
 msgstr "ENTRADAS"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-outputs"
 msgstr "SAÍDAS"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
 msgid "status-mixer-no-endpoints"
 msgstr ""
 "Nenhuma entrada ou saída configurada. Adicione endpoints nas configurações "
 "de E/S."
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
 msgid "title-window-mixer"
 msgstr "Mixer"
 

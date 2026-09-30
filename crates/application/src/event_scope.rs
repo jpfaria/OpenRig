@@ -52,7 +52,8 @@ impl Event {
             | Event::ChainLooperAudioFileChanged { chain, .. }
             | Event::ChainLooperInputChanged { chain, .. }
             | Event::ChainLooperOutputChanged { chain, .. }
-            | Event::ChainLooperPresetChanged { chain, .. } => Some(chain),
+            | Event::ChainLooperPresetChanged { chain, .. }
+            | Event::ChainLooperTakeSaved { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

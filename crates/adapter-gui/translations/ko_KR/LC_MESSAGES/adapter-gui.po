@@ -152,51 +152,51 @@ msgstr "DI 출력"
 msgid "accessible-language-selector"
 msgstr "언어 선택기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:96
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:62
 msgid "looper-editor-title"
 msgstr "루프 편집"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:128
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:94
 msgid "looper-editor-fit"
 msgstr "맞춤"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:137
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:103
 msgid "looper-editor-trim"
 msgstr "다듬기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:146
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:112
 msgid "looper-editor-crop"
 msgstr "잘라내기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-cut"
 msgstr "구간 삭제"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
 msgid "looper-editor-stop"
 msgstr "정지"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:168
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:134
 msgid "looper-editor-play"
 msgstr "재생"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:143
 msgid "looper-editor-undo"
 msgstr "실행 취소"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
 msgid "looper-editor-redo"
 msgstr "다시 실행"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:189
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:155
 msgid "looper-editor-close"
 msgstr "닫기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:199
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:165
 msgid "looper-editor-no-change"
 msgstr "다듬을 곳이 없습니다 — 이미 딱 맞습니다"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:200
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:166
 msgid "looper-editor-refused"
 msgstr "이 편집은 오디오를 너무 적게 남깁니다"
 
@@ -311,11 +311,43 @@ msgstr "속도"
 msgid "looper-reverse"
 msgstr "역방향"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:139
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:24
+msgid "looper-take-save-title"
+msgstr "테이크 저장"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:33
+msgid "looper-take-name-placeholder"
+msgstr "테이크 이름"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:45
+msgid "looper-take-save"
+msgstr "저장"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:57
+msgid "looper-take-saved"
+msgstr "저장됨 — 어느 체인의 DI 소스로도 선택할 수 있습니다"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:58
+msgid "looper-take-name-taken"
+msgstr "같은 이름의 테이크가 이미 있습니다"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:59
+msgid "looper-take-nothing-recorded"
+msgstr "이 루프에는 녹음된 내용이 없습니다"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:60
+msgid "looper-take-failed"
+msgstr "테이크를 저장할 수 없습니다"
+
+#: crates/adapter-gui/ui/components/looper_take_save_row.slint:61
+msgid "looper-take-needs-name"
+msgstr "테이크 이름을 입력하세요"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint:145
 msgid "action-mixer-solo"
 msgstr "솔로"
 
-#: crates/adapter-gui/ui/components/mixer_strip.slint:155
+#: crates/adapter-gui/ui/components/mixer_strip.slint:161
 msgid "action-mixer-mute"
 msgstr "음소거"
 
@@ -599,24 +631,24 @@ msgstr "구성된 프로젝트 출력 없음"
 msgid "title-window-metronome"
 msgstr "메트로놈"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:68
+#: crates/adapter-gui/ui/pages/mixer_window.slint:51
 msgid "label-mixer"
 msgstr "믹서"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-inputs"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:104
+#: crates/adapter-gui/ui/pages/mixer_window.slint:87
 msgid "label-mixer-outputs"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:113
+#: crates/adapter-gui/ui/pages/mixer_window.slint:96
 msgid "status-mixer-no-endpoints"
 msgstr ""
 "구성된 입력 또는 출력이 없습니다. I/O 설정에서 엔드포인트를 추가하세요."
 
-#: crates/adapter-gui/ui/pages/mixer_window.slint:142
+#: crates/adapter-gui/ui/pages/mixer_window.slint:125
 msgid "title-window-mixer"
 msgstr "믹서"
 
