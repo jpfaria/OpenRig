@@ -53,6 +53,7 @@ fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
             endpoint: String::new(),
             io_binding_ids: vec!["main".to_string()],
             loopers: Vec::new(),
+            mix: Default::default(),
         },
     );
     RigProject {

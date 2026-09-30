@@ -30,6 +30,7 @@ fn chain() -> Chain {
         blocks: vec![block("live-amp")],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

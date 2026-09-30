@@ -48,6 +48,7 @@ fn chain_on(device: &str) -> (Chain, Vec<IoBinding>) {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     (chain, registry)
 }

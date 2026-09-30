@@ -93,6 +93,10 @@ pub struct RigInput {
     /// written before the looper existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loopers: Vec<crate::chain::LooperConfig>,
+    /// #1007: the chain's own faders, persisted here for the same reason
+    /// as `loopers` — the projected chain is rebuilt from the rig.
+    #[serde(default, skip_serializing_if = "crate::chain::ChainMix::is_unity")]
+    pub mix: crate::chain::ChainMix,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

@@ -296,6 +296,7 @@ impl LiveRig {
                 blocks,
                 di_output: None,
                 loopers: vec![],
+                mix: Default::default(),
             }],
             midi: None,
         };

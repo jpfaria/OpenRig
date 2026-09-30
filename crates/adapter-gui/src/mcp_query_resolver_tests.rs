@@ -108,6 +108,7 @@ fn one_chain_project() -> Project {
                 output: None,
                 preset: None,
             }],
+            mix: Default::default(),
         }],
         midi: None,
     }

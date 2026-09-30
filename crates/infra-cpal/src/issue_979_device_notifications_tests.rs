@@ -245,6 +245,7 @@ fn chain_for(scene: Scene) -> Chain {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

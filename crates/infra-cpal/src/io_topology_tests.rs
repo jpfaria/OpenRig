@@ -47,6 +47,7 @@ fn a_bound_insert_adds_its_send_and_return_to_the_signature() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
 
     let (plain_in, plain_out) = super::bound_io_signature(&chain, &registry);
@@ -133,6 +134,7 @@ fn disabling_a_bound_insert_is_not_a_topology_change() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
 
     let (on_in, on_out) = super::bound_io_signature(&chain, &registry);
@@ -173,6 +175,7 @@ fn an_inserts_enable_flag_is_not_part_of_the_chain_structure() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
 
     let on = super::chain_structure_signature(&chain, &[]);
@@ -240,6 +243,7 @@ fn a_switch_that_regroups_the_chains_runtimes_is_a_structural_change() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
 
     assert_ne!(
@@ -304,6 +308,7 @@ fn a_mid_ports_enable_flag_is_part_of_the_chain_structure() {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let on = super::chain_structure_signature(&chain, &[]);
 

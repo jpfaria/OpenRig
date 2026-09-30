@@ -56,6 +56,7 @@ fn io_wrap(block: AudioBlock) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![block],
+        mix: Default::default(),
     }
 }
 

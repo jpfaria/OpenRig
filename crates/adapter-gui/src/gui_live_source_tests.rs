@@ -33,6 +33,7 @@ fn one_chain_project() -> Project {
             }],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     }

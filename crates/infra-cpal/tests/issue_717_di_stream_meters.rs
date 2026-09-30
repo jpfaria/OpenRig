@@ -28,6 +28,7 @@ fn chain_and_registry() -> (Chain, Vec<IoBinding>) {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let registry = vec![IoBinding {
         id: "io".into(),

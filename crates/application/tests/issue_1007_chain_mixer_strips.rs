@@ -55,6 +55,7 @@ fn chain(bindings: &[&str]) -> Chain {
         blocks: Vec::new(),
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

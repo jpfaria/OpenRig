@@ -78,6 +78,7 @@ fn rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: vec!["main".to_string()],
             loopers: Vec::new(),
+            mix: Default::default(),
         },
     );
     RigProject {
@@ -102,6 +103,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
         blocks,
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }];
     project
 }
