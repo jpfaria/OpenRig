@@ -125,10 +125,6 @@ msgstr "DI"
 msgid "tab-mixer-looper"
 msgstr "लूपर"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
-msgid "tab-mixer-master"
-msgstr "मास्टर"
-
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
 msgstr "मॉडल खोजें..."
