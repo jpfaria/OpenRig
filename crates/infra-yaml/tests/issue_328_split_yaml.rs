@@ -115,6 +115,81 @@ fn a_project_with_a_split_round_trips_and_is_stamped_version_2() {
     );
 }
 
+/// A cab IR on path A, nothing on path B — the Y that ends a Mix + Y chain.
+fn cab_or_dry_y_split(id: &str) -> AudioBlock {
+    let mut split = SplitBlock::new(SplitEnd::Y);
+    split.a = vec![delay(&format!("{id}::a:0"))];
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(split),
+    }
+}
+
+#[test]
+fn a_project_with_a_mix_then_a_y_round_trips() {
+    let rig = rig_with(vec![
+        delay("pre"),
+        dual_amp_split("mix"),
+        delay("mid"),
+        cab_or_dry_y_split("y"),
+    ]);
+    let yaml = serialize_rig_project(&rig).expect("serialize");
+    assert!(yaml.contains("version: 2\n"), "got:\n{yaml}");
+    let back = parse_rig_project(&yaml).expect("a Mix then a Y loads");
+    assert_eq!(back, rig, "both splits and their paths survive");
+    let blocks = &back.presets["p"].blocks;
+    assert_eq!(split_of(&blocks[1]).a[0].id.0, "mix::a:0");
+    assert_eq!(split_of(&blocks[3]).a[0].id.0, "y::a:0");
+}
+
+#[test]
+fn a_chain_preset_with_a_mix_then_a_y_loads_distinct_path_ids() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("mix_y.yaml");
+    let preset = ChainBlocksPreset {
+        id: "mix_y".into(),
+        name: Some("Mix Y".into()),
+        volume: 100.0,
+        instrument: "electric_guitar".into(),
+        blocks: vec![
+            dual_amp_split("whatever"),
+            delay("mid"),
+            cab_or_dry_y_split("other"),
+        ],
+    };
+    save_chain_preset_file(&path, &preset).expect("save");
+    let loaded = load_chain_preset_file(&path).expect("load");
+    let mix = split_of(&loaded.blocks[0]);
+    let y = split_of(&loaded.blocks[2]);
+    assert_eq!(mix.end, SplitEnd::Mix);
+    assert_eq!(y.end, SplitEnd::Y);
+    assert_eq!(mix.a[0].id.0, "preset:mix_y:block:0::a:0");
+    assert_eq!(y.a[0].id.0, "preset:mix_y:block:2::a:0");
+    assert!(y.b.is_empty(), "path B of the Y stays empty");
+}
+
+#[test]
+fn a_legacy_project_file_reads_a_mix_then_a_y() {
+    let dir = tempdir().expect("temp dir");
+    let path = dir.path().join("legacy_mix_y.yaml");
+    let model = delay_model();
+    fs::write(
+        &path,
+        format!(
+            "chains:\n  - instrument: electric_guitar\n    blocks:\n      - type: split\n        end: mix\n        a:\n          - type: delay\n            model: {model}\n        b:\n          - type: delay\n            model: {model}\n      - type: delay\n        model: {model}\n      - type: split\n        end: y\n        a:\n          - type: delay\n            model: {model}\n        b: []\n"
+        ),
+    )
+    .expect("write");
+    let project = YamlProjectRepository { path }
+        .load_current_project()
+        .expect("legacy load");
+    let blocks = &project.chains[0].blocks;
+    assert_eq!(split_of(&blocks[0]).a[0].id.0, "chain:0:block:0::a:0");
+    assert_eq!(split_of(&blocks[2]).a[0].id.0, "chain:0:block:2::a:0");
+    assert_eq!(split_of(&blocks[2]).end, SplitEnd::Y);
+}
+
 #[test]
 fn a_split_free_project_stays_version_1() {
     let yaml = serialize_rig_project(&rig_with(vec![delay("pre")])).expect("serialize");
