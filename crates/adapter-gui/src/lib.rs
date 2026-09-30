@@ -196,10 +196,10 @@ mod chain_editor;
 mod chain_graph_adapter;
 mod chain_graph_drag;
 mod chain_graph_drop;
-mod chain_graph_models;
 #[cfg(test)]
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
+mod chain_graph_models;
 mod chain_graph_wiring;
 mod curated_knob_overlays;
 mod default_io_binding;
@@ -406,17 +406,17 @@ mod project_view_stream_meters_tests;
 mod touch_window_io_parity_tests;
 
 #[cfg(test)]
+mod issue_328_endpoint_checklist_interaction_tests;
+#[cfg(test)]
 mod issue_328_graph_row_interaction_tests;
 #[cfg(test)]
 mod issue_328_path_block_editor_tests;
-#[cfg(test)]
-mod issue_328_split_picker_tests;
 #[cfg(test)]
 mod issue_328_split_chip_tests;
 #[cfg(test)]
 mod issue_328_split_editor_interaction_tests;
 #[cfg(test)]
-mod issue_328_endpoint_checklist_interaction_tests;
+mod issue_328_split_picker_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

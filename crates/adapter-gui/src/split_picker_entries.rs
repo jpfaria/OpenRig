@@ -26,12 +26,11 @@ pub(crate) fn split_picker_ends(
     if path.is_some() || has_split {
         return Vec::new();
     }
-    let block_follows = chain.blocks.iter().skip(position).any(|b| {
-        !matches!(
-            b.kind,
-            AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-        )
-    });
+    let block_follows = chain
+        .blocks
+        .iter()
+        .skip(position)
+        .any(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
     if block_follows {
         vec![SplitEnd::Mix]
     } else {

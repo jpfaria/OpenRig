@@ -20,7 +20,11 @@ fn a_split_is_one_split_chip() {
         chip.label.to_string(),
         rust_i18n::t!("picker-split-mix").to_string()
     );
-    assert_eq!(chip.display_name.as_str(), "", "no model tooltip on a split");
+    assert_eq!(
+        chip.display_name.as_str(),
+        "",
+        "no model tooltip on a split"
+    );
 }
 
 #[test]

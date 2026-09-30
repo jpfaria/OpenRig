@@ -25,6 +25,7 @@ use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
+use crate::block_picker_items::insert_type_picker_items;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
@@ -33,7 +34,6 @@ use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_picker_items, block_model_picker_labels, replace_project_chains,
 };
-use crate::block_picker_items::insert_type_picker_items;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{
     BlockEditorData, BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
@@ -155,7 +155,12 @@ pub(crate) fn wire(
             match crate::split_insert::add_split(&project_session, &pick, &rows) {
                 Ok(()) => {
                     if let Some(session) = project_session.borrow().as_ref() {
-                        sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                        sync_project_dirty(
+                            &window,
+                            session,
+                            &saved_project_snapshot,
+                            &project_dirty,
+                        );
                     }
                 }
                 Err(error) => {
@@ -165,7 +170,9 @@ pub(crate) fn wire(
                         other => format!("{other:?}"),
                     };
                     window.set_status_message(
-                        rust_i18n::t!("error-graph-action", err = err).as_ref().into(),
+                        rust_i18n::t!("error-graph-action", err = err)
+                            .as_ref()
+                            .into(),
                     );
                 }
             }

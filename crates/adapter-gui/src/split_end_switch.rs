@@ -1,4 +1,4 @@
-//! Responsibility: switches a chain's split between Split → Mix and Y → A/B.
+//! Responsibility: switches the end kind of a chain's split.
 //!
 //! #328 (orchestrator decision 9): the split editor's Mix / Y switch is a
 //! `SetSplitEnd` on the bus. The command owns the rule (no Y while a

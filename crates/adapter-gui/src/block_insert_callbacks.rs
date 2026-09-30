@@ -26,11 +26,11 @@ use project::param::ParameterSet;
 use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, schedule_block_editor_persist,
 };
+use crate::block_picker_items::insert_type_picker_items;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::helpers::use_inline_block_editor;
-use crate::block_picker_items::insert_type_picker_items;
 use crate::project_view::{block_model_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
@@ -151,13 +151,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     borrowed
                         .as_ref()
                         .and_then(|s| {
-                            s.project.borrow().chains.get(chain_index as usize).map(|chain| {
-                                crate::split_picker_entries::split_picker_ends(
-                                    chain,
-                                    real_before_index,
-                                    path.as_ref(),
-                                )
-                            })
+                            s.project
+                                .borrow()
+                                .chains
+                                .get(chain_index as usize)
+                                .map(|chain| {
+                                    crate::split_picker_entries::split_picker_ends(
+                                        chain,
+                                        real_before_index,
+                                        path.as_ref(),
+                                    )
+                                })
                         })
                         .unwrap_or_default()
                 };
