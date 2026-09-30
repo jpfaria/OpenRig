@@ -128,6 +128,14 @@ pub fn normalize_split_params(params: ParameterSet) -> Result<ParameterSet, Stri
     params.normalized_against(&split_schema())
 }
 
+/// Refuse `value` for the knob `path` when the schema does (out of range,
+/// unknown option), so a command never stores a knob the split cannot load.
+pub fn check_split_knob(path: &str, value: ParameterValue) -> Result<(), String> {
+    let mut params = ParameterSet::default();
+    params.insert(path, value);
+    normalize_split_params(params).map(|_| ())
+}
+
 /// The split's knobs as descriptors addressed on `block_id`
 /// (`<block_id>::<knob>`), the shape every block editor and MCP read.
 pub fn split_param_descriptors(

@@ -17,7 +17,8 @@ use anyhow::{anyhow, Result};
 use domain::value_objects::ParameterValue;
 
 use super::block_params::block_params_mut;
-use super::types::AudioBlock;
+use super::split_params::check_split_knob;
+use super::types::{AudioBlock, AudioBlockKind};
 
 /// Write `value` (f64 → stored as `ParameterValue::Float`) to the parameter
 /// identified by `path` inside `block`.
@@ -37,8 +38,10 @@ pub fn set_parameter_number(block: &mut AudioBlock, path: &str, value: f64) -> R
     // `block_parameter_items_for_model`), so accepting an insert here
     // is safe; rejection just enforced "must have been written before"
     // which prevents introducing newly-exposed parameters.
+    let value = ParameterValue::Float(value as f32);
+    refuse_invalid_split_knob(block, path, &value)?;
     let params = params_mut(block)?;
-    params.insert(path, ParameterValue::Float(value as f32));
+    params.insert(path, value);
     Ok(())
 }
 
@@ -97,6 +100,7 @@ pub fn set_parameter_text(block: &mut AudioBlock, path: &str, value: &str) -> Re
 /// - If the block kind does not carry a `ParameterSet`.
 /// - If the path does not exist in the block's current `ParameterSet`.
 pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> Result<()> {
+    refuse_invalid_split_knob(block, path, &ParameterValue::String(value.to_string()))?;
     let params = params_mut(block)?;
     if !params.values.contains_key(path) {
         return Err(anyhow!(
@@ -107,6 +111,15 @@ pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> 
     }
     params.insert(path, ParameterValue::String(value.to_string()));
     Ok(())
+}
+
+/// #328: a split knob is checked against the split schema before it is stored.
+fn refuse_invalid_split_knob(block: &AudioBlock, path: &str, value: &ParameterValue) -> Result<()> {
+    if !matches!(block.kind, AudioBlockKind::Split(_)) {
+        return Ok(());
+    }
+    check_split_knob(path, value.clone())
+        .map_err(|e| anyhow!("invalid value for split '{}': {e}", block.id.0))
 }
 
 /// Return a mutable reference to the `ParameterSet` of `block`, or an error

@@ -70,6 +70,26 @@ fn set_block_parameter_number_writes_a_split_mixer_knob() {
 }
 
 #[test]
+fn set_block_parameter_number_refuses_a_split_knob_outside_its_range() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
+        chain: ChainId(CHAIN.into()),
+        block: BlockId("split_0".into()),
+        path: MIX_PAN_A.into(),
+        value: 100.0,
+    }));
+
+    assert!(result.is_err(), "pan runs -50..50, 100 must be refused");
+    assert_eq!(
+        split_of(&project.borrow()).params.get_f32(MIX_PAN_A),
+        Some(0.0),
+        "a refused value leaves the knob untouched"
+    );
+}
+
+#[test]
 fn select_block_parameter_option_switches_the_split_mode() {
     let project = project_with(mix_chain());
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
