@@ -237,11 +237,11 @@ pub(crate) fn assemble_chain_runtime_state(
 pub(crate) fn collect_bypass_block_ids(input_states: &[InputProcessingState]) -> HashSet<BlockId> {
     let mut ids = HashSet::new();
     for input_state in input_states {
-        for node in &input_state.blocks {
+        crate::runtime_split::walk::for_each_node(&input_state.blocks, &mut |node| {
             if matches!(node.processor, RuntimeProcessor::Bypass) {
                 ids.insert(node.block_id.clone());
             }
-        }
+        });
     }
     ids
 }

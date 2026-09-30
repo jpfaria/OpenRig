@@ -222,22 +222,23 @@ pub(crate) fn render_nodes_masked(
 }
 
 fn collect_faulted_blocks(nodes: &[BlockRuntimeNode]) -> Vec<FaultedBlock> {
-    nodes
-        .iter()
-        .filter_map(|node| {
-            let reason = node.fault_reason.as_ref()?;
-            let (effect_type, model) = match node.block_snapshot.model_ref() {
-                Some(m) => (m.effect_type.to_string(), m.model.to_string()),
-                None => (node.block_snapshot.kind.label().to_string(), String::new()),
-            };
-            Some(FaultedBlock {
-                block_id: node.block_id.0.clone(),
-                effect_type,
-                model,
-                error: reason.clone(),
-            })
-        })
-        .collect()
+    let mut faulted = Vec::new();
+    crate::runtime_split::walk::for_each_node(nodes, &mut |node| {
+        let Some(reason) = node.fault_reason.as_ref() else {
+            return;
+        };
+        let (effect_type, model) = match node.block_snapshot.model_ref() {
+            Some(m) => (m.effect_type.to_string(), m.model.to_string()),
+            None => (node.block_snapshot.kind.label().to_string(), String::new()),
+        };
+        faulted.push(FaultedBlock {
+            block_id: node.block_id.0.clone(),
+            effect_type,
+            model,
+            error: reason.clone(),
+        });
+    });
+    faulted
 }
 
 fn apply_block_offline(node: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {

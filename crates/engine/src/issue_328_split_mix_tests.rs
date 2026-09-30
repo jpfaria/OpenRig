@@ -609,3 +609,71 @@ fn a_knob_edit_keeps_the_alignment_history() {
         "a knob edit must not restart the delayed path from silence, peak {after}"
     );
 }
+
+fn broken_block(id: &str) -> AudioBlock {
+    core_block(id, "gain", "does_not_exist", ParameterSet::default())
+}
+
+fn chain_with_a_broken_path_block() -> (Chain, Vec<IoBinding>) {
+    mono_chain(
+        "broken",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![volume_block("a_vol", 100.0)],
+            vec![broken_block("b_broken")],
+        )],
+    )
+}
+
+#[test]
+fn a_born_disabled_block_inside_a_path_declines_the_fast_toggle() {
+    let mut off = volume_block("a_off", 100.0);
+    off.enabled = false;
+    let (chain, registry) = mono_chain(
+        "born_off",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![off],
+            vec![volume_block("b_vol", 100.0)],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    assert!(
+        runtime
+            .bypass_block_ids
+            .load()
+            .contains(&BlockId("a_off".into())),
+        "re-enabling a path block with no processor must take the rebuild path"
+    );
+}
+
+#[test]
+fn a_path_block_that_fails_to_build_is_reported_offline() {
+    let (chain, _) = chain_with_a_broken_path_block();
+    let input = vec![[0.1_f32, 0.1]; 256];
+    let outcome = crate::offline::render_chain(&chain, SR, &input, 64, 0).expect("offline render");
+    assert!(
+        outcome
+            .faulted_blocks
+            .iter()
+            .any(|f| f.block_id == "b_broken"),
+        "a render that silently bypassed a path block must say so: {:?}",
+        outcome.faulted_blocks
+    );
+}
+
+#[test]
+fn the_latency_probe_summary_names_a_faulted_path_block() {
+    let (chain, registry) = chain_with_a_broken_path_block();
+    let runtime = build_runtime(&chain, &registry);
+    let guard = runtime.processing.lock().expect("processing lock");
+    let summary = crate::probe::runtime_summary(&guard.input_states);
+    assert!(
+        summary.contains("b_broken(gain:does_not_exist)!"),
+        "the probe must see inside the paths: {summary}"
+    );
+}

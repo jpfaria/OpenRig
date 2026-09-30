@@ -430,9 +430,12 @@ and stream isolation holds by construction.
 Files: `runtime_split.rs` routes `runtime_split_builder.rs` (model → node),
 `runtime_split_state.rs` (what a split keeps), `runtime_split_process.rs` (one
 callback), `runtime_split_mix.rs` (pure per-sample math),
-`runtime_split_align.rs` (delay line), `runtime_split_knobs.rs` (atomics) and
+`runtime_split_align.rs` (delay line), `runtime_split_knobs.rs` (atomics),
 `runtime_split_latency.rs` (path latency, from each processor's
-`latency_samples()`).
+`latency_samples()`) and `runtime_split_walk.rs`, which the read-only node
+walkers (bypass mirror, offline faulted list, probe summary) use to see inside
+both paths; the block toggle descends into the paths itself because it
+mutates them.
 
 ## Registry auto-gerado
 

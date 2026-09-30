@@ -22,6 +22,9 @@ pub(crate) mod process;
 #[path = "runtime_split_state.rs"]
 pub(crate) mod state;
 
+#[path = "runtime_split_walk.rs"]
+pub(crate) mod walk;
+
 #[cfg(test)]
 #[path = "runtime_split_test_support.rs"]
 pub(crate) mod test_support;
