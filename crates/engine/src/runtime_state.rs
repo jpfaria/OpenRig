@@ -264,6 +264,10 @@ impl SelectRuntimeState {
 /// Lives next to `FadeState` because it parameterises that state machine.
 pub(crate) const FADE_IN_FRAMES: usize = 128;
 
+/// Frames a segment preallocates for one callback — its frame buffer and a
+/// split's path-B buffer (#328). A larger callback grows them once.
+pub(crate) const SEGMENT_FRAME_CAPACITY: usize = 1024;
+
 /// #454-T5 spillover window: after a preset/scene switch the previous
 /// pipeline keeps processing **silence** (so its delay/reverb tail rings
 /// out) while being equal-power faded out over this many frames, then it is

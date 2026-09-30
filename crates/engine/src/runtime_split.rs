@@ -19,6 +19,11 @@ pub(crate) mod knobs;
 #[path = "runtime_split_latency.rs"]
 pub(crate) mod latency;
 
+// Task 16 wires the history adoption into the builder and removes this allow.
+#[allow(dead_code)]
+#[path = "runtime_split_state.rs"]
+pub(crate) mod state;
+
 #[cfg(test)]
 #[path = "runtime_split_test_support.rs"]
 pub(crate) mod test_support;

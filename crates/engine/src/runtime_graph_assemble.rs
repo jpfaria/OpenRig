@@ -321,7 +321,7 @@ pub(crate) fn build_input_processing_state(
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
         blocks,
-        frame_buffer: Vec::with_capacity(1024),
+        frame_buffer: Vec::with_capacity(crate::runtime_state::SEGMENT_FRAME_CAPACITY),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
         mid_output_taps,
