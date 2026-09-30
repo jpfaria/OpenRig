@@ -109,6 +109,10 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
   plugin's `title` (falling back to `shortTitle`), split on `_` / `-` /
   camelCase, with ALL-CAPS titles turned into sentence case (`DELAY_MS` →
   `Delay ms`); words glued without any separator are only case-folded.
+  Continuous knobs keep their 0–100 % storage, but the value box shows the
+  plugin's own text (`getParamStringByValue` + `units`, e.g. `2.5 s`), sampled
+  once per knob step when the controller is read (`ParameterSpec.value_labels`);
+  a plugin that formats nothing falls back to the number.
   Parameter changes made in the plugin's **native editor** are captured back
   into the block's params (`p{id}` percent) on save, via `CaptureRigEdits`
   (#780) — the controller's current non-default values are read through the

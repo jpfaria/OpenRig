@@ -160,6 +160,9 @@ pub struct Vst3ParamInfo {
     /// `(value_percent, label)` per step read from the controller; empty for
     /// continuous knobs and on/off toggles (#780).
     pub enum_options: Vec<(String, String)>,
+    /// For a continuous parameter, the plugin's own display text at each knob
+    /// position (see `value_texts::VALUE_TEXT_POSITIONS`); empty otherwise (#1011).
+    pub value_texts: Vec<String>,
 }
 
 /// A plugin class found in a factory.
@@ -387,6 +390,7 @@ impl Vst3Plugin {
             default_normalized: info.defaultNormalizedValue,
             flags: info.flags,
             enum_options: Vec::new(),
+            value_texts: Vec::new(),
         })
     }
 

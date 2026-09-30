@@ -12,6 +12,7 @@ fn param(title: &str, flags: i32) -> Vst3ParamInfo {
         default_normalized: 0.5,
         flags,
         enum_options: Vec::new(),
+        value_texts: Vec::new(),
     }
 }
 

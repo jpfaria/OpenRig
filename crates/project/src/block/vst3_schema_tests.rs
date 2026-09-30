@@ -99,6 +99,7 @@ fn info(id: u32, title: &str, flags: i32) -> Vst3ParamInfo {
         default_normalized: 0.5,
         flags,
         enum_options: Vec::new(),
+        value_texts: Vec::new(),
     }
 }
 
@@ -124,4 +125,12 @@ fn schema_labels_use_the_humanized_plugin_title() {
     let specs = specs_from_params(&params, &Default::default());
     let labels: Vec<&str> = specs.iter().map(|s| s.label.as_str()).collect();
     assert_eq!(labels, ["Delay ms", "Pre Delay"]);
+}
+
+#[test]
+fn continuous_knob_carries_the_plugin_value_texts() {
+    let mut knob = info(1, "Decay", CAN_AUTOMATE);
+    knob.value_texts = vec!["0.1 s".to_string(), "2.5 s".to_string()];
+    let specs = specs_from_params(&[knob], &Default::default());
+    assert_eq!(specs[0].value_labels, ["0.1 s", "2.5 s"]);
 }

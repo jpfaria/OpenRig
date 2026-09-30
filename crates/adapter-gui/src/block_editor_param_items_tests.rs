@@ -66,3 +66,23 @@ fn vst3_block_yields_params_via_the_compact_build_path() {
         model
     );
 }
+
+#[test]
+fn knob_row_carries_the_plugin_value_texts_as_its_labels() {
+    // #1011: a VST3 knob shows the plugin's own text ("2.5 s"), not 0..100.
+    let spec = project::param::float_parameter(
+        "p1",
+        "Decay",
+        None,
+        Some(0.0),
+        0.0,
+        100.0,
+        1.0,
+        project::param::ParameterUnit::Percent,
+    )
+    .with_value_labels(vec!["0.1 s".into(), "2.5 s".into()]);
+    let row = block_parameter_item(&spec, &ParameterSet::default());
+    use slint::Model;
+    let labels: Vec<String> = row.option_labels.iter().map(|l| l.to_string()).collect();
+    assert_eq!(labels, ["0.1 s", "2.5 s"]);
+}

@@ -83,6 +83,7 @@ fn specs_from_params(
                     1.0,
                     ParameterUnit::Percent,
                 )
+                .with_value_labels(p.value_texts.clone())
             }
         })
         .collect()
