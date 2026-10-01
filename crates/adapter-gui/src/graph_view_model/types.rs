@@ -57,6 +57,36 @@ impl NodeCategory {
     }
 }
 
+/// What a node IS in the chain editor — picks the card the UI draws
+/// (#328). Distinct from [`NodeCategory`], which only picks a colour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum NodeKind {
+    /// A processing block.
+    #[default]
+    Block,
+    /// The chain's input node.
+    IoInput,
+    /// A chain output node (one per lane in a fan-out).
+    IoOutput,
+    /// Where the signal becomes parallel lanes.
+    Split,
+    /// Where parallel lanes are summed back into one.
+    Mixer,
+}
+
+impl NodeKind {
+    /// Slug the Slint `GraphNode.kind` field carries.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Block => "block",
+            Self::IoInput => "io_input",
+            Self::IoOutput => "io_output",
+            Self::Split => "split",
+            Self::Mixer => "mixer",
+        }
+    }
+}
+
 /// A node in the graph view. Coordinates are in **layout space**
 /// (logical pixels before zoom/pan). The component applies the
 /// viewport transform when rendering.
@@ -69,6 +99,8 @@ pub struct GraphNode {
     pub label: String,
     /// Visual category — drives node colour.
     pub category: NodeCategory,
+    /// What the node is — picks its card on the Slint side.
+    pub kind: NodeKind,
     /// X position in layout space.
     pub x: f32,
     /// Y position in layout space.
@@ -84,6 +116,19 @@ pub struct GraphEdge {
     pub from_id: String,
     /// Target node id.
     pub to_id: String,
+    /// The point the wire bends through, when it is not a straight run
+    /// between its two nodes.
+    pub via: Option<EdgeVia>,
+}
+
+/// An empty path of a mixing split has no node of its own: its split → mixer
+/// wire bends through this point, on the path's own row (#328).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EdgeVia {
+    /// Index of the path within its split.
+    pub path: usize,
+    pub x: f32,
+    pub y: f32,
 }
 
 /// Logical stage of a signal chain. The layout helpers consume a
@@ -93,9 +138,26 @@ pub struct GraphEdge {
 pub enum ChainStage {
     /// A single block — sits alone in one column.
     Single(BlockBlueprint),
-    /// Parallel paths between an implicit split and merge. Each inner
-    /// `Vec` is one path; all paths share the same column range.
-    Parallel(Vec<Vec<BlockBlueprint>>),
+    /// Parallel lanes after an auto-generated split node. Each inner `Vec`
+    /// is one lane, top to bottom, and may hold further parallel stages at
+    /// any depth; `end` decides whether the lanes merge again or fan out to
+    /// one terminal each (#328). `split_id` names the split and merge nodes.
+    Parallel {
+        split_id: String,
+        lanes: Vec<Vec<ChainStage>>,
+        end: ParallelEnd,
+    },
+}
+
+/// How a [`ChainStage::Parallel`] ends (#328).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParallelEnd {
+    /// The lanes meet again at an auto-generated merge node and the next
+    /// stage continues from it (Split → Mix).
+    Merge,
+    /// No merge node: each lane's last blueprint is its terminal — a Y
+    /// chain's output node — and nothing may follow (Y → A/B).
+    Fan,
 }
 
 /// Logical description of one block, without position. Position is
@@ -106,6 +168,9 @@ pub struct BlockBlueprint {
     pub label: String,
     pub category: NodeCategory,
     pub bypass: bool,
+    /// What the node is. [`BlockBlueprint::new`] makes a block; the host
+    /// marks its I/O nodes with [`BlockBlueprint::with_kind`].
+    pub kind: NodeKind,
 }
 
 impl BlockBlueprint {
@@ -115,7 +180,14 @@ impl BlockBlueprint {
             label: label.into(),
             category,
             bypass: false,
+            kind: NodeKind::Block,
         }
+    }
+
+    /// The same blueprint as another kind of node (#328).
+    pub fn with_kind(mut self, kind: NodeKind) -> Self {
+        self.kind = kind;
+        self
     }
 }
 

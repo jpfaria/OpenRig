@@ -62,6 +62,8 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub editor_data: BlockEditorData,
     /// `None` in add-mode — there is no block in the chain yet.
     pub block_id: Option<domain::ids::BlockId>,
+    /// #328: the split path `block_index` / `before_index` count in.
+    pub path: Option<project::block::PathRef>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     /// #127: the block's diagnostic stream comes through the read seam, not
@@ -93,6 +95,7 @@ pub(crate) fn create_and_wire(
         enabled,
         editor_data,
         block_id,
+        path,
         project_session,
         project_chains,
         block_stream_reads,
@@ -143,6 +146,7 @@ pub(crate) fn create_and_wire(
         model_id: model_id.clone(),
         enabled,
         is_select: editor_data.is_select,
+        path: path.clone(),
     })));
     let win_timer = Rc::new(Timer::default());
 

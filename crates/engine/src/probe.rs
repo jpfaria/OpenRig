@@ -90,7 +90,7 @@ pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_fram
     // model is missing from a probe even though it works in the live
     // runtime. We hold the lock briefly here, then drop it before
     // calling `process_input_f32` (which takes the same lock).
-    let runtime_summary: String = {
+    let summary: String = {
         let guard = match runtime.processing.try_lock() {
             Ok(g) => g,
             Err(_) => {
@@ -101,40 +101,7 @@ pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_fram
                 return 0.0;
             }
         };
-        let mut parts: Vec<String> = Vec::with_capacity(guard.input_states.len());
-        for (i, seg) in guard.input_states.iter().enumerate() {
-            let total = seg.blocks.len();
-            let mut audio = 0;
-            let mut bypass = 0;
-            let mut select = 0;
-            let mut faulted_or_bypass: Vec<String> = Vec::new();
-            for node in &seg.blocks {
-                match node.processor.kind_label() {
-                    "audio" => audio += 1,
-                    "select" => select += 1,
-                    "bypass" => {
-                        bypass += 1;
-                        let model = node
-                            .block_snapshot
-                            .model_ref()
-                            .map(|r| format!("{}:{}", r.effect_type, r.model))
-                            .unwrap_or_else(|| node.block_snapshot.kind.label().to_string());
-                        let suffix = if node.faulted { "!" } else { "" };
-                        faulted_or_bypass.push(format!("{}({}){}", node.block_id.0, model, suffix));
-                    }
-                    _ => {}
-                }
-            }
-            parts.push(format!(
-                "seg{i}={total}/A{audio}/B{bypass}/S{select}{}",
-                if faulted_or_bypass.is_empty() {
-                    String::new()
-                } else {
-                    format!(" bypassed={faulted_or_bypass:?}")
-                }
-            ));
-        }
-        parts.join(" | ")
+        runtime_summary(&guard.input_states)
     };
 
     let start = std::time::Instant::now();
@@ -144,7 +111,50 @@ pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_fram
     let ms = elapsed.as_nanos() as f32 / 1_000_000.0;
     eprintln!(
         "[probe] chain={} sr={} buf_frames={} enabled_blocks={:?} elapsed={:.3}ms {}",
-        chain.id.0, sample_rate, buffer_frames, enabled_blocks, ms, runtime_summary,
+        chain.id.0, sample_rate, buffer_frames, enabled_blocks, ms, summary,
     );
     ms
+}
+
+/// Per segment: how many runtime nodes run real DSP vs. sit as a silent
+/// `Bypass`, naming each bypassed one (`!` = faulted). A probe that reads
+/// fast because a model failed to load shows it here.
+pub(crate) fn runtime_summary(
+    input_states: &[crate::runtime_state::InputProcessingState],
+) -> String {
+    let mut parts: Vec<String> = Vec::with_capacity(input_states.len());
+    for (i, seg) in input_states.iter().enumerate() {
+        let mut total = 0;
+        let mut audio = 0;
+        let mut bypass = 0;
+        let mut select = 0;
+        let mut faulted_or_bypass: Vec<String> = Vec::new();
+        crate::runtime_split::walk::for_each_node(&seg.blocks, &mut |node| {
+            total += 1;
+            match node.processor.kind_label() {
+                "audio" => audio += 1,
+                "select" => select += 1,
+                "bypass" => {
+                    bypass += 1;
+                    let model = node
+                        .block_snapshot
+                        .model_ref()
+                        .map(|r| format!("{}:{}", r.effect_type, r.model))
+                        .unwrap_or_else(|| node.block_snapshot.kind.label().to_string());
+                    let suffix = if node.faulted { "!" } else { "" };
+                    faulted_or_bypass.push(format!("{}({}){}", node.block_id.0, model, suffix));
+                }
+                _ => {}
+            }
+        });
+        parts.push(format!(
+            "seg{i}={total}/A{audio}/B{bypass}/S{select}{}",
+            if faulted_or_bypass.is_empty() {
+                String::new()
+            } else {
+                format!(" bypassed={faulted_or_bypass:?}")
+            }
+        ));
+    }
+    parts.join(" | ")
 }

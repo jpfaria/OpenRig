@@ -5,7 +5,7 @@ pub(crate) use crate::block_picker_items::{
     block_model_index, block_model_index_from_items, block_model_picker_items,
     block_model_picker_labels, block_type_index, set_selected_block,
 };
-pub(crate) use crate::chain_endpoint_labels::{format_channel_list, real_block_index_to_ui};
+pub(crate) use crate::chain_endpoint_labels::format_channel_list;
 pub(crate) use crate::project_chains_refresh::replace_project_chains;
 pub(crate) use crate::project_view_assets::load_screenshot_image;
 

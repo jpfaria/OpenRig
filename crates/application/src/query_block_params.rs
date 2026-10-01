@@ -8,6 +8,7 @@
 /// helper the GUI uses) so the schema + current-value walk lives in
 /// `project::block`, never re-derived per transport. Unknown chain /
 /// block / schema mismatch → `Err`.
+/// #328: a block inside a split path is found by its id like any other.
 pub fn get_block_params(
     project: &project::project::Project,
     chain: &domain::ids::ChainId,
@@ -18,9 +19,8 @@ pub fn get_block_params(
         .iter()
         .find(|c| c.id == *chain)
         .ok_or_else(|| format!("chain not found: {}", chain.0))?;
-    let block_ref = chain_ref
-        .blocks
-        .iter()
+    let block_ref = project::block::walk_blocks(&chain_ref.blocks)
+        .into_iter()
         .find(|b| b.id == *block)
         .ok_or_else(|| format!("block not found in chain {}: {}", chain.0, block.0))?;
     let descriptors = block_ref.parameter_descriptors()?;

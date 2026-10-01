@@ -236,7 +236,8 @@ impl ProjectRuntimeController {
 
 /// Whether any block in the chain is a VST3 — its live rebuild must reuse the
 /// instance in place rather than re-instantiate it (#779). Recurses into
-/// `Select` sub-chains so a VST3 nested inside one is covered too.
+/// `Select` options and both paths of a split (#328), so a VST3 nested inside
+/// one is covered too.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn chain_contains_vst3(chain: &Chain) -> bool {
     chain.blocks.iter().any(block_contains_vst3)
@@ -248,6 +249,12 @@ fn block_contains_vst3(block: &project::block::AudioBlock) -> bool {
     match &block.kind {
         AudioBlockKind::Core(core) => core.effect_type == block_core::EFFECT_TYPE_VST3,
         AudioBlockKind::Select(select) => select.options.iter().any(block_contains_vst3),
+        // #328: a VST3 in any path of a split is a VST3 of the chain.
+        AudioBlockKind::Split(split) => split.paths.iter().flatten().any(block_contains_vst3),
         _ => false,
     }
 }
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[path = "controller_offthread_live_rebuild_tests.rs"]
+mod tests;

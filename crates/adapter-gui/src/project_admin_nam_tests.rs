@@ -28,6 +28,7 @@ fn set_block_parameter_number_persists() {
             chain: chain_id.clone(),
             block: gain_block("g1", 0.0),
             position: pos,
+            path: None,
         }))
         .expect("Insert");
 
@@ -87,6 +88,7 @@ fn set_block_parameter_bool_persists() {
                 }),
             },
             position: pos,
+            path: None,
         }))
         .expect("Insert");
 
@@ -143,6 +145,7 @@ fn set_block_parameter_text_persists() {
                 }),
             },
             position: pos,
+            path: None,
         }))
         .expect("Insert");
 
@@ -201,6 +204,7 @@ fn full_admin_sequence_round_trips() {
             chain: c1.clone(),
             block: gain_block("g1", 25.0),
             position: pos,
+            path: None,
         }))
         .expect("insert g1");
     session
@@ -384,6 +388,7 @@ fn issue_606_nam_backed_gain_block_survives_load() {
             chain: chain_id.clone(),
             block: nam_gain_block("nam_od"),
             position: pos,
+            path: None,
         }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);
@@ -450,6 +455,7 @@ fn issue_606_uninstalled_model_block_is_disabled_on_load() {
             chain: chain_id.clone(),
             block: uninstalled_nam_gain_block("ghost"),
             position: pos,
+            path: None,
         }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);

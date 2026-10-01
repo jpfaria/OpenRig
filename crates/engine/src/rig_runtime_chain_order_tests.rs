@@ -23,6 +23,7 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

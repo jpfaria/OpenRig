@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use domain::ids::{BlockId, ChainId};
 use project::block::AudioBlock;
+use project::block::PathRef;
 
 /// Every state change scoped to a single block inside a chain.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -74,11 +75,17 @@ pub enum BlockCommand {
 
     // ── Block CRUD ────────────────────────────────────────────────────────────
     /// Insert a new block at `position` in the chain.
+    ///
+    /// #328: `path` names the split path the block goes into; `None` (the
+    /// default, and what every payload written before #328 carries) is the
+    /// chain's top level. The new block's id is `BlockId::generate_for_chain`.
     AddBlock {
         chain: ChainId,
         kind: String,
         model_id: String,
         position: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<PathRef>,
     },
 
     /// Insert a fully-constructed `AudioBlock` at `position` in the chain.
@@ -86,10 +93,14 @@ pub enum BlockCommand {
     /// Unlike `AddBlock`, the caller is responsible for building the block
     /// (including its kind and parameters). The block's `id` is preserved
     /// as-is — the caller must supply a unique id within the chain.
+    ///
+    /// #328: `path` as in `AddBlock`.
     InsertPrebuiltBlock {
         chain: ChainId,
         block: AudioBlock,
         position: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<PathRef>,
     },
 
     /// Overwrite the block with the given `block_id` in-place.
@@ -107,10 +118,16 @@ pub enum BlockCommand {
     RemoveBlock { chain: ChainId, block: BlockId },
 
     /// Move a block to `new_position` within its chain.
+    ///
+    /// #328: `path` is the DESTINATION — a split path, or the chain's top
+    /// level when `None` (the default). The block is found wherever it is, so
+    /// a move can cross from one path to the other, or in and out of a path.
     MoveBlock {
         chain: ChainId,
         block: BlockId,
         new_position: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<PathRef>,
     },
 
     // ── Insert block ──────────────────────────────────────────────────────────

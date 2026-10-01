@@ -197,6 +197,7 @@ mod issue_743_output_rate_isolation_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         };
         let registry = vec![IoBinding {

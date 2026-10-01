@@ -206,6 +206,7 @@ fn run(heavy: bool, mid_input: bool) -> (u64, u64) {
             },
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }],
         midi: None,

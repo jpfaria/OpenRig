@@ -7,6 +7,7 @@ use anyhow::Result;
 use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::split_rules::ensure_split_rules;
 
 impl LocalDispatcher {
     /// Chain I/O block replacement + preset load commands.
@@ -137,6 +138,9 @@ impl LocalDispatcher {
                     merged.extend(inputs);
                     merged.extend(preset_blocks);
                     merged.extend(outputs);
+                    // #328: the loaded preset's split must still obey the
+                    // rules once the chain's own ports sit around it.
+                    ensure_split_rules(&merged)?;
                     c.blocks = merged;
                     Ok(())
                 })?;

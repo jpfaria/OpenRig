@@ -16,6 +16,8 @@ import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; im
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
+import { ChainRowGraph } from "chain_row_graph.slint";
+import { ChainGraphBridge } from "../chain_graph_globals.slint";
 
 export component ChainRow inherits Rectangle {
     in property <ProjectChainItem> chain;
@@ -68,6 +70,11 @@ export component ChainRow inherits Rectangle {
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
+    // #328 (spec §5.4): desktop draws the chain as a graph — one lane for a
+    // linear chain, two with a split; touch keeps the wrapped pedal strip.
+    property <int> content-row-count: ChainGraphBridge.graph-enabled
+        ? Math.max(1, root.chain.graph_lanes)
+        : root.block-row-count;
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
@@ -101,7 +108,7 @@ export component ChainRow inherits Rectangle {
     // into the next chain card (user feedback: "tem que dar espaço").
     // #1007: the meter rows show only on a running chain whose header meters
     // icon is on; hidden, the card keeps the single meter slot as its margin.
-    height: 106px + (root.block-row-count * 108px)
+    height: 106px + (root.content-row-count * 108px)
         + (root.meters-shown && root.chain.stream_meters.length > 1
             ? (root.chain.stream_meters.length - 1) * meters.row-pitch
             : 0px)
@@ -137,6 +144,7 @@ export component ChainRow inherits Rectangle {
     }
 
     blocks := ChainRowBlocks {
+        visible: !ChainGraphBridge.graph-enabled;
         x: 18px;
         y: 62px;
         width: parent.width - 36px;
@@ -157,6 +165,20 @@ export component ChainRow inherits Rectangle {
         select-chain-block(ci, bi) => { root.select-chain-block(ci, bi); }
         start-block-insert(ci, before) => { root.start-block-insert(ci, before); }
         reorder-chain-block(ci, from, before) => { root.reorder-chain-block(ci, from, before); }
+    }
+
+    if ChainGraphBridge.graph-enabled : ChainRowGraph {
+        x: 18px;
+        y: 62px;
+        width: parent.width - 36px;
+        height: root.content-row-count * 108px;
+        nodes: root.chain.graph_nodes;
+        edges: root.chain.graph_edges;
+        anchors: root.chain.graph_anchors;
+        columns: root.chain.graph_columns;
+        chain-index: root.chain-index;
+        latency-ms: root.chain.latency_ms;
+        markers-visible: root.midi-selection-active;
     }
 
     meters := ChainRowMeters {

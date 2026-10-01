@@ -78,6 +78,7 @@ fn rig_with_chain() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         },
     );
@@ -363,6 +364,7 @@ fn delete_referenced_binding_rejected() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let mut blk = input_block("my-chain:in");
@@ -438,6 +440,7 @@ fn delete_unreferenced_binding_ok() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let mut blk = input_block("my-chain:in");

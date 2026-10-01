@@ -131,6 +131,12 @@ impl MonoProcessor for RingModulator {
         // Step 5: dry/wet mix.
         (1.0 - self.mix) * input + self.mix * wet
     }
+
+    /// The wet signal is one oversampler round trip late; below 100 % mix
+    /// the dry part inside this block is not delayed (#328).
+    fn latency_samples(&self) -> usize {
+        self.oversampler.round_trip_latency_samples()
+    }
 }
 
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
@@ -167,6 +173,10 @@ fn build(
                         self.left.process_sample(input[0]),
                         self.right.process_sample(input[1]),
                     ]
+                }
+
+                fn latency_samples(&self) -> usize {
+                    self.left.latency_samples()
                 }
             }
 

@@ -59,6 +59,7 @@ A base que torna a visão maior possível já roda em todas as plataformas deskt
 
 - **App standalone** para macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64) e Windows (x86_64). Os releases saem para macOS hoje; no Linux e no Windows, compile do código.
 - **Chains verdadeiramente paralelas.** Cada input é um runtime de áudio isolado — sem buffer compartilhado, sem lock contestado, sem CPU spike entre streams. Duas guitarras na mesma interface? Dois rigs completamente independentes no mesmo projeto, processados em paralelo. Duas interfaces em taxas diferentes (44,1 kHz e 48 kHz) funcionam no mesmo projeto, cada stream na sua própria taxa.
+- **Quantos amps você quiser, uma chain.** Divida qualquer chain em quantos caminhos paralelos precisar, em qualquer ponto, até dentro de outro caminho — **Split → Mix** soma todos num mixer (nível, pan e polaridade por caminho), **Split → Y** manda cada caminho para as próprias saídas. Toda chain aparece como um grafo que você edita ali mesmo.
 - **[700+ modelos registrados](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** distribuídos em 16 tipos de bloco — preamps, amps, cabs, pedais de overdrive/distorção/fuzz/boost, delays, reverbs, modulation, dynamics, filtros, wah, correção de pitch e 114 IRs de body acústico para captadores piezo e magnéticos. ([catálogo completo com IDs canônicos](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md))
 - **Cinco backends de áudio no mesmo grafo.** DSP nativo em Rust para utility, EQ, dynamics, modulation e reverb. NAM (Neural Amp Modeler) com capturas neurais de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff e centenas de outros. Convolução por IR para cabinets e bodies acústicos. 100+ plugins LV2 já embutidos (Guitarix, MDA, TAP, ZAM, Dragonfly e outros). Plugins VST3 — os instalados na máquina e os do catálogo — rodam com a janela de editor do próprio plugin. Qualquer bloco em uma chain pode vir de qualquer backend.
 - **Visualização em tempo real embutida.** Um afinador cromático e um analisador de espectro ao vivo entram na chain como qualquer outro bloco — veja o que você ouve.
@@ -245,7 +246,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] Metrônomo embutido — andamento, fórmula de compasso, subdivisões, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — um fader e um mute por entrada/saída, pela GUI, MCP e superfícies de controle MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
-- [ ] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
+- [x] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer por stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
 

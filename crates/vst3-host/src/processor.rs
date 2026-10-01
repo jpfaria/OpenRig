@@ -107,4 +107,8 @@ impl MonoProcessor for Vst3Processor {
             offset += chunk;
         }
     }
+
+    fn latency_samples(&self) -> usize {
+        self.plugin.latency_samples()
+    }
 }
