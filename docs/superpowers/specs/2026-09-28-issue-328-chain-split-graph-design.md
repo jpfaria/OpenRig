@@ -377,3 +377,6 @@ Decided:
 - The design no longer copies the Ampero II. That reference was the agent's choice and was never
   compared with Fractal, Quad Cortex or Helix. The model is an unbounded graph, limited only by
   the user's machine.
+- **The app lays the graph out automatically from its edges.** No node position is stored.
+- **The graph area grows to fit the graph.** In the chains list, each chain's graph takes the
+  height and width its layout needs. It is not clipped to a fixed strip.
