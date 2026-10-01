@@ -36,6 +36,14 @@ forces a new RED (and a new compile) per step. Exception: while the owner is
 validating on his machine, a fix he is waiting for is committed and pushed
 right away.
 
+**Local push gate.** Never `cargo test --workspace` or `cargo build --workspace`
+locally (10+ minutes on the owner's Mac; CI runs them). Without
+`cargo fmt --all -- --check` the `release → main` PR fails on the `fmt` metric.
+`./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
+the commit that diff is empty and it always passes — use
+`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
+broken (unused import, needless `mut`, dead code).
+
 **Não investigue o código para achar a causa antes do teste existir e
 falhar.** Ler o código primeiro produz hipótese enviesada vendida como
 "causa". A investigação acontece no passo 4, dirigida pelo RED.

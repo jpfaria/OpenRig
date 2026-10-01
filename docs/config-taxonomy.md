@@ -24,20 +24,20 @@ page for the working rule.
 
 - `language` — UI locale.
 - `recent_projects` — recently opened projects list. Opening, saving or
-  removing a project writes ONLY this list (read-modify-write, #980). The
+  removing a project writes ONLY this list (read-modify-write). The
   GUI's in-memory config is loaded at boot and is stale for every other
-  section — writing it whole used to put back an I/O binding edited over
-  MCP (`syn2-main` `[3]` → `[7]`) on every project open.
+  section, so writing it whole would overwrite edits made elsewhere (an I/O
+  binding changed over MCP, for one).
 - `paths` — asset roots (thumbnails, screenshots, metadata) plus three
-  user-overridable directories: `presets_path` (project presets,
-  #513), `plugins_path` (NAM/IR/LV2 packs, #513),
-  `evaluations_path` (tone-analyzer outputs, #582). Each defaults to
+  user-overridable directories: `presets_path` (project presets),
+  `plugins_path` (NAM/IR/LV2 packs),
+  `evaluations_path` (tone-analyzer outputs). Each defaults to
   a folder under the OS data root (`~/Library/Application
   Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
   and is machine-local per ADR 0003 — never travels with
   `project.yaml`.
 - `input_devices` / `output_devices` — per-machine audio device defaults.
-- `midi_enabled` / `mcp_enabled` (#712) — master switches for the
+- `midi_enabled` / `mcp_enabled` — master switches for the
   MIDI/BLE-MIDI adapter and the MCP server. Both default `false`. Whether
   a given machine drives OpenRig over MIDI or exposes the MCP server is a
   per-machine call (a stage Mac wants MIDI; a CI box does not), so it lives
@@ -45,13 +45,13 @@ page for the working rule.
   these for a single run (dev convenience). Distinct from the per-port
   `midi_devices[].enabled` selection, which only picks *which* ports the
   enabled adapter listens to.
-- `metronome` (#14) — practice tempo and click preferences: `bpm`,
+- `metronome` — practice tempo and click preferences: `bpm`,
   `beats_per_bar`, `subdivision`, `timbre`, `volume`, `count_in` and
   `output_device`. A tempo you practise at belongs to you, not to the rig, and
   the output device it clicks through only exists on this machine. The on/off
   flag is deliberately **not** persisted: the metronome always opens off, so no
   config file can make a session start clicking.
-- `mixer` (#1007) — the global mixer: a list of `{id, gain_db, muted, soloed}`,
+- `mixer` — the global mixer: a list of `{id, gain_db, muted, soloed}`,
   one per strip the user moved. `id` addresses a configured endpoint
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists
   on this machine. Strips at unity, unmuted and not soloed are not stored; a missing
@@ -80,7 +80,7 @@ The `input:` (controller name substring) is **never** overridden by the project 
 your hardware. Bindings are owned by the project so the same setlist behaves identically
 on every machine.
 
-## Migration from a pre-#499 `midi-map.yaml`
+## Migration from a legacy `midi-map.yaml`
 
 On first load, an existing `midi-map.yaml` is split into:
 

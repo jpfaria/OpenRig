@@ -12,7 +12,7 @@ obvious from the script names. The per-script detail lives in `docs/scripts.md`
 and each script's header comment + `--help`; this skill is the fast path and
 fills the gaps those don't cover.
 
-**Golden rule (LEI ZERO):** an agent never builds in the user's main working
+**Golden rule (CLAUDE.md law 1):** an agent never builds in the user's main working
 tree. Work in a `.solvers/issue-N` clone (or, for a throwaway artifact, a temp
 clone outside the repo). Clone the branch you actually want — a build from a
 stale clone ships stale code.
@@ -52,7 +52,7 @@ ad-hoc signs inside-out, and emits `dist/OpenRig-<ver>-macos-universal.dmg`.
   `OPENRIG_PLUGINS_DIR=<path-to>/OpenRig-plugins/plugins/source`. Find the local
   path in `config.yaml` → `paths.plugins_path`. The tree is git-LFS + multi-GB;
   point at an existing checkout, don't re-clone it for a build.
-- **NAM sources come from Git LFS, not a submodule (#974):** the `nam` build
+- **NAM sources come from Git LFS, not a submodule:** the `nam` build
   unpacks `deps/NeuralAmpModelerCore.tar.gz` into `deps/NeuralAmpModelerCore/`.
   A clone made without LFS has only a pointer there and the cmake build of
   `libnam_wrapper.dylib` aborts the packager — fix with `git lfs install &&
