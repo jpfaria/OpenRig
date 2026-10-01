@@ -21,7 +21,7 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 
 1. **Issue primeiro.** `gh issue list --search` antes de criar (evita duplicata). NUNCA criar issue sem pedido explícito do usuário.
 2. **Nome de branch: `feature/issue-{N}` ou `bugfix/issue-{N}`** — sem sufixo descritivo. Antes de criar: `git fetch && git branch -a | grep issue-{N}`.
-3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`. **A versão segue o que a release carrega:** bug abre PATCH (`vX.Y.Z+1`), feature abre MINOR (`vX.Y+1.0`) — nunca abrir `vX.Y+1.0` pra corrigir um bug (#921: cortei `v0.5.0` depois da `v0.4.1` e tive que recortar como `v0.4.2`). Ver `release.md` §8.
+3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`. **A versão segue o que a release carrega:** bug abre PATCH (`vX.Y.Z+1`), feature abre MINOR (`vX.Y+1.0`) — nunca abrir `vX.Y+1.0` pra corrigir um bug. Ver `release.md` §8.
 
    **Ativa = a release que AINDA NÃO foi finalizada.** Uma release finalizada tem a tag `vX.Y.Z` criada e já foi mergeada na `main` — trabalhar nela (ou abrir PR pra ela) entrega código que nunca sai, porque aquela versão já foi publicada. Existir a branch `release/vX.Y.Z` não significa nada: as antigas ficam no remote. A `develop` estar na versão X.Y.Z também não — o bump acontece quando a release é cortada. **Checagem obrigatória antes de cortar branch e antes de `gh pr create`:**
 
@@ -32,9 +32,9 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
    git log --oneline -1 origin/main       # "Merge release/vX.Y.Z into main" = essa acabou
    ```
 
-   A ativa é a MAIOR versão sem tag. Errei isso na #881: cortei e ia abrir PR pra `release/v0.3.0` com `v0.3.0` já taggeada e mergeada na `main`, enquanto a ativa era a `release/v0.4.0`.
+   A ativa é a MAIOR versão sem tag.
    **Exceção — mudança que toca só `site/`: direto na `main`.** O Pages publica de `main` (`.github/workflows/pages.yml`, `paths: site/**`), então passar pela release e pela `develop` só atrasa a publicação. Clona `main`, commita e dá push na `main` — sem branch de issue, sem PR. Vale só enquanto o diff for exclusivamente `site/` (mais a doc da própria regra).
-   **Exceção — mudança só de doc (`*.md`, `docs/**`, `.claude/skills/**`, `CLAUDE.md`): sem PR.** Merge direto da branch da issue na release ativa, push, e em seguida release → `develop` (merge direto, push). Owner (#1018): "doc não precisa de PR".
+   **Exceção — mudança só de doc (`*.md`, `docs/**`, `.claude/skills/**`, `CLAUDE.md`): sem PR.** Merge direto da branch da issue na release ativa, push, e em seguida release → `develop` (merge direto, push).
 
 4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
@@ -42,8 +42,11 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear `feature → release` sem o usuário pedir.
 8. **NUNCA rebase.** Sempre `git merge`, nunca `git pull --rebase`.
 9. **Quality gate só no CI do PR — NUNCA local, NUNCA por push.** O gate **compartilhado** `xgodev/claude-plugin` roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Em Rust ele compila o workspace duas vezes (base + branch); rodar na máquina do dev arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
-10. **Um commit e um push por entrega, não por passo (#1018).** Cada push dispara o build do CI: 800 commits = 800 compilações. Push imediato após esse commit.
+10. **Um commit e um push por entrega, não por passo.** Cada push dispara o build do CI: 800 commits = 800 compilações. Push imediato após esse commit.
 11. **PR sempre não-interativo**, com a `--base` correta do fluxo: `feature/bugfix → release/vX.Y.Z` ativa; `release/vX.Y.Z → main`; `hotfix → main`; back-merge `main → develop`. Push a branch first, then `gh pr create --repo jpfaria/OpenRig --base <target> --head <branch> --title "…" --body "…"` — todos os campos explícitos. Sem `--title`/`--body`/`--head` (ou com a branch não pushada) o gh abre o prompt interativo e **pendura** num shell sem TTY até o timeout (~8 min). Guard-rail: `gh config set prompt disabled` (o gh erra na hora em vez de travar).
+
+12. **Stage paths explícitos** — NUNCA `git add -A` no `.solvers`.
+13. **Antes de planejar:** checar `docs/superpowers/specs/` + `gh issue list`. Não proliferar issues (cada uma vira branch + workspace de GBs). `@claude` no GitHub segue o template de premissas obrigatórias.
 
 ## Fechar issue
 
@@ -53,7 +56,7 @@ Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semv
 2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`** (esquema morto) nem `-beta.N` (beta é tag, não milestone). Use o milestone `vX.Y.Z` aberto.
 3. `gh issue edit <N> --milestone "vX.Y.Z"` → `gh issue close <N>`.
 
-**O merge do PR NÃO fecha a issue.** O `Closes #N` do corpo do PR só dispara quando a base é a branch default do repo — e aqui toda PR de feature/bug tem como base a `release/vX.Y.Z` ativa. Depois do merge a issue continua OPEN e o close é manual, com o milestone antes (#900 ficou aberta depois da #901 mergeada exatamente por isso).
+**O merge do PR NÃO fecha a issue.** O `Closes #N` do corpo do PR só dispara quando a base é a branch default do repo — e aqui toda PR de feature/bug tem como base a `release/vX.Y.Z` ativa. Depois do merge a issue continua OPEN e o close é manual, com o milestone antes.
 
 ## Labels que excluem das release notes
 
@@ -64,7 +67,9 @@ Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semv
 
 NUNCA editar código no workspace principal. Cada agent trabalha numa **cópia** (`.solvers/issue-N`).
 
-**`git worktree` é PROIBIDO** — qualquer tipo, qualquer lugar. Worktree compartilha o `.git` da pasta principal e trava a branch, abortando o `git checkout` do usuário na pasta dele. Isolamento é sempre via cópia/clone com `.git` próprio em `.solvers/issue-N`, nunca worktree.
+**`git worktree` é PROIBIDO** — qualquer tipo, qualquer lugar. Worktree compartilha o `.git` da pasta principal e trava a branch, abortando o `git checkout` do usuário na pasta dele. Isolamento é sempre via cópia/clone com `.git` próprio em `.solvers/issue-N`, nunca worktree. Antes de trabalhar, confira que `.solvers/issue-N/.git` é um DIRETÓRIO (um arquivo `.git` = worktree).
+
+**Control files live where the work lives.** `.dev-rules/.off`, `.dev-rules/.mode-feature`, `.dev-rules/.red-first-unlocked`, `mkdir`, temp files, gate markers — none of them is created in the main folder, not even when the owner says "turn the gate off". `main-folder-guard.sh` blocks only `Edit`/`Write`/`git`, so a Bash `touch` passes: create the file inside `.solvers/issue-N/`, or hand the owner the command (`! touch .dev-rules/.off`) or ask for a relaunch with `DEV_RULES_OFF=1`.
 
 **Duas pastas, isolamento simétrico:**
 
@@ -98,7 +103,7 @@ cd .solvers/issue-{N} && git fetch origin
 # branch existe? checkout. não existe? checkout release/vX.Y.Z && pull && checkout -b feature/issue-{N}
 ```
 
-**Sempre apontar a pasta de plugins ao montar o workspace.** `plugins` fica fora da cópia (e do git) e o clone não tem `config.yaml`, então um app aberto de `.solvers/issue-{N}` (`cargo run -p adapter-gui`, `openrig-render`) carrega **zero** pacotes de plugin e nenhum VST3 do repo de plugins — qualquer validação que envolva NAM/IR/LV2/VST3 dá "not found" e parece bug do código (#938). Logo depois de montar:
+**Sempre apontar a pasta de plugins ao montar o workspace.** `plugins` fica fora da cópia (e do git) e o clone não tem `config.yaml`, então um app aberto de `.solvers/issue-{N}` (`cargo run -p adapter-gui`, `openrig-render`) carrega **zero** pacotes de plugin e nenhum VST3 do repo de plugins — qualquer validação que envolva NAM/IR/LV2/VST3 dá "not found" e parece bug do código. Logo depois de montar:
 
 ```bash
 # plugins_path = o valor de `paths.plugins_path` do config do sistema (openrig://paths)
@@ -112,7 +117,7 @@ Depois do merge, a entrega só termina com os três passos — nenhum deles é a
 
 1. **Fechar a issue** com o milestone atribuído antes (ver [Fechar issue](#fechar-issue)) — o merge numa `release/vX.Y.Z` não fecha nada sozinho.
 2. **Apagar a branch, remota E local.** O auto-delete-on-merge do GitHub cobre a remota só quando está ligado; a local em `.solvers/issue-{N}` nunca some sozinha. `git push origin --delete {tipo}/issue-{N}` (ou `gh api -X DELETE repos/jpfaria/OpenRig/git/refs/heads/{tipo}/issue-{N}`), e confira com `gh api repos/jpfaria/OpenRig/git/refs/heads --jq '.[].ref'` — branch de trabalho que sobra vira lixo permanente no remote.
-3. **Remover o workspace:** `rm -rf .solvers/issue-{N}/` — só com a issue já FECHADA (#568), porque o `rm -rf` leva junto qualquer WIP não-commitado.
+3. **Remover o workspace:** `rm -rf .solvers/issue-{N}/` — só com a issue já FECHADA, porque o `rm -rf` leva junto qualquer WIP não-commitado. Confirme com `gh issue view N --json state`; o workspace de issue OPEN é intocável mesmo num pedido genérico ("limpa o solver", "limpa o lixo").
 
 ## Issues irmãs
 
@@ -122,7 +127,7 @@ Identificação: o **corpo** começa com `> **Sibling issues (co-evoluem neste c
 
 A issue é o log de auditoria. Comentar em: plano antes de começar; cada push (hash + arquivos + build/teste); mudança de plano; cada problema com evidência; análise técnica; merges; validação em hardware; resumo final. Após `git push` ou análise técnica, próximo comando é `gh issue comment <N>`. Opções A/B/C ao usuário vão na issue ANTES da pergunta.
 
-**Checklist de validação — obrigatório em toda entrega que depende do usuário.** Quando a entrega precisa da validação dele (ouvido, visual, hardware, comportamento em app real), o comentário na issue E a resposta no chat levam um checklist com: (1) DOIS comandos, cada um no seu bloco de código, sempre os dois: pasta principal `git fetch && git checkout {tipo}/issue-N && git pull`; pasta solver = a linha `run:` impressa por `scripts/solver-setup.sh <N> <branch>`, literal (caminho absoluto + `OPENRIG_PLUGINS_ROOT=<pasta de plugins>`, ex.: `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`; sem o `OPENRIG_PLUGINS_ROOT` o app abre sem plugins), (2) itens ENUMERADOS em checkbox (`1. [ ]`, `2. [ ]`, …), um por linha, só o que ELE valida — nunca os testes/build que o agent já rodou. Sem prosa em volta. É a única lista permitida no chat (exceção à LEI ZERO "RESPOSTA CURTA"). Ver CLAUDE.md → LEI ZERO "CHECKLIST DE VALIDAÇÃO SEMPRE".
+**Checklist de validação — obrigatório em toda entrega que depende do usuário.** Quando a entrega precisa da validação dele (ouvido, visual, hardware, comportamento em app real), o comentário na issue E a resposta no chat levam um checklist com: (1) DOIS comandos, cada um no seu bloco de código, sempre os dois: pasta principal `git fetch && git checkout {tipo}/issue-N && git pull`; pasta solver = a linha `run:` impressa por `scripts/solver-setup.sh <N> <branch>`, literal (caminho absoluto + `OPENRIG_PLUGINS_ROOT=<pasta de plugins>`, ex.: `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`; sem o `OPENRIG_PLUGINS_ROOT` o app abre sem plugins), (2) itens ENUMERADOS em checkbox (`1. [ ]`, `2. [ ]`, …), um por linha, só o que ELE valida — nunca os testes/build que o agent já rodou. Sem prosa em volta. É a única lista permitida no chat (CLAUDE.md, leis 2 e 3).
 
 ## Release mechanics
 
@@ -133,6 +138,6 @@ Step-by-step for actually cutting one: [`release.md`](release.md).
   - **Final:** tag `vX.Y.Z` on **`main`** → a full release (curated milestone notes; milestone closes; the bump is pushed to `develop`). Ship it via the `release/vX.Y.Z → main` PR, then tag `main`; afterwards back-merge `main → develop`.
   - A tag is a pre-release iff its name contains a `-` (semver pre-release), so `create-release` adds `--prerelease` and `commit-version-bump` is skipped for those.
   - Re-trigger a failed release by deleting and recreating the tag ref at the new tip of its branch.
-- **The tag is the source of truth for the version — never bump `Cargo.toml` by hand (#820).** Every build job runs `scripts/lib/release-version.sh` to write the tag's version (including a `-beta.N` pre-release) into `[workspace.package]` *before* compiling, because the launcher footer renders `env!("CARGO_PKG_VERSION")`; skipping that shipped `v0.1.1` artifacts containing a `0.1.0` binary. After a **final** release, the `commit-version-bump` job re-applies the same bump plus `cargo update --workspace` on **`develop`** (the always-ahead reference and manifest source of truth) and pushes it, so the repository never drifts behind the last tag; `main` never falls behind because every release flows `release/vX.Y.Z → main → develop`. The helper is covered by `scripts/tests/release_version_test.sh` and refuses any non-semver input rather than writing an unparseable manifest.
-- **A release ships macOS only.** The Linux x86_64, Linux aarch64 and Windows x64 jobs carry a hard `if: false` since #816, so `release.yml` produces a single artifact and the job list shows three skipped builds — expected, not a failure. Packaging is exercised **only** at release-tag time (PR CI never builds installers), so regressions surface one ~25-min failure at a time after the tag; v0.1.0-dev.24 needed five sequential fixes (MSVC flag guards, `/EHsc`, `WINDOWS_EXPORT_ALL_SYMBOLS`, macOS `Resources` mkdir — #639–#647). Re-enabling a platform means flipping its build job **and** the matching artifact download in `create-release`.
-- The loudness audit (`qa_audit`, ~22 min) does NOT run in the release path (`QA_AUDIT_SKIP=1`, #641) — it belongs to OpenRig-plugins CI. Keep it that way.
+- **The tag is the source of truth for the version — never bump `Cargo.toml` by hand.** Every build job runs `scripts/lib/release-version.sh` to write the tag's version (including a `-beta.N` pre-release) into `[workspace.package]` *before* compiling, because the launcher footer renders `env!("CARGO_PKG_VERSION")`; skipping that ships artifacts whose binary reports the previous version. After a **final** release, the `commit-version-bump` job re-applies the same bump plus `cargo update --workspace` on **`develop`** (the always-ahead reference and manifest source of truth) and pushes it, so the repository never drifts behind the last tag; `main` never falls behind because every release flows `release/vX.Y.Z → main → develop`. The helper is covered by `scripts/tests/release_version_test.sh` and refuses any non-semver input rather than writing an unparseable manifest.
+- **A release ships macOS only.** The Linux x86_64, Linux aarch64 and Windows x64 jobs carry a hard `if: false`, so `release.yml` produces a single artifact and the job list shows three skipped builds — expected, not a failure. Packaging is exercised **only** at release-tag time (PR CI never builds installers), so regressions surface one ~25-min failure at a time after the tag. Re-enabling a platform means flipping its build job **and** the matching artifact download in `create-release`.
+- The loudness audit (`qa_audit`, ~22 min) does NOT run in the release path (`QA_AUDIT_SKIP=1`) — it belongs to OpenRig-plugins CI. Keep it that way.

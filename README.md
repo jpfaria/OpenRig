@@ -57,14 +57,18 @@ That's the destination. Below is what already works, and what's coming next.
 
 The foundation that makes the bigger vision possible already runs on every desktop platform:
 
-- **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64).
-- **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel.
+- **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64). Releases ship for macOS today; Linux and Windows build from source.
+- **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel. Two interfaces at different sample rates (44.1 kHz and 48 kHz) work in the same project, each stream at its own rate.
 - **As many amps as you want, one chain.** Split any chain into as many parallel paths as you need, anywhere, even inside another path — **Split → Mix** sums them in a mixer (level, pan and polarity per path), **Split → Y** sends each path to its own outputs. Every chain is drawn as a graph you edit in place.
-- **[560+ registered models](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md))
-- **Four audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and 540+ more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). Every block in a chain can come from any backend.
+- **[700+ registered models](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md))
+- **Five audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and hundreds more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). VST3 plugins — the ones installed on the machine and the catalog bundles — run with the plugin's own editor window. Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
 - **Practice with a virtual DI.** Loop a dry guitar DI through any chain to shape your tone hands-free — pick a bundled CC0 loop or load your own WAV and hit play; the whole chain (amp, cab, pedals) processes it exactly like a live signal. Per-chain and ephemeral.
+- **Looper, metronome and mixer built in.** Up to 8 multi-layer loopers per chain (overdub with undo/redo, ½×/1×/2× speed, reverse, waveform trim, takes saved to a library), a metronome with its own output, and a global mixer with one fader and one mute per input and output.
+- **Footswitch control over MIDI.** MIDI Learn on any knob or switch, MIDI profiles for controllers, BLE-MIDI. An M-Vave Chocolate comes mapped.
+- **Real pedals in the chain.** An Insert block sends the signal out to external gear and back, mid-chain; an Output port placed mid-chain taps the signal at that point.
+- **Tone Doctor.** Flags fizz, mud and boom against a genre reference and names the block responsible.
 - **Open YAML preset format.** Presets are plain text — diffable, gist-shareable, scriptable. The [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) Claude Code skill builds full tones from a song name by researching the original signal chain in public sources and driving the running rig via MCP.
 
 > 📚 **Looking for a specific amp, pedal, or cab?** The complete catalog — every model, every parameter, every voicing variant, with canonical `MODEL_ID` strings for use in preset YAML — is documented in the **[Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md)**. Start with the [Model ID Quick Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference) for an alphabetical lookup grouped by block type.
@@ -92,7 +96,7 @@ Left: block library, organized by brand with hardware-faithful panel art. Right:
 
 ## Quick Start
 
-1. **Install** — [download a release](https://github.com/jpfaria/OpenRig/releases/latest) for your platform, or build from source (see below).
+1. **Install** — [download the macOS release](https://github.com/jpfaria/OpenRig/releases/latest), or build from source on Linux and Windows (see below).
 2. **Configure I/O** — pick your audio interface as input and your monitors/headphones as output.
 3. **Build a chain** — drop blocks between Input and Output (Tuner → EQ → Drive → Amp → Cab → Reverb is a good start).
 4. **Tweak in real time** — click any block to open its editor; turn knobs while you play.
@@ -133,11 +137,10 @@ Every `model:` ID is registered in the [Blocks Reference Quick Reference](https:
 
 ### Download
 
-Prebuilt binaries for every supported platform (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) are on the [Releases page](https://github.com/jpfaria/OpenRig/releases/latest). Each OS has its own setup steps in the Installation Guide:
+Releases ship for macOS for now: one universal `.dmg` (Apple Silicon + Intel) on the [Releases page](https://github.com/jpfaria/OpenRig/releases/latest). Linux and Windows build from source; packaged releases for them are on the way.
 
 - **macOS** — [download, quarantine fix & one-line installer](docs/user-guide/installation.md#macos)
-- **Linux** — [AppImage / `.deb` / `.rpm` + audio setup](docs/user-guide/installation.md#linux)
-- **Windows** — [`.msi` installer / portable zip](docs/user-guide/installation.md#windows)
+- **Linux / Windows** — [build from source](docs/user-guide/installation.md#build-from-source), plus the [Linux audio setup](docs/user-guide/installation.md#audio-setup-required-for-sound)
 
 ### Build from Source
 
@@ -213,7 +216,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 
 - [x] Standalone desktop app for **macOS** (Apple Silicon + Intel), **Linux** (x86_64 + aarch64), and **Windows** (x86_64) — five platform targets from a single codebase
 - [x] **Truly parallel chains** — each input is an isolated audio runtime, no shared buffers, no contended locks, no cross-stream CPU spikes
-- [x] **[560+ models](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** across 16 block types, with **four audio backends** (Native DSP, NAM, IR, LV2) coexisting in the same real-time graph
+- [x] **[700+ models](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** across 16 block types, with **five audio backends** (Native DSP, NAM, IR, LV2, VST3) coexisting in the same real-time graph
 - [x] **Native audio I/O on every platform** — Core Audio (macOS), ALSA + JACK (Linux), WASAPI (Windows)
 - [x] **Real-time chromatic tuner** as a first-class block — drop it anywhere in the chain
 - [x] **Real-time spectrum analyzer** as a first-class block — see what you hear
@@ -227,6 +230,13 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Per-chain preset banks + scenes** — switch presets and scenes live per chain; scenes store only parameter diffs (Helix-Snapshot style) for instant switching without reloading blocks ([#321](https://github.com/jpfaria/OpenRig/issues/321))
 - [x] **Multi-layer looper per chain** — up to 8 independent loopers per chain, each recording the chain's dry input and playing it back through the whole chain (so a live block edit changes the loop's tone): overdub layers with undo/redo, ½×/1×/2× speed, reverse, level and per-layer decay, driven from the panel or a MIDI footswitch; loops are saved with the project ([#323](https://github.com/jpfaria/OpenRig/issues/323)); a recorded loop can be saved as a named take in an app-wide library and played back as any chain's DI source ([#827](https://github.com/jpfaria/OpenRig/issues/827))
 - [x] **Per-chain virtual DI loop** — loop a dry DI through a chain to shape tone without playing (bundled CC0 loops or your own WAV); per-chain, ephemeral, never saved into the project ([#614](https://github.com/jpfaria/OpenRig/issues/614))
+- [x] **VST3 hosting** — installed and catalog VST3 plugins run as blocks with their own editor; tweaks made in the plugin's window are saved with the project ([#776](https://github.com/jpfaria/OpenRig/issues/776))
+- [x] **MIDI control** — MIDI Learn, controller profiles and BLE-MIDI for footswitches and control surfaces
+- [x] **Insert block** — send/return loop to external gear, mid-chain ([#881](https://github.com/jpfaria/OpenRig/issues/881))
+- [x] **Mid-chain I/O ports** — feed or tap the signal at any point of a chain ([#85](https://github.com/jpfaria/OpenRig/issues/85))
+- [x] **Per-stream meters** — input and output peak meters per stream, named after their I/O ([#928](https://github.com/jpfaria/OpenRig/issues/928))
+- [x] **Tone Doctor** — per-chain tone diagnosis that names the block responsible ([#791](https://github.com/jpfaria/OpenRig/issues/791))
+- [x] **In-app update on macOS** — the version label becomes an update button when a newer release exists ([#959](https://github.com/jpfaria/OpenRig/issues/959))
 
 ### Stage features
 
@@ -261,7 +271,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 
 ### Catalog expansion
 
-The current 560+ models are the seed. Per-block expansion is tracked under the [`planned` label](https://github.com/jpfaria/OpenRig/issues?q=is%3Aopen+is%3Aissue+label%3Aplanned), including a community-driven LV2/VST3 import pipeline ([#372](https://github.com/jpfaria/OpenRig/issues/372), [#374](https://github.com/jpfaria/OpenRig/issues/374), [#379](https://github.com/jpfaria/OpenRig/issues/379)) and Airwindows mass integration ([#373](https://github.com/jpfaria/OpenRig/issues/373)).
+The current 700+ models are the seed. Per-block expansion is tracked under the [`planned` label](https://github.com/jpfaria/OpenRig/issues?q=is%3Aopen+is%3Aissue+label%3Aplanned), including a community-driven LV2/VST3 import pipeline ([#372](https://github.com/jpfaria/OpenRig/issues/372), [#374](https://github.com/jpfaria/OpenRig/issues/374), [#379](https://github.com/jpfaria/OpenRig/issues/379)) and Airwindows mass integration ([#373](https://github.com/jpfaria/OpenRig/issues/373)).
 
 ## License
 

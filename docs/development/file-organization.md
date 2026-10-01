@@ -1,4 +1,4 @@
-# Organização de arquivos (issues #194, #873)
+# Organização de arquivos
 
 God-files surgem quando lógica feature-specific entra em arquivos compartilhados. Regra dura:
 
@@ -10,7 +10,9 @@ God-files surgem quando lógica feature-specific entra em arquivos compartilhado
 
 **Só arquivo de teste pode ser grande.** Teste não tem cap de linhas. Produção (`.rs` não-test, `.slint`) tem cap E tem a lei da responsabilidade — e a lei é a que manda: 300 linhas fazendo 4 coisas já viola, mesmo passando no cap.
 
-Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela.
+Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela. Antes de adicionar QUALQUER linha a um arquivo de produção, olhe o tamanho e a responsabilidade dele.
+
+Split é sempre behavior-preserving: move código, não muda comportamento, e nenhum teste existente é reescrito pra caber na forma nova.
 
 ### A declaração no cabeçalho
 
@@ -61,7 +63,7 @@ Todo arquivo de produção declara sua responsabilidade na primeira dúzia de li
 - `.rs` de teste: **sem cap** — é a única exceção de tamanho do repo, e `validate.sh` nem mede
 - `lib.rs` / `mod.rs`: só re-exports, < 100 LOC
 
-## Fonte mínima na UI (#954)
+## Fonte mínima na UI
 
 Nenhum texto do app pode ser menor que **18px** — o tamanho do próprio select de preset, o piso de
 legibilidade. O valor mora uma vez em `Theme.min-font` (`crates/adapter-gui/ui/theme.slint`); use o
@@ -69,7 +71,7 @@ token em vez de repetir o número. **Única exceção, decidida pelo dono:** o t
 literal abaixo do piso nos nossos `.slint` (o vendored `ui/modules/**` fica fora, só fornece ícones),
 e `scripts/tests/min_font_size_test.sh` cobre o check.
 
-### Catraca do débito (#873)
+### Catraca do débito
 
 `validate.sh` mantém `DEBT_FILES` com o LOC de referência de cada arquivo de produção que já nasceu acima do cap. A lista é catraca, não anistia:
 
@@ -82,9 +84,9 @@ e `scripts/tests/min_font_size_test.sh` cobre o check.
 
 Nunca se acrescenta arquivo à lista. Ela só encolhe.
 
-**Hoje a lista está VAZIA** — o último débito (`jack_supervisor/live_backend.rs`, 627 LOC) foi quitado em #873, dividido nos módulos `live_shm` (limpeza de shm), `live_socket` (espera do socket), `live_stderr` (falha de driver), `live_process` (jackd não-spawnado) e `live_probe` (metadata do servidor). Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
+**Hoje a lista está VAZIA.** Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
 
-### Dividir arquivo com `cfg` (#873)
+### Dividir arquivo com `cfg`
 
 Metade do `infra-cpal` só compila em Linux+JACK, e a máquina de desenvolvimento
 é macOS: `cargo build` verde ali **não diz nada** sobre o outro caminho. Duas
@@ -113,7 +115,7 @@ Quem confirma é o CI (job `Test Suite` do `pr.yml`, Ubuntu). Não existe
 substituto local: `jack-sys` precisa de sysroot Linux e não cross-compila do
 macOS.
 
-### Declaração de responsabilidade (#873)
+### Declaração de responsabilidade
 
 Todo arquivo de produção — `.rs`, `.slint`, `build.rs`, exemplos — abre com uma
 linha declarando a ÚNICA coisa que ele faz:
@@ -151,7 +153,7 @@ frame + buffer elástico + processador) se dividiram.
 
 O `line-cap-guard` do plugin dev-rules (PreToolUse) **nega Edit/Write que cresça** um arquivo já acima do cap; edit que encolhe passa, então o split nunca fica bloqueado por si mesmo. Os caps que ele usa vêm do `.dev-rules.json` do repo (`line_caps`) — mesma fonte de números do `validate.sh`.
 
-## LV2 plugin — `audio_mode` vs builder (issue #130)
+## LV2 plugin — `audio_mode` vs builder
 
 Builder e `audio_mode` precisam bater. Misturar = SIGSEGV ou desperdício de CPU.
 
@@ -164,4 +166,4 @@ Builder e `audio_mode` precisam bater. Misturar = SIGSEGV ou desperdício de CPU
 
 Sintoma clássico: 4 portas declarado `DualMono` → 2 portas dangling → SIGSEGV no primeiro write. Confirmar port count via TTL antes de escolher.
 
-Disk packages (`backend: lv2`) não declaram o modo à mão: `project::block::disk_audio_mode` lê as portas de áudio do TTL e aplica esta tabela (#938). Antes disso todo pacote LV2 rodava `DualMono`, e um 2in/2out saía com L == R numa guitarra mono.
+Disk packages (`backend: lv2`) não declaram o modo à mão: `project::block::disk_audio_mode` lê as portas de áudio do TTL e aplica esta tabela.

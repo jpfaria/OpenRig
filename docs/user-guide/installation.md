@@ -16,7 +16,7 @@ This guide covers how to install and run OpenRig on your system, either from pre
 
 ## Download Binaries
 
-Prebuilt binaries for every supported platform are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Pick the artifact for your OS and architecture (`x86_64` for most desktops/laptops, `aarch64` for ARM boards such as the Orange Pi).
+Releases currently ship for macOS only (`OpenRig-<ver>-macos-universal.dmg` on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest)). The Linux and Windows steps below apply to the older releases that shipped those packages; for current versions on Linux and Windows, [build from source](#build-from-source).
 
 ### Linux
 

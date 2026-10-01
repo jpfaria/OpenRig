@@ -12,7 +12,7 @@ The visual language follows pedalboards in the **Helix / Quad Cortex / Mooer GE1
 | You want… | Component? |
 |---|---|
 | Single signal chain with up to ~30 blocks, branched paths | **Yes** |
-| Project topology (inputs → chains → outputs) | **Yes** (once #436 lands and you can feed it the project graph) |
+| Project topology (inputs → chains → outputs) | **Yes**, once it is fed the project graph |
 | Arbitrary graph with hundreds of nodes, force-directed | Out of scope. Different layout algo, different perf budget. |
 | Static diagram for docs | Overkill. Render to SVG offline. |
 

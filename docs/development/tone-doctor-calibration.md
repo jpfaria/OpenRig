@@ -1,6 +1,6 @@
-# Tone Doctor — genre calibration (#809)
+# Tone Doctor — genre calibration
 
-The Tone Doctor (#791) classifies tonal symptoms against limits. Those limits are
+The Tone Doctor classifies tonal symptoms against limits. Those limits are
 genre-dependent: a grunge tone is *meant* to be buzzy (high presence energy), a
 blues tone is dark. A single fixed threshold misfires across styles.
 
@@ -36,8 +36,7 @@ reference stems instead of guessing them.
 
 > Scope: this document is the offline calibration pipeline that produces the
 > limit table. Consuming it at runtime — the genre selector in the Tone Doctor
-> panel and the classifier reading the selected profile — shipped in the same
-> issue (#809) and is documented in [`../tone-doctor.md`](../tone-doctor.md).
+> panel and the classifier reading the selected profile — is documented in [`../tone-doctor.md`](../tone-doctor.md).
 
 ## How it works
 
