@@ -198,6 +198,11 @@ device sits in the HD 8 path (the fractional jump).
    automatically: the same thing the owner's toggle does, which H28 measured
    as the cure. Automatic recovery, like `reconnect_audio`, not a `Command`.
 
+**Owner verdict on fix 2 (2026-10-01): not a fix.** A restart cuts the sound;
+on stage that is a dropout in the middle of a song, so automating the toggle
+only moves the failure. The deliverable of #979 is still the root cause: why
+the HD 8 input arrives stepped while a chain runs.
+
 **Fix 2 as built.**
 
 - Measure: per input channel, the mean |3rd difference| at each phase of the
