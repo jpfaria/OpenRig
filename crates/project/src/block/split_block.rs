@@ -16,6 +16,7 @@ use crate::param::ParameterSet;
 pub const MIN_SPLIT_PATHS: usize = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(from = "super::split_block_record::SplitBlockRecord")]
 pub struct SplitBlock {
     pub end: SplitEnd,
     pub params: ParameterSet,

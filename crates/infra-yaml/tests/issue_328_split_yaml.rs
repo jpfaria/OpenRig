@@ -296,3 +296,73 @@ fn a_legacy_project_file_reads_type_split() {
     assert_eq!(split.end, SplitEnd::Y);
     assert_eq!(split.paths[0][0].id.0, "chain:0:block:0::p0:0");
 }
+
+/// A project saved before spec §11 holds its split as `a:` / `b:` lists with
+/// `_a` / `_b` knob keys (the owner's DIGITAL rig, 2026-10-01). It still opens:
+/// the lists become paths 0 and 1 and every knob keeps its value under the
+/// per-path key.
+#[test]
+fn a_project_saved_with_split_paths_a_and_b_still_opens() {
+    let one = serialize_rig_project(&rig_with(vec![delay("da")])).expect("serialize");
+    let start = one.find("      - id: da").expect("the delay block");
+    let tail = &one[start..];
+    let end = tail
+        .find("      scene-params")
+        .expect("the block list ends");
+    let block = |id: &str| -> String {
+        tail[..end]
+            .replace("- id: da", &format!("- id: {id}"))
+            .lines()
+            .map(|l| format!("    {l}\n"))
+            .collect()
+    };
+    let split = format!(
+        "      - id: sp
+        enabled: true
+        kind: !Split
+          end: mix
+          params:
+            values:
+              balance_a: 0.0
+              balance_b: 0.0
+              level_to_a: 100.0
+              level_to_b: 80.0
+              mix_b_polarity: normal
+              mix_level_a: 100.0
+              mix_level_b: 90.0
+              mix_master: 50.0
+              mix_master_sum: true
+              mix_pan_a: -50.0
+              mix_pan_b: 50.0
+              split_mode: same
+          a:
+{}          b:
+{}",
+        block("pa"),
+        block("pb")
+    );
+    let old = one
+        .replacen("version: 1", "version: 2", 1)
+        .replacen(&tail[..end], &split, 1);
+    let rig = parse_rig_project(&old).expect("a project with an a/b split opens");
+    let blocks = &rig.presets["p"].blocks;
+    let s = split_of(&blocks[0]);
+    let ids: Vec<Vec<&str>> = s
+        .paths
+        .iter()
+        .map(|p| p.iter().map(|b| b.id.0.as_str()).collect())
+        .collect();
+    assert_eq!(ids, vec![vec!["pa"], vec!["pb"]]);
+    let f = |k: &str| s.params.get(k).cloned();
+    assert_eq!(f("level_to_1"), Some(ParameterValue::Float(80.0)));
+    assert_eq!(f("mix_level_1"), Some(ParameterValue::Float(90.0)));
+    assert_eq!(f("mix_pan_0"), Some(ParameterValue::Float(-50.0)));
+    assert_eq!(f("mix_pan_1"), Some(ParameterValue::Float(50.0)));
+    assert!(
+        f("mix_polarity_1").is_some(),
+        "path B's polarity carries over"
+    );
+    for old_key in ["level_to_a", "balance_b", "mix_pan_a", "mix_b_polarity"] {
+        assert_eq!(f(old_key), None, "{old_key} is renamed, not kept");
+    }
+}

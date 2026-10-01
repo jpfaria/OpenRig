@@ -29,6 +29,7 @@ pub mod port_duplication;
 pub mod select_block_methods;
 pub mod split_block;
 pub mod split_block_methods;
+mod split_block_record;
 pub mod split_lookup;
 pub mod split_param_keys;
 pub mod split_param_renumber;
