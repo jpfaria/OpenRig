@@ -26,6 +26,8 @@ export component DiLoopOverlay inherits Rectangle {
         playing: DiPanel.playing;
         outputs: DiPanel.outputs;
         output-selected-index: DiPanel.output-selected-index;
+        take-rows: DiPanel.take-rows;
+        delete-take(i, s) => { DiPanel.delete-take(s); }
         source-picked(i, s) => {
             DiPanel.selected-index = i;
             root.source-selected(DiPanel.chain-index, s);

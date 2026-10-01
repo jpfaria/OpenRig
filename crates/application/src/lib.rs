@@ -51,6 +51,7 @@ mod local_dispatcher_ir_reseed;
 mod local_dispatcher_language;
 mod local_dispatcher_looper;
 mod local_dispatcher_looper_take;
+mod local_dispatcher_looper_take_delete;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
 mod local_dispatcher_mixer;

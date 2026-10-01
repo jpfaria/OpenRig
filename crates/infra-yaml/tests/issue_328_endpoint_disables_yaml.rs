@@ -69,3 +69,44 @@ fn an_inputs_unchecked_endpoints_survive_save_and_reload() {
         "the checklist survives save and reload"
     );
 }
+
+#[test]
+fn a_checklist_edit_changes_the_legacy_serialization_the_dirty_check_compares() {
+    use domain::ids::ChainId;
+    use project::chain::Chain;
+    use project::endpoint_disables::EndpointDisables;
+    use project::project::Project;
+
+    let project_with = |disabled_endpoints: EndpointDisables| Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![Chain {
+            mix: Default::default(),
+            id: ChainId("rig:g".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["io".into()],
+            blocks: Vec::new(),
+            di_output: None,
+            loopers: Vec::new(),
+            disabled_endpoints,
+        }],
+        midi: None,
+    };
+    let mut unchecked = EndpointDisables::default();
+    unchecked.set_enabled(&EndpointNode::Input, r("in 2"), false);
+
+    // The dirty fingerprint serializes the legacy `Project` with serde
+    // (`adapter-gui::project_dirty::dirty_snapshot`).
+    let before =
+        serde_yaml::to_string(&project_with(EndpointDisables::default())).expect("serialize");
+    let after = serde_yaml::to_string(&project_with(unchecked.clone())).expect("serialize");
+    assert_ne!(
+        before, after,
+        "the dirty fingerprint must see a checklist edit, or Save answers 'no changes'"
+    );
+    let back: Project = serde_yaml::from_str(&after).expect("reload");
+    assert_eq!(back.chains[0].disabled_endpoints, unchecked);
+}

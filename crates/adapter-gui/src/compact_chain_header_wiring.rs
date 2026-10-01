@@ -225,6 +225,8 @@ pub(crate) fn start_header_poll(
                     // #614: mirror DI loop playing state and source list.
                     cw.set_di_loop_playing(row.di_loop_playing);
                     cw.set_di_loop_sources(row.di_loop_sources.clone());
+                    // Which entries carry the panel's trash.
+                    cw.set_di_loop_take_rows(row.di_loop_take_rows.clone());
                     // #717: mirror the selected source too — without it the
                     // compact panel opens with nothing picked and hides the
                     // play/stop button.

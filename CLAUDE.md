@@ -33,15 +33,14 @@ Virtual guitar rig/pedalboard in Rust + Slint. macOS, Windows, Linux.
 ## Tests and delivery
 
 - TDD red-first: no production change without a test that failed first. Two cargo rounds per delivery (all RED, then all GREEN), targeted tests only; one commit + push at the end. Full suite and quality gate run only in CI. Before push: `cargo fmt --all -- --check` + `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. `docs/testing.md`.
-- A workaround that cuts the sound (automatic restart, reconnect, rebuild) is not a fix and never closes an audio bug; the deliverable is the measured root cause. Say plainly when the cause is not found.
 - Audio problem: search the issues first (`gh issue list --repo jpfaria/OpenRig --state all --search '<symptom>'`); record numbers, repro test and each hypothesis (CONFIRMED/REFUTED/OPEN) on the issue; never retest a REFUTED one without new evidence; done only when the issue names a green test reproducing the measured symptom. Hardware battery: `OPENRIG_HW_TESTS=1`.
+- A restart, reconnect or rebuild that "cures" an audio fault is a dropout on stage: it is never delivered or called a fix in chat, commit or issue. The deliverable is the root cause, measured and fixed; before proposing a mitigation, say plainly that the cause is not found.
+- Another OpenRig open = wait. Before launching OpenRig (any build, any device) or any probe that opens the audio interface, check none is running (`pgrep -fl 'target/(debug|release)/adapter-gui|OpenRig.app/Contents/MacOS/openrig'`); wait for it to close, never kill or drive it, and close your own when the test round ends. An isolated config does not isolate CoreAudio or the driver. `.claude/skills/openrig-tooling/SKILL.md` → "Opening the app yourself".
 - Gitflow: `docs/development/gitflow.md`. Branch `{type}/issue-N` from the active `release/vX.Y.Z` (highest version with no tag); work ends at the push; PR/merge only on request; `gh issue comment` after every push.
 
 ## Posture
 
 Only what was asked — no unrequested crate, binary, issue, PR or refactor. Invoke the relevant skill before non-trivial work. Map scope and root cause before touching code. Never revert a commit or delete a file the agent made (redo on top); delete only the literal scope asked; no regex/sed content migrations.
-
-Another OpenRig open = wait: before launching OpenRig or any probe that opens the audio interface, check `pgrep -fl 'target/(debug|release)/adapter-gui|OpenRig.app/Contents/MacOS/openrig'`; if one runs, wait for it to close, never kill or drive it, and close your own as soon as the test round ends. An isolated config does not isolate CoreAudio or the interface driver.
 
 ## References
 

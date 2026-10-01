@@ -39,6 +39,7 @@ export component CompactChainViewPage inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    in property <[bool]> di-loop-take-rows: []; // deletable takes
     in property <[string]> di-loop-outputs: [];
     in property <int> di-output-selected-index: -1;
     // #717: the DI stream's own INPUT/OUTPUT meter, shown while the DI plays.
@@ -130,6 +131,7 @@ export component CompactChainViewPage inherits Rectangle {
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
         di-loop-selected-index: root.di-loop-selected-index;
+        di-loop-take-rows: root.di-loop-take-rows;
         di-loop-outputs: root.di-loop-outputs;
         di-output-selected-index: root.di-output-selected-index;
         latency-ms: root.latency-ms;

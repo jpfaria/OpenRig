@@ -189,6 +189,12 @@ msgstr "削除"
 msgid "di-output-select-label"
 msgstr "DI出力"
 
+msgid "di-take-delete-label"
+msgstr "テイクを削除"
+
+msgid "di-take-delete-confirm"
+msgstr "削除?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "グローバル"
@@ -686,7 +692,7 @@ msgstr "レイテンシ計測（ビープ音が鳴ります）"
 msgid "tooltip-chain-mixer"
 msgstr "チェーンミキサー"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "設定"
 

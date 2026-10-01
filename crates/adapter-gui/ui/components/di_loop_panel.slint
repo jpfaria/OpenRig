@@ -21,6 +21,8 @@ export component DiLoopPanel inherits Rectangle {
     // #771: the chain's already-bound output endpoints + the persisted pick.
     in property <[string]> outputs;
     in property <int> output-selected-index;
+    // Per entry of `sources`, true when it is a deletable saved take.
+    in property <[bool]> take-rows;
 
     callback source-picked(int, string);
     callback choose-file();
@@ -28,8 +30,15 @@ export component DiLoopPanel inherits Rectangle {
     callback stop();
     // #771: an output endpoint was picked (index into `outputs`, label).
     callback output-picked(int, string);
+    // A take row's trash, confirmed (index into `sources`, label).
+    callback delete-take(int, string);
 
     private property <bool> expanded;
+    // The take row whose trash was clicked once and now asks to
+    // confirm; -1 ⇒ none. Two clicks delete, so a stray one never loses a take.
+    private property <int> armed-delete: -1;
+    // The armed trash grows to fit "Delete?" in the active language.
+    private property <length> armed-w: min(confirm-probe.preferred-width + 36px, 150px);
     // #771: the output select's own expansion — opening one collapses the other.
     private property <bool> out-expanded;
     private property <bool> has-selection:
@@ -56,6 +65,14 @@ export component DiLoopPanel inherits Rectangle {
     border-width: 1px;
     border-color: #3b4250;
     clip: true;
+
+    // Measures the confirm label; never shown.
+    confirm-probe := Text {
+        visible: false;
+        text: @tr("di-take-delete-confirm");
+        font-size: Theme.min-font;
+        font-weight: 800;
+    }
 
     // ── the SELECT field (closed box) ─────────────────────────────────────
     select-field := Rectangle {
@@ -103,6 +120,7 @@ export component DiLoopPanel inherits Rectangle {
             clicked => {
                 root.expanded = !root.expanded;
                 root.out-expanded = false;
+                root.armed-delete = -1;
             }
         }
         accessible-role: button;
@@ -212,7 +230,8 @@ export component DiLoopPanel inherits Rectangle {
                 : (row-ta.has-hover ? #1b2230 : transparent);
             Text {
                 x: 10px;
-                width: parent.width - 20px;
+                width: parent.width - ((i < root.take-rows.length && root.take-rows[i])
+                    ? (root.armed-delete == i ? root.armed-w + 16px : 44px) : 20px);
                 height: parent.height;
                 text: src;
                 color: #f1f4f8;
@@ -230,10 +249,56 @@ export component DiLoopPanel inherits Rectangle {
                         root.source-picked(i, src);
                     }
                     root.expanded = false;
+                    root.armed-delete = -1;
                 }
             }
             accessible-role: button;
             accessible-label: src;
+
+            // A saved take's trash — first click arms, second deletes.
+            if i < root.take-rows.length && root.take-rows[i] : Rectangle {
+                x: parent.width - self.width - 3px;
+                y: 3px;
+                width: root.armed-delete == i ? root.armed-w : 28px;
+                height: parent.height - 6px;
+                border-radius: 5px;
+                background: root.armed-delete == i ? #c0392b
+                    : del-ta.has-hover ? #c0392b40 : transparent;
+                animate width, background { duration: 120ms; }
+                Image {
+                    x: 6px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../assets/trash.svg");
+                    colorize: (root.armed-delete == i || del-ta.has-hover) ? #ffffff
+                        : i == root.selected-index ? #ffffffb0 : #8a94a2;
+                }
+                if root.armed-delete == i : del-confirm := Text {
+                    x: 26px;
+                    width: parent.width - 30px;
+                    height: parent.height;
+                    text: @tr("di-take-delete-confirm");
+                    color: #ffffff;
+                    font-size: Theme.min-font;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                del-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        if root.armed-delete == i {
+                            root.armed-delete = -1;
+                            root.delete-take(i, src);
+                        } else {
+                            root.armed-delete = i;
+                        }
+                    }
+                }
+                accessible-role: button;
+                accessible-label: @tr("di-take-delete-label");
+            }
         }
     }
 

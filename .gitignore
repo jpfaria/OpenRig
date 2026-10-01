@@ -37,3 +37,7 @@ crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 /deps/NeuralAmpModelerCore/
 /deps/.NeuralAmpModelerCore.extract-*/
 /deps/.NeuralAmpModelerCore.extract-lock
+
+# tools/slint-render is built standalone (outside the workspace); its build output never goes in.
+/tools/slint-render/target/
+/tools/slint-render/Cargo.lock
