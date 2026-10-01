@@ -392,6 +392,9 @@ Decided:
   output. Owner decision 5 now covers any point where edges meet.
 - **Any block kind may sit anywhere.** This includes Insert and Select. The path restrictions of
   §1.1 and §10 are gone.
-- **A split always opens two paths.** For more paths, the user puts a split inside a path. The
-  model and addressing of §10.2 (`SplitBlock{end, a, b}`, `PathRef`) stand. A Y still ends the
-  list it sits in, because its paths end at outputs.
+- **A split opens N paths.** It starts with two, and a "+ path" control on the split adds as many
+  more as the user wants. A path can also be removed down to two. The model widens from
+  `SplitBlock{end, a, b}` to `SplitBlock{end, paths: Vec<Vec<AudioBlock>>}`. `PathRef` names a
+  path by index instead of `A`/`B`. A Split Mix's mixer carries level, pan and polarity per path.
+  A split may still sit inside a path, at any depth. A Y still ends the list it sits in, because
+  its paths end at outputs.
