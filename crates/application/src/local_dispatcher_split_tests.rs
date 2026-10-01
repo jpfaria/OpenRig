@@ -48,21 +48,22 @@ fn add_split_inserts_an_empty_split_with_the_default_knobs() {
     );
 }
 
+/// Spec §10.1: the limit is the machine — a second Mix is accepted.
 #[test]
-fn add_split_refuses_a_second_split() {
+fn add_split_accepts_a_second_split() {
     let project = project_with(mix_chain());
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let before = project.borrow().chains[0].blocks.clone();
 
-    let err = dispatch_json(
+    dispatch_json(
         &dispatcher,
         "AddSplit",
         json!({ "chain": CHAIN, "position": 0, "end": "mix" }),
     )
-    .expect_err("a chain holds one split");
+    .expect("a chain holds any number of splits");
 
-    assert!(err.to_string().contains("at most one split"), "{err}");
-    assert_eq!(project.borrow().chains[0].blocks, before);
+    let blocks = &project.borrow().chains[0].blocks;
+    assert_eq!(blocks.len(), 4);
+    assert!(matches!(blocks[0].kind, AudioBlockKind::Split(_)));
 }
 
 #[test]
@@ -257,9 +258,9 @@ fn add_split_mix_after_the_y_is_refused() {
     assert_eq!(project.borrow().chains[0].blocks, before);
 }
 
-/// Pin: a second Y was refused under the one-split rule and still is.
+/// A Y ends its own list, so a second Y right after it is still refused.
 #[test]
-fn add_split_refuses_a_second_y() {
+fn add_split_refuses_a_y_after_the_y() {
     let project = project_with(mix_then_y_chain());
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let before = project.borrow().chains[0].blocks.clone();
@@ -269,33 +270,35 @@ fn add_split_refuses_a_second_y() {
         "AddSplit",
         json!({ "chain": CHAIN, "position": 4, "end": "y" }),
     )
-    .expect_err("a chain holds one Y");
+    .expect_err("nothing follows a Y in its list");
 
-    assert!(err.to_string().contains("at most one split"), "{err}");
+    assert!(err.to_string().contains("Y split"), "{err}");
     assert_eq!(project.borrow().chains[0].blocks, before);
 }
 
-/// Pin: switching either split of a Mix + Y chain would leave two of one end.
+/// Spec §10.1: two Mixes are fine; a Y with a block after it is not.
 #[test]
-fn set_split_end_refuses_two_mix_or_two_y() {
-    for (split_id, end) in [("y", "mix"), ("mix", "y")] {
-        let project = project_with(mix_then_y_chain());
-        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-        let before = project.borrow().chains[0].blocks.clone();
+fn set_split_end_judges_only_the_y_last_rule() {
+    let project = project_with(mix_then_y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatch_json(
+        &dispatcher,
+        "SetSplitEnd",
+        json!({ "chain": CHAIN, "split_id": "y", "end": "mix" }),
+    )
+    .expect("two Mix splits are accepted");
 
-        let err = dispatch_json(
-            &dispatcher,
-            "SetSplitEnd",
-            json!({ "chain": CHAIN, "split_id": split_id, "end": end }),
-        )
-        .expect_err("a chain holds one split of each end");
-
-        assert!(
-            err.to_string().contains("at most one split"),
-            "{split_id} → {end}: {err}"
-        );
-        assert_eq!(project.borrow().chains[0].blocks, before);
-    }
+    let project = project_with(mix_then_y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+    let err = dispatch_json(
+        &dispatcher,
+        "SetSplitEnd",
+        json!({ "chain": CHAIN, "split_id": "mix", "end": "y" }),
+    )
+    .expect_err("'mid' would follow the new Y");
+    assert!(err.to_string().contains("Y split"), "{err}");
+    assert_eq!(project.borrow().chains[0].blocks, before);
 }
 
 #[test]

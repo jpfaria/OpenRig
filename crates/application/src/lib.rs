@@ -198,6 +198,10 @@ mod split_tests_fixtures;
 mod ld_split_path;
 
 #[cfg(test)]
+#[path = "ld_split_nested_tests.rs"]
+mod ld_split_nested;
+
+#[cfg(test)]
 #[path = "local_dispatcher_split_tests.rs"]
 mod local_dispatcher_split_tests;
 

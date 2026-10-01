@@ -13,14 +13,15 @@ fn chain_with(project: &Rc<RefCell<Project>>, blocks: Vec<AudioBlock>) -> Chain 
     chain
 }
 
+/// Spec §10.1: no split count, but a Y still ends its own list.
 #[test]
-fn add_chain_refuses_a_chain_with_two_splits() {
+fn add_chain_refuses_a_chain_with_a_split_after_a_y() {
     let project = project_with(vec![make_core_block("amp", true)]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let mut chain = chain_with(
         &project,
         vec![
-            split("s1", SplitEnd::Mix, vec![], vec![]),
+            split("s1", SplitEnd::Y, vec![], vec![]),
             split("s2", SplitEnd::Mix, vec![], vec![]),
         ],
     );
@@ -29,9 +30,9 @@ fn add_chain_refuses_a_chain_with_two_splits() {
 
     let err = dispatcher
         .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
-        .expect_err("two splits in one chain");
+        .expect_err("a split after the Y");
 
-    assert!(err.to_string().contains("at most one split"), "{err}");
+    assert!(err.to_string().contains("Y split"), "{err}");
     assert_eq!(project.borrow().chains.len(), 1, "nothing was added");
 }
 

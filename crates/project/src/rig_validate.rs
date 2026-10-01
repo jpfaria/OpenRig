@@ -15,8 +15,8 @@ impl RigProject {
     /// 3. each input's `active_scene` ∈ `1..=8`;
     /// 4. no preset may contain an `Input`/`Output` block;
     /// 5. every `routing` target must name an `outputs` entry;
-    /// 6. a preset breaking the split rules of #328 (at most one Mix and one
-    ///    Y, the Y last, processing-only paths) is rejected.
+    /// 6. a preset breaking the split rules of #328 (a Y ends its own list,
+    ///    processing-only paths, at every depth) is rejected.
     ///
     /// Device endpoints no longer live in the model (model A, #716), so any
     /// capture/output exclusivity is enforced by the engine at runtime
@@ -87,15 +87,10 @@ impl RigProject {
                     ));
                 }
             }
-            // #328 (spec §1.1): at most one Mix and one Y per preset, the Y
-            // ends it, and every split's paths hold processing blocks only.
+            // #328 (spec §10.1): a Y ends its own list and every path holds
+            // processing blocks only, checked at every depth.
             crate::block::validate_split_layout(&preset.blocks)
                 .map_err(|e| format!("preset '{name}': {e}"))?;
-            for (_, split) in crate::block::splits(&preset.blocks) {
-                split
-                    .validate_structure()
-                    .map_err(|e| format!("preset '{name}': {e}"))?;
-            }
             for (idx, scene) in &preset.scenes {
                 if !(1..=8).contains(idx) {
                     return Err(format!("preset '{name}' scene {idx} out of range 1..=8"));

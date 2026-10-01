@@ -1,14 +1,14 @@
 //! Responsibility: adds a split to a chain from the add-block picker.
 //!
-//! #328 (spec §3, §5.1). `AddSplit` creates an empty split with default knobs
-//! at the picked position; the live chain is resynced (#614) and the rows are
+//! #328 (spec §3, §5.1, §10). `AddSplit` creates an empty split with default
+//! knobs at the picked position of the picked list (top level or a path); the live chain is resynced (#614) and the rows are
 //! republished so the new lanes appear.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SplitCommand};
-use project::block::SplitEnd;
+use project::block::{PathRef, SplitEnd};
 
 use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use crate::project_view::replace_project_chains;
@@ -21,6 +21,7 @@ pub(crate) struct SplitPick {
     pub(crate) chain_index: usize,
     pub(crate) position: usize,
     pub(crate) end: SplitEnd,
+    pub(crate) path: Option<PathRef>,
 }
 
 /// The split the picker row at `index` stands for, if it is a split entry.
@@ -38,6 +39,7 @@ pub(crate) fn split_pick(
         chain_index: draft.chain_index,
         position: draft.before_index,
         end: split_end_for_pick(index, base_len, &ends)?,
+        path: draft.path.clone(),
     })
 }
 
@@ -61,6 +63,7 @@ pub(crate) fn add_split(
             chain: chain_id.clone(),
             position: pick.position,
             end: pick.end,
+            path: pick.path.clone(),
         }))
         .map_err(|e| GestureError::Failed(e.to_string()))?;
     request_chain_sync(session, &chain_id).map_err(|e| GestureError::Failed(e.to_string()))?;

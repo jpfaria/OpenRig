@@ -1,7 +1,7 @@
-//! #328 — the structural rules of a chain split (spec §1.1): at most one Mix
-//! split and one Y split per chain, the Y last (so a Mix comes before it), a
-//! path holds processing blocks only (no split, select or port, so nesting
-//! stays one level deep).
+//! #328 — the structural rules of a chain split (spec §10.1): any number of
+//! splits, nested to any depth, and only two rules left — a Y ends the list it
+//! sits in (the chain's own ports excepted at the top level), and a path holds
+//! no port, insert or select.
 
 use std::collections::BTreeMap;
 
@@ -126,7 +126,6 @@ fn rig(blocks: Vec<AudioBlock>) -> RigProject {
 #[test]
 fn a_path_holds_processing_blocks_only() {
     let forbidden = [
-        (split("inner", SplitEnd::Mix, vec![]), "split"),
         (select("sel"), "select"),
         (input_port("in"), "input"),
         (output_port("out"), "output"),
@@ -159,14 +158,60 @@ fn a_path_holds_processing_blocks_only() {
 }
 
 #[test]
-fn a_chain_holds_at_most_one_split() {
-    let blocks = vec![
-        split("s1", SplitEnd::Mix, vec![]),
-        delay("amp"),
-        split("s2", SplitEnd::Mix, vec![]),
-    ];
-    let err = validate_split_layout(&blocks).expect_err("two splits");
-    assert!(err.contains("at most one split"), "got: {err}");
+fn a_chain_holds_any_number_of_splits() {
+    assert!(
+        validate_split_layout(&[
+            split("s1", SplitEnd::Mix, vec![delay("a1")]),
+            delay("amp"),
+            split("s2", SplitEnd::Mix, vec![delay("a2")]),
+            split("s3", SplitEnd::Mix, vec![delay("a3")]),
+        ])
+        .is_ok(),
+        "the limit is the machine, not a count (spec §10.1)"
+    );
+}
+
+#[test]
+fn a_split_nests_inside_a_path() {
+    let inner = split("inner", SplitEnd::Mix, vec![delay("deep")]);
+    let outer = split("outer", SplitEnd::Mix, vec![delay("amp"), inner]);
+    let AudioBlockKind::Split(s) = &outer.kind else {
+        unreachable!()
+    };
+    assert!(s.validate_structure().is_ok(), "nesting has no depth limit");
+    assert!(outer.validate_params().is_ok());
+    assert!(validate_split_layout(&[outer]).is_ok());
+}
+
+#[test]
+fn the_rules_are_checked_at_every_depth() {
+    let bad_inner = split("inner", SplitEnd::Mix, vec![input_port("in")]);
+    let outer = split("outer", SplitEnd::Mix, vec![bad_inner]);
+    let err = validate_split_layout(&[outer]).expect_err("a port in a nested path");
+    assert!(err.contains("is a input block"), "got: {err}");
+}
+
+#[test]
+fn a_y_ends_the_path_it_sits_in() {
+    let bad = split(
+        "outer",
+        SplitEnd::Mix,
+        vec![split("y", SplitEnd::Y, vec![delay("cab")]), delay("reverb")],
+    );
+    let err = validate_split_layout(&[bad]).expect_err("a block after a nested Y");
+    assert!(
+        err.contains("Y split") && err.contains("reverb"),
+        "got: {err}"
+    );
+    let ok = split(
+        "outer",
+        SplitEnd::Mix,
+        vec![delay("amp"), split("y", SplitEnd::Y, vec![delay("cab")])],
+    );
+    assert!(
+        validate_split_layout(&[ok, delay("post")]).is_ok(),
+        "a Y that ends its own path leaves the Mix free to continue"
+    );
 }
 
 #[test]
@@ -239,13 +284,13 @@ fn a_select_option_cannot_be_a_split() {
 #[test]
 fn a_rig_refuses_a_preset_that_breaks_the_split_rules() {
     let err = rig(vec![
-        split("s1", SplitEnd::Mix, vec![]),
+        split("y", SplitEnd::Y, vec![]),
         split("s2", SplitEnd::Mix, vec![]),
     ])
     .validate()
-    .expect_err("two splits");
+    .expect_err("a split after a Y");
     assert!(
-        err.contains("preset 'p'") && err.contains("at most one split"),
+        err.contains("preset 'p'") && err.contains("Y split"),
         "got: {err}"
     );
     let err = rig(vec![split("s", SplitEnd::Mix, vec![input_port("in")])])
@@ -303,31 +348,6 @@ fn a_y_before_a_mix_is_refused() {
         err.contains("Y split") && err.contains("mix"),
         "the Mix follows the Y, got: {err}"
     );
-}
-
-#[test]
-fn a_chain_holds_at_most_one_mix_and_one_y() {
-    for (blocks, what) in [
-        (
-            vec![
-                split("m1", SplitEnd::Mix, vec![]),
-                split("m2", SplitEnd::Mix, vec![]),
-                split("y", SplitEnd::Y, vec![]),
-            ],
-            "two Mix",
-        ),
-        (
-            vec![
-                split("m", SplitEnd::Mix, vec![]),
-                split("y1", SplitEnd::Y, vec![]),
-                split("y2", SplitEnd::Y, vec![]),
-            ],
-            "two Y",
-        ),
-    ] {
-        let err = validate_split_layout(&blocks).expect_err(what);
-        assert!(err.contains("at most one split"), "{what}, got: {err}");
-    }
 }
 
 #[test]

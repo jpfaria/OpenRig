@@ -1,26 +1,34 @@
-//! Responsibility: addresses blocks inside a chain's split paths.
+//! Responsibility: addresses blocks anywhere in a chain's split tree.
 //!
-//! #328: lookup lives in `project::block::find_block_mut`; this module holds
-//! the structural addressing the command layer needs on top of it.
+//! #328 (spec §10.2): a split may sit inside another split's path, so every
+//! address here walks the whole tree. Lookup by id lives in
+//! `project::block::find_block_mut`; this module holds the structural
+//! addressing the command layer needs on top of it.
 
 use anyhow::{anyhow, Result};
 use domain::ids::BlockId;
-use project::block::{AudioBlock, AudioBlockKind, PathRef, PathSide};
+use project::block::{AudioBlock, AudioBlockKind, PathRef, PathSide, SplitBlock};
 
-/// Take the block with `id` out of the top level or out of a split path.
+/// Take the block with `id` out of whichever list holds it.
 pub fn remove_block(blocks: &mut Vec<AudioBlock>, id: &BlockId) -> Option<AudioBlock> {
-    if let Some(at) = blocks.iter().position(|b| b.id == *id) {
-        return Some(blocks.remove(at));
-    }
-    blocks.iter_mut().find_map(|block| match &mut block.kind {
-        AudioBlockKind::Split(split) => take(&mut split.a, id).or_else(|| take(&mut split.b, id)),
-        _ => None,
-    })
+    let (list, at) = list_holding(blocks, id)?;
+    Some(list.remove(at))
 }
 
-fn take(lane: &mut Vec<AudioBlock>, id: &BlockId) -> Option<AudioBlock> {
-    let at = lane.iter().position(|b| b.id == *id)?;
-    Some(lane.remove(at))
+/// The list that holds the block `id`, and the block's index in it.
+pub fn list_holding<'a>(
+    blocks: &'a mut Vec<AudioBlock>,
+    id: &BlockId,
+) -> Option<(&'a mut Vec<AudioBlock>, usize)> {
+    if let Some(at) = blocks.iter().position(|b| b.id == *id) {
+        return Some((blocks, at));
+    }
+    blocks.iter_mut().find_map(|block| match &mut block.kind {
+        AudioBlockKind::Split(split) => {
+            list_holding(&mut split.a, id).or_else(|| list_holding(&mut split.b, id))
+        }
+        _ => None,
+    })
 }
 
 /// Put `block` at `position` (clamped to the end) of the top level when
@@ -37,6 +45,16 @@ pub fn insert_block(
     Ok(())
 }
 
+/// The split `id`, wherever it sits.
+pub fn split_mut<'a>(blocks: &'a mut Vec<AudioBlock>, id: &BlockId) -> Result<&'a mut SplitBlock> {
+    let (list, at) =
+        list_holding(blocks, id).ok_or_else(|| anyhow!("split not found: {:?}", id))?;
+    match &mut list[at].kind {
+        AudioBlockKind::Split(split) => Ok(split),
+        _ => Err(anyhow!("block {:?} is not a split", id)),
+    }
+}
+
 fn lane_mut<'a>(
     blocks: &'a mut Vec<AudioBlock>,
     path: Option<&PathRef>,
@@ -44,15 +62,9 @@ fn lane_mut<'a>(
     let Some(path) = path else {
         return Ok(blocks);
     };
-    let target = blocks
-        .iter_mut()
-        .find(|b| b.id == path.split)
-        .ok_or_else(|| anyhow!("split not found: {:?}", path.split))?;
-    match &mut target.kind {
-        AudioBlockKind::Split(split) => Ok(match path.side {
-            PathSide::A => &mut split.a,
-            PathSide::B => &mut split.b,
-        }),
-        _ => Err(anyhow!("block {:?} is not a split", path.split)),
-    }
+    let split = split_mut(blocks, &path.split)?;
+    Ok(match path.side {
+        PathSide::A => &mut split.a,
+        PathSide::B => &mut split.b,
+    })
 }

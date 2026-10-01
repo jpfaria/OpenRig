@@ -376,23 +376,23 @@ fn insert_prebuilt_block_with_a_path_lands_inside_path_b() {
     assert_eq!(project.borrow().chains[0].blocks.len(), 3);
 }
 
+/// Spec §10.1: no split count — a second Mix goes in like any block.
 #[test]
-fn insert_prebuilt_block_refuses_a_second_split() {
+fn insert_prebuilt_block_accepts_a_second_split() {
     let project = project_with(mix_chain());
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let before = project.borrow().chains[0].blocks.clone();
     let second = serde_json::to_value(split("split_1", SplitEnd::Mix, vec![], vec![]))
         .expect("split serializes");
 
-    let err = dispatch_json(
+    dispatch_json(
         &dispatcher,
         "InsertPrebuiltBlock",
         json!({ "chain": CHAIN, "block": second, "position": 0 }),
     )
-    .expect_err("a chain holds one split");
+    .expect("a chain holds any number of splits");
 
-    assert!(err.to_string().contains("at most one split"), "{err}");
-    assert_eq!(project.borrow().chains[0].blocks, before);
+    assert_eq!(project.borrow().chains[0].blocks[0].id.0, "split_1");
+    assert_eq!(project.borrow().chains[0].blocks.len(), 4);
 }
 
 #[test]
