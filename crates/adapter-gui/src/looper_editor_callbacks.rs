@@ -19,7 +19,7 @@ use application::live_source::LiveSource;
 use application::looper_edit::{playhead_ratio, EditOutcome, LoopEdit, LoopEditKind};
 use domain::ids::ChainId;
 use engine::LooperState;
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ModelRc, VecModel};
 
 use crate::looper_editor_host::LooperEditorHost;
 use crate::project_ops::sync_project_dirty;
