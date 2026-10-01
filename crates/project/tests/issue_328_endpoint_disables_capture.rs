@@ -82,7 +82,7 @@ fn a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input() {
     assert_eq!(
         rig.inputs["g"].disabled_endpoints,
         unchecked(),
-        "the save path captures the checklist into the project file"
+        "the save path captures the checklist into project.yaml"
     );
 }
 

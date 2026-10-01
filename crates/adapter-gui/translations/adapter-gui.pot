@@ -438,6 +438,14 @@ msgstr ""
 msgid "action-mixer-mute"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr ""
@@ -670,7 +678,11 @@ msgstr ""
 msgid "tooltip-measure-latency"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+#: crates/adapter-gui/ui/components/chain_mixer_button.slint:41
+msgid "tooltip-chain-mixer"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
 msgid "tooltip-configure"
 msgstr ""
 

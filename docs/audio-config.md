@@ -381,7 +381,7 @@ to the legacy entries path.
 
 ### Endpoint checklist
 
-The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in the project file, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs` and `outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name — and `path_outputs`, one `{ split, path, disabled }` entry per Y leaf that has something unchecked). Files saved before §11 with `path_a_outputs`/`path_b_outputs` load them as paths 0 and 1 of the chain's Y.
+The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in `project.yaml`, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs` and `outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name — and `path_outputs`, one `{ split, path, disabled }` entry per Y leaf that has something unchecked). Files saved before §11 with `path_a_outputs`/`path_b_outputs` load them as paths 0 and 1 of the chain's Y.
 
 `resolve_chain_ports` applies it before anything else sees the chain's I/O, so an unchecked endpoint opens no stream, builds no segment and claims no capture tap:
 
@@ -389,7 +389,7 @@ The input and output nodes of a chain's graph list every endpoint of the chain's
 - a tail output is kept while the chain output node has it checked — or, on a chain with Y leaves (which has no chain output node), while any leaf's output node does;
 - mid `Input`/`Output` ports are not on the checklist.
 
-The input-conflict detectors agree on it: the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from the project file (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
+The input-conflict detectors agree on it: the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.yaml` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
 
 Unchecking **every** input (with no mid `Input`) or **every** output (with no
 mid `Output`) is allowed: the chain simply has nothing to play. The engine does
@@ -424,7 +424,7 @@ the leaves whose output node has `O` checked — its `ChainSegment.paths`
 (`segment_paths::route_paths`, `SegmentPaths::Only(leaves)`). Every leaf on one
 output is **one** segment; they are summed inside it, time-aligned, never by
 two segments on one route. An output no leaf checks is no port, so it has no
-route and no segment. The input/output pairing is unchanged: a head input still pairs
+route and no segment. The pairing is unchanged: a head input still pairs
 only with its own E/S's outputs, so a leaf can only reach outputs of the E/S
 whose input feeds it.
 
@@ -474,7 +474,8 @@ gets **its own set of output ports**, one per device channel
 registers `route<r>_out_N`, and each port is connected to
 `system:playback_N`. The callback pops each route into its own ports; when two
 routes write the same channel, JACK sums them at the playback port — our code
-never adds two routes together.
+never adds two routes together. The callback used to pop route 0 only, which
+left a second Y leaf's output — and any chain's second output or insert send — silent.
 A single-output chain registers exactly the ports it always did. Adding or
 removing an output changes the stream signature's output count, so the client
 is rebuilt with the new port sets.

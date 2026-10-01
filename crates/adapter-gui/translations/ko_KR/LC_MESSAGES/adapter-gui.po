@@ -441,6 +441,14 @@ msgstr "솔로"
 msgid "action-mixer-mute"
 msgstr "음소거"
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr "S"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr "0 dB로 초기화"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"
@@ -673,7 +681,10 @@ msgstr "블록 확장"
 msgid "tooltip-measure-latency"
 msgstr "지연시간 측정 (삑 소리가 납니다)"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+msgid "tooltip-chain-mixer"
+msgstr "체인 믹서"
+
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
 msgid "tooltip-configure"
 msgstr "구성"
 

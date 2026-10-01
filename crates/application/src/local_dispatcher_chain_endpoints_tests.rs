@@ -159,7 +159,7 @@ fn the_checklist_is_captured_into_the_rig_input() {
     assert_eq!(
         rig.borrow().inputs["in"].disabled_endpoints.outputs,
         vec![endpoint("io-main", "Out 1")],
-        "the project file persists the checklist on the input"
+        "project.yaml persists the checklist on the input"
     );
 }
 

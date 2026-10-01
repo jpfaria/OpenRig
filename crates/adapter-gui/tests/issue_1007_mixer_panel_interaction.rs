@@ -166,3 +166,35 @@ fn the_inline_close_button_reports_close() {
     press_release(&w, center(&w, "MixerPanel::close-ta", 0));
     assert!(*closed.borrow());
 }
+
+#[test]
+fn reset_press_reports_the_strip() {
+    let w = harness(
+        vec![row("in:0@d", true, false), row("in:1@d", true, false)],
+        vec![],
+    );
+    let got = Rc::new(RefCell::new(Vec::<String>::new()));
+    let g = got.clone();
+    MixerBridge::get(&w).on_fader_reset(move |id| g.borrow_mut().push(id.to_string()));
+    press_release(&w, center(&w, "MixerStripView::reset-ta", 1));
+    assert_eq!(*got.borrow(), vec!["in:1@d".to_string()]);
+}
+
+#[test]
+fn solo_mute_and_reset_sit_side_by_side_under_the_fader() {
+    let w = harness(vec![row("in:0@d", true, false)], vec![]);
+    let (solo, _) = element(&w, "MixerStripView::solo-ta", 0);
+    let (mute, _) = element(&w, "MixerStripView::mute-ta", 0);
+    let (reset, _) = element(&w, "MixerStripView::reset-ta", 0);
+    let (fader, fader_size) = element(&w, "MixerStripView::fader-ta", 0);
+    assert_eq!(solo.y, mute.y, "SOLO and MUTE share one row");
+    assert_eq!(mute.y, reset.y, "MUTE and RESET share one row");
+    assert!(
+        solo.x < mute.x && mute.x < reset.x,
+        "S, mute, reset from left to right"
+    );
+    assert!(
+        solo.y > fader.y + fader_size.height,
+        "the buttons sit under the fader"
+    );
+}

@@ -440,6 +440,14 @@ msgstr "सोलो"
 msgid "action-mixer-mute"
 msgstr "म्यूट"
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr "S"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr "0 dB पर रीसेट करें"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"
@@ -672,7 +680,10 @@ msgstr "ब्लॉक विस्तृत करें"
 msgid "tooltip-measure-latency"
 msgstr "विलंबता मापें (बीप करता है)"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+msgid "tooltip-chain-mixer"
+msgstr "चेन मिक्सर"
+
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
 msgid "tooltip-configure"
 msgstr "कॉन्फ़िगर करें"
 

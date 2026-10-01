@@ -1,0 +1,114 @@
+// Responsibility: renders one chain's mixer as a modal over the chain list.
+// #1007 — opened by a chain card's mixer button (`ChainMixerPanel.open`).
+// The card carries the same tabs and strips as the compact view's mixer
+// section; its global halves are only this chain's endpoints
+// (`ChainMixerPanel.global-*`). The close button or a click outside the card
+// closes it.
+
+import { ChainMixerPanel } from "chain_mixer_panel_globals.slint";
+import { ChainMixerTabs } from "chain_mixer_tabs.slint";
+
+export component ChainMixerOverlay inherits Rectangle {
+    in property <string> chain-title;
+    in property <bool> di-playing: false;
+    private property <length> header-height: 56px;
+
+    visible: ChainMixerPanel.open;
+    background: #000000a8;
+
+    // A click on the dimmed list closes the mixer.
+    TouchArea {
+        clicked => { ChainMixerPanel.open = false; }
+    }
+
+    if ChainMixerPanel.open : Rectangle {
+        width: min(parent.width - 48px, 920px);
+        height: min(parent.height - 48px, 500px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: @linear-gradient(180deg, #0c0e12 0%, #08090d 100%);
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: #2c323d;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000080;
+
+        // Clicks inside the card stay in it.
+        TouchArea { }
+
+        Image {
+            x: 20px; y: (root.header-height - 22px) / 2;
+            width: 22px; height: 22px;
+            source: @image-url("../assets/mixer-faders.svg");
+            colorize: #c5cdd9;
+        }
+
+        HorizontalLayout {
+            x: 54px; y: 0;
+            width: parent.width - 54px - 56px; height: root.header-height;
+            spacing: 12px;
+            alignment: start;
+
+            Text {
+                text: @tr("label-mixer");
+                color: #e5ebf2;
+                font-family: "Bebas Neue";
+                font-size: 18px;
+                letter-spacing: 3.0px;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: root.chain-title;
+                color: #8a94a2;
+                font-family: "Bebas Neue";
+                font-size: 18px;
+                letter-spacing: 1.5px;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        Rectangle {
+            x: parent.width - 44px; y: (root.header-height - 28px) / 2;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { ChainMixerPanel.open = false; }
+            }
+
+            accessible-role: button;
+            accessible-label: @tr("btn-close");
+            accessible-action-default => { ChainMixerPanel.open = false; }
+        }
+
+        Rectangle {
+            x: 0; y: root.header-height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        ChainMixerTabs {
+            x: 16px; y: root.header-height + 12px;
+            width: parent.width - 32px;
+            height: parent.height - self.y - 12px;
+            global-inputs: ChainMixerPanel.global-inputs;
+            global-outputs: ChainMixerPanel.global-outputs;
+            di-playing: root.di-playing;
+        }
+    }
+}

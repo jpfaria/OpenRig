@@ -443,6 +443,14 @@ msgstr "SOLO"
 msgid "action-mixer-mute"
 msgstr "SILENCIO"
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr "S"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr "Restablecer a 0 dB"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"
@@ -676,7 +684,10 @@ msgstr "Expandir bloques"
 msgid "tooltip-measure-latency"
 msgstr "Medir latencia (emite un pitido)"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+msgid "tooltip-chain-mixer"
+msgstr "Mezclador de la cadena"
+
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
 msgid "tooltip-configure"
 msgstr "Configurar"
 

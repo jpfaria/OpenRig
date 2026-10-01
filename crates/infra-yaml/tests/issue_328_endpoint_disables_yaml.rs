@@ -1,5 +1,5 @@
 //! #328 — the endpoint checklists are chain configuration (spec §1.3): they
-//! live on the rig input in `the project file`, survive save + reload, need no
+//! live on the rig input in `project.yaml`, survive save + reload, need no
 //! version bump, and a file written before them loads with every endpoint
 //! checked.
 

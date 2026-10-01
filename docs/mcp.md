@@ -86,7 +86,7 @@ follow-up.
   sidecars. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
 
-  Split chains: a split runs N paths (at least two) side by side,
+  Split chains (#328): a split runs N paths (at least two) side by side,
   numbered from 0 (the GUI shows A, B, C, …). A split may sit inside a
   path, at any depth, and a chain may hold any number of them. Every tool
   that names a split takes its block id (`split`, `split_id`), so splits
@@ -134,13 +134,13 @@ follow-up.
   checks or unchecks one endpoint of the chain's E/S on one node of the
   chain graph (`path_output` is the output node of one Y leaf). The E/S
   itself is not edited: the unchecked endpoint stays listed, is saved
-  with the chain's input in the project file, and survives preset/scene
+  with the chain's input in `project.yaml`, and survives preset/scene
   switches, `configure_chain` and the chain editor's Save.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
   - `openrig://ids` — chain/block IDs (for `midi-map.yaml`). The blocks
-    inside a split are listed under it as `path A`, `path B`, … rows, at any depth.
+    inside a split (#328) are listed under it as `path A`, `path B`, … rows, at any depth.
   - `openrig://meters` — per-chain peak meters (dBFS).
   - `openrig://tuner` — live tuner readings: `running`,
     `reference_hz`, and one row per (chain, input, channel) tap with
@@ -332,6 +332,11 @@ audio-thread code is touched; invariants 1–10 hold by construction.
 The events a drained command produces redraw every open surface that shows
 the project — the chains list and the compact chain view alike — so a knob
 set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen.
+A batch made only of fader steps (`set_mixer_fader`,
+`set_chain_mixer_fader`, `set_chain_di_fader`, `set_chain_volume` — what a
+control surface such as the SMC-Mixer sends while a fader travels) is the
+exception: it changes nothing those views draw, so the cards stay in place
+and only the chain volume is written onto its card.
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`

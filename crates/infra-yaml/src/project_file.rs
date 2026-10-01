@@ -45,8 +45,8 @@ pub fn parse_project(yaml: &str) -> Result<RigProject> {
 }
 
 /// Serialize a [`RigProject`] to the project YAML, stamping the format
-/// version its content needs (`2` only when a preset holds a split, so a
-/// split-free project stays readable by builds that predate the split).
+/// version its content needs: `2` only when a preset holds a split, so a
+/// split-free project stays readable by builds that predate the split.
 pub fn serialize_project(project: &RigProject) -> Result<String> {
     let file = ProjectFile {
         version: project_format_version(project),

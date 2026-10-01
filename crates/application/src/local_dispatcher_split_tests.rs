@@ -217,7 +217,7 @@ fn add_split_reaches_the_rig_preset_on_capture() {
     assert_eq!(
         ids(&rig.borrow().presets["p1"].blocks),
         vec!["A".to_string(), split_id.0.clone()],
-        "the new split must reach the project file"
+        "the new split must reach project.yaml"
     );
 }
 
