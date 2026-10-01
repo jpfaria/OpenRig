@@ -320,13 +320,49 @@ fn hovering_a_block_card_reveals_a_remove_button_that_fires_remove_requested() {
     );
 }
 
+/// Only a block has a LED; a block and a split have a × (removing the split
+/// node removes that split, spec §3 / §11 `RemoveSplit`). The mixer is the
+/// same split, so it carries no second ×.
 #[test]
-fn only_block_cards_carry_a_led_and_a_remove_button() {
+fn blocks_and_splits_carry_a_remove_button_only_blocks_a_led() {
     let mut nodes = one_of_each_kind();
     nodes[2] = block_node("amp", "Amp", 400.0, 200.0);
     let w = harness(nodes);
     assert_eq!(handles(&w, "GraphNodeCard::bypass-ta").len(), 1);
-    assert_eq!(handles(&w, "GraphNodeCard::remove-ta").len(), 1);
+    assert_eq!(handles(&w, "GraphNodeCard::remove-ta").len(), 2);
+}
+
+#[test]
+fn hovering_a_split_node_reveals_a_remove_button_that_fires_remove_requested() {
+    let w = harness(one_of_each_kind());
+    let removed = recorder::<String>();
+    let r = removed.clone();
+    w.on_remove_requested(move |id| r.borrow_mut().push(id.to_string()));
+
+    hover(&w, at(240.0, 200.0));
+    // Sorted by x: the split (x 240) comes before the amp block (x 400).
+    let remove = handles(&w, "GraphNodeCard::remove-ta");
+    assert_eq!(remove.len(), 2, "the split and the amp each carry one ×");
+    let p = center(&remove[0]);
+    hover(&w, p);
+    click_at(&w, p);
+
+    assert_eq!(*removed.borrow(), ["__split_1"]);
+}
+
+/// The input and output nodes read IN / OUT in a box, whatever endpoint the
+/// host names in their label.
+#[test]
+fn io_nodes_show_a_fixed_in_out_box_not_the_endpoint_names() {
+    let w = harness(one_of_each_kind());
+    assert_eq!(handles(&w, "GraphNodeCard::io-box").len(), 2);
+    for host_label in ["In 1", "Out 1"] {
+        assert_eq!(
+            ElementHandle::find_by_accessible_label(&w, host_label).count(),
+            0,
+            "the endpoint name {host_label:?} must not be drawn"
+        );
+    }
 }
 
 #[test]
@@ -418,7 +454,7 @@ fn split_mix_chain() -> (
         ),
     ];
     let (nodes, edges) = model::linear_chain_layout(&stages, model::GridMetrics::default());
-    let anchors = model::insert_anchors(&stages, &nodes);
+    let anchors = model::insert_anchors(&stages, &nodes, &edges);
     (nodes, edges, anchors)
 }
 

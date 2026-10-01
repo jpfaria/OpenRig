@@ -3,12 +3,13 @@
 // face: a "block" card keeps parity with the chain row's BlockChip (type
 // label, icon or thumbnail, LED, unavailable tint, MIDI markers — every
 // state colour read from BlockTileStyle so the two tiles never disagree);
-// I/O cards show only their name; the split and
-// the mixer show their routing artwork over a translated name.
+// the input and output read a fixed, translated IN / OUT in a small box
+// (never the endpoint names); the split and the mixer show their routing
+// artwork over a translated name.
 //
 // Input: the canvas's node TouchArea is declared UNDER this card and owns
 // click and drag. The card's only TouchAreas are a block's LED (bypass)
-// and its × (remove), which therefore win on those two spots.
+// and the × (remove) of a block or a split, which therefore win there.
 
 import { GraphNode } from "graph_view_types.slint";
 import { EffectTypeIcon } from "effect_type_icon.slint";
@@ -51,10 +52,15 @@ export component GraphNodeCard inherits Rectangle {
     property <length> art-y: root.label-h + 6px * root.zoom;
     property <length> art-h: max(0px, root.height - root.art-y - 4px * root.zoom);
     property <length> led: 12px * root.zoom;
-    // The split and the mixer carry no host label; their name is translated.
+    // Only a block carries a host label; every other name is translated.
     property <string> face-label: root.node.kind == "split" ? @tr("graph-node-split")
         : root.node.kind == "mixer" ? @tr("graph-node-mixer")
+        : root.node.kind == "io_input" ? @tr("graph-node-input")
+        : root.node.kind == "io_output" ? @tr("graph-node-output")
         : root.node.label;
+    // A split is removed from its node (RemoveSplit); the mixer is the same
+    // split, so it carries no second ×.
+    property <bool> removable: root.is-block || root.node.kind == "split";
 
     width: root.card_width;
     height: root.card_height;
@@ -150,7 +156,7 @@ export component GraphNodeCard inherits Rectangle {
     // never land on an invisible ×. Scaled with the card: a fixed 24×24
     // would cover most of a 30px card at the minimum zoom, and a click
     // meant to select the block would remove it.
-    if root.is-block : remove-ta := TouchArea {
+    if root.removable : remove-ta := TouchArea {
         x: parent.width - 26px * root.zoom;
         y: 2px * root.zoom;
         width: 24px * root.zoom;
@@ -199,19 +205,42 @@ export component GraphNodeCard inherits Rectangle {
         }
     }
 
-    if !root.is-block : Text {
+    if root.is-routing : Text {
         x: 4px;
         y: 0px;
         width: parent.width - 8px;
-        height: root.is-routing ? root.label-h : parent.height;
+        height: root.label-h;
         text: root.face-label;
-        color: root.is-routing ? root.routing-accent : #f5f7fb;
+        color: root.routing-accent;
         font-size: Theme.min-font;
         font-weight: 700;
-        letter-spacing: root.is-routing ? 1px : 0px;
+        letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
         overflow: elide;
+    }
+
+    // I/O: a fixed IN / OUT in an opaque rounded box on the wire.
+    if root.is-io : io-box := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: min(parent.width, 56px * root.zoom);
+        height: max(22px, 30px * root.zoom);
+        border-radius: 6px * root.zoom;
+        background: #171a20;
+        border-width: 2px;
+        border-color: #5d6b80;
+
+        Text {
+            text: root.face-label;
+            color: #f5f7fb;
+            font-size: Theme.min-font;
+            font-weight: 700;
+            letter-spacing: 1px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
     }
 
     accessible-role: button;

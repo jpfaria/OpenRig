@@ -159,7 +159,8 @@ Required skills before touching `.slint`: `claude-plugin:ux-ui` and `slint-best-
 
 Left to right: input node → shared blocks → split node → two lanes (A on top, B below) → mixer node → shared blocks → output node. For Y there is no mixer; each lane ends in its own output node. A chain with a Mix then a Y draws both stages in that order (§9).
 
-- Input and output nodes show the checked endpoint names. A click opens the endpoint checklist (5.3).
+- Input and output nodes read a fixed, translated **IN** / **OUT** in a small rounded box, never the endpoint names (owner decision, 2026-10-01). A click opens the endpoint checklist (5.3).
+- A block card and the split node carry a × on hover; the split's × removes that split (`RemoveSplit`, §3). The mixer node is the same split and carries no second ×.
 - The split and mixer nodes are labelled, clickable nodes. A click opens the split editor or the mixer editor: a small panel with the knobs from 1.2, rendered from the parameter schema like any block editor.
 - Block cards keep parity with today's `BlockChip`: icon, enabled LED, unavailable tint, MIDI markers, tooltip, selection.
 - A "+" affordance on each edge and at the end of each lane opens the existing add-block picker with the right position and `path`. The picker gets "Split → Mix" and "Y → A/B" entries. "Split → Mix" is offered while the chain has no Mix, only at positions before its Y. "Y → A/B" is offered while the chain has no Y, only after its Mix and where nothing but the chain's ports follows (§9).

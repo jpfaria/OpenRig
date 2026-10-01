@@ -215,6 +215,14 @@ msgstr "{} 個のエンドポイント"
 msgid "graph-node-split"
 msgstr "スプリット"
 
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-input"
+msgstr "In"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-output"
+msgstr "Out"
+
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
 msgstr "ミキサー"

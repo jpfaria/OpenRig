@@ -214,6 +214,14 @@ msgstr "{} 个端点"
 msgid "graph-node-split"
 msgstr "分路"
 
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-input"
+msgstr "In"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-output"
+msgstr "Out"
+
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
 msgstr "混音器"
