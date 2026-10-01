@@ -172,7 +172,7 @@ pub fn parse_di_loop_source(selected: &str, bundled_ids: &[&str]) -> Option<DiLo
     None
 }
 
-/// #1021: per entry of `sources`, whether it is a saved take of the library —
+/// Per entry of `sources`, whether it is a saved take of the library —
 /// the only entries the DI panel offers to delete. A bundled loop, a
 /// hand-picked file outside the library and the sentinel never are.
 pub fn di_loop_take_rows(sources: &[String], takes: &[PathBuf]) -> Vec<bool> {

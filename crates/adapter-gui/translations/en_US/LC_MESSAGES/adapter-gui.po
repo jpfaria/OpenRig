@@ -695,7 +695,7 @@ msgstr "Measure latency (emits a beep)"
 msgid "tooltip-chain-mixer"
 msgstr "Chain mixer"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Configure"
 

@@ -700,7 +700,7 @@ msgstr "Medir latência (emite um bipe)"
 msgid "tooltip-chain-mixer"
 msgstr "Mixer da chain"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Configurar"
 

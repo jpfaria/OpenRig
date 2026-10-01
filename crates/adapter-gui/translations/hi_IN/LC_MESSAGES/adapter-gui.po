@@ -689,7 +689,7 @@ msgstr "विलंबता मापें (बीप करता है)"
 msgid "tooltip-chain-mixer"
 msgstr "चेन मिक्सर"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "कॉन्फ़िगर करें"
 

@@ -1,4 +1,4 @@
-//! #1021, red-first: the DI panel's trash dispatches `DeleteLooperTake` —
+//! The DI panel's trash dispatches `DeleteLooperTake` —
 //! the same command an MCP client sends — and the open panel drops the row
 //! only when the core agreed.
 

@@ -1,5 +1,5 @@
 //! Responsibility: wires the DI panel's delete-take to the bus.
-//! #1021 — the trash on a saved take row of the DI panel.
+//! The trash on a saved take row of the DI panel.
 //!
 //! Dispatch only: `DeleteLooperTake` removes the file and unloads it from any
 //! chain that holds it (the same command an MCP client sends). This module

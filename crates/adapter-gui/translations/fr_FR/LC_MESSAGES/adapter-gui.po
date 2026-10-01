@@ -692,7 +692,7 @@ msgstr "Mesurer la latence (émet un bip)"
 msgid "tooltip-chain-mixer"
 msgstr "Mixeur de la chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Configurer"
 

@@ -74,10 +74,11 @@ use application::command_schema::command_variant_names;
 /// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO, then to 109 with a
 /// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
 /// `ToggleChainMixerMute`/`SetChainDiFader`).
-/// #1021 bumped to 110 with `DeleteLooperTake` — removing a saved take from
+/// Both merged (#328 + #1007): 100 + 4 + 9.
+/// #328 §11 bumped to 115 with `AddSplitPath`/`RemoveSplitPath` — a split
+/// with any number of paths.
+/// #1021 bumped to 116 with `DeleteLooperTake` — removing a saved take from
 /// the library, so a headless client can prune it as the DI panel's trash does.
-/// #328 adds 6 more (four for the split graph and the endpoint checklist,
-/// then `AddSplitPath`/`RemoveSplitPath` — a split with any number of paths).
 const COMMAND_VARIANT_COUNT: usize = 116;
 
 #[test]

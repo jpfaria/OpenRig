@@ -1,5 +1,5 @@
 //! Responsibility: drops a deleted take from the open DI panel's list.
-//! #1021 — the panel shows a snapshot of the chain's list taken when it
+//! The panel shows a snapshot of the chain's list taken when it
 //! opened, so a deleted take would otherwise linger until it is reopened.
 
 /// The open DI panel's list, as the `DiPanel` global holds it.

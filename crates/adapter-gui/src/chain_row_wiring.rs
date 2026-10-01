@@ -159,7 +159,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     // #771 on_di_loop_output_selected
     crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone());
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
-    // #1021: the DI panel's trash on a saved take.
+    // The DI panel's trash on a saved take.
     crate::di_take_delete_wiring::wire_main(window, &ctx.project_session, &ctx.toast_timer);
     // #323: the looper panel's actions. It dispatches and redraws; the runtime
     // half of every looper command belongs to the dispatcher (#127), and the

@@ -693,7 +693,7 @@ msgstr "Medir latencia (emite un pitido)"
 msgid "tooltip-chain-mixer"
 msgstr "Mezclador de la cadena"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Configurar"
 

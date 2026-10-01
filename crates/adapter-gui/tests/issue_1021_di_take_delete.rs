@@ -1,4 +1,4 @@
-//! #1021 — HEADLESS proof of deleting a saved take from the DI panel.
+//! HEADLESS proof of deleting a saved take from the DI panel.
 //!
 //! Only a saved take row carries the trash; a bundled loop and the "Choose
 //! file…" entry never do. The trash is a two-step control — the first click
