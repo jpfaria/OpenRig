@@ -1,4 +1,4 @@
-# #450 — legacy `chain.yaml` → `project.openrig` migration — Plan
+# #450 — legacy `chain.yaml` → `project.yaml` migration — Plan
 
 > Sub-issue de #436. Depende de #449 (modelo/parser, já na branch).
 
@@ -10,7 +10,7 @@ writing. No audio change (golden/volume invariants must pass).
 - Pure transform → `crates/project/src/migrate.rs`:
   `migrate_legacy_project(&Project) -> RigProject`. Deterministic ⇒ idempotent.
 - File orchestrator → `crates/infra-yaml`: load legacy, `.bak` backup
-  (skip if present ⇒ idempotent), write `project.openrig`; skip if target
+  (skip if present ⇒ idempotent), write `project.yaml`; skip if target
   already a valid `RigProject`.
 - `RigPreset` gains `volume: f32` (default 100.0) so `Chain.volume` is carried
   — losing it would change master output gain (CLAUDE.md invariant #10/#2).
@@ -39,5 +39,5 @@ result always passes `RigProject::validate()`.
   `f(f-roundtrip)` stable); empty project → empty rig.
 - [ ] T2 — infra-yaml file orchestrator + tests: backup `.bak` (idempotent),
   write target, skip when target already valid.
-- [ ] T3 — docs (`project-openrig-format.md` migration section) + `./scripts/qa.sh`
+- [ ] T3 — docs (`project-format.md` migration section) + `./scripts/qa.sh`
   green + push + comment #450.

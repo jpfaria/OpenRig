@@ -11,7 +11,7 @@
 //! input port". The project never overrides this dimension: bindings travel
 //! with the project, device selection does not.
 //!
-//! Bindings (the project layer) live inside `project.openrig` under
+//! Bindings (the project layer) live inside `project.yaml` under
 //! `RigProject.midi.bindings`; see `project::midi::RigProjectMidi`.
 
 use anyhow::{Context, Result};

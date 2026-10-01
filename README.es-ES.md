@@ -176,7 +176,7 @@ Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias 
 - [Quality Gate](docs/development/quality-gate.md) — el gate comparativo único de CI
 - [Testing](docs/testing.md) — cobertura, convenciones, comandos
 - [Scripts](docs/scripts.md) — build/deploy, flujo `.deb` → Orange Pi
-- [Formato del proyecto](docs/projects/project-openrig-format.md) — el modelo de proyecto `.openrig`
+- [Formato del proyecto](docs/projects/project-format.md) — el modelo de proyecto `project.yaml`
 - [Arquitectura de la GUI](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — internos de la ventana desktop ([diseño de ventana](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
 - [Contrato del backend](docs/backend/current-contract.md) · [Catálogo de modelos nativos](docs/backend/native-model-catalog.md) · [Referencia de efectos MK-300](docs/backend/mk-300-v69-effects-reference.md)
 - [Idiomas (i18n)](docs/i18n.md) — framework de traducción de la UI, añadir un locale

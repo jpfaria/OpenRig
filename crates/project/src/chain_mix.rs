@@ -2,7 +2,7 @@
 //! #1007 — the compact chain view mixes ONE chain: a fader per input and
 //! output endpoint it plays through (on top of the global per-endpoint
 //! mixer, never changing it) and a fader for its DI loop. They belong to the
-//! chain, so they travel with `project.openrig` (ADR 0003). An endpoint is
+//! chain, so they travel with `project.yaml` (ADR 0003). An endpoint is
 //! named by its binding id + endpoint name, never by device, so the file
 //! stays portable across machines.
 

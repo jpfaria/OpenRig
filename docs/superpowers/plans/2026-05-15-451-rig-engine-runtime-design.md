@@ -64,7 +64,7 @@ callback's contract or the engine's domain dependency.** Instead:
   on switch). Lowest RT risk: the spillover RT change lands once, in #454,
   fully golden/volume gated. #451's preset switching is complete and functional
   without it (just no old delay/reverb tail across a switch yet).
-- [ ] T5 — docs (`project-openrig-format.md` runtime section) + `./scripts/qa.sh`
+- [ ] T5 — docs (`project-format.md` runtime section) + `./scripts/qa.sh`
   green + push + comment #451.
 
 ## Regression gate (run every task)

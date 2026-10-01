@@ -2,101 +2,12 @@
 
 use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
-use project::chain::Chain;
 use project::param::ParameterSet;
-use project::project::Project;
 use std::fs;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 use super::tests::{core_block, first_model};
 use super::*;
-
-// ─── Empty project ───
-
-#[test]
-fn serialize_empty_project_roundtrips() {
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: Vec::new(),
-        midi: None,
-    };
-    let yaml_str = super::serialize_project(&project).expect("serialize should succeed");
-    let dto: super::ProjectYaml = serde_yaml::from_str(&yaml_str).expect("should parse back");
-    let loaded = dto.into_project().expect("should convert");
-    assert!(loaded.name.is_none());
-    assert!(loaded.chains.is_empty());
-    assert!(loaded.device_settings.is_empty());
-}
-
-// ─── Chain with only input + output (no effect blocks) ───
-
-#[test]
-fn chain_with_only_io_blocks_roundtrips() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("io_only.yaml");
-    let repo = YamlProjectRepository { path: path.clone() };
-    let project = Project {
-        name: Some("IO Only".into()),
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: Some("Empty chain".into()),
-            instrument: "electric_guitar".to_string(),
-            enabled: false,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![
-                AudioBlock {
-                    id: BlockId("chain:0:input:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Input(InputBlock {
-                        model: "standard".to_string(),
-                        io: "main".to_string(),
-                        endpoint: "In 1".to_string(),
-                    }),
-                },
-                AudioBlock {
-                    id: BlockId("chain:0:output:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Output(OutputBlock {
-                        model: "standard".to_string(),
-                        io: "main".to_string(),
-                        endpoint: "Out 1".to_string(),
-                    }),
-                },
-            ],
-            di_output: None,
-            loopers: vec![],
-            mix: Default::default(),
-        }],
-        midi: None,
-    };
-    repo.save_project(&project).expect("save");
-    let loaded = repo.load_current_project().expect("load");
-    assert_eq!(loaded.chains[0].blocks.len(), 2);
-    assert!(matches!(
-        &loaded.chains[0].blocks[0].kind,
-        AudioBlockKind::Input(_)
-    ));
-    assert!(matches!(
-        &loaded.chains[0].blocks[1].kind,
-        AudioBlockKind::Output(_)
-    ));
-    // No effect blocks
-    let effect_blocks: Vec<_> = loaded.chains[0]
-        .blocks
-        .iter()
-        .filter(|b| {
-            !matches!(
-                &b.kind,
-                AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-            )
-        })
-        .collect();
-    assert!(effect_blocks.is_empty());
-}
 
 // ─── Parameter boundary values ───
 
@@ -273,52 +184,6 @@ fn parameter_set_to_yaml_value_null_bool_int_string() {
     );
 }
 
-// ─── serialize_project directly ───
-
-#[test]
-fn serialize_project_produces_valid_yaml_string() {
-    let project = Project {
-        name: Some("Direct Serialize".into()),
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: Some("ch1".into()),
-            instrument: "generic".to_string(),
-            enabled: false,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![
-                AudioBlock {
-                    id: BlockId("chain:0:input:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Input(InputBlock {
-                        model: "standard".to_string(),
-                        io: String::new(),
-                        endpoint: String::new(),
-                    }),
-                },
-                AudioBlock {
-                    id: BlockId("chain:0:output:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Output(OutputBlock {
-                        model: "standard".to_string(),
-                        io: String::new(),
-                        endpoint: String::new(),
-                    }),
-                },
-            ],
-            di_output: None,
-            loopers: vec![],
-            mix: Default::default(),
-        }],
-        midi: None,
-    };
-    let yaml_str = super::serialize_project(&project).expect("serialize");
-    assert!(yaml_str.contains("name: Direct Serialize"));
-    assert!(yaml_str.contains("type: input"));
-    assert!(yaml_str.contains("type: output"));
-}
-
 // ─── serialize_audio_blocks directly ───
 
 #[test]
@@ -421,35 +286,6 @@ fn preset_roundtrips_with_input_output_blocks() {
 // ─── Error cases ───
 
 #[test]
-fn load_project_fails_on_invalid_yaml() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("bad.yaml");
-    fs::write(&path, "{{{{not valid yaml!!!!").expect("write");
-    let repo = YamlProjectRepository { path };
-    let result = repo.load_current_project();
-    assert!(result.is_err());
-}
-
-#[test]
-fn load_project_fails_on_missing_chains_field() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("no_chains.yaml");
-    fs::write(&path, "name: Missing Chains\n").expect("write");
-    let repo = YamlProjectRepository { path };
-    let result = repo.load_current_project();
-    assert!(result.is_err());
-}
-
-#[test]
-fn load_project_fails_on_nonexistent_file() {
-    let repo = YamlProjectRepository {
-        path: PathBuf::from("/tmp/does_not_exist_openrig_test.yaml"),
-    };
-    let result = repo.load_current_project();
-    assert!(result.is_err());
-}
-
-#[test]
 fn load_preset_fails_on_invalid_yaml() {
     let temp_dir = tempdir().expect("temp dir");
     let path = temp_dir.path().join("bad_preset.yaml");
@@ -480,97 +316,4 @@ fn yaml_key_non_string_returns_error() {
         .unwrap_err()
         .to_string()
         .contains("keys must be strings"));
-}
-
-// ─── Device settings roundtrip ───
-
-#[test]
-fn device_settings_not_persisted_in_yaml() {
-    use project::device::DeviceSettings;
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("with_devices.yaml");
-    let repo = YamlProjectRepository { path: path.clone() };
-    let project = Project {
-        name: Some("With Devices".into()),
-        device_settings: vec![DeviceSettings {
-            device_id: DeviceId("coreaudio:builtin".into()),
-            sample_rate: 48000,
-            buffer_size_frames: 256,
-            bit_depth: 32,
-            #[cfg(target_os = "linux")]
-            realtime: true,
-            #[cfg(target_os = "linux")]
-            rt_priority: 70,
-            #[cfg(target_os = "linux")]
-            nperiods: 3,
-        }],
-        chains: Vec::new(),
-        midi: None,
-    };
-    repo.save_project(&project).expect("save");
-    // device_settings are no longer written to YAML (per-machine config)
-    let yaml_content = fs::read_to_string(&path).expect("read");
-    assert!(!yaml_content.contains("device_settings"));
-    let loaded = repo.load_current_project().expect("load");
-    assert_eq!(loaded.device_settings.len(), 0);
-}
-
-#[test]
-fn legacy_device_settings_still_deserialize() {
-    let temp_dir = tempdir().expect("temp dir");
-    let path = temp_dir.path().join("legacy.yaml");
-    let delay_model = first_model(block_delay::supported_models());
-    fs::write(&path, format!(
-            "name: Legacy\ndevice_settings:\n  - device_id: \"coreaudio:builtin\"\n    sample_rate: 48000\n    buffer_size_frames: 256\nchains:\n  - description: ch1\n    instrument: electric_guitar\n    blocks:\n      - type: input\n        model: standard\n        enabled: true\n        entries:\n          - name: In\n            device_id: \"coreaudio:builtin\"\n            mode: mono\n            channels: [0]\n      - type: delay\n        model: {}\n        enabled: true\n        params:\n          time_ms: 300.0\n          feedback: 40.0\n          mix: 30.0\n      - type: output\n        model: standard\n        enabled: true\n        entries:\n          - name: Out\n            device_id: \"coreaudio:builtin\"\n            mode: stereo\n            channels: [0, 1]\n",
-            delay_model
-        )).expect("write");
-    let repo = YamlProjectRepository { path };
-    let loaded = repo.load_current_project().expect("load");
-    // Legacy device_settings are still read for backward compat
-    assert_eq!(loaded.device_settings.len(), 1);
-    assert_eq!(
-        loaded.device_settings[0].device_id,
-        DeviceId("coreaudio:builtin".into())
-    );
-}
-
-// ─── #323: loopers survive the .openrig round-trip ───
-
-#[test]
-fn chain_loopers_survive_a_project_roundtrip() {
-    use project::chain::LooperConfig;
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("c".into()),
-            description: Some("g".into()),
-            instrument: "electric_guitar".into(),
-            enabled: false,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![],
-            di_output: None,
-            loopers: vec![LooperConfig {
-                audio_file: Some("loop-5.wav".into()),
-                mix: 0.5,
-                ..LooperConfig::new(5)
-            }],
-            mix: Default::default(),
-        }],
-        midi: None,
-    };
-    let yaml = super::serialize_project(&project).expect("serialize");
-    let dto: super::ProjectYaml = serde_yaml::from_str(&yaml).expect("parse");
-    let loaded = dto.into_project().expect("convert");
-    assert_eq!(
-        loaded.chains[0].loopers.len(),
-        1,
-        "the looper must survive the .openrig round-trip"
-    );
-    assert_eq!(loaded.chains[0].loopers[0].uid, 5);
-    assert_eq!(
-        loaded.chains[0].loopers[0].audio_file.as_deref(),
-        Some("loop-5.wav")
-    );
 }

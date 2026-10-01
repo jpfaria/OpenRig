@@ -34,7 +34,7 @@ We need to close the loop with **measurement**: compare what the chain produces 
 │  PART A — this repo (OpenRig)                                    │
 │  Issue #552: feat(cli) offline render mode                       │
 │                                                                  │
-│  openrig --render --project P.openrig                            │
+│  openrig --render --project P.yaml                            │
 │                  --input DI.wav                                  │
 │                  --output wet.wav                                │
 │                                                                  │
@@ -83,7 +83,7 @@ We need to close the loop with **measurement**: compare what the chain produces 
 Detailed scope, CLI surface, acceptance criteria, and file layout are in the issue body. Summary here only:
 
 - New crate `crates/adapter-render` with binary path wired into `openrig --render`.
-- Loads `.openrig` project, processes input WAV through the engine, writes output WAV.
+- Loads `project.yaml` project, processes input WAV through the engine, writes output WAV.
 - Headless: no `cpal`, no Slint, no MCP, no MIDI.
 - Deterministic: same input → byte-identical output.
 - Realtime invariants preserved inside `engine.process_block()`.

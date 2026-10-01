@@ -35,16 +35,16 @@ fn save_creates_parent_directory_when_missing() {
 #[test]
 fn save_then_reload_works_with_openrig_extension() {
     let tmp = TempDir::new().unwrap();
-    let path: PathBuf = tmp.path().join("project.openrig");
+    let path: PathBuf = tmp.path().join("project.yaml");
     let cfg: PathBuf = tmp.path().join("config.yaml");
 
     let session = new_session_at(&path, &cfg);
     let c = chain_for(&session, "g1");
     session.project.borrow_mut().chains.push(c);
 
-    save_project_session(&session, &path).expect("save .openrig");
+    save_project_session(&session, &path).expect("save project.yaml");
 
-    let reloaded = load_project_session(&path, &cfg).expect("reload .openrig");
+    let reloaded = load_project_session(&path, &cfg).expect("reload project.yaml");
     assert_eq!(chain_descriptions(&reloaded), vec![Some("g1".to_string())]);
 }
 

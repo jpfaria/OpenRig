@@ -18,7 +18,7 @@ and a separate window).
 
 - Output-side mixing of a backing track, transport (seek/pause), pitch/speed —
   that is #324.
-- Persisting the loop choice in `.openrig`.
+- Persisting the loop choice in `project.yaml`.
 - Broad codec support in v1 (WAV only; symphonia/mp3/flac can follow).
 
 ## Mechanism
