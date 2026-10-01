@@ -29,6 +29,7 @@ fn open_compact(
         CompactChainCallbacksCtx {
             project_session: session.clone(),
             block_stream_reads: Rc::new(NoLiveSource),
+            looper_live: Rc::new(NoLiveSource),
             audio_taps: Rc::new(application::audio_taps::NoAudioTaps),
             project_chains: Rc::new(VecModel::default()),
             input_chain_devices: Rc::new(RefCell::new(Vec::new())),

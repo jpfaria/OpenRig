@@ -14,7 +14,7 @@ use application::looper_take_library::TakeSaveError;
 use slint::ComponentHandle;
 
 use crate::state::ProjectSession;
-use crate::{AppWindow, LooperTake};
+use crate::LooperTake;
 
 // The dialog's `status` codes (looper_panel_globals.slint).
 pub(crate) const TAKE_SAVED: i32 = 1;
@@ -41,7 +41,12 @@ type Session = Rc<RefCell<Option<ProjectSession>>>;
 
 /// Wire the dialog's `save` to `SaveChainLooperTake`. On success the name
 /// is cleared; on a refusal it is kept so it can be fixed, not retyped.
-pub(crate) fn wire_looper_take_callbacks(window: &AppWindow, session: &Session) {
+/// #1022: the main window and the compact view each have their own dialog.
+pub(crate) fn wire_looper_take_callbacks<W>(window: &W, session: &Session)
+where
+    W: ComponentHandle + 'static,
+    for<'a> LooperTake<'a>: slint::Global<'a, W>,
+{
     let session = session.clone();
     let window_weak = window.as_weak();
     window

@@ -35,6 +35,8 @@ pub(crate) struct ChainWiringDeps<'a> {
     pub audio_taps: Rc<dyn AudioTaps>,
     /// #127: the blocks' diagnostic-stream read seam.
     pub block_stream_reads: Rc<dyn LiveSource>,
+    /// #1022: the loopers' live read seam, for the compact view's waveform editor.
+    pub looper_live: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
 
@@ -76,6 +78,7 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             project_session: deps.project_session.clone(),
             audio_taps: Rc::clone(&deps.audio_taps),
             block_stream_reads: Rc::clone(&deps.block_stream_reads),
+            looper_live: Rc::clone(&deps.looper_live),
             project_chains: deps.project_chains.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
