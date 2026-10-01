@@ -31,12 +31,12 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 
 ## LEI — PROIBIDO supor/inventar layout de UI; renderize e confira
 
-É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `ui-ux-pro-max` (design/UX) + `slint:slint` (plugin slint@slint) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
+É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `claude-plugin:ux-ui` (design/UX) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
 
 **O agente RENDERIZA e confere** — não chuta:
 - Use o renderizador headless do projeto: `tools/slint-render` (slint-interpreter → PNG, fora do workspace). Build: `cargo build --release --manifest-path tools/slint-render/Cargo.toml`. Uso: `slint-render <arquivo.slint> <Componente> <out.png> [w] [h]`. Para componentes embutidos no app, faça um mockup `.slint` standalone com dados fake (root `inherits Window`, tamanho explícito) e renderize ESSE.
 - Abra o PNG (Read) e confira alinhamento/espaçamento/hierarquia **ANTES de dizer "pronto"**. Chutar layout e mandar o usuário testar é **anti-padrão proibido** (já queimou um dia inteiro de tokens entregando telas tortas).
-- Tocou/criou tela → invocar `ui-ux-pro-max` + `slint:slint` **ANTES da primeira linha de `.slint`**.
+- Tocou/criou tela → invocar `claude-plugin:ux-ui` + `slint-best-practices` **ANTES da primeira linha de `.slint`**.
 - **AUTO-CRÍTICA obrigatória antes de mostrar o PNG** — rode o checklist e CORRIJA você mesmo; NÃO entregue cru esperando o usuário catar o básico (ele não é designer):
   - Hierarquia clara (tamanho/peso, não tudo igual).
   - Cor semântica: estados/categorias distintos com cor+significado (ex.: mono/estéreo badges de cores diferentes), não tudo cinza.

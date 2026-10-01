@@ -20,7 +20,7 @@ Sources:
 
 **Why:** invocar só a de Slint produz tela que compila e renderiza, mas com decisão visual inventada por mim — exatamente o que a LEI de UI/Slint do `CLAUDE.md` proíbe ("PROIBIDO supor/inventar layout"). Já aconteceu: overlay inteiro construído com `slint-best-practices` só, sem a skill de UX.
 
-**How to apply:** trabalho de tela → `claude-plugin:ux-ui` + `slint:slint` + esta skill, ANTES da primeira linha; depois renderize com `tools/slint-render` e confira o PNG antes de dizer "pronto".
+**How to apply:** trabalho de tela → `claude-plugin:ux-ui` + esta skill, ANTES da primeira linha; depois renderize com `tools/slint-render` e confira o PNG antes de dizer "pronto".
 
 Princípios gerais de UI (responsividade, separação business/presentation, zero coupling) vivem em `openrig-code-quality`. As regras Slint-específicas do projeto:
 
