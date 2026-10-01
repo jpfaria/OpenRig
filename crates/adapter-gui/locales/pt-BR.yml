@@ -113,7 +113,6 @@ label-metronome-timbre-beep: "Bipe"
 # --- #328 chain split graph
 label-endpoints-none: "Nenhuma"
 confirm-remove-split-name: "Split (+ %{n} blocos nos outros caminhos)"
-confirm-remove-path-name: "Caminho %{path} (+ %{n} blocos)"
 error-graph-action: "Não foi possível aplicar a mudança: %{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "Caminhos somados por um mixer"

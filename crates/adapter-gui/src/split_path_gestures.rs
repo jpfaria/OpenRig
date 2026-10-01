@@ -18,7 +18,7 @@ use crate::chain_block_lists::split_by_id;
 pub(crate) enum RemovePathRequest {
     /// The path is empty: dispatch at once.
     Direct(Command),
-    /// The path holds blocks: confirm first, naming the path in the dialog.
+    /// The path holds blocks: confirm first, naming the path by its letter.
     Confirm { command: Command, name: String },
 }
 
@@ -51,13 +51,10 @@ pub(crate) fn remove_path_request(
     if blocks == 0 {
         return Some(RemovePathRequest::Direct(command));
     }
-    let name = rust_i18n::t!(
-        "confirm-remove-path-name",
-        path = path_letter(path),
-        n = blocks
-    )
-    .to_string();
-    Some(RemovePathRequest::Confirm { command, name })
+    Some(RemovePathRequest::Confirm {
+        command,
+        name: path_letter(path),
+    })
 }
 
 /// The letters of the paths of split `split_id` (A, B, …), empty when the

@@ -65,10 +65,22 @@ fn a_path_with_blocks_asks_first_and_names_it() {
     match remove_path_request(&three_path_chain(), &id("y"), 0) {
         Some(RemovePathRequest::Confirm { command, name }) => {
             assert_eq!(removed_path(&command), (id("y"), 0));
-            assert!(
-                name.contains('A') && name.contains('2'),
-                "the dialog names path A and its 2 blocks, got {name:?}"
-            );
+            assert_eq!(name, "A", "the dialog names the path by its letter alone");
+        }
+        other => panic!("expected a confirmation, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_path_with_one_block_is_named_by_its_letter_alone() {
+    let chain = chain(vec![split_paths(
+        "y",
+        SplitEnd::Y,
+        vec![vec![core("a1")], vec![], vec![]],
+    )]);
+    match remove_path_request(&chain, &id("y"), 0) {
+        Some(RemovePathRequest::Confirm { name, .. }) => {
+            assert_eq!(name, "A", "no block count, so no \"1 blocks\"");
         }
         other => panic!("expected a confirmation, got {other:?}"),
     }

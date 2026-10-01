@@ -101,7 +101,6 @@ label-metronome-timbre-beep: "Bip"
 # --- #328 chain split graph
 label-endpoints-none: "Aucune"
 confirm-remove-split-name: "Split (+ %{n} blocs des autres chemins)"
-confirm-remove-path-name: "Chemin %{path} (+ %{n} blocs)"
 error-graph-action: "Impossible d'appliquer la modification : %{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "Chemins additionnés par un mixeur"

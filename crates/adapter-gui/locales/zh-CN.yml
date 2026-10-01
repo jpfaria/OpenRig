@@ -101,7 +101,6 @@ label-metronome-timbre-beep: "蜂鸣"
 # --- #328 chain split graph
 label-endpoints-none: "无"
 confirm-remove-split-name: "分路（+ 其他路径中的 %{n} 个模块）"
-confirm-remove-path-name: "路径 %{path}（+ %{n} 个模块）"
 error-graph-action: "无法应用更改：%{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "多条路径由混音器合并"
