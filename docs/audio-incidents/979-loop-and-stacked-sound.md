@@ -2,8 +2,8 @@
 
 Status: **FIX IN PROGRESS on `bug/issue-979`** (now on release/v0.6.0) — the
 2026-09-30 returns are the HD 8 input itself arriving stepped for every client
-until the chain restarts (H27/H28); the automatic restart (fix 2) is in
-progress and the workgroup fix (fix 1) is on hold until a hardware red
+until the chain restarts (H27/H28); the automatic restart (fix 2) is on the
+branch, waiting for the rig, and the workgroup fix (fix 1) is on hold until a hardware red
 reproduces the step (see "code recon" below). The earlier insert fixes
 (stacked sound, chain volume twice, scene-edit click) are on the branch.
 Issue: https://github.com/jpfaria/OpenRig/issues/979 · Branch: `bug/issue-979`
@@ -197,6 +197,32 @@ device sits in the HD 8 path (the fractional jump).
    edge for about 1 s with signal present, restart that chain's streams
    automatically: the same thing the owner's toggle does, which H28 measured
    as the cure. Automatic recovery, like `reconnect_audio`, not a `Command`.
+
+**Fix 2 as built.**
+
+- Measure: per input channel, the mean |3rd difference| at each phase of the
+  buffer, folded at the buffer length; ratio = max / median phase. The
+  recorded broken In 1 (`engine/tests/fixtures/issue_979/in1_*.f32`) reads
+  107–186; the clean takes read 1.1–1.3.
+- Detector (`engine/src/input_seam_detector.rs`): 0.25 s windows, a window
+  counts only with signal above 1e-9, stepped when the ratio is above 5; four
+  stepped windows in a row (1 s) trip it, and it stays tripped. A buffer lost
+  to a busy lock is a `discontinuity()`, not a seam.
+- Engine (`runtime_input_seams.rs`): one detector per input channel of each
+  input runtime; a trip sets `ChainRuntimeState::input_stepped`. Only a
+  rebuilt runtime starts clear. No allocation on the audio thread.
+- Controller (`infra-cpal/src/controller_stepped_restart.rs`):
+  `stepped_input_chains` lists the chains whose runtime tripped;
+  `restart_chain_streams` does the toggle — `kill_chain_streams`, then the
+  same activation as switching the chain on. A chain that is off is left alone.
+- GUI (`adapter-gui/src/stepped_input_tick.rs`): the 2 s health tick restarts
+  each stepped chain and then leaves it alone for 30 s (15 ticks), per chain,
+  so a restart that does not cure it never cuts the sound every 2 s and one
+  chain's wait never delays another. The meters follow the new runtime by its
+  identity (#957).
+- Pinned by: `input_seam_detector` tests, `issue_979_input_seam_runtime_tests`,
+  infra-cpal `issue_979_stepped_restart_tests` (×5), adapter-gui
+  `stepped_input_tick` tests (×6).
 
 
 ## Shipped

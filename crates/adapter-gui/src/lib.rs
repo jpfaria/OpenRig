@@ -169,6 +169,7 @@ mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
+mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
