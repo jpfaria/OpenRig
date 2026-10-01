@@ -307,3 +307,33 @@ fn without_loopers_the_di_tab_stays() {
     click_at(&w, &visible(&w, "MixerStripView::fader-ta")[0]);
     assert_eq!(*hits.borrow(), vec!["di".to_string()]);
 }
+
+#[test]
+fn every_fader_has_its_own_reset() {
+    let w = window(vec![row("in:0@d", true)], vec![]);
+    let hits = Rc::new(RefCell::new(Vec::<String>::new()));
+    let h = hits.clone();
+    MixerBridge::get(&w).on_fader_reset(move |id| h.borrow_mut().push(format!("global {id}")));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_chain_fader_reset(move |id| h.borrow_mut().push(format!("chain {id}")));
+    let h = hits.clone();
+    ChainMixerBridge::get(&w)
+        .on_single_fader_reset(move |id| h.borrow_mut().push(format!("single {id}")));
+    let resets = visible(&w, "MixerStripView::reset-ta");
+    assert_eq!(resets.len(), 2, "the global fader and the chain fader");
+    click_at(&w, &resets[0]);
+    click_at(&w, &resets[1]);
+    open_tab(&w, LOOPER_TAB);
+    let resets = visible(&w, "MixerStripView::reset-ta");
+    assert_eq!(resets.len(), 2, "one per looper");
+    click_at(&w, &resets[1]);
+    assert_eq!(
+        *hits.borrow(),
+        vec![
+            "global in:0@d".to_string(),
+            "chain in:0@d".to_string(),
+            "single looper:9".to_string()
+        ]
+    );
+}

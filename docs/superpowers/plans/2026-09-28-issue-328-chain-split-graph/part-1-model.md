@@ -100,7 +100,7 @@
 | `crates/adapter-gui/src/chain_editor.rs` | Modify (T10: edit mode keeps the checklists, #826 class) | holds the chain editor draft | 136 |
 | ~46 `RigInput { … }` literal sites (T9), ~340 `Chain { … }` literal sites in ~273 files (T10) | Modify (sweep) | add the new field only | — |
 | Tests (all new): `crates/project/tests/issue_328_split_params.rs`, `issue_328_split_block.rs`, `issue_328_split_rules.rs`, `issue_328_split_walkers.rs`, `issue_328_split_write_back.rs`, `issue_328_endpoint_disables.rs`, `issue_328_endpoint_disables_capture.rs`, `issue_328_endpoint_discovery.rs`; `crates/infra-yaml/tests/issue_328_split_yaml.rs`, `issue_328_endpoint_disables_yaml.rs`; `crates/engine/tests/issue_328_endpoint_disables.rs`; `crates/application/src/issue_328_split_preset_switch_tests.rs`; one test added to `crates/infra-cpal/src/io_topology_tests.rs` and one to `crates/adapter-gui/src/chain_editor_tests.rs` | Create/Modify | — | — |
-| `docs/blocks-catalog.md` (T1,T4), `docs/projects/project-format.md` (T3,T4,T7,T9), `docs/audio-config.md` (T11) | Modify | — | 154 / 244 / 1023 |
+| `docs/blocks-catalog.md` (T1,T4), `docs/projects/project-openrig-format.md` (T3,T4,T7,T9), `docs/audio-config.md` (T11) | Modify | — | 154 / 244 / 1023 |
 
 **Exhaustive `match` on `AudioBlockKind` (grep of every `Kind::Insert(` site, production and tests) — each gets a `Split` arm in Task 2 (Task 3 for the YAML ones):**
 
@@ -1063,7 +1063,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 1 T2 pushed (<hash>): A
 - Modify: `crates/infra-yaml/src/lib.rs:15` (add `mod block_yaml_split;` after `mod block_yaml_save;`)
 - Modify: `crates/infra-yaml/src/project_file.rs:11,33-58`
 - Modify: `crates/infra-yaml/src/preset_yaml.rs:34-41,122`
-- Modify: `docs/projects/project-format.md` (model table, new section, versioning section)
+- Modify: `docs/projects/project-openrig-format.md` (model table, new section, versioning section)
 - Test: `crates/infra-yaml/tests/issue_328_split_yaml.rs`
 
 **Interfaces:**
@@ -1607,7 +1607,7 @@ Expected: `issue_328_split_yaml` 6 passed; `project_file_tests::serialize_writes
 
 - [ ] **Step 6: Document the format**
 
-In `docs/projects/project-format.md`:
+In `docs/projects/project-openrig-format.md`:
 - add to the Model table after the `presets.<name>` row:
 
 ```markdown
@@ -1639,7 +1639,7 @@ instead of failing inside serde:
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/format_version.rs crates/project/src/lib.rs crates/project/src/rig.rs crates/project/src/block/path_ref.rs crates/infra-yaml/src/block_yaml_split.rs crates/infra-yaml/src/block_yaml.rs crates/infra-yaml/src/block_yaml_load.rs crates/infra-yaml/src/lib.rs crates/infra-yaml/src/project_file.rs crates/infra-yaml/src/preset_yaml.rs crates/infra-yaml/tests/issue_328_split_yaml.rs docs/projects/project-format.md
+git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/format_version.rs crates/project/src/lib.rs crates/project/src/rig.rs crates/project/src/block/path_ref.rs crates/infra-yaml/src/block_yaml_split.rs crates/infra-yaml/src/block_yaml.rs crates/infra-yaml/src/block_yaml_load.rs crates/infra-yaml/src/lib.rs crates/infra-yaml/src/project_file.rs crates/infra-yaml/src/preset_yaml.rs crates/infra-yaml/tests/issue_328_split_yaml.rs docs/projects/project-openrig-format.md
 git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 commit -m "feat(#328): persist the split, version 2 only when a document holds one"
 ```
 
@@ -1661,7 +1661,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 1 T3 pushed (<hash>): !
 - Modify: `crates/project/src/block/audio_block_methods.rs` (Split arm of `validate_params`)
 - Modify: `crates/project/src/block/select_block_methods.rs:25-36`
 - Modify: `crates/project/src/rig_validate.rs:9-21` (doc) and after line 86
-- Modify: `docs/blocks-catalog.md` (Chain split section), `docs/projects/project-format.md` (Validation list)
+- Modify: `docs/blocks-catalog.md` (Chain split section), `docs/projects/project-openrig-format.md` (Validation list)
 - Test: `crates/project/tests/issue_328_split_rules.rs`
 
 **Interfaces:**
@@ -2082,7 +2082,7 @@ In `docs/blocks-catalog.md`, at the end of the "## Chain split (#328)" section a
 Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): at most one split per chain; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split.
 ```
 
-In `docs/projects/project-format.md`, add to the "## Validation" list after item 6:
+In `docs/projects/project-openrig-format.md`, add to the "## Validation" list after item 6:
 
 ```markdown
 7. a preset breaking the split rules of #328: two splits, a split/select/input/output/insert inside a path, or anything but a port after a Y split.
@@ -2091,7 +2091,7 @@ In `docs/projects/project-format.md`, add to the "## Validation" list after item
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/block/split_block_methods.rs crates/project/src/block/mod.rs crates/project/src/block/audio_block_methods.rs crates/project/src/block/select_block_methods.rs crates/project/src/rig_validate.rs crates/project/tests/issue_328_split_rules.rs docs/blocks-catalog.md docs/projects/project-format.md
+git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/block/split_block_methods.rs crates/project/src/block/mod.rs crates/project/src/block/audio_block_methods.rs crates/project/src/block/select_block_methods.rs crates/project/src/rig_validate.rs crates/project/tests/issue_328_split_rules.rs docs/blocks-catalog.md docs/projects/project-openrig-format.md
 git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 commit -m "feat(#328): enforce the split rules on blocks, selects and rigs"
 ```
 
@@ -2710,7 +2710,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 1 T6 pushed (<hash>): b
 **Files:**
 - Modify: `crates/project/src/rig_write_back.rs:5,39-44,53,75-79,113-127`
 - Modify: `crates/project/src/rig_model_swap.rs` (whole body after line 9)
-- Modify: `docs/projects/project-format.md` ("### Chain split (#328)" section)
+- Modify: `docs/projects/project-openrig-format.md` ("### Chain split (#328)" section)
 - Test: `crates/project/tests/issue_328_split_write_back.rs`
 
 **Interfaces:**
@@ -3142,7 +3142,7 @@ Expected: `issue_328_split_write_back` 5 passed; `rig_writeback_tests`, `rig_sce
 
 - [ ] **Step 5: Document**
 
-In `docs/projects/project-format.md`, at the end of "### Chain split (#328)" add:
+In `docs/projects/project-openrig-format.md`, at the end of "### Chain split (#328)" add:
 
 ```markdown
 Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide, #690). Swapping a path block's model keeps every scene (#986 applies inside paths); adding, removing or moving a block inside a path is structural and resets the scenes, like on the top level.
@@ -3151,7 +3151,7 @@ Scenes, edit capture and model swaps reach the blocks inside the paths exactly l
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/rig_write_back.rs crates/project/src/rig_model_swap.rs crates/project/tests/issue_328_split_write_back.rs docs/projects/project-format.md
+git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/rig_write_back.rs crates/project/src/rig_model_swap.rs crates/project/tests/issue_328_split_write_back.rs docs/projects/project-openrig-format.md
 git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 commit -m "feat(#328): capture edits and model swaps made inside a split"
 ```
 
@@ -3583,7 +3583,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 1 T8 pushed (<hash>): E
 - Modify: `crates/project/src/rig.rs:12-13` (import) and after line 95 (field)
 - Modify: `crates/project/src/migrate.rs:87` (`disabled_endpoints: Default::default(),` — Task 10 carries the chain's value)
 - Modify (sweep): every other `RigInput { … }` literal (~46 sites; test files listed by the compiler) — add `disabled_endpoints: Default::default(),` after the `loopers:` line
-- Modify: `docs/projects/project-format.md` (input fields)
+- Modify: `docs/projects/project-openrig-format.md` (input fields)
 - Test: `crates/infra-yaml/tests/issue_328_endpoint_disables_yaml.rs`
 
 **Interfaces:**
@@ -3705,7 +3705,7 @@ Expected: `issue_328_endpoint_disables_yaml` 1 passed; `project_file_tests` (rou
 
 - [ ] **Step 6: Document**
 
-In `docs/projects/project-format.md`, add to the Model table after the `inputs.<name>.active-scene` row:
+In `docs/projects/project-openrig-format.md`, add to the Model table after the `inputs.<name>.active-scene` row:
 
 ```markdown
 | `inputs.<name>.disabled_endpoints` | `EndpointDisables` | #328 graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |

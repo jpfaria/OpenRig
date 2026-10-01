@@ -449,6 +449,14 @@ msgstr "SOLO"
 msgid "action-mixer-mute"
 msgstr "STUMM"
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr "S"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr "Auf 0 dB zurücksetzen"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"

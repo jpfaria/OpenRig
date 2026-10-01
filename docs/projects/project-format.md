@@ -128,9 +128,9 @@ project:
 
 Each Y path feeds every output endpoint of the chain's E/S that the input's `disabled_endpoints.path_a_outputs` / `path_b_outputs` does not leave out. The two splits' path blocks keep distinct ids in every format, so they never collide.
 
-Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
+Chain preset files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
-Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide). Swapping a path block's model keeps every scene (#986 applies inside paths). Adding, removing or moving a block inside a path is a structural edit and follows the rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
+Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide). Swapping a path block's model keeps every scene. Adding, removing or moving a block inside a path is a structural edit and follows the rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
 
 ### Structural edits keep the scenes; an insert belongs to its preset
 
@@ -266,7 +266,7 @@ Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:`. A document is written with the lowest version that can
 hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
 or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
-`Split` (#328). This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
+`Split`. This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
 older build refuses a version 2 file with its "newer than this build" error
 instead of failing inside serde:
 

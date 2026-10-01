@@ -336,6 +336,11 @@ audio-thread code is touched; invariants 1–10 hold by construction.
 The events a drained command produces redraw every open surface that shows
 the project — the chains list and the compact chain view alike — so a knob
 set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen.
+A batch made only of fader steps (`set_mixer_fader`,
+`set_chain_mixer_fader`, `set_chain_di_fader`, `set_chain_volume` — what a
+control surface such as the SMC-Mixer sends while a fader travels) is the
+exception: it changes nothing those views draw, so the cards stay in place
+and only the chain volume is written onto its card.
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`
