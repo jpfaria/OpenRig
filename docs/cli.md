@@ -2,14 +2,14 @@
 
 | Argumento / Variável | Efeito |
 |---|---|
-| `openrig --project /path/project.openrig` | Abre o projeto direto, pula launcher (forma documentada do #436) |
+| `openrig --project /path/project.yaml` | Abre o projeto direto, pula launcher (forma documentada do #436) |
 | `openrig /path/project.yaml` (posicional) | Idem (forma legada, ainda aceita) |
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
 | `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
 | `OPENRIG_UPDATE_CURRENT_VERSION=0.0.1` | macOS only (#959): the launcher's update check compares the latest GitHub release against this version instead of the compiled one, so the update button can be exercised without publishing a new release. Display is unchanged. |
 | `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`), overriding config for this run. |
-| `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
+| `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.yaml`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
 | `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). A map that binds mixer strips also gets motor-fader / LED feedback on the outputs named by its `input:` (#1007, see `docs/midi.md`). |
 
 > **#712 — these flags are overrides, not the only switch.** Packaged builds launch the binary with no arguments, so MIDI/MCP enablement is driven by the per-machine `config.yaml` master switches `midi_enabled` / `mcp_enabled` (both default `false`; toggle them in Settings or by hand). A present `--midi` / `--mcp` flag forces the subsystem on for that single run regardless of config. See [`config-taxonomy.md`](config-taxonomy.md).
@@ -23,7 +23,7 @@ Precedência do `config.yaml` (#968): `--config <PATH>` > um `config.yaml` no di
 não existe → `project file not found: <path>`; não é arquivo →
 `project path is not a file: <path>`. Path inválido **não derruba o app** —
 loga o erro e cai no launcher (alinhado com `2026-04-09-cli-project-path-autosave-design.md`;
-autosave não foi reinventado). Carregar/parsear o `project.openrig` no engine
+autosave não foi reinventado). Carregar/parsear o `project.yaml` no engine
 é wiring fora do escopo do #452.
 
 Parsing em `adapter-gui/src/{cli,main,lib}.rs`.

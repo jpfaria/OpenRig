@@ -27,6 +27,36 @@ green while the owner's rig kept underrunning.
 4. **A fix is only "done" when the incident file names the test that
    reproduces the measured symptom** (real topology, real counters — see
    `docs/testing.md` → "Real-hardware battery") and that test is green.
+5. **If the symptom is happening RIGHT NOW, capture before you think.** An
+   intermittent bug gives one chance per occurrence. When the owner says "tá
+   acontecendo" / "continua o problema", the very first action is a capture of
+   the broken state while it lasts — `tools/rec` on the HD 8 inputs,
+   `openrig://routes` + `meters`, `sample <pid>` — in one parallel batch, before
+   any analysis, issue or answer. Better: start a rolling recorder plus a 0.5 s
+   MCP poller (one that survives MCP timeouts) as soon as an intermittent bug is
+   first reported, so the window is already being recorded. #979 (2026-09-24):
+   the window was spent reading one route snapshot and writing the issue, he
+   toggled the chain to clear it, and the broken state was never recorded —
+   "vc tinha que ter medido qdo te mandei o problema… agora nao adianta".
+6. **A symptom on the owner's machine can come from another agent session.**
+   Several solver sessions run test suites on the same machine all day, and a
+   test that touches per-machine state (`config.yaml`, presets) with env-based
+   isolation can leak across an async boundary and overwrite his real files —
+   the symptom then looks like an app bug. "Device settings lost on every open"
+   (#701) was exactly this: the #693 branch moved config writes to an async
+   persist worker, and `with_tmp_home` restored the real `$HOME` before the
+   queued write landed, so every test run rewrote his real config with fixtures
+   (`new_dev`, `dev_a`, `dev_b`). Before blaming a `develop` regression: read the
+   real config (fixture-looking ids are the smoking gun), compare its mtime with
+   `ps aux | grep cargo` — including hung test *binaries* that swapped `$HOME`
+   to a FIFO and never exited — hash the file, run the suspected tests, re-hash,
+   and restore his file from the snapshot immediately with a backup kept aside.
+   Structurally fixed in #731: config writes bind the path at DISPATCH time via
+   `application::app_config_persist::{persist_app_config,
+   persist_app_config_snapshot}` (plus the `*_at(path)` variants in
+   `crates/infra-filesystem/src/app_config_io.rs`), and `with_tmp_home` flushes
+   the worker before restoring `$HOME`. Any NEW config write site goes through
+   `app_config_persist`, never `persist_worker::run(|| save_app_config(...))`.
 
 ## File format
 

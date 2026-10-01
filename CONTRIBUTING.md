@@ -190,6 +190,7 @@ A new feature **does not justify** regressing the invariants above. Real conflic
 - **Single source of truth** — constants defined once, never duplicated
 - **Separation of concerns** — business logic crates have no UI/visual config
 - **No dead code** — remove unused functions, no commented-out code
+- **No issue tags in runtime logs** — never write `[#NNN]` into a `log::*` message. The module path already names the source, and the tags are noise to the owner (#771: "tem um monte de log com [#670], remove isso"). The log messages themselves are diagnostics he uses, so removing a tag means editing the string, not deleting the line or ripping out the instrumentation behind it — "eu só quero que vc tire [#670] das mensagens". Test-only `println!` may keep them. More generally: when he asks to remove something, the scope is the literal string he quoted; make the smallest possible edit and confirm.
 
 See the [openrig-code-quality skill](/.claude/skills/openrig-code-quality) for the full checklist.
 

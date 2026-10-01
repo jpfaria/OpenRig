@@ -76,8 +76,7 @@ pub struct LocalDispatcher {
     /// cleanly until that happens.
     pub(crate) presets_path: RefCell<Option<PathBuf>>,
     /// #555: target path for `Command::SaveProject`. The dispatcher
-    /// writes the `.openrig` (+ legacy `.yaml` sibling when the user-
-    /// facing path is `.yaml`) itself instead of relying on the GUI to
+    /// writes the project `.yaml` itself instead of relying on the GUI to
     /// do `fs::write`. `None` until the session attaches one — preset
     /// dispatcher tests that don't exercise project save keep working
     /// unchanged.

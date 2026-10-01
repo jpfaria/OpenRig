@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Persist VST3 parameter values changed in a plugin's native editor into the project (`.openrig`), so tweaks survive save + reload — including two blocks that reference the same plugin.
+**Goal:** Persist VST3 parameter values changed in a plugin's native editor into the project (`project.yaml`), so tweaks survive save + reload — including two blocks that reference the same plugin.
 
 **Architecture:** The native editor drives the plugin's `IEditController`, whose current normalized values are the source of truth but never reach the block's `ParameterSet`. We (1) re-key the VST3 GUI-context registry by a **per-block instance key** (the `BlockId`) instead of `model_id`, so each block owns its own controller; (2) add a `capture_vst3_params(instance_key)` read in `vst3-host`; (3) fold those live values into each block's `params` on the existing `Command::CaptureRigEdits` save path, which already runs before serialize.
 
@@ -87,7 +87,7 @@ fn capture_reads_a_native_editor_edit_and_omits_defaults() {
     let got = captured.iter().find(|(id, _)| *id == info.id)
         .expect("edited param must be captured");
     assert!((got.1 - target).abs() < 1e-3, "captured {} want {}", got.1, target);
-    // A param left at default must NOT be captured (keeps .openrig lean).
+    // A param left at default must NOT be captured (keeps project.yaml lean).
     assert!(captured.iter().all(|(_, v)| (*v - default).abs() > 1e-6 || true));
     drop(plugin);
 }

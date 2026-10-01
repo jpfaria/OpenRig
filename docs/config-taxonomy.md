@@ -6,14 +6,14 @@ page for the working rule.
 
 ## The rule
 
-> A setting belongs to **PROJECT** if the answer to *"if I send this `.openrig` to
+> A setting belongs to **PROJECT** if the answer to *"if I send this `project.yaml` to
 > another machine, does this value have to travel with it?"* is **yes**. Otherwise it
 > belongs to **SYSTEM**.
 
 - **System** → `config.yaml` in the per-OS config dir. Belongs to the installation /
   machine / user.
-- **Project** → fields inside `project.openrig` (see
-  [project format](projects/project-openrig-format.md)). Belongs to the rig / setlist
+- **Project** → fields inside `project.yaml` (see
+  [project format](projects/project-format.md)). Belongs to the rig / setlist
   and travels with the file.
 - **Precedence at load time** → project overrides system on dimensions both can
   describe.
@@ -35,13 +35,13 @@ page for the working rule.
   a folder under the OS data root (`~/Library/Application
   Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
   and is machine-local per ADR 0003 — never travels with
-  `project.openrig`.
+  `project.yaml`.
 - `input_devices` / `output_devices` — per-machine audio device defaults.
 - `midi_enabled` / `mcp_enabled` (#712) — master switches for the
   MIDI/BLE-MIDI adapter and the MCP server. Both default `false`. Whether
   a given machine drives OpenRig over MIDI or exposes the MCP server is a
   per-machine call (a stage Mac wants MIDI; a CI box does not), so it lives
-  here, not in `project.openrig`. The `--midi` / `--mcp` CLI flags override
+  here, not in `project.yaml`. The `--midi` / `--mcp` CLI flags override
   these for a single run (dev convenience). Distinct from the per-port
   `midi_devices[].enabled` selection, which only picks *which* ports the
   enabled adapter listens to.
@@ -60,7 +60,7 @@ page for the working rule.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has
   no `midi:` field.
 
-### Project (`project.openrig`)
+### Project (`project.yaml`)
 
 - `inputs` / `outputs` / `presets` — the rig.
 - `device_settings` — see ADR 0001 (kept project-level for now; see ADR 0003 §
@@ -71,7 +71,7 @@ page for the working rule.
 
 | File | Layer | Contents | Resolution |
 |---|---|---|---|
-| `project.openrig` → `midi.bindings` | Project | Bindings for this rig | First |
+| `project.yaml` → `midi.bindings` | Project | Bindings for this rig | First |
 | `midi-bindings.yaml` (per-OS config dir) | System | Bindings fallback | Second |
 | `examples/midi-map.default.yaml` (shipped) | Default | Standard shipped map | Third |
 | `midi-profile.yaml` (per-OS config dir) | System | Which controller | Always |

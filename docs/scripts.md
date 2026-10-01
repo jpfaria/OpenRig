@@ -18,6 +18,33 @@
 | `scripts/install-macos-local.sh` | Dev: builda do checkout atual (via `package-macos.sh`) e instala em `/Applications` (mata instância aberta + abre). `OPENRIG_PLUGINS_DIR` repassado ao packager. `[version]` default `dev` (#774) |
 | `scripts/build-lib.sh` | Libs externas |
 
+## macOS dmg — naming and installing
+
+A local macOS build ships as `OpenRig-<ver>-macos-universal.dmg`: the version
+belongs in the filename, because these get installed side by side while
+validating a release and an unversioned file says nothing about what is in
+`/Applications`.
+
+```bash
+OPENRIG_PLUGINS_DIR=<plugins> ./scripts/package-macos.sh <ver>
+```
+
+**Bump `version` in the workspace `Cargo.toml` before building a dmg meant to
+represent a release.** The release workflow only bumps it on the tag, and the
+app renders the compiled-in `CARGO_PKG_VERSION`, so a pre-tag build otherwise
+shows the previous version on screen. The packager already ad-hoc signs
+inside-out and verifies (`codesign --sign -`); the install still strips
+quarantine.
+
+**"Cria um DMG pra eu instalar" means build it AND install it** (#921): build in
+the solver with `OPENRIG_PLUGINS_DIR` and a local version like `0.4.2-921` via
+`set_workspace_version` (reverting the manifest afterwards), then quit the app,
+mount, `rm -rf /Applications/OpenRig.app`, copy, detach, strip quarantine,
+`open -a OpenRig`, and report the installed version. Handing back a command for
+him to paste is a handoff of something the agent can execute — "pq vc nao
+executou para mim?". This is **not** a licence to replace `/Applications` when
+he did not ask for an install.
+
 ## Fluxo branch → .deb → Orange Pi
 
 ```bash

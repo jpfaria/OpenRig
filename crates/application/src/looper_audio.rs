@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Result};
 use domain::ids::ChainId;
 
-/// Folder holding a project's recorded loops: `song.openrig` → `song.loops/`.
+/// Folder holding a project's recorded loops: `song.yaml` → `song.loops/`.
 pub fn loops_dir(project_path: &Path) -> PathBuf {
     project_path.with_extension("loops")
 }
