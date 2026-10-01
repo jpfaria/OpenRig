@@ -7,7 +7,6 @@ centralmente em [`github.com/xgodev/claude-plugin`](https://github.com/xgodev/cl
 falha só quando o PR **piora** uma métrica vs `develop`; dívida preexistente
 nunca bloqueia.
 
-> Migração: issue #482 (removeu `scripts/qa.sh` + gate interno).
 > Canônico de uso/contrato: `~/.claude-plugin/docs/` após clonar.
 
 ## TL;DR
