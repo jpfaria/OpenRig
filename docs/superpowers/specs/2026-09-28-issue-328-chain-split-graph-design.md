@@ -390,11 +390,151 @@ Decided:
   stream, so isolation holds.
 - **Every sum is time-aligned.** This applies to a Mix node's inputs and to Output nodes sharing an
   output. Owner decision 5 now covers any point where edges meet.
-- **Any block kind may sit anywhere.** This includes Insert and Select. The path restrictions of
-  §1.1 and §10 are gone.
+- **Select may sit in a path.** `Input` and `Output` stay out of paths, because they are the chain's
+  own ports. `Insert` also stays out of paths: an insert is a send/return boundary, meaning its return
+  is a separate input stream. Inside a Mix path, the return would have to be summed with the other
+  paths in our code, and that is cross-stream mixing (LAW ZERO).
 - **A split opens N paths.** It starts with two, and a "+ path" control on the split adds as many
   more as the user wants. A path can also be removed down to two. The model widens from
   `SplitBlock{end, a, b}` to `SplitBlock{end, paths: Vec<Vec<AudioBlock>>}`. `PathRef` names a
   path by index instead of `A`/`B`. A Split Mix's mixer carries level, pan and polarity per path.
   A split may still sit inside a path, at any depth. A Y still ends the list it sits in, because
   its paths end at outputs.
+
+Approved by the owner in chat on 2026-10-01 ("sim").
+
+### 11.1 Model (`crates/project`)
+
+```rust
+pub struct SplitBlock {
+    pub end: SplitEnd,                 // Mix | Y
+    pub params: ParameterSet,          // per-path knobs, see 11.2
+    pub paths: Vec<Vec<AudioBlock>>,   // len >= 2, no upper bound
+}
+pub struct PathRef { pub split: BlockId, pub path: usize }   // 0-based; the GUI shows A, B, C, …
+```
+
+- `SplitBlock::new(end)` creates two empty paths. `validate_structure` refuses fewer than two paths.
+- Rules, judged at every depth (`validate_split_layout`):
+  1. A Y ends the list it sits in. At the top level only the chain's `Input` and `Output` ports may
+     follow it.
+  2. A path holds no `Input`, `Output` or `Insert`. `Select` and `Split` are allowed.
+- There is no count limit on splits, paths or depth.
+- Every walker that visited `a` and `b` iterates `paths`: `block_walk`, `find_block_mut`,
+  `split_lookup`, `model_identity`, `apply_scene`, `write_back_processing_blocks`, the
+  `rig_projection` retain, `rig_validate`, `port_duplication`, and `project_disable_unavailable`.
+- Path block ids on disk: `<split id>::p<i>:<j>`. New blocks use `BlockId::generate_for_chain`.
+
+### 11.2 Split and mixer knobs
+
+The knobs become per path. The parameter schema of a split is generated from its path count:
+
+| Key | Meaning |
+|---|---|
+| `split_mode` | `same` \| `dual_mono` (unchanged) |
+| `level_to_<i>` | Linear gain into path `i` |
+| `balance_<i>` | Mode II source for path `i` |
+| `mix_level_<i>`, `mix_pan_<i>` | Mix only: level and pan of path `i` |
+| `mix_polarity_<i>` | Mix only: `normal` \| `invert` |
+| `mix_master`, `mix_master_sum` | Mix only (unchanged) |
+
+`<i>` is 0-based in the key. Adding a path adds its keys at their defaults. Removing a path drops its
+keys and renumbers the keys above it. The MIDI mappings and scene values that name a renumbered key
+move with it.
+
+### 11.3 Persistence and migration (`crates/infra-yaml`)
+
+- `!Split { end, params, paths }`. Format `version: 2` (unchanged rule: only when a split exists).
+- Loading `a`/`b` (the shape of this branch before §11) maps them to `paths[0]`/`paths[1]`, and
+  `*_a`/`*_b` knob keys to `*_0`/`*_1`. That shape never shipped in a tag, but the owner's test
+  projects were saved with it.
+- `disabled_endpoints`: `path_a_outputs`/`path_b_outputs` become
+  `path_outputs: Vec<{ split: BlockId, path: usize, disabled: Vec<EndpointRef> }>`, one entry per Y
+  leaf that has something disabled. The old keys load as the root Y's paths 0 and 1.
+
+### 11.4 Commands (`crates/application`)
+
+- `PathRef` changes shape in `AddBlock`, `InsertPrebuiltBlock`, `MoveBlock` and `AddSplit`.
+- New `AddSplitPath { chain, split_id }` appends an empty path.
+- New `RemoveSplitPath { chain, split_id, path }` refuses to go below two paths. The GUI asks before
+  it removes a path that holds blocks.
+- `RemoveSplit`: path 0 takes the split's place; the other paths are removed.
+- `SetChainEndpointEnabled`'s node becomes `Input | Output | PathOutput { split, path }`.
+- The MCP variant count grows by two. Each new variant gets its MCP tool.
+
+### 11.5 Engine (`crates/engine`)
+
+- **Mix, N-way.** `SplitRuntimeState` holds `paths: Vec<Vec<BlockRuntimeNode>>` and one preallocated
+  buffer per path beyond the first. The per-callback math is §4.1 applied to every path, then summed.
+  Zero allocation on the audio thread.
+- **Alignment, N-way.** Every path is delayed up to the longest path's latency. The longest path is
+  not delayed, so the chain gains no latency. Nested Mixes align inside their path first.
+- **Y leaves.** A leaf is one path of a Y that holds no further Y. The set of leaves comes from the
+  tree. Each chain output `O` gets one segment per input (unchanged). That segment runs everything on
+  the way to every leaf that feeds `O`, prunes every Y down to those leaves (`split_segment_view`), and
+  sums those leaves inside the segment, aligned. An output fed by no leaf gets no segment.
+  `SegmentPaths` becomes that leaf set, and `TailFeed::Paths` becomes a leaf list.
+- **Isolation and CPU.** Each output segment re-runs everything before its leaves. That is the
+  stream-isolation law, and it is why CPU grows with outputs. The app sets no cap.
+- `is_routing()` for a split becomes true when its subtree holds a Y.
+- `chain_structure_signature` carries the leaf set of every output.
+- Reuse and toggle (`runtime_block_reuse`, `runtime_block_toggle`) recurse the whole tree. A toggle
+  refreshes the alignment of every ancestor split.
+- Linux/JACK: every output index is served, behind the existing `cfg` guard.
+
+### 11.6 GUI (`crates/adapter-gui`)
+
+- Layout is a tree. `ChainStage::Parallel { lanes: Vec<Vec<ChainStage>> }` with N lanes.
+  `linear_chain_layout`, `insert_anchors` and `validate_stages` recurse. The app lays it out
+  automatically; no position is stored.
+- Node ids carry the split's block id: `__split_<id>`, `__merge_<id>`, `__out_<id>_<path>`.
+- `AnchorSlot` names a place by `PathRef` and index, at any depth.
+- Every "+" offers every block type plus Split Y and Split Mix. The only thing it refuses is rule 1
+  of 11.1, judged against the list the "+" sits in.
+- The split node gets a "+ path" control (`AddSplitPath`). Each lane gets a remove-path gesture
+  (`RemoveSplitPath`).
+- The mixer editor and the split editor render from the generated schema of 11.2: one group of
+  knobs per path.
+- Every Y leaf gets its own output node with the endpoint checklist (§5.3). Several leaves may check
+  the same output.
+- The graph area grows to fit. The chain row's height and width come from the laid-out tree, not a
+  lane count. Linear chains keep today's height, so the four `tests/chain_row_*.rs` stay green
+  unchanged.
+- Compact view: every split row is followed by its paths in order, each tagged A, B, C, …, nested
+  rows indented by depth. Touch view: one chip per split.
+
+### 11.7 Tests (red first)
+
+- Model: N paths, the fewer-than-two refusal, every rule at depth, Select allowed in a path, Insert
+  refused in a path, `model_identity` changing on a nested edit, and scene write-back at depth.
+- YAML: an N-path round trip, migration from `a`/`b` and from `path_a_outputs`/`path_b_outputs`.
+- Commands: `AddSplitPath`/`RemoveSplitPath`; add, move and remove at depth; the renumbering of the
+  knob keys.
+- Engine math:
+  - three paths at defaults sum to unity;
+  - per-path pan and polarity work;
+  - N-way alignment removes known offsets;
+  - a nested Mix is aligned.
+- Engine structure:
+  - one segment per output, carrying the right leaf set;
+  - two leaves on one output sum inside that output's segment;
+  - a Y nested in a Y gives three outputs;
+  - no allocation after warm-up.
+- GUI:
+  - layout of a nested tree;
+  - anchors at depth;
+  - the picker offers everything at every "+";
+  - "+ path" and remove-path gestures;
+  - an interaction test for each overlay;
+  - `slint-render` PNGs of a three-path Mix and of a Y nested in a Mix.
+
+### 11.8 Delivery
+
+One branch (`feature/issue-328`), in parts, with targeted tests per task and the CI gate once per part:
+
+1. Model, persistence and commands (11.1–11.4).
+2. Engine (11.5).
+3. GUI (11.6).
+4. Docs: `docs/blocks-catalog.md`, `docs/audio-config.md`, `docs/screens.md`,
+   `docs/gui/graph-view.md`, `docs/mcp.md`, the README in three languages, and the nine translation
+   files.
