@@ -18,7 +18,23 @@ proibido.
    Slint, que unit test não exercita), **dizer isso honestamente e parar**.
 4. **Só depois do RED**, investigar a causa — guiada pelo teste que falhou —
    e corrigir até passar (GREEN).
-5. Rodar a suíte cheia + invariantes de áudio.
+5. The full suite + audio invariants run in CI, not locally.
+
+**Two rounds per delivery, never per micro-step (#1018).** A delivery with
+several items does not compile once per item:
+
+1. Write ALL the tests of the change — no cargo.
+2. ONE round: compile + run those tests, see ALL of them fail (RED).
+3. Implement EVERYTHING — no cargo.
+4. ONE round: compile + run the same targeted tests, see them pass (GREEN).
+5. `cargo fmt --all -- --check` + `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`,
+   then ONE commit at the end, and push.
+
+No commit and no `cargo build`/`cargo test` between steps. Every `fix(`/`feat(`
+commit closes a dev-rules cycle and re-arms the gate, so committing per step
+forces a new RED (and a new compile) per step. Exception: while the owner is
+validating on his machine, a fix he is waiting for is committed and pushed
+right away.
 
 **Não investigue o código para achar a causa antes do teste existir e
 falhar.** Ler o código primeiro produz hipótese enviesada vendida como

@@ -219,7 +219,7 @@ Settings → **Connectors** → Add custom connector → URL
 use.)
 
 > `.claude/skills/` in this repo holds **developer** skills only
-> (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`).
+> (`openrig-code-quality`, `slint-best-practices`).
 > End-user skills live in the
 > [OpenRig-claude](https://github.com/jpfaria/OpenRig-claude) plugin.
 

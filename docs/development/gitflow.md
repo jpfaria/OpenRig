@@ -34,14 +34,15 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 
    A ativa é a MAIOR versão sem tag. Errei isso na #881: cortei e ia abrir PR pra `release/v0.3.0` com `v0.3.0` já taggeada e mergeada na `main`, enquanto a ativa era a `release/v0.4.0`.
    **Exceção — mudança que toca só `site/`: direto na `main`.** O Pages publica de `main` (`.github/workflows/pages.yml`, `paths: site/**`), então passar pela release e pela `develop` só atrasa a publicação. Clona `main`, commita e dá push na `main` — sem branch de issue, sem PR. Vale só enquanto o diff for exclusivamente `site/` (mais a doc da própria regra).
+   **Exceção — mudança só de doc (`*.md`, `docs/**`, `.claude/skills/**`, `CLAUDE.md`): sem PR.** Merge direto da branch da issue na release ativa, push, e em seguida release → `develop` (merge direto, push). Owner (#1018): "doc não precisa de PR".
 
 4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
 7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear `feature → release` sem o usuário pedir.
 8. **NUNCA rebase.** Sempre `git merge`, nunca `git pull --rebase`.
-9. **Quality gate só na criação do PR — NUNCA por push.** Push é direto após o commit. O gate **compartilhado** `xgodev/claude-plugin` (`~/.claude-plugin/tools/quality-gate/qg --base origin/develop` ou a skill `claude-plugin:quality-gate`) roda **uma vez, antes de `gh pr create`**, e o mesmo dispatcher roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Rodar o gate a cada push arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
-10. **Push imediato após cada commit** (sem gate; o gate é só no PR).
+9. **Quality gate só no CI do PR — NUNCA local, NUNCA por push.** O gate **compartilhado** `xgodev/claude-plugin` roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Em Rust ele compila o workspace duas vezes (base + branch); rodar na máquina do dev arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
+10. **Um commit e um push por entrega, não por passo (#1018).** Cada push dispara o build do CI: 800 commits = 800 compilações. Push imediato após esse commit.
 11. **PR sempre não-interativo**, com a `--base` correta do fluxo: `feature/bugfix → release/vX.Y.Z` ativa; `release/vX.Y.Z → main`; `hotfix → main`; back-merge `main → develop`. Push a branch first, then `gh pr create --repo jpfaria/OpenRig --base <target> --head <branch> --title "…" --body "…"` — todos os campos explícitos. Sem `--title`/`--body`/`--head` (ou com a branch não pushada) o gh abre o prompt interativo e **pendura** num shell sem TTY até o timeout (~8 min). Guard-rail: `gh config set prompt disabled` (o gh erra na hora em vez de travar).
 
 ## Fechar issue

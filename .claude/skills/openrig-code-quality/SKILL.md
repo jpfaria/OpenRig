@@ -31,12 +31,12 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 
 ## LEI — PROIBIDO supor/inventar layout de UI; renderize e confira
 
-É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `ui-ux-pro-max` (design/UX) + `slint:slint` (plugin slint@slint) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
+É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `claude-plugin:ux-ui` (design/UX) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
 
 **O agente RENDERIZA e confere** — não chuta:
 - Use o renderizador headless do projeto: `tools/slint-render` (slint-interpreter → PNG, fora do workspace). Build: `cargo build --release --manifest-path tools/slint-render/Cargo.toml`. Uso: `slint-render <arquivo.slint> <Componente> <out.png> [w] [h]`. Para componentes embutidos no app, faça um mockup `.slint` standalone com dados fake (root `inherits Window`, tamanho explícito) e renderize ESSE.
 - Abra o PNG (Read) e confira alinhamento/espaçamento/hierarquia **ANTES de dizer "pronto"**. Chutar layout e mandar o usuário testar é **anti-padrão proibido** (já queimou um dia inteiro de tokens entregando telas tortas).
-- Tocou/criou tela → invocar `ui-ux-pro-max` + `slint:slint` **ANTES da primeira linha de `.slint`**.
+- Tocou/criou tela → invocar `claude-plugin:ux-ui` + `slint-best-practices` **ANTES da primeira linha de `.slint`**.
 - **AUTO-CRÍTICA obrigatória antes de mostrar o PNG** — rode o checklist e CORRIJA você mesmo; NÃO entregue cru esperando o usuário catar o básico (ele não é designer):
   - Hierarquia clara (tamanho/peso, não tudo igual).
   - Cor semântica: estados/categorias distintos com cor+significado (ex.: mono/estéreo badges de cores diferentes), não tudo cinza.
@@ -138,7 +138,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. 
 
 **How to apply (OpenRig-specific):**
 - Renomeou modelo/parâmetro/effect_type? → grep cross-repo em `docs/**`, `*.md`, `README*`, `CLAUDE.md`, todos `.claude/skills/*/SKILL.md`.
-- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `rust-best-practices`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
+- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
 - Mudou invariante (latência, isolation, mixing)? → `CLAUDE.md` + `docs/architecture.md`.
 - README atualizado em uma língua sem as outras duas é regressão — [[feedback_readme_three_languages]].
 
@@ -265,7 +265,7 @@ exceção pra "é só visual".
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
 2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
-3. **Do NOT run the full suite locally** (`cargo test --workspace`, `./scripts/patch-coverage.sh`): the PR's CI runs the tests and Codecov (owner decision, #827). Locally: no `cargo build` and no `cargo test` at all (owner decision) — only `cargo fmt --all -- --check` and the static `validate.sh`; CI compiles and tests.
+3. **Do NOT run the full suite locally** (`cargo test --workspace`, `./scripts/patch-coverage.sh`): the PR's CI runs the tests and Codecov (owner decision, #827). Locally, cargo runs only in the two red-first rounds (all tests → one RED round → implement everything → one GREEN round, targeted tests only; `docs/testing.md`, #1018), then `cargo fmt --all -- --check` + the static `validate.sh` and ONE commit at the end. No cargo and no commit per step; CI compiles and tests the workspace.
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
 6. **Quality gate compartilhado** — NÃO rodar localmente. Em Rust o gate compila o workspace duas vezes (base + branch) e é inviável na máquina do dev; ele roda no CI, no job `quality-gate` do `.github/workflows/pr.yml`, quando o PR abre. O veredito verde/vermelho vem de lá.
