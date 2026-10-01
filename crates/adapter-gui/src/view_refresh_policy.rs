@@ -1,6 +1,6 @@
 //! Responsibility: decides whether a drained event batch needs the chain views re-projected.
 //!
-//! #1007 — a fader moved from a control surface (SMC-Mixer through the Mackie
+//! A fader moved from a control surface (SMC-Mixer through the Mackie
 //! bridge over MCP, or a MIDI CC) arrives as one command per step of its
 //! travel. Re-projecting the chain list (a model reset) and the open compact
 //! view (a new block model) on every step tears down and rebuilds every card,

@@ -438,6 +438,14 @@ msgstr ""
 msgid "action-mixer-mute"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr ""

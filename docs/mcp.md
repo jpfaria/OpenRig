@@ -336,8 +336,7 @@ A batch made only of fader steps (`set_mixer_fader`,
 `set_chain_mixer_fader`, `set_chain_di_fader`, `set_chain_volume` — what a
 control surface such as the SMC-Mixer sends while a fader travels) is the
 exception: it changes nothing those views draw, so the cards stay in place
-and only the chain volume is written onto its card. Re-projecting them on
-every step rebuilt every card and made the screen jump.
+and only the chain volume is written onto its card.
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`

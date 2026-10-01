@@ -387,9 +387,9 @@ The input and output nodes of a chain's graph list every endpoint of the chain's
 
 - a head input is kept while the input node has it checked;
 - a tail output is kept while the chain output node has it checked — or, on a chain with Y leaves (which has no chain output node), while any leaf's output node does;
-- mid `Input`/`Output` ports (#85) are not on the checklist.
+- mid `Input`/`Output` ports are not on the checklist.
 
-The input-conflict detectors agree on it (#924): the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.yaml` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
+The input-conflict detectors agree on it: the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.yaml` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
 
 Unchecking **every** input (with no mid `Input`) or **every** output (with no
 mid `Output`) is allowed: the chain simply has nothing to play. The engine does
@@ -399,11 +399,11 @@ with no input it builds no segment at all — an insert's return must never stan
 in for the missing input.
 
 The stream layer treats such a chain as switched off: the graph, the input-tap
-claims (#716) and every activation gate read one rule,
-`engine::runtime_graph::chain_plays`. Its streams die like a switch-off (#929),
+claims and every activation gate read one rule,
+`engine::runtime_graph::chain_plays`. Its streams die like a switch-off,
 it claims no input channel another chain wants, and it never fails the
 activation of the other chains. The rig runtime (`RigRuntime::build` /
-`enable_input`) reads the same rule, so its tap detector agrees (#924).
+`enable_input`) reads the same rule, so its tap detector agrees.
 
 In the chains screen (desktop), clicking a chain graph's input node — or its output node, or on a
 chain with Y leaves a leaf's own output node — opens this checklist as a root-level panel: every input (or
@@ -424,7 +424,7 @@ the leaves whose output node has `O` checked — its `ChainSegment.paths`
 (`segment_paths::route_paths`, `SegmentPaths::Only(leaves)`). Every leaf on one
 output is **one** segment; they are summed inside it, time-aligned, never by
 two segments on one route. An output no leaf checks is no port, so it has no
-route and no segment. The #716 pairing is unchanged: a head input still pairs
+route and no segment. The pairing is unchanged: a head input still pairs
 only with its own E/S's outputs, so a leaf can only reach outputs of the E/S
 whose input feeds it.
 
@@ -444,14 +444,14 @@ own knobs (mode, level into each path, balance) apply; its mixer knobs are
 ignored, since a Y has no mixer. A bypassed Y passes the signal once to every
 checked output. An offline render (no per-output routing) hears every leaf.
 
-A route's convolution cushion (#592/#965) counts only the paths its segment
+A route's convolution cushion counts only the paths its segment
 runs: another leaf's cab does not deepen the cushion — and so the latency — of
 an output it does not feed.
 
 `chain_structure_signature` carries each output's leaf set, so checking or
 unchecking a leaf on an output that stays open is a structural edit: the chain
-gets brand-new streams (#881), never an in-place knob-style rebuild. On
-Linux/JACK the structure signature is not consulted (#672); there the edit is
+gets brand-new streams, never an in-place knob-style rebuild. On
+Linux/JACK the structure signature is not consulted; there the edit is
 an in-place rebuild, which already runs the new leaf sets.
 
 **Splits before and around a Y.** A Mix may sit before a Y, inside a Y path, or

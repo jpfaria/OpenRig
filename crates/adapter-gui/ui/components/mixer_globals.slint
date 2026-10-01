@@ -1,5 +1,5 @@
 // Responsibility: carries the global mixer panel state.
-// #1007 — like `MetronomeBridge`, the panel renders in two places (the
+// Like `MetronomeBridge`, the panel renders in two places (the
 // standalone `MixerWindow` and inline in fullscreen/touch), so its state lives
 // on one global the wiring fills per window instead of threading it through
 // `AppWindow → DesktopMain/TouchMain`.
@@ -34,7 +34,7 @@ export global MixerBridge {
     callback close-mixer();
     // The fader moved to `position` (0..1); Rust maps it to dB.
     callback fader-moved(string, float);
-    // Double-click on the fader: back to unity.
+    // Double-click on the fader or its reset button: back to unity.
     callback fader-reset(string);
     callback mute-toggled(string);
     callback solo-toggled(string);

@@ -59,10 +59,10 @@ project:
 | `inputs.<name>.bank` | `BTreeMap<usize, String>` | index → preset name; gaps allowed |
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
-| `inputs.<name>.disabled_endpoints` | `EndpointDisables` | #328 graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |
+| `inputs.<name>.disabled_endpoints` | `EndpointDisables` | Graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
-| `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | chain split: `{ end: mix \| y, params, a: [blocks], b: [blocks] }`. Path blocks are full `AudioBlock`s with their own ids. |
+| `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | Chain split: `{ end: mix \| y, params, a: [blocks], b: [blocks] }`. Path blocks are full `AudioBlock`s with their own ids. |
 | `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
 ### Edit capture: scene diff vs preset base
@@ -130,7 +130,7 @@ Each Y path feeds every output endpoint of the chain's E/S that the input's `dis
 
 Chain preset files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
-Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide, #690). Swapping a path block's model keeps every scene (#986 applies inside paths). Adding, removing or moving a block inside a path is a structural edit and follows the #986 rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
+Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide). Swapping a path block's model keeps every scene. Adding, removing or moving a block inside a path is a structural edit and follows the rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
 
 ### Structural edits keep the scenes; an insert belongs to its preset
 
@@ -163,7 +163,7 @@ and rejects:
    `InputBlock::validate_channel_conflicts` (same `(device, channel)` used by
    two sources of the same input);
 6. a `routing` target not naming an `outputs` entry;
-7. a preset breaking the split rules of #328: two Mix splits, two Y splits, a Y before a Mix, a split/select/input/output/insert inside the path of any split, or anything but a port after a Y split.
+7. a preset breaking the split rules: two Mix splits, two Y splits, a Y before a Mix, a split/select/input/output/insert inside the path of any split, or anything but a port after a Y split.
 
 Cross-input capture exclusivity is **not** validated statically: a project
 may freely hold many inputs sharing a `(device, channel)` tap (a library of
@@ -266,7 +266,7 @@ Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:`. A document is written with the lowest version that can
 hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
 or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
-`Split` (#328). This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
+`Split`. This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
 older build refuses a version 2 file with its "newer than this build" error
 instead of failing inside serde:
 
