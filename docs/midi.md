@@ -1,4 +1,4 @@
-# Control OpenRig with a MIDI controller (#22)
+# Control OpenRig with a MIDI controller
 
 You can drive OpenRig live with **any** MIDI controller — a footswitch,
 a pedalboard, a knob/fader box, an expression pedal, an iPad app. There
@@ -80,11 +80,11 @@ ids on the Chains screen (`rig:<input>` for rig chains).
 
 ## Turn it on
 
-Bindings can live in two places after #499 (see ADR 0003 for the rule):
+Bindings can live in two places (see ADR 0003 for the rule):
 
 - **Inside your project** (`project.yaml`, under `midi.bindings`) —
   travels with the rig: the same setlist behaves identically on every
-  machine. Edit via the in-app editor (#493) or by hand.
+  machine. Edit via the in-app editor or by hand.
 - **System-wide fallback** (`midi-bindings.yaml`) — used when the open
   project has no `midi:` field.
 
@@ -105,7 +105,7 @@ The recommended way to create project bindings is the **Settings screen**:
 5. Repeat for each binding. Bindings are saved to `midi.bindings` inside
    your `project.yaml` project file.
 
-Enable MIDI. Two ways (#712):
+Enable MIDI. Two ways:
 
 - **Persistent (recommended):** **Settings → System / Integrations →
   MIDI control surface**. This flips `midi_enabled` in `config.yaml` (a
@@ -135,7 +135,7 @@ silently ignores a binding.
 > | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
 > | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
 
-### Upgrading from a pre-#499 `midi-map.yaml`
+### Upgrading from a legacy `midi-map.yaml`
 
 If you already had `midi-map.yaml` in your config folder, **OpenRig
 migrates it on first launch**: the `input:` field moves to
@@ -316,7 +316,7 @@ standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
 
 ---
 
-## Global mixer strips and control surfaces (#1007)
+## Global mixer strips and control surfaces
 
 Every input and output endpoint of the machine's I/O bindings is a mixer
 strip (see `docs/screens.md` → Mixer). The strip id is the one

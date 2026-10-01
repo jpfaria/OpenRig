@@ -14,13 +14,9 @@ Reading the live instance (`openrig://project`, `//routes`, `//meters`,
 **Writing is not.** Every `set_*` / `toggle_*` lands on the rig the owner is
 playing through, right now.
 
-On 2026-08-25 the whole #873 MCP battery was run against the live rig — chains
-enabled, params changed, a chain added and removed — and the tuner and spectrum
-toggles were left in a state they had not been found in. Then `set_tuner_enabled`
-was called to win an argument and never turned off; the tuner's analyzer taps
-the audio and runs pitch detection, and minutes later: "o som está uma bosta",
-with the project closed and reopened to recover. The writes also contaminated
-the evidence — leftovers became indistinguishable from the real defect.
+A write left behind (a tuner left on taps the audio and runs pitch detection)
+changes how the rig sounds, and it contaminates the evidence: leftovers become
+indistinguishable from the real defect.
 
 **Apply:** diagnose with reads. Before any write to the running app, say what is
 about to change and why, and wait. If a write is authorized, snapshot the exact
@@ -29,7 +25,7 @@ compact view) — those are the ones that get skipped. Never write to prove a
 point; prove it with a read, a test, or the source. A failing test in
 `.solvers/issue-N/` beats touching his session at all.
 
-Two ways the restore silently fails (#938, 2026-09-14): (1) a write that returned
+Two ways the restore silently fails: (1) a write that returned
 an error ("session expired" after a restart) had still landed — after ANY error
 on a write, re-read the state before retrying, or the retry duplicates the edit;
 (2) restarting the app drops unsaved edits, so a block he had disabled comes back
@@ -39,7 +35,7 @@ only after a re-read that matches the snapshot.
 
 ## Enable the server
 
-Two ways (#712). Persistent enablement is the per-machine `mcp_enabled`
+Two ways. Persistent enablement is the per-machine `mcp_enabled`
 switch in `config.yaml` (default off), toggled from **Settings → System /
 Integrations → MCP server** — packaged builds, launched with no
 arguments, rely on this; it binds the default `127.0.0.1:4123` and takes
@@ -64,17 +60,16 @@ follow-up.
 - **Tools** — one per `Command` variant (JSON schema auto-derived from
   `application::command`; no hand-written schema). The agent adds blocks,
   changes parameters, switches presets, saves the project, etc. Includes
-  `render_chain` (`Command::RenderChain`, #576) — an offline render that
+  `render_chain` (`Command::RenderChain`) — an offline render that
   applies a chain/preset YAML to a WAV and writes the processed output
   WAV via the same `adapter-render` call site as `openrig-render`. Paths
   are local to the host; live capture stays in the binary. The tool call
   returns when the render finishes: `RenderCompleted` once the WAV exists,
-  or the render error (#938 — the bridge runs it off the frontend, so the
-  GUI tick never waits; before, the reply was an immediate `[]` and a
-  failure was never reported). See `docs/render.md`. Also includes `refresh_audio_devices`
-  (`Command::RefreshAudioDevices`, #829) — re-enumerate the interfaces
+  or the render error (the bridge runs it off the frontend, so the GUI
+  tick never waits). See `docs/render.md`. Also includes `refresh_audio_devices`
+  (`Command::RefreshAudioDevices`) — re-enumerate the interfaces
   after a USB hot-swap without touching the GUI — and the Tone Doctor
-  pair (#791): `diagnose_chain_tone`
+  pair: `diagnose_chain_tone`
   (`ToneDoctorCommand::DiagnoseChainTone` — runs the offline
   blame-by-ablation over the chain's DI, or its live input when no DI is
   loaded) and `apply_tone_doctor_fix` (`ApplyToneDoctorFix` — applies
@@ -83,16 +78,12 @@ follow-up.
   returns once accepted, and the verdict is read back from
   `openrig://chains/{chain}/tone`. See `docs/tone-doctor.md`.
 
-  Several tools only became audible over MCP in #127, because their
-  runtime half used to be applied by the GUI callback that had just
-  dispatched: `stop_project_runtime` and `close_project` stop the rig (a
-  client could START audio and had no way to silence it, and a close left
-  every stream open), `save_audio_settings` re-opens the running graph on
-  the new rate/buffer instead of only persisting the numbers,
+  Every tool applies its runtime half, not only the state:
+  `stop_project_runtime` and `close_project` stop the rig,
+  `save_audio_settings` re-opens the running graph on the new rate/buffer,
   `remove_chain` makes the deleted chain stop sounding, the looper tools
-  actually record / play / clear (from a footswitch or a client they
-  mutated nothing), and `save_project` writes the recorded loops' wav
-  sidecars, which only the GUI's own Save did before. See
+  record / play / clear, and `save_project` writes the recorded loops' wav
+  sidecars. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
 
   Split chains (#328): a split runs N paths (at least two) side by side,
@@ -151,25 +142,25 @@ follow-up.
   - `openrig://ids` — chain/block IDs (for `midi-map.yaml`). The blocks
     inside a split (#328) are listed under it as `path A`, `path B`, … rows, at any depth.
   - `openrig://meters` — per-chain peak meters (dBFS).
-  - `openrig://tuner` (#829) — live tuner readings: `running`,
+  - `openrig://tuner` — live tuner readings: `running`,
     `reference_hz`, and one row per (chain, input, channel) tap with
     `note`, `octave`, `cents`, `frequency`, `active` (JSON). The rows
     are empty and `running` is `false` while the analyzer is powered
     off — dispatch `SetTunerEnabled` first.
-  - `openrig://spectrum` (#829) — live spectrum readings: `running`,
+  - `openrig://spectrum` — live spectrum readings: `running`,
     the shared `band_hz` center frequencies, and one row per tap with
     `levels` / `peaks` (0.0..1.0 per band) (JSON). Powered on with
     `SetSpectrumEnabled`.
-  - `openrig://di` (#829) — per-chain DI loop state: `playing`, the
+  - `openrig://di` — per-chain DI loop state: `playing`, the
     playback `in_dbfs` / `out_dbfs`, and the loaded `source` (JSON).
-  - `openrig://routes` (#923) — per-output-route stream accounting: one
+  - `openrig://routes` — per-output-route stream accounting: one
     row per (chain, runtime `group`, `route`) with the device `channels`,
     the output `callbacks` served, the elastic `underruns`, and the
     `peak_dbfs` popped since the previous read, plus `fill_frames` (the
     frames queued in the route's cushion now — sibling routes that
-    disagree play the same signal apart) and `latency_trims` (#953: times
+    disagree play the same signal apart) and `latency_trims` (times
     the route shed latency a stalled output stream left behind), plus two
-    loss counters (#980): `dropped_frames` (frames the route's ring
+    loss counters: `dropped_frames` (frames the route's ring
     discarded because it was full — the output was not popping, or a late
     producer caught up; drift-guard trims are not included) and
     `input_busy_skips` (input buffers the owning runtime dropped on a failed
@@ -180,14 +171,14 @@ follow-up.
     stream owning a route ever ran and what it carried — a route with
     callbacks and level that is inaudible was lost after the engine.
     `hosted: false` with no rows when no runtime is up.
-  - `openrig://metronome` (#127) — the click: the settings the dispatcher
+  - `openrig://metronome` — the click: the settings the dispatcher
     owns (`bpm`, `beats_per_bar`, `subdivision`, `timbre`, `volume`,
     `count_in`, `output`) plus `running` and the live beat position
     (`bar`, `beat`, `tick`, `counting_in`) (JSON). Read parity for the
     metronome commands — a client that can start the click can see the
     tempo it runs at and the beat it is on. With no runtime hosted the
     position reads as beat zero rather than a fabricated one.
-  - `openrig://mixer` (#1007) — the global mixer: `strips`, one per input
+  - `openrig://mixer` — the global mixer: `strips`, one per input
     and output endpoint configured in the I/O bindings, inputs first, each
     with `id` (what the mixer tools address), `direction`
     (`input`/`output`), `name`, `device_id`, `channels`, `gain_db`
@@ -195,7 +186,7 @@ follow-up.
     `set_mixer_fader` / `set_mixer_mute` / `toggle_mixer_mute` /
     `set_mixer_solo` / `toggle_mixer_solo`. A solo silences the
     non-soloed strips of the same side; `gain_db` stays the stored fader.
-  - `openrig://chains/{chain}/mixer` (#1007) — one chain's own faders:
+  - `openrig://chains/{chain}/mixer` — one chain's own faders:
     `chain`, `di_gain_db` (its DI-loop fader) and `strips`, one per
     endpoint the chain plays through, inputs first, each with `id` (the
     global strip id), `gain_db` and `muted` (JSON). The chain fader
@@ -203,20 +194,20 @@ follow-up.
     project data. Read parity for `set_chain_mixer_fader` /
     `set_chain_mixer_mute` / `toggle_chain_mixer_mute` /
     `set_chain_di_fader`.
-  - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
+  - `openrig://chains/{chain}/latency` — measured DSP latency for
     one chain, probed at that chain input's real rate and buffer (never a
     hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used. With
     no saved per-device setting the rate comes from the frontend's
     `LiveSource::chain_sample_rate` — the running stream, or what the
     chain's own devices resolve to with the rig stopped — and only then
-    from the dispatcher's tracked engine rate (#127).
+    from the dispatcher's tracked engine rate.
   - `openrig://presets` — project preset pool (JSON).
   - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
   - `openrig://plugins` — full plugin catalog (JSON).
   - `openrig://plugins/{id}` — single plugin entry by manifest id (JSON).
     A VST3 package's manifest id (`vst3_room_reverb`) is also a valid
     `vst3` block model — it resolves to the catalog entry scanned from the
-    package's bundle (#938).
+    package's bundle.
   - `openrig://plugins/search/{query}` — case-insensitive substring
     search across `id` / `display_name` / `brand` (JSON).
   - `openrig://plugins/{id}/params` — catalog-level parameter schema
@@ -225,12 +216,12 @@ follow-up.
   - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
     parameter snapshot: schema **plus** `current_value` per parameter
     (JSON, wrapped under a `params` envelope). A block inside a split
-    path (#328) is addressed by its id like any other. Unknown chain /
+    path is addressed by its id like any other. Unknown chain /
     block → error from the bridge.
-  - `openrig://chains/{chain}/quality` (#791) — objective quality
+  - `openrig://chains/{chain}/quality` — objective quality
     report for one chain (THD+N, noise floor, peak/RMS level, dynamic
     range, clipping) under a `quality` envelope (JSON).
-  - `openrig://chains/{chain}/tone` (#791) — the chain's last Tone
+  - `openrig://chains/{chain}/tone` — the chain's last Tone
     Doctor run: `state` (`idle` / `running` / `ok` / `failed`), `error`
     (why it failed), and `tone` — the verdict: `symptom`, `severity`,
     `culprit` (block id) + `culprit_label`, the `fizz`/`mud`/`boom`/
@@ -239,22 +230,22 @@ follow-up.
     suggested, optional `enable_path`). `diagnose_chain_tone` returns
     as soon as the run is accepted, so poll this until `state` leaves
     `running`.
-  - `openrig://chains/{chain}/loopers` (#323) — one chain's loopers: the
+  - `openrig://chains/{chain}/loopers` — one chain's loopers: the
     persisted parameters (`mix`, `decay`, `speed`, `reverse`) merged with
     the live transport state (`state`, `position_frames`, `len_frames`,
     `length_seconds`, `layers`), plus the chain's live `sample_rate` —
     frame counts mean nothing without the rate they were counted at, and
-    it is never a hardcoded 48 kHz (#669/#723). A stopped rig answers the
+    it is never a hardcoded 48 kHz. A stopped rig answers the
     chain's persisted shape with empty statuses; a chain whose rate cannot
     be resolved reports that failure instead of a fabricated number.
-  - `openrig://paths` (#582) — effective resolved system paths
+  - `openrig://paths` — effective resolved system paths
     (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
     as a JSON object. Every value is an absolute path: when the user
     has not set an override in `config.yaml`, the resource returns the
     OS default a consumer would compute itself. Skills (e.g.
     `openrig-tone-analyzer`) read this instead of hard-coding
     `~/Library/Application Support/OpenRig/…`.
-    `looper_takes_path` (#827) is the app-wide looper take library: a
+    `looper_takes_path` is the app-wide looper take library: a
     take saved with `save_chain_looper_take` lands there as
     `<name>.wav`, and handing that path to `set_chain_di_loop_source`
     as `{"File": "<path>"}` plays it on any chain's DI.
@@ -340,13 +331,13 @@ each tick on the frontend thread — the same path GUI callbacks use. No
 audio-thread code is touched; invariants 1–10 hold by construction.
 The events a drained command produces redraw every open surface that shows
 the project — the chains list and the compact chain view alike — so a knob
-set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen
-(#999). A batch made only of fader steps (`set_mixer_fader`,
+set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen.
+A batch made only of fader steps (`set_mixer_fader`,
 `set_chain_mixer_fader`, `set_chain_di_fader`, `set_chain_volume` — what a
 control surface such as the SMC-Mixer sends while a fader travels) is the
 exception: it changes nothing those views draw, so the cards stay in place
 and only the chain volume is written onto its card. Re-projecting them on
-every step rebuilt every card and made the screen jump (#1007).
+every step rebuilt every card and made the screen jump.
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`
