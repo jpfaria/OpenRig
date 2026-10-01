@@ -1,8 +1,8 @@
 // Responsibility: renders one chain card's header bar.
 //
 // The power switch, the title with its preset/scene picker, the rig-nav
-// arrows and the chain action toolbar (probe latency, save preset, configure,
-// compact view, move, remove). #591: tapping empty header space selects the
+// arrows and the chain action toolbar (mixer, meters, looper, probe latency,
+// configure, compact view, move, remove). #591: tapping empty header space selects the
 // chain as the footswitch's active chain.
 
 import { ProjectChainItem, ChainRigNav } from "../models.slint";
@@ -13,6 +13,7 @@ import { ChainVolumeButton } from "../components/chain_volume_button.slint";
 import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
 import { ChainLooperButton } from "../components/chain_looper_button.slint";
 import { ChainMetersButton } from "../components/chain_meters_button.slint";
+import { ChainMixerButton } from "../components/chain_mixer_button.slint";
 import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
 
 export component ChainRowHeader inherits Rectangle {
@@ -107,10 +108,10 @@ export component ChainRowHeader inherits Rectangle {
         // Preset open/save moved into this component, so the
         // chain-action cluster on the right needs ~80px less.
         // Title area now reaches further across the row.
-        // #323: the looper button joined the cluster at -372px, so the
-        // title stops 32px earlier and never runs under it; #1007: the
-        // meters button at -404px moves it another 32px.
-        width: parent.width - 72px - 316px;
+        // #1007: it ends 8px short of the action cluster's left end (the
+        // meters button at -436px), so its title elides instead of the
+        // row running under the cluster.
+        width: parent.width - 72px - 444px;
         height: 40px;
         title: root.chain.title;
         nav: root.rig-nav;
@@ -146,13 +147,16 @@ export component ChainRowHeader inherits Rectangle {
 
     // #791: Tone Doctor trigger (stethoscope), left of the DI fone.
     ChainToneDoctorButton { x: parent.width - 340px; y: 12px; chain-index: root.chain-index; }
-    // #1007: IN / OUT meters trigger — only a running chain has live levels.
+    // #1007: IN / OUT meters trigger — only a running chain has live levels,
+    // so it sits at the cluster's left end where its absence leaves no gap.
     if root.chain.enabled : ChainMetersButton {
-        x: parent.width - 404px;
+        x: parent.width - 436px;
         y: 12px;
         shown: root.chain.meters_expanded;
         toggled(shown) => { root.meters-toggled(shown); }
     }
+    // #1007: this chain's mixer, opened over the chain list.
+    ChainMixerButton { x: parent.width - 404px; y: 12px; chain-index: root.chain-index; }
     // #323: looper trigger — opens the looper panel (root overlay).
     ChainLooperButton {
         x: parent.width - 372px;

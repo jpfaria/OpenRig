@@ -1,8 +1,9 @@
 //! Responsibility: dispatches the chain callback wirings at startup.
 //! Chain-level callback wirings dispatched from `run_desktop_app`.
 //!
-//! Three `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:
-//! Chain CRUD, the compact chain view entry, and chain name edit. Pulled out
+//! Four `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:
+//! Chain CRUD, the compact chain view entry, chain name edit and the chain
+//! list's mixer overlay. Pulled out
 //! of `desktop_app.rs` to land that file under the 600-line cap. Same `&deps`
 //! pattern as `desktop_app_block_wiring` — callbacks clone the `Rc` handles
 //! they need at registration time.
@@ -88,4 +89,11 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
     );
     // --- Chain name edit callback (extracted to chain_name_wiring) ---
     crate::chain_name_wiring::wire(deps.window, deps.chain_draft.clone());
+    // --- #1007: a chain card's mixer, opened over the chain list ---
+    crate::chain_mixer_panel_wiring::wire(
+        deps.window,
+        deps.project_session.clone(),
+        deps.saved_project_snapshot.clone(),
+        deps.project_dirty.clone(),
+    );
 }

@@ -616,6 +616,10 @@ msgstr ""
 msgid "tooltip-measure-latency"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/chain_mixer_button.slint:41
+msgid "tooltip-chain-mixer"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/chain_row_header.slint:207
 msgid "tooltip-configure"
 msgstr ""
