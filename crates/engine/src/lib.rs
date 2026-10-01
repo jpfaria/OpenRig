@@ -109,6 +109,7 @@ pub mod tone_doctor;
 pub mod tone_doctor_fix;
 pub mod tone_doctor_suggestion;
 pub mod tone_profile_table;
+pub mod worker_rt_policy;
 pub use di_loop::{DiFrame, DiLoop, DiPcm};
 pub use loop_pcm::LoopPcm;
 pub use looper::{LooperSlot, LooperSpeed, LooperState, LOOPER_MAX_LAYERS};

@@ -42,7 +42,6 @@ fn chain(id: &str, enabled: bool) -> Chain {
         loopers: vec![],
         disabled_endpoints: Default::default(),
         mix: Default::default(),
-        disabled_endpoints: Default::default(),
     }
 }
 
@@ -87,6 +86,7 @@ fn controller() -> ProjectRuntimeController {
         streams: Default::default(),
         stream_generation: 0,
         sample_rate: 44_100,
+        device_settings: Vec::new(),
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),

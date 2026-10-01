@@ -5,12 +5,14 @@ use domain::ids::BlockId;
 use crate::runtime_audio_frame::AudioFrame;
 use crate::runtime_split::align::{align_delay, AlignDelay, MAX_ALIGN_SAMPLES};
 use crate::runtime_split::knobs::SplitKnobs;
+use crate::runtime_split::lanes::PathLanes;
 use crate::runtime_split::latency::{path_latency, path_latency_ceiling};
 use crate::runtime_split::mix::PathKnobs;
 use crate::runtime_state::{BlockRuntimeNode, SEGMENT_FRAME_CAPACITY};
 
 /// One split's runtime (#328, spec §4.1, §11.4): every path, the buffer each
-/// one runs in, one alignment delay line per path and the knobs. Everything
+/// one runs in, one alignment delay line per path, the knobs and the lanes
+/// the paths run on. Everything
 /// is allocated here, at build; the callback only reuses it.
 pub(crate) struct SplitRuntimeState {
     /// `true` for Split → Mix; `false` for Y, whose paths meet at unity.
@@ -22,6 +24,8 @@ pub(crate) struct SplitRuntimeState {
     /// Each path's knob values for the current callback (scratch).
     pub(crate) values: Vec<PathKnobs>,
     pub(crate) knobs: SplitKnobs,
+    /// The threads that run every path but the first.
+    pub(crate) lanes: PathLanes,
 }
 
 impl SplitRuntimeState {
@@ -49,6 +53,7 @@ impl SplitRuntimeState {
                 .collect(),
             values: vec![PathKnobs::neutral(); count],
             knobs,
+            lanes: PathLanes::spawn(count, &block_id.0),
         };
         if state.refresh_alignment() {
             log::warn!(
