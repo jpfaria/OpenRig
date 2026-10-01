@@ -26,7 +26,7 @@ stale clone ships stale code.
 - coverage report
 
 Not for: editing code (see `openrig-code-quality`), or UI design work (see
-`slint-best-practices` + `ui-ux-pro-max`).
+`slint-best-practices` + `claude-plugin:ux-ui`).
 
 ## Quick reference
 

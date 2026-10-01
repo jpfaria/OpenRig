@@ -196,7 +196,7 @@ The end-user Claude Code plugin (manifest + `.mcp.json` + the `openrig:tone-buil
 
 Then start OpenRig with the server on: `openrig --mcp`. See [`docs/mcp.md`](docs/mcp.md) for the full surface (tools, resources, prompts) and for manual client config.
 
-> `.claude/` in this repo holds **developer** skills only (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`). The MCP server implementation lives in [`crates/adapter-mcp/`](crates/adapter-mcp).
+> `.claude/` in this repo holds **developer** skills only (`openrig-code-quality`, `slint-best-practices`). The MCP server implementation lives in [`crates/adapter-mcp/`](crates/adapter-mcp).
 
 ## Contributing
 
