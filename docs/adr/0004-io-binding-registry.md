@@ -90,18 +90,12 @@ ch1 → A B C D E → ch3         (head-input × tail-output)
 ch1 → A B C     → ch4         (head-input × middle-output)
 ```
 
-### Inserts stay raw (scope decision) — superseded by #881
+### Inserts reference one binding
 
-*Original decision (#716):* insert blocks keep their raw send/return endpoints
-and are **not** migrated to the registry, because an insert is a single-runtime
-send/return pipeline rather than a binding-paired stream.
-
-*What shipped instead:* an `InsertBlock` is `{ model, io }` — it references ONE
-binding, whose OUTPUT carries the send and whose INPUT carries the return. The
-raw endpoints were dropped from the model at the same time, but the editor was
-left on the old device pickers, so no insert could be bound at all and any chain
-carrying one went silent (#881). The editor now picks that binding, and an
-insert that does not resolve is bypassed instead of splitting the chain.
+An `InsertBlock` is `{ model, io }` — it references ONE binding, whose OUTPUT
+carries the send and whose INPUT carries the return; it has no raw endpoints.
+The editor picks that binding, and an insert that does not resolve is bypassed
+instead of splitting the chain.
 
 ### Commands (system scope)
 
@@ -116,7 +110,7 @@ Reshaped chain-IO commands (`SaveChainInputEndpoints`,
 references instead of embedded endpoints. MCP tooling inherits the same variants
 (command-bus parity, CLAUDE.md Law 1).
 
-### Clean break — no migration (#716)
+### Clean break — no migration
 
 Routing is **binding-only**. There is no migration from the old embedded-`entries`
 format. An old project still **deserializes** (it loads), but its `entries` are
@@ -143,7 +137,7 @@ machine. A legacy file remains loadable without silently wiring it to devices.
   a legacy chain loads but plays no audio until reconfigured against the registry.
 - **Future settings have a written home.** Per ADR 0003, any new per-machine
   device reference belongs in `config.yaml` alongside the registry.
-- **Inserts went through the registry too (#881).** An insert references one
+- **Inserts go through the registry too.** An insert references one
   binding (send = its output, return = its input), so it is portable like every
   other chain reference.
 

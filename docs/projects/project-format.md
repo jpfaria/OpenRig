@@ -1,9 +1,8 @@
 # `project.yaml` — format reference
 
-Project-level I/O + per-input preset banks (rig architecture, #436). Model +
-parser (#449), engine runtime (#451), format versioning (#450), scenes +
-spillover (#454). This is the only project file format (#1014): there is no
-other extension and no chain-based project document.
+Project-level I/O + per-input preset banks: model, parser, engine runtime,
+format versioning, scenes and spillover. This is the only project file format:
+there is no other extension and no chain-based project document.
 
 ## Document shape
 
@@ -27,7 +26,7 @@ project:
         1: clean
         2: drive
       active-preset: 2                  # an index present in `bank`
-      active-scene: 1                   # 1..=8 (scene structure itself is #454)
+      active-scene: 1                   # 1..=8
       routing: [out-1]                  # names of `outputs` entries
 
   outputs:
@@ -43,7 +42,7 @@ project:
     drive:
       blocks: []
 
-  midi:                                  # optional, ADR 0003 / #499
+  midi:                                  # optional, ADR 0003
     bindings:                            # what each controller event does in THIS rig
       - source: { kind: note_on, channel: 1, note: 60 }
         command: ApplyRigNav
@@ -56,15 +55,15 @@ project:
 |---|---|---|
 | `project` | `RigProject` | `crates/project/src/rig.rs` |
 | `inputs.<name>` | `RigInput` | keyed map; `BTreeMap` ⇒ deterministic order |
-| `inputs.<name>.sources[]` | `Vec<InputEntry>` | reused 1:1 from the existing block model — `mode` is **per source**, never flattened to one device/channel (invariant #4 / multi-source of #436) |
+| `inputs.<name>.sources[]` | `Vec<InputEntry>` | reused 1:1 from the existing block model — `mode` is **per source**, never flattened to one device/channel (invariant #4, multi-source) |
 | `inputs.<name>.bank` | `BTreeMap<usize, String>` | index → preset name; gaps allowed |
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
-| `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003 / #499. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
+| `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
-### Edit capture: scene diff vs preset base (#690)
+### Edit capture: scene diff vs preset base
 
 `write_back_processing_blocks` (run by `Command::CaptureRigEdits` and the
 save path) captures edits made on the projected chain back into the active
@@ -72,10 +71,9 @@ preset. **Float** param edits become the active scene's f32 override
 (Helix Snapshot rule — the key is auto-marked in `scene-params`).
 **Non-float** params (Bool/Int/String — e.g. a NAM noise-gate toggle)
 cannot live in the f32 scene diff: they are written into the preset base
-`blocks`, shared by every scene. Before #690 these edits were silently
-dropped and reverted on save+reload.
+`blocks`, shared by every scene, so they survive save+reload.
 
-### Model swap keeps the scenes (#986)
+### Model swap keeps the scenes
 
 Changing a block's model keeps its id and position, so it is **not** a
 structural edit. `write_back_model_swaps` (`crates/project/src/rig_model_swap.rs`)
@@ -86,11 +84,9 @@ dropped. Every other scene, bypass, override, the other blocks' base values
 and `active-scene` survive. `ReplaceBlockModel` mirrors the swap into the rig
 right away and re-resolves the live block through the active scene; the
 block editor's `OverwriteBlock` path gets the same treatment on the next
-capture (scene switch or save). Before #986 the swap took the structural
-path (#627): the whole preset base was replaced by the live, scene-applied
-chain and every scene was cleared.
+capture (scene switch or save).
 
-### Structural edits keep the scenes; an insert belongs to its preset (#986)
+### Structural edits keep the scenes; an insert belongs to its preset
 
 Adding, removing or reordering blocks (the insert included) is structural:
 `replace_preset_blocks_if_structural` (`crates/project/src/rig_write_back.rs`)
@@ -141,7 +137,7 @@ engine at runtime, not by `validate()`.
 Round-trip (`parse → serialize → parse → serialize`) is byte-deterministic
 because every map is a `BTreeMap`.
 
-## Engine runtime (#451)
+## Engine runtime
 
 `engine::rig_runtime` bridges the model to the audio engine without changing
 the audio-thread contract:
@@ -171,12 +167,12 @@ the audio-thread contract:
   switch click-free. Other inputs are untouched. Switching presets also
   resets `active_scene` to `1` — scenes are per-preset, so carrying the
   previous preset's scene index over would leak a phantom scene into the
-  new preset on the next `write_back_processing_blocks` call (#535).
+  new preset on the next `write_back_processing_blocks` call.
 
 Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
 `RuntimeGraph` to its backend.
 
-## Spillover (#454-T5) — DONE
+## Spillover
 
 A preset/scene switch retains the **previous** pipeline as a decaying
 `OutgoingTail` so its delay/reverb tail rings out in parallel while the new
@@ -193,7 +189,7 @@ Gated by `rig_spillover` golden (retains-then-drops + non-spillover
 byte-identical) plus `volume_invariants`/`stream_isolation`/
 `audio_signal_integrity` all green.
 
-## In-memory chain model → rig conversion (#450)
+## In-memory chain model → rig conversion
 
 `project::migrate::migrate_legacy_project(&Project) -> RigProject` is a pure,
 deterministic (⇒ idempotent) transform:
@@ -217,7 +213,7 @@ input's bank** — one guitar with many songs ⇒ one input + N presets.
 No preset is lost (`presets.len() == chains.len()`, each in a bank slot) and the
 result always passes `validate()`. Deterministic ⇒ idempotent.
 
-## Format versioning + backward-compat (#450)
+## Format versioning + backward-compat
 
 Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:` (single source of truth:
@@ -240,9 +236,3 @@ project: { ... }
 Legacy standalone presets convert via `load_legacy_preset_as_rig` (blocks +
 volume preserved bit-identical ⇒ audio unchanged; no scenes/scene-params ⇒
 behaves as one Default scene).
-
-## Out of scope here (tracked elsewhere)
-
-- Spillover — old preset/scene tail decaying in parallel (#454-T5; design locked in spec)
-- CLI `--project` — #452
-- UI project picker + bank/scene navigator — #453
