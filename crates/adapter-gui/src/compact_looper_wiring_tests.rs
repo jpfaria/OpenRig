@@ -11,7 +11,7 @@ use application::event::Event;
 use domain::ids::ChainId;
 use project::chain::{Chain, LooperConfig};
 use project::project::Project;
-use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, VecModel};
+use slint::{Global, Model, ModelRc, SharedString, VecModel};
 
 use super::{mirror_looper_row, wire};
 use crate::state::ProjectSession;
