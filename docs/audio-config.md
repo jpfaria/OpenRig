@@ -599,6 +599,17 @@ spin (a bounded ~35% of the period — it keeps the model weights hot
 through the inter-buffer gap, killing the cold tail) then 100 us sleeps
 when idle.
 
+A split's paths do not run serially on that worker. Each path but the
+first has its own lane: a thread spawned when the split is built
+(`crates/engine/src/runtime_split_lanes.rs`), asleep between callbacks,
+that runs its path while the worker runs the first one; the worker waits
+for every lane, then mixes. Handing a path over is two atomic stores, no
+lock, no allocation. A lane takes the realtime policy of the worker that
+drives its split (`engine::worker_rt_policy`, set by the worker each time
+it promotes itself), so a nested split's lanes inherit it too. Two NAM amps
+in one Split → Mix used to put both models on one realtime thread (95% of
+a core, heard as crackle); now each amp has a core.
+
 What the xrun LED means under the worker: a late worker buffer that
 catches up is absorbed by the ring + elastic and is NOT audible — it
 feeds the load meter only. Audible damage is counted where it physically

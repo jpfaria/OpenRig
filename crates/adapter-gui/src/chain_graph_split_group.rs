@@ -34,6 +34,18 @@ pub(crate) fn held_blocks<'a>(chain: &'a Chain, id: &BlockId) -> Vec<&'a AudioBl
         .unwrap_or_default()
 }
 
+/// The split `id` and every split nested in its paths, at any depth.
+pub(crate) fn group_split_ids(chain: &Chain, id: &BlockId) -> Vec<BlockId> {
+    let mut ids = vec![id.clone()];
+    ids.extend(
+        held_blocks(chain, id)
+            .into_iter()
+            .filter(|block| matches!(block.kind, AudioBlockKind::Split(_)))
+            .map(|block| block.id.clone()),
+    );
+    ids
+}
+
 /// The ids of every graph node the split `id` carries, its own included.
 pub(crate) fn group_node_ids(chain: &Chain, id: &BlockId) -> Vec<String> {
     let mut ids = routing_ids(chain, id);

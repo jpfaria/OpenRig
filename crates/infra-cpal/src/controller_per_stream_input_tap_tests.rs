@@ -160,6 +160,7 @@ fn controller_with_single_runtime(
         streams: Default::default(),
         stream_generation: 0,
         sample_rate: 48_000,
+        device_settings: Vec::new(),
         io_bindings: registry.to_vec(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),

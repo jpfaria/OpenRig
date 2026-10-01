@@ -93,6 +93,7 @@ fn controller_with_active_chain(
         streams: Default::default(),
         stream_generation: 0,
         sample_rate: 48_000,
+        device_settings: Vec::new(),
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),

@@ -41,8 +41,9 @@ use crate::process_input_buffer_patient;
 /// Slots in the ring. 16 buffers ≈ 21 ms at 64 frames — far beyond any
 /// transient worker stall that wouldn't already be audible.
 const RING_SLOTS: usize = 16;
-pub(crate) use crate::rt_thread_policy::{promote_to_audio_rt, thread_cpu_time_ns};
+pub(crate) use crate::rt_thread_policy::thread_cpu_time_ns;
 pub(crate) use crate::saturation_recovery::SaturationRecovery;
+use crate::worker_promotion::promote_worker;
 
 struct RingSlot {
     /// Valid sample count in `data` (callbacks may deliver varying sizes).
@@ -140,7 +141,7 @@ pub(crate) fn spawn(
             // from measured cost so concurrent chains fit the RT band
             // together (#698).
             let mut budget = BudgetTracker::new(rt_period_ns * 85 / 100);
-            promote_to_audio_rt(rt_period_ns, budget.declared_ns);
+            promote_worker(rt_period_ns, budget.declared_ns);
             // #760: co-schedule this worker with ITS OWN device's IO thread so
             // the kernel keeps it on a P-core under contention (the residual
             // "RT thread still late under load" tail). The earlier "joining the
@@ -180,7 +181,7 @@ pub(crate) fn spawn(
                     // Re-assert the realtime promotion and drop the backlog
                     // to ONE buffer so latency is bounded again. Worker
                     // thread, rare event — the log is allowed.
-                    promote_to_audio_rt(rt_period_ns, budget.reset(rt_period_ns));
+                    promote_worker(rt_period_ns, budget.reset(rt_period_ns));
                     r = w.saturating_sub(1);
                     log::warn!(
                         "dsp-worker: saturation spiral — re-promoted realtime and dropped backlog"
@@ -229,7 +230,7 @@ pub(crate) fn spawn(
                 // kernel's time-constraint admission together — and a preemption
                 // stall (wall-clock) never churns the policy. Rare, between buffers.
                 if let Some(comp_ns) = budget.observe(compute_ns, rt_period_ns) {
-                    promote_to_audio_rt(rt_period_ns, comp_ns);
+                    promote_worker(rt_period_ns, comp_ns);
                 }
                 // #670 diagnostic: name the magnitude of a late buffer so a
                 // ~1.4 ms cold-compute tail is distinguishable from a multi-ms
