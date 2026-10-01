@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::chain_graph_fixtures_tests::{
-    chain, core, mix_chain, mix_then_y_chain, split, y_chain, FIRST_SPLIT_NODE_ID,
+    chain, core, mix_chain, mix_then_y_chain, split, split_paths, y_chain, FIRST_MIXER_NODE_ID,
+    FIRST_SPLIT_NODE_ID,
 };
 use crate::chain_graph_ids::INPUT_NODE_ID;
 use domain::ids::BlockId;
@@ -187,10 +188,62 @@ fn shared_and_path_positions_trade_blocks() {
 }
 
 #[test]
-fn only_block_nodes_move() {
+fn io_nodes_do_not_move() {
+    assert_eq!(move_target(&mix_chain(), INPUT_NODE_ID, &lane(0, 0)), None);
+}
+
+#[test]
+fn dragging_the_split_or_its_mixer_moves_the_whole_split() {
+    let c = mix_chain();
+    // Past post (stage 4 = output): sp leaves 1 and lands after post.
+    assert_eq!(
+        move_target(&c, FIRST_SPLIT_NODE_ID, &stage(4)),
+        moved("sp", 2, None)
+    );
+    assert_eq!(
+        move_target(&c, FIRST_MIXER_NODE_ID, &stage(4)),
+        moved("sp", 2, None)
+    );
+    assert_eq!(
+        move_target(&c, FIRST_SPLIT_NODE_ID, &stage(1)),
+        moved("sp", 0, None)
+    );
+}
+
+#[test]
+fn a_split_dropped_on_its_own_place_is_no_move() {
+    let c = mix_chain();
+    assert_eq!(move_target(&c, FIRST_SPLIT_NODE_ID, &stage(2)), None);
+    assert_eq!(move_target(&c, FIRST_MIXER_NODE_ID, &stage(3)), None);
+}
+
+#[test]
+fn a_split_never_lands_inside_its_own_paths() {
     let c = mix_chain();
     assert_eq!(move_target(&c, FIRST_SPLIT_NODE_ID, &lane(0, 0)), None);
-    assert_eq!(move_target(&c, INPUT_NODE_ID, &lane(0, 0)), None);
+    assert_eq!(move_target(&c, FIRST_MIXER_NODE_ID, &lane(1, 1)), None);
+    // outer(A: inner(A: x | B: —) | B: o)
+    let nested = chain(vec![split_paths(
+        "outer",
+        SplitEnd::Mix,
+        vec![
+            vec![split_paths(
+                "inner",
+                SplitEnd::Mix,
+                vec![vec![core("x")], vec![]],
+            )],
+            vec![core("o")],
+        ],
+    )]);
+    assert_eq!(
+        move_target(&nested, "__split_outer", &lane_of("inner", 1, 0)),
+        None
+    );
+    assert_eq!(
+        move_target(&nested, "__split_inner", &lane_of("outer", 1, 1)),
+        moved("inner", 1, Some(path_of("outer", 1))),
+        "a nested split moves into a sibling path"
+    );
 }
 
 #[test]

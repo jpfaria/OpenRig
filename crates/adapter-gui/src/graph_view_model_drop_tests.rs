@@ -74,17 +74,21 @@ fn a_drop_on_the_blocks_own_wire_resolves_to_nothing() {
 }
 
 #[test]
-fn only_a_block_can_be_dropped() {
+fn a_split_or_mixer_node_resolves_like_a_block() {
+    // The whole split moves (#328): the host refuses its own paths.
+    assert_eq!(resolve("__split_sp", 480.0, 230.0), Some(lane(1, 1)));
     assert_eq!(
-        resolve("__split_sp", 480.0, 230.0),
-        None,
-        "the split node does not move"
+        resolve("__merge_sp", 160.0, 200.0),
+        Some(AnchorSlot {
+            path: None,
+            index: 1
+        })
     );
-    assert_eq!(
-        resolve("in", 480.0, 230.0),
-        None,
-        "an I/O node does not move"
-    );
+}
+
+#[test]
+fn an_io_node_cannot_be_dropped() {
+    assert_eq!(resolve("in", 480.0, 230.0), None);
 }
 
 #[test]

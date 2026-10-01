@@ -14,6 +14,7 @@ use project::chain::Chain;
 
 use crate::chain_block_lists::list_at;
 use crate::chain_graph_ids::{resolve_node, NodeRef};
+use crate::chain_graph_split_group::{dragged_split, held_blocks};
 use crate::graph_view_model::AnchorSlot;
 
 /// The slot an anchor id names — the inverse of `AnchorSlot::anchor_id`
@@ -77,15 +78,20 @@ pub(crate) struct MoveTarget {
 }
 
 pub(crate) fn move_target(chain: &Chain, node_id: &str, slot: &AnchorSlot) -> Option<MoveTarget> {
+    // A split or mixer node drags its whole split (#328 §5.1).
+    let node_id = dragged_split(chain, node_id).map_or(node_id.to_string(), |id| id.0);
     let NodeRef::Block {
         id,
         path: from_path,
         index: from,
-    } = resolve_node(chain, node_id)?
+    } = resolve_node(chain, &node_id)?
     else {
         return None;
     };
     let target = insert_target(chain, slot)?;
+    if lands_inside(chain, &id, target.path.as_ref()) {
+        return None;
+    }
     if target.path != from_path {
         // Lifting it out of another list does not shift this one.
         return Some(MoveTarget {
@@ -110,6 +116,15 @@ pub(crate) fn move_target(chain: &Chain, node_id: &str, slot: &AnchorSlot) -> Op
         new_position,
         path: target.path,
     })
+}
+
+/// Whether `path` is a path of the split `id`, or of a split nested in one —
+/// a split never moves into itself.
+fn lands_inside(chain: &Chain, id: &BlockId, path: Option<&PathRef>) -> bool {
+    let Some(path) = path else {
+        return false;
+    };
+    path.split == *id || held_blocks(chain, id).iter().any(|b| b.id == path.split)
 }
 
 #[cfg(test)]

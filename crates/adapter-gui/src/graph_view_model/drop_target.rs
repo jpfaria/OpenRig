@@ -14,8 +14,9 @@ use super::types::{GraphNode, GridMetrics, NodeKind};
 /// `None` when the nearest anchor sits on the block's own wire (landing
 /// there leaves the chain unchanged — it must not fall through to the next
 /// nearest, which can be the other lane's), when the dragged node is not a
-/// [`NodeKind::Block`] (I/O, split and mixer nodes do not move), when it is
-/// unknown, or when no anchor is in reach.
+/// block, split or mixer node (I/O nodes do not move; a split or mixer drags
+/// its whole split, whose own paths the host refuses), when it is unknown, or
+/// when no anchor is in reach.
 pub fn resolve_drop_anchor<'a>(
     nodes: &[GraphNode],
     anchors: &'a [GraphAnchor],
@@ -25,7 +26,10 @@ pub fn resolve_drop_anchor<'a>(
     metrics: GridMetrics,
 ) -> Option<&'a GraphAnchor> {
     let dragged = nodes.iter().find(|n| n.id == dragged_id)?;
-    if dragged.kind != NodeKind::Block {
+    if !matches!(
+        dragged.kind,
+        NodeKind::Block | NodeKind::Split | NodeKind::Mixer
+    ) {
         return None;
     }
     let reach = metrics.column_spacing / 2.0;

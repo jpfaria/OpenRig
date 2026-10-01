@@ -164,7 +164,7 @@ Left to right: input node → shared blocks → split node → two lanes (A on t
 - The split and mixer nodes are labelled, clickable nodes. A click opens the split editor or the mixer editor: a small panel with the knobs from 1.2, rendered from the parameter schema like any block editor.
 - Block cards keep parity with today's `BlockChip`: icon, enabled LED, unavailable tint, MIDI markers, tooltip, selection.
 - A "+" affordance on each edge and at the end of each lane opens the existing add-block picker with the right position and `path`. The picker gets "Split → Mix" and "Y → A/B" entries. "Split → Mix" is offered while the chain has no Mix, only at positions before its Y. "Y → A/B" is offered while the chain has no Y, only after its Mix and where nothing but the chain's ports follows (§9).
-- Drag moves a block within a lane, across the split into the other lane, or between shared and path positions. The drop target resolves to a `MoveBlock { position, path }`.
+- Drag moves a block within a lane, across the split into the other lane, or between shared and path positions. The drop target resolves to a `MoveBlock { position, path }`. Dragging a split node or its mixer moves the whole split (one `MoveBlock` on the split block); a target inside its own paths, at any depth, is refused and never lights up.
 - The mouse wheel is not captured, so the chains list keeps scrolling. Cmd (macOS) / Ctrl (Windows, Linux) + wheel zooms. Pan is by drag on empty canvas.
 
 ### 5.2 GraphView changes

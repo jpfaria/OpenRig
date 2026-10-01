@@ -9,6 +9,40 @@ use slint::{Model, VecModel};
 
 use crate::{GraphEdgeGeometry, GraphNode, ProjectChainItem};
 
+/// A card dragged to layout `(x, y)`. A split or mixer card carries its
+/// whole split by the same offset; any other card moves alone.
+pub(crate) fn drag_node(
+    rows: &VecModel<ProjectChainItem>,
+    chain_index: usize,
+    chain: &project::chain::Chain,
+    node_id: &str,
+    x: f32,
+    y: f32,
+) {
+    let Some(split) = crate::chain_graph_split_group::dragged_split(chain, node_id) else {
+        move_node(rows, chain_index, node_id, x, y);
+        return;
+    };
+    let Some(row) = rows.row_data(chain_index) else {
+        return;
+    };
+    let at = |id: &str| {
+        row.graph_nodes
+            .iter()
+            .find(|n| n.id.as_str() == id)
+            .map(|n| (n.layout_x, n.layout_y))
+    };
+    let Some((from_x, from_y)) = at(node_id) else {
+        return;
+    };
+    let (dx, dy) = (x - from_x, y - from_y);
+    for id in crate::chain_graph_split_group::group_node_ids(chain, &split) {
+        if let Some((nx, ny)) = at(&id) {
+            move_node(rows, chain_index, &id, nx + dx, ny + dy);
+        }
+    }
+}
+
 pub(crate) fn move_node(
     rows: &VecModel<ProjectChainItem>,
     chain_index: usize,

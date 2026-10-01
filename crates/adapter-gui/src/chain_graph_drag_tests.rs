@@ -86,3 +86,89 @@ fn a_released_drag_puts_every_card_back_on_the_layout() {
         }
     }
 }
+
+#[test]
+fn dragging_a_split_carries_its_whole_group() {
+    let rows = rows();
+    let chain = mix_chain();
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    replace_project_chains(&rows, &project, &[], &[], &registry());
+    let at = |rows: &VecModel<crate::ProjectChainItem>| -> Vec<(String, f32, f32)> {
+        rows.row_data(0)
+            .unwrap()
+            .graph_nodes
+            .iter()
+            .map(|n| (n.id.to_string(), n.layout_x, n.layout_y))
+            .collect()
+    };
+    let before = at(&rows);
+    let (_, sx, sy) = before
+        .iter()
+        .find(|(id, _, _)| id == "__split_sp")
+        .cloned()
+        .unwrap();
+
+    drag_node(&rows, 0, &chain, "__split_sp", sx + 100.0, sy + 10.0);
+
+    let group = ["__split_sp", "__merge_sp", "a1", "a2", "b1"];
+    for ((id, x0, y0), (_, x1, y1)) in before.iter().zip(at(&rows)) {
+        let expected = if group.contains(&id.as_str()) {
+            (x0 + 100.0, y0 + 10.0)
+        } else {
+            (*x0, *y0)
+        };
+        assert_eq!((x1, y1), expected, "node {id}");
+    }
+    let after = at(&rows);
+    let pos = |id: &str| {
+        after
+            .iter()
+            .find(|(n, _, _)| n == id)
+            .map(|(_, x, y)| (*x, *y))
+    };
+    for edge in rows.row_data(0).unwrap().graph_edges.iter() {
+        if let Some(p) = pos(edge.from_id.as_str()) {
+            assert_eq!(
+                (edge.from_x, edge.from_y),
+                p,
+                "wire out of {}",
+                edge.from_id
+            );
+        }
+        if let Some(p) = pos(edge.to_id.as_str()) {
+            assert_eq!((edge.to_x, edge.to_y), p, "wire into {}", edge.to_id);
+        }
+    }
+}
+
+#[test]
+fn dragging_a_block_moves_only_that_card() {
+    let rows = rows();
+    let chain = mix_chain();
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    replace_project_chains(&rows, &project, &[], &[], &registry());
+    drag_node(&rows, 0, &chain, "a1", 999.0, 777.0);
+    let row = rows.row_data(0).unwrap();
+    let a2 = row
+        .graph_nodes
+        .iter()
+        .find(|n| n.id.as_str() == "a2")
+        .unwrap();
+    let a1 = row
+        .graph_nodes
+        .iter()
+        .find(|n| n.id.as_str() == "a1")
+        .unwrap();
+    assert_eq!((a1.layout_x, a1.layout_y), (999.0, 777.0));
+    assert_ne!((a2.layout_x, a2.layout_y), (999.0, 777.0));
+}

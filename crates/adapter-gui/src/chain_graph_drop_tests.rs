@@ -27,6 +27,29 @@ fn a_card_on_its_own_wire_or_out_of_reach_lands_nowhere() {
 }
 
 #[test]
-fn only_a_block_card_moves() {
-    assert_eq!(drop_anchor_id(&mix_chain(), "__split_sp", 578.0, 135.0), "");
+fn a_split_card_dropped_past_post_lands_there() {
+    // post → output midpoint: "top:4".
+    assert_eq!(
+        drop_anchor_id(&mix_chain(), "__split_sp", 908.0, 104.0),
+        "top:4"
+    );
+}
+
+#[test]
+fn a_split_card_on_its_own_place_or_paths_lands_nowhere() {
+    assert_eq!(
+        drop_anchor_id(&mix_chain(), "__split_sp", 776.0, 104.0),
+        "",
+        "mixer → post is the gap right after the split"
+    );
+    assert_eq!(
+        drop_anchor_id(&mix_chain(), "__split_sp", 578.0, 131.0),
+        "",
+        "its own path B"
+    );
+}
+
+#[test]
+fn an_io_card_does_not_move() {
+    assert_eq!(drop_anchor_id(&mix_chain(), "__io_input", 908.0, 104.0), "");
 }

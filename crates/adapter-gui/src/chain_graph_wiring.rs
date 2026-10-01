@@ -179,13 +179,16 @@ fn wire_drags(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
     {
         let ctx = ctx.clone();
         bridge.on_node_dragged(move |chain_index, node_id, x, y| {
-            crate::chain_graph_drag::move_node(
-                &ctx.project_chains,
-                chain_index as usize,
-                &node_id,
-                x,
-                y,
-            );
+            if let Some(chain) = chain_at(&ctx.project_session, chain_index) {
+                crate::chain_graph_drag::drag_node(
+                    &ctx.project_chains,
+                    chain_index as usize,
+                    &chain,
+                    &node_id,
+                    x,
+                    y,
+                );
+            }
         });
     }
     {

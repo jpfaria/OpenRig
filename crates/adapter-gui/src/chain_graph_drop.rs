@@ -10,9 +10,12 @@ use project::chain::Chain;
 
 use crate::chain_graph_adapter::{chain_graph, grid_metrics};
 use crate::endpoint_checklist_items::IoLabels;
+use crate::graph_anchor::{move_target, parse_anchor};
 use crate::graph_view_model::resolve_drop_anchor;
 
-/// The anchor id a card `node_id` dragged to layout `(x, y)` lands on, or `""`.
+/// The anchor id a card `node_id` dragged to layout `(x, y)` lands on, or `""`
+/// when no anchor is in reach or landing there is no move (its own place, or
+/// a split's own paths).
 pub(crate) fn drop_anchor_id(chain: &Chain, node_id: &str, x: f32, y: f32) -> String {
     // Labels move no node and no anchor, so none are resolved here.
     let labels = IoLabels::default();
@@ -25,6 +28,9 @@ pub(crate) fn drop_anchor_id(chain: &Chain, node_id: &str, x: f32, y: f32) -> St
         y,
         grid_metrics(graph.lanes),
     )
+    .filter(|anchor| {
+        parse_anchor(&anchor.id).is_some_and(|slot| move_target(chain, node_id, &slot).is_some())
+    })
     .map(|anchor| anchor.id.clone())
     .unwrap_or_default()
 }

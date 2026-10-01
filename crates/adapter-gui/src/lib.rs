@@ -223,6 +223,7 @@ mod chain_graph_drop;
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
 mod chain_graph_models;
+mod chain_graph_split_group;
 mod chain_graph_wiring;
 mod curated_knob_overlays;
 mod default_io_binding;
