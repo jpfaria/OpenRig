@@ -209,7 +209,7 @@ Princípios gerais de test coverage em `openrig-code-quality`. Aqui o operaciona
 - [ ] **DSP nativo**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
 - [ ] **NAM/LV2/IR builds**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/`). `#[ignore]` é PROIBIDO — ver `openrig-code-quality` §10b.
 - [ ] **Registry tests** para `block-*` crates: iterar sobre TODOS os modelos via registry (`schema()`, `validate()`, `build()`)
-- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
+- [ ] Never a local `cargo test --workspace`, never cargo or a commit per step: red-first in two rounds per delivery (all tests → one RED → implement everything → one GREEN → one commit at the end) — `CLAUDE.md` + `docs/testing.md` (#1018). The full suite runs in CI.
 - [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
 
 ## Safe Refactoring — Rust specifics
