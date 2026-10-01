@@ -98,6 +98,7 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
     project_dirty: Rc<RefCell<bool>>,
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     context: &'static str,
 ) {
     timer.stop();
@@ -135,7 +136,14 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 log::error!("[adapter-gui] {context}: {error}");
                 crate::BlockEditorBridge::get(&main_window)
                     .set_block_drawer_status_message(error.to_string().into());
+                return;
             }
+            // The compact view renders its own block model, so a live edit
+            // here has to re-project it, like the Save and the MCP/MIDI drain.
+            crate::compact_view_refresh::refresh_open_compact_view(
+                &open_compact_window,
+                &project_session,
+            );
         },
     );
 }

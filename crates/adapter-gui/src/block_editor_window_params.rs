@@ -52,6 +52,8 @@ pub(crate) struct BlockEditorWindowParamsCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    /// Every live edit re-projects the open compact view.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
 }
 
 pub(crate) fn wire(
@@ -72,6 +74,7 @@ pub(crate) fn wire(
         project_dirty,
         input_chain_devices,
         output_chain_devices,
+        open_compact_window,
     } = ctx;
 
     // on_update_block_parameter_number
@@ -88,6 +91,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_update_block_parameter_number(move |path, value| {
@@ -171,6 +175,7 @@ pub(crate) fn wire(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.number",
                 );
             }
@@ -188,6 +193,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_update_block_parameter_number_text(
@@ -218,6 +224,7 @@ pub(crate) fn wire(
                         project_dirty.clone(),
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
+                        open_compact_window.clone(),
                         "block-window.number-text",
                     );
                 }
@@ -236,6 +243,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_update_block_parameter_bool(move |path, value| {
@@ -261,6 +269,7 @@ pub(crate) fn wire(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.bool",
                 );
             }
@@ -278,6 +287,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_update_block_parameter_text(move |path, value| {
@@ -303,6 +313,7 @@ pub(crate) fn wire(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.text",
                 );
             }
@@ -320,6 +331,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_select_block_parameter_option(move |path, index| {
@@ -345,6 +357,7 @@ pub(crate) fn wire(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.option",
                 );
             }
@@ -362,6 +375,7 @@ pub(crate) fn wire(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_pick_block_parameter_file(move |path| {
@@ -400,6 +414,7 @@ pub(crate) fn wire(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.file",
                 );
             }

@@ -306,6 +306,9 @@ mod gui_device_settings;
 #[path = "issue_1007_external_fader_keeps_views_tests.rs"]
 mod issue_1007_external_fader_keeps_views_tests;
 #[cfg(test)]
+#[path = "issue_1023_block_window_compact_refresh_tests.rs"]
+mod issue_1023_block_window_compact_refresh_tests;
+#[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]
