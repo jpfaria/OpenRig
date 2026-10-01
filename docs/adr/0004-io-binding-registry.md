@@ -15,10 +15,10 @@ That produced two structural problems:
    input reached every output (all-to-all). There was no way to express
    "audio from interface A exits only through interface A".
 2. **Project portability.** A raw `device_id` is machine-specific. Moving an
-   `.openrig` to another machine left the chain referencing a device id that may
+   `project.yaml` to another machine left the chain referencing a device id that may
    not exist there.
 
-ADR 0003 established the portability test: *"if I send this `.openrig` to another
+ADR 0003 established the portability test: *"if I send this `project.yaml` to another
 machine, does this value have to travel with it?"* Raw device ids fail that test;
 they belong in `config.yaml` (system scope).
 
@@ -51,7 +51,7 @@ io_bindings:
 
 **Scope rationale.** The registry references concrete `device_id` / channels,
 which are machine-specific (ADR 0003 system criterion). Chains reference a
-binding by its stable `id`. Moving a `.openrig` to another machine carries only
+binding by its stable `id`. Moving a `project.yaml` to another machine carries only
 the `id` reference; the target machine re-resolves it against its local registry.
 This makes projects *more* portable than the legacy model where raw `device_id`
 was embedded in the chain.
@@ -137,7 +137,7 @@ machine. A legacy file remains loadable without silently wiring it to devices.
 
 - **Cross-binding bleed is structurally impossible.** A→A / B→B routing is the
   natural, default expression; cross-device routing cannot be authored.
-- **Portable projects.** The `.openrig` carries only stable binding ids; raw
+- **Portable projects.** The `project.yaml` carries only stable binding ids; raw
   device ids live on the machine that owns them.
 - **Legacy projects open unbound.** No migration, no silent device wiring —
   a legacy chain loads but plays no audio until reconfigured against the registry.

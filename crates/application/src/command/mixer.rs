@@ -37,7 +37,7 @@ pub enum MixerCommand {
     /// Move `chain`'s own fader on one endpoint it plays through. `strip` is
     /// the global strip id of that endpoint; the chain fader multiplies with
     /// the global one and never changes it or any other chain. Clamped to
-    /// `-60..=+12` dB. Project data: it travels with `project.openrig`.
+    /// `-60..=+12` dB. Project data: it travels with `project.yaml`.
     SetChainMixerFader {
         chain: ChainId,
         strip: String,

@@ -199,7 +199,7 @@ gRPC over BLE is **not** in scope. Bluetooth control happens via BLE-MIDI in Pha
 3. Define a YAML mapping format (the historical single-file layout below;
    after #499 / ADR 0003 the single file is split into a per-OS system device
    profile + a per-OS system bindings fallback, and projects may carry their
-   own bindings under `project.openrig` → `midi.bindings` — see
+   own bindings under `project.yaml` → `midi.bindings` — see
    `docs/midi.md` and `docs/adr/0003-system-vs-project-config.md`):
    ```yaml
    bindings:

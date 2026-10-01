@@ -77,7 +77,7 @@ Lock-free param swap without a new stream (old #321 — discarded). MIDI/footswi
 - [ ] T1 — model: `scene_params`, `scenes`, `RigScene`, validation,
   `scene_or_default`. Backward-compat. TDD.
 - [ ] T2 — pure `apply_scene` (bypass + marked-param override, order/determinism). TDD.
-- [ ] T3 — persistence: scenes/scene-params round-trip in `rig_yaml`; preset
+- [ ] T3 — persistence: scenes/scene-params round-trip in `project_file`; preset
   without scenes loads as Default. TDD.
 - [ ] T4 — `RigRuntime::switch_scene` via the #451 lock-free path; isolation +
   volume invariants green. TDD.

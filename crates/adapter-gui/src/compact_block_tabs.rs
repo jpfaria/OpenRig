@@ -2,7 +2,7 @@
 //! #787 — which parameter tab each compact block shows.
 //!
 //! View state, not project state: it is not a `Command` and never reaches the
-//! `.openrig`. `build_compact_blocks` re-runs on every parameter change, so the
+//! `project.yaml`. `build_compact_blocks` re-runs on every parameter change, so the
 //! selection has to live outside the model it rebuilds — hence this store,
 //! keyed by block id. The compact view is a single-window, single-threaded
 //! surface, so a thread-local keeps every `build_compact_blocks` call site
