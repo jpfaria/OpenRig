@@ -249,12 +249,8 @@ fn block_contains_vst3(block: &project::block::AudioBlock) -> bool {
     match &block.kind {
         AudioBlockKind::Core(core) => core.effect_type == block_core::EFFECT_TYPE_VST3,
         AudioBlockKind::Select(select) => select.options.iter().any(block_contains_vst3),
-        // #328: a VST3 in either path of a split is a VST3 of the chain.
-        AudioBlockKind::Split(split) => split
-            .a
-            .iter()
-            .chain(split.b.iter())
-            .any(block_contains_vst3),
+        // #328: a VST3 in any path of a split is a VST3 of the chain.
+        AudioBlockKind::Split(split) => split.paths.iter().flatten().any(block_contains_vst3),
         _ => false,
     }
 }

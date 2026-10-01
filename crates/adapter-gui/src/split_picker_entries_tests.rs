@@ -1,9 +1,17 @@
-//! #328 — Review Focus 5: a split is offered only where it can go.
+//! #328 — Review Focus 5 / spec §11: a split is offered at every "+", in any
+//! list; the only rule is that a Y ends the list it sits in.
 
 use super::*;
 use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, split, y_chain};
 use domain::ids::BlockId;
-use project::block::{PathRef, PathSide, SplitEnd};
+use project::block::{PathRef, SplitEnd};
+
+fn path_of(split: &str, path: usize) -> PathRef {
+    PathRef {
+        split: BlockId(split.into()),
+        path,
+    }
+}
 
 #[test]
 fn a_chain_without_a_split_offers_both_at_its_end() {
@@ -21,22 +29,27 @@ fn y_is_offered_only_at_the_end_of_the_chain() {
 }
 
 #[test]
-fn mix_then_y_a_mix_chain_offers_a_y_only_after_its_mix_at_the_end() {
+fn a_mix_chain_offers_another_mix_anywhere_and_a_y_at_its_end() {
     // mix_chain(): [pre, sp (Mix), post]
     let c = mix_chain();
-    assert_eq!(split_picker_ends(&c, 3, None), vec![SplitEnd::Y]);
-    assert!(
-        split_picker_ends(&c, 2, None).is_empty(),
-        "post would follow the Y"
+    assert_eq!(
+        split_picker_ends(&c, 3, None),
+        vec![SplitEnd::Mix, SplitEnd::Y]
     );
-    assert!(
-        split_picker_ends(&c, 1, None).is_empty(),
-        "a Y before the Mix, and a second Mix"
+    assert_eq!(
+        split_picker_ends(&c, 2, None),
+        vec![SplitEnd::Mix],
+        "post would follow a Y"
+    );
+    assert_eq!(
+        split_picker_ends(&c, 1, None),
+        vec![SplitEnd::Mix],
+        "#328 §11: no limit on the number of splits"
     );
 }
 
 #[test]
-fn mix_then_y_a_y_chain_offers_a_mix_only_before_its_y() {
+fn a_y_chain_offers_a_mix_only_before_its_y() {
     // y_chain(): [pre, sp (Y)]
     let c = y_chain();
     assert_eq!(split_picker_ends(&c, 0, None), vec![SplitEnd::Mix]);
@@ -48,14 +61,17 @@ fn mix_then_y_a_y_chain_offers_a_mix_only_before_its_y() {
 }
 
 #[test]
-fn mix_then_y_a_chain_with_both_offers_no_split() {
+fn a_chain_with_both_offers_a_mix_before_its_y_and_nothing_after() {
+    // mix_then_y_chain(): [pre, mx (Mix), mid, y (Y)]
     let c = mix_then_y_chain();
-    for position in 0..=c.blocks.len() {
-        assert!(
-            split_picker_ends(&c, position, None).is_empty(),
+    for position in 0..c.blocks.len() {
+        assert_eq!(
+            split_picker_ends(&c, position, None),
+            vec![SplitEnd::Mix],
             "position {position}"
         );
     }
+    assert!(split_picker_ends(&c, c.blocks.len(), None).is_empty());
 }
 
 /// Live DIGITAL (2026-10-01): the chain is a single Mix split, nothing after
@@ -69,16 +85,29 @@ fn mix_then_y_a_lone_mix_offers_a_y_after_it() {
         vec![core("amp_a")],
         vec![core("amp_b")],
     )]);
-    assert_eq!(split_picker_ends(&c, 1, None), vec![SplitEnd::Y]);
+    assert_eq!(
+        split_picker_ends(&c, 1, None),
+        vec![SplitEnd::Mix, SplitEnd::Y]
+    );
 }
 
 #[test]
-fn no_split_entry_inside_a_path() {
-    let path = PathRef {
-        split: BlockId("sp".into()),
-        side: PathSide::A,
-    };
-    assert!(split_picker_ends(&chain(vec![]), 0, Some(&path)).is_empty());
+fn a_path_offers_a_split_and_a_y_only_at_its_end() {
+    // mix_chain(): sp path A = [a1, a2]
+    let c = mix_chain();
+    let a = path_of("sp", 0);
+    assert_eq!(split_picker_ends(&c, 0, Some(&a)), vec![SplitEnd::Mix]);
+    assert_eq!(
+        split_picker_ends(&c, 2, Some(&a)),
+        vec![SplitEnd::Mix, SplitEnd::Y],
+        "#328 §11: a Y may end a path, nested at any depth"
+    );
+}
+
+#[test]
+fn a_path_that_does_not_exist_offers_nothing() {
+    assert!(split_picker_ends(&chain(vec![]), 0, Some(&path_of("sp", 0))).is_empty());
+    assert!(split_picker_ends(&mix_chain(), 0, Some(&path_of("sp", 2))).is_empty());
 }
 
 #[test]

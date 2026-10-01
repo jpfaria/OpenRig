@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::chain::Chain;
-use project::endpoint_disables::{EndpointDisables, EndpointRef};
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 use project::project::Project;
 
 use super::{build_runtime_graph, chain_plays};
@@ -56,17 +56,15 @@ fn chain(id: &str, enabled: bool, disabled_endpoints: EndpointDisables) -> Chain
 }
 
 fn no_outputs() -> EndpointDisables {
-    EndpointDisables {
-        outputs: vec![off("out")],
-        ..EndpointDisables::default()
-    }
+    let mut d = EndpointDisables::default();
+    d.set_enabled(&EndpointNode::Output, off("out"), false);
+    d
 }
 
 fn no_inputs() -> EndpointDisables {
-    EndpointDisables {
-        inputs: vec![off("in")],
-        ..EndpointDisables::default()
-    }
+    let mut d = EndpointDisables::default();
+    d.set_enabled(&EndpointNode::Input, off("in"), false);
+    d
 }
 
 #[test]

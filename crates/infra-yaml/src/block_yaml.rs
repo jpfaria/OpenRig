@@ -214,18 +214,20 @@ pub(crate) enum AudioBlockYaml {
         io: String,
     },
     /// #328: a chain split. Its path blocks carry no id on disk — they are
-    /// positional and load as `<split>::a:<i>` / `<split>::b:<i>` (see
-    /// `block_yaml_split`).
+    /// positional and load as `<split>::p<path>:<i>` (see `block_yaml_split`).
+    /// Files saved before §11 hold two paths as `a` and `b`.
     Split {
         #[serde(default = "default_enabled")]
         enabled: bool,
         end: SplitEnd,
         #[serde(default)]
         params: Value,
-        #[serde(default)]
-        a: Vec<Value>,
-        #[serde(default)]
-        b: Vec<Value>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        paths: Vec<Vec<Value>>,
+        #[serde(default, skip_serializing)]
+        a: Option<Vec<Value>>,
+        #[serde(default, skip_serializing)]
+        b: Option<Vec<Value>>,
     },
 }
 
@@ -316,10 +318,12 @@ impl AudioBlockYaml {
                 enabled,
                 end,
                 params,
+                paths,
                 a,
                 b,
             } => {
-                crate::block_yaml_split::split_from_yaml(generated_id, enabled, end, params, [a, b])
+                let paths = crate::block_yaml_split::paths_or_legacy(paths, a, b);
+                crate::block_yaml_split::split_from_yaml(generated_id, enabled, end, params, paths)
             }
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);

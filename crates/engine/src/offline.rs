@@ -82,7 +82,7 @@ pub fn render_chain(
     let (mut nodes, _output_layout) = build_runtime_block_nodes(
         // #328: an offline render has no per-output routing — a Y split plays
         // both paths, as an output with both checked would.
-        &chain_for_segment(chain, SegmentPaths::None),
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,
@@ -140,7 +140,7 @@ pub(crate) fn build_offline_nodes(
     let (nodes, _layout) = build_runtime_block_nodes(
         // #328: an offline render has no per-output routing — a Y split plays
         // both paths, as an output with both checked would.
-        &chain_for_segment(chain, SegmentPaths::None),
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,
@@ -166,7 +166,7 @@ pub(crate) fn render_reusing(
     let (mut nodes, _layout) = build_runtime_block_nodes(
         // #328: an offline render has no per-output routing — a Y split plays
         // both paths, as an output with both checked would.
-        &chain_for_segment(chain, SegmentPaths::None),
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,

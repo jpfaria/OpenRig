@@ -2,7 +2,7 @@
 //!
 //! `project.openrig` carries the split through the derive (`kind: !Split`).
 //! Chain presets and legacy project files carry it as `type: split` with
-//! positional path blocks, loaded as `<split>::a:<i>` / `<split>::b:<i>`. A
+//! positional path blocks, loaded as `<split>::p0:<i>` / `<split>::p1:<i>`. A
 //! document that holds a split is `version: 2`; a split-free one stays at
 //! `version: 1`, so an older build keeps opening it.
 
@@ -15,11 +15,14 @@ use infra_yaml::{
     load_chain_preset_file, parse_rig_project, save_chain_preset_file, serialize_rig_project,
     ChainBlocksPreset, YamlProjectRepository,
 };
-use project::block::split_params::{MIX_PAN_A, MIX_PAN_B};
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd};
 use project::param::ParameterSet;
 use project::rig::{RigInput, RigPreset, RigProject};
 use tempfile::tempdir;
+
+/// The pans of paths A and B on the mixer.
+const MIX_PAN_A: &str = "mix_pan_0";
+const MIX_PAN_B: &str = "mix_pan_1";
 
 fn delay_model() -> String {
     block_delay::supported_models()
@@ -48,8 +51,8 @@ fn delay(id: &str) -> AudioBlock {
 /// Amp A panned hard left, amp B hard right — the main use of Split → Mix.
 fn dual_amp_split(id: &str) -> AudioBlock {
     let mut split = SplitBlock::new(SplitEnd::Mix);
-    split.a = vec![delay(&format!("{id}::a:0"))];
-    split.b = vec![delay(&format!("{id}::b:0"))];
+    split.paths[0] = vec![delay(&format!("{id}::p0:0"))];
+    split.paths[1] = vec![delay(&format!("{id}::p1:0"))];
     split.params.insert(MIX_PAN_A, ParameterValue::Float(-50.0));
     split.params.insert(MIX_PAN_B, ParameterValue::Float(50.0));
     AudioBlock {
@@ -118,7 +121,7 @@ fn a_project_with_a_split_round_trips_and_is_stamped_version_2() {
 /// A cab IR on path A, nothing on path B — the Y that ends a Mix + Y chain.
 fn cab_or_dry_y_split(id: &str) -> AudioBlock {
     let mut split = SplitBlock::new(SplitEnd::Y);
-    split.a = vec![delay(&format!("{id}::a:0"))];
+    split.paths[0] = vec![delay(&format!("{id}::p0:0"))];
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
@@ -139,8 +142,8 @@ fn a_project_with_a_mix_then_a_y_round_trips() {
     let back = parse_rig_project(&yaml).expect("a Mix then a Y loads");
     assert_eq!(back, rig, "both splits and their paths survive");
     let blocks = &back.presets["p"].blocks;
-    assert_eq!(split_of(&blocks[1]).a[0].id.0, "mix::a:0");
-    assert_eq!(split_of(&blocks[3]).a[0].id.0, "y::a:0");
+    assert_eq!(split_of(&blocks[1]).paths[0][0].id.0, "mix::p0:0");
+    assert_eq!(split_of(&blocks[3]).paths[0][0].id.0, "y::p0:0");
 }
 
 #[test]
@@ -164,9 +167,9 @@ fn a_chain_preset_with_a_mix_then_a_y_loads_distinct_path_ids() {
     let y = split_of(&loaded.blocks[2]);
     assert_eq!(mix.end, SplitEnd::Mix);
     assert_eq!(y.end, SplitEnd::Y);
-    assert_eq!(mix.a[0].id.0, "preset:mix_y:block:0::a:0");
-    assert_eq!(y.a[0].id.0, "preset:mix_y:block:2::a:0");
-    assert!(y.b.is_empty(), "path B of the Y stays empty");
+    assert_eq!(mix.paths[0][0].id.0, "preset:mix_y:block:0::p0:0");
+    assert_eq!(y.paths[0][0].id.0, "preset:mix_y:block:2::p0:0");
+    assert!(y.paths[1].is_empty(), "path B of the Y stays empty");
 }
 
 #[test]
@@ -185,8 +188,14 @@ fn a_legacy_project_file_reads_a_mix_then_a_y() {
         .load_current_project()
         .expect("legacy load");
     let blocks = &project.chains[0].blocks;
-    assert_eq!(split_of(&blocks[0]).a[0].id.0, "chain:0:block:0::a:0");
-    assert_eq!(split_of(&blocks[2]).a[0].id.0, "chain:0:block:2::a:0");
+    assert_eq!(
+        split_of(&blocks[0]).paths[0][0].id.0,
+        "chain:0:block:0::p0:0"
+    );
+    assert_eq!(
+        split_of(&blocks[2]).paths[0][0].id.0,
+        "chain:0:block:2::p0:0"
+    );
     assert_eq!(split_of(&blocks[2]).end, SplitEnd::Y);
 }
 
@@ -233,8 +242,8 @@ fn a_chain_preset_writes_type_split_with_positional_path_blocks() {
     let loaded = load_chain_preset_file(&path).expect("load");
     let split = split_of(&loaded.blocks[0]);
     assert_eq!(loaded.blocks[0].id.0, "preset:dual:block:0");
-    assert_eq!(split.a[0].id.0, "preset:dual:block:0::a:0");
-    assert_eq!(split.b[0].id.0, "preset:dual:block:0::b:0");
+    assert_eq!(split.paths[0][0].id.0, "preset:dual:block:0::p0:0");
+    assert_eq!(split.paths[1][0].id.0, "preset:dual:block:0::p1:0");
     assert_eq!(split.end, SplitEnd::Mix);
     assert_eq!(split.params.get_f32(MIX_PAN_A), Some(-50.0));
     assert_eq!(split.params.get_f32(MIX_PAN_B), Some(50.0));
@@ -259,13 +268,13 @@ fn a_path_block_this_machine_cannot_load_drops_only_that_block() {
     let loaded = load_chain_preset_file(&path).expect("load");
     assert_eq!(loaded.blocks.len(), 1, "the split itself survives");
     let split = split_of(&loaded.blocks[0]);
-    let a_ids: Vec<&str> = split.a.iter().map(|b| b.id.0.as_str()).collect();
+    let a_ids: Vec<&str> = split.paths[0].iter().map(|b| b.id.0.as_str()).collect();
     assert_eq!(
         a_ids,
-        vec!["preset:partial:block:0::a:0"],
+        vec!["preset:partial:block:0::p0:0"],
         "only the block this machine cannot load is dropped"
     );
-    assert_eq!(split.b.len(), 1, "path B is untouched");
+    assert_eq!(split.paths[1].len(), 1, "path B is untouched");
 }
 
 #[test]
@@ -285,5 +294,5 @@ fn a_legacy_project_file_reads_type_split() {
         .expect("legacy load");
     let split = split_of(&project.chains[0].blocks[0]);
     assert_eq!(split.end, SplitEnd::Y);
-    assert_eq!(split.a[0].id.0, "chain:0:block:0::a:0");
+    assert_eq!(split.paths[0][0].id.0, "chain:0:block:0::p0:0");
 }

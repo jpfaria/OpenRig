@@ -6,9 +6,11 @@ use super::volume_invariants::*;
 use super::{update_chain_runtime_state, ChainRuntimeState};
 
 use domain::io_binding::ChannelMode;
-use project::block::split_params::{self, default_split_params};
+use project::block::split_param_keys::{balance, mix_pan, mix_polarity};
+use project::block::split_params;
 use project::block::{SplitBlock, SplitEnd};
 
+use crate::runtime_split::mix::PathKnobs;
 use crate::runtime_split::state::SplitRuntimeState;
 use crate::runtime_state::{FadeState, RuntimeProcessor};
 
@@ -21,18 +23,18 @@ pub(super) fn volume_block(id: &str, pct: f32) -> AudioBlock {
 pub(super) fn split_block(
     id: &str,
     end: SplitEnd,
-    knobs: &[(&str, ParameterValue)],
+    knobs: &[(String, ParameterValue)],
     a: Vec<AudioBlock>,
     b: Vec<AudioBlock>,
 ) -> AudioBlock {
-    let mut params = default_split_params();
+    let mut split = SplitBlock::with_paths(end, vec![a, b]);
     for (key, value) in knobs {
-        params.insert(*key, value.clone());
+        split.params.insert(key, value.clone());
     }
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock { end, params, a, b }),
+        kind: AudioBlockKind::Split(split),
     }
 }
 
@@ -109,9 +111,9 @@ fn steady_sine_peak(runtime: &Arc<ChainRuntimeState>, callbacks: usize, skip: us
     peak
 }
 
-fn invert() -> (&'static str, ParameterValue) {
+fn invert() -> (String, ParameterValue) {
     (
-        split_params::MIX_B_POLARITY,
+        mix_polarity(1),
         ParameterValue::String(split_params::POLARITY_INVERT.into()),
     )
 }
@@ -160,9 +162,12 @@ fn dual_amp_hard_left_right_keeps_each_amp_on_its_side() {
             "split",
             SplitEnd::Mix,
             &[
-                (split_params::MIX_PAN_A, ParameterValue::Float(-50.0)),
-                (split_params::MIX_PAN_B, ParameterValue::Float(50.0)),
-                (split_params::MIX_MASTER, ParameterValue::Float(100.0)),
+                (mix_pan(0), ParameterValue::Float(-50.0)),
+                (mix_pan(1), ParameterValue::Float(50.0)),
+                (
+                    split_params::MIX_MASTER.into(),
+                    ParameterValue::Float(100.0),
+                ),
             ],
             vec![volume_block("amp_a", 100.0)],
             vec![volume_block("amp_b", 50.0)],
@@ -214,14 +219,17 @@ fn mode_ii_feeds_each_path_the_channel_its_balance_picks() {
             SplitEnd::Mix,
             &[
                 (
-                    split_params::SPLIT_MODE,
+                    split_params::SPLIT_MODE.into(),
                     ParameterValue::String(split_params::SPLIT_MODE_DUAL_MONO.into()),
                 ),
-                (split_params::BALANCE_A, ParameterValue::Float(50.0)),
-                (split_params::BALANCE_B, ParameterValue::Float(-50.0)),
-                (split_params::MIX_PAN_A, ParameterValue::Float(-50.0)),
-                (split_params::MIX_PAN_B, ParameterValue::Float(50.0)),
-                (split_params::MIX_MASTER, ParameterValue::Float(100.0)),
+                (balance(0), ParameterValue::Float(50.0)),
+                (balance(1), ParameterValue::Float(-50.0)),
+                (mix_pan(0), ParameterValue::Float(-50.0)),
+                (mix_pan(1), ParameterValue::Float(50.0)),
+                (
+                    split_params::MIX_MASTER.into(),
+                    ParameterValue::Float(100.0),
+                ),
             ],
             vec![],
             vec![],
@@ -250,7 +258,11 @@ fn ir_in_path_a_is_aligned_against_a_dry_path_b() {
     );
     let runtime = build_runtime(&cancel, &registry);
     with_split(&runtime, |split| {
-        assert_eq!(split.align_b.delay(), 64, "the dry path waits for the cab")
+        assert_eq!(
+            split.aligns[1].delay(),
+            64,
+            "the dry path waits for the cab"
+        )
     });
     let peak = steady_sine_peak(&runtime, 24, 8);
     assert!(
@@ -336,7 +348,7 @@ fn each_segment_builds_its_own_split() {
         .iter()
         .filter_map(|state| {
             state.blocks.iter().find_map(|node| match &node.processor {
-                RuntimeProcessor::Split(split) => Some(split.b_buf.as_ptr()),
+                RuntimeProcessor::Split(split) => Some(split.bufs[1].as_ptr()),
                 _ => None,
             })
         })
@@ -380,7 +392,7 @@ fn disabling_the_split_fades_it_out_through_its_paths() {
         node.fade_state
     );
     assert!(
-        matches!(&node.processor, RuntimeProcessor::Split(split) if split.a.len() == 1),
+        matches!(&node.processor, RuntimeProcessor::Split(split) if split.paths[0].len() == 1),
         "the fade-out runs through the real paths"
     );
 }
@@ -439,7 +451,7 @@ pub(super) fn serial_of(runtime: &ChainRuntimeState, id: &str) -> u64 {
             return node.instance_serial;
         }
         if let RuntimeProcessor::Split(split) = &node.processor {
-            for path_node in split.a.iter().chain(split.b.iter()) {
+            for path_node in split.paths.iter().flatten() {
                 if path_node.block_id.0 == id {
                     return path_node.instance_serial;
                 }
@@ -487,11 +499,7 @@ fn a_mixer_knob_edit_keeps_the_path_processors() {
     let before = (serial_of(&runtime, "amp_a"), serial_of(&runtime, "amp_b"));
     update(
         &runtime,
-        &with_split_knob(
-            &chain,
-            split_params::MIX_PAN_A,
-            ParameterValue::Float(-50.0),
-        ),
+        &with_split_knob(&chain, &mix_pan(0), ParameterValue::Float(-50.0)),
         &registry,
     );
     assert_eq!(
@@ -500,11 +508,9 @@ fn a_mixer_knob_edit_keeps_the_path_processors() {
         "a knob move must not rebuild the amps in the paths"
     );
     with_split(&runtime, |split| {
-        assert_eq!(
-            split.knobs.load(true).mix_pan_a,
-            -50.0,
-            "the new knob value applies"
-        )
+        let mut paths = [PathKnobs::neutral(); 2];
+        split.knobs.load_into(true, &mut paths);
+        assert_eq!(paths[0].mix_pan, -50.0, "the new knob value applies")
     });
 }
 
@@ -524,8 +530,8 @@ fn moving_a_block_from_path_a_to_path_b_keeps_its_processor() {
     let before = serial_of(&runtime, "a2");
     let mut moved = chain.clone();
     if let AudioBlockKind::Split(split) = &mut moved.blocks[0].kind {
-        let dragged = split.a.remove(1);
-        split.b.push(dragged);
+        let dragged = split.paths[0].remove(1);
+        split.paths[1].push(dragged);
     }
     update(&runtime, &moved, &registry);
     assert_eq!(
@@ -551,7 +557,7 @@ fn moving_a_block_out_of_a_path_keeps_its_processor() {
     let before = serial_of(&runtime, "a1");
     let mut moved = chain.clone();
     let dragged = match &mut moved.blocks[0].kind {
-        AudioBlockKind::Split(split) => split.a.remove(0),
+        AudioBlockKind::Split(split) => split.paths[0].remove(0),
         _ => unreachable!("block 0 is the split"),
     };
     moved.blocks.insert(0, dragged);
@@ -696,9 +702,9 @@ fn toggling_a_block_inside_a_path_fades_it_out() {
     drive_and_capture(&runtime, 1, &sine_block(256, 256), 2);
     drive_and_capture(&runtime, 1, &sine_block(256, 512), 2);
     with_split(&runtime, |split| {
-        assert!(!split.b[0].block_snapshot.enabled, "amp B is off");
+        assert!(!split.paths[1][0].block_snapshot.enabled, "amp B is off");
         assert_eq!(
-            split.b[0].fade_state,
+            split.paths[1][0].fade_state,
             FadeState::Bypassed,
             "after its fade-out"
         );
@@ -739,7 +745,7 @@ fn switching_the_ir_in_path_a_off_realigns_the_paths() {
     }
     with_split(&runtime, |split| {
         assert_eq!(
-            split.align_b.delay(),
+            split.aligns[1].delay(),
             0,
             "with the cab off the dry path waits for nothing"
         )

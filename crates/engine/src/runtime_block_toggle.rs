@@ -115,9 +115,10 @@ pub(crate) fn drain_pending_block_toggles(
 
 /// In-place mutation that flips `fade_state` for every node matching
 /// `block_id` across every per-input runtime of the chain — inside the paths
-/// of a split too, which then lines its paths up again (#328). Never takes
-/// the `processing` lock itself (the audio-thread caller already holds it
-/// via `process_input_f32`'s try_lock guard); no allocation on success.
+/// of a split too, at any depth; every split the toggle sits in then lines
+/// its paths up again, the deepest first (#328). Never takes the
+/// `processing` lock itself (the audio-thread caller already holds it via
+/// `process_input_f32`'s try_lock guard); no allocation on success.
 fn apply_block_toggle(
     processing: &mut ChainProcessingState,
     block_id: &BlockId,
@@ -126,19 +127,7 @@ fn apply_block_toggle(
 ) {
     let mut touched = 0usize;
     for input_state in processing.input_states.iter_mut() {
-        for node in input_state.blocks.iter_mut() {
-            touched += toggle_node(node, block_id, enabled, runtime);
-            if let RuntimeProcessor::Split(split) = &mut node.processor {
-                let mut in_paths = 0usize;
-                for path_node in split.a.iter_mut().chain(split.b.iter_mut()) {
-                    in_paths += toggle_node(path_node, block_id, enabled, runtime);
-                }
-                if in_paths > 0 {
-                    split.refresh_alignment();
-                }
-                touched += in_paths;
-            }
-        }
+        touched += toggle_in(&mut input_state.blocks, block_id, enabled, runtime);
     }
     if touched == 0 {
         let _ = runtime.error_queue.push(BlockError {
@@ -149,6 +138,31 @@ fn apply_block_toggle(
             ),
         });
     }
+}
+
+/// Toggle `block_id` among `nodes` and inside every split path below them;
+/// returns how many nodes were toggled.
+fn toggle_in(
+    nodes: &mut [BlockRuntimeNode],
+    block_id: &BlockId,
+    enabled: bool,
+    runtime: &ChainRuntimeState,
+) -> usize {
+    let mut touched = 0usize;
+    for node in nodes.iter_mut() {
+        touched += toggle_node(node, block_id, enabled, runtime);
+        if let RuntimeProcessor::Split(split) = &mut node.processor {
+            let mut in_paths = 0usize;
+            for path in split.paths.iter_mut() {
+                in_paths += toggle_in(path, block_id, enabled, runtime);
+            }
+            if in_paths > 0 {
+                split.refresh_alignment();
+            }
+            touched += in_paths;
+        }
+    }
+    touched
 }
 
 /// Flip one node when it is `block_id`; returns 1 when it was toggled.

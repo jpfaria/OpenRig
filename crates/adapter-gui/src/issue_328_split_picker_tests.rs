@@ -1,6 +1,7 @@
 //! #328 (spec §5.1) — picking "Split → Mix" in the add-block picker adds a
 //! split at the picked position; a picker opened inside a split path offers
-//! no Input, Output or Insert (orchestrator decision 8).
+//! no Input, Output or Insert (orchestrator decision 8), but does offer a
+//! split (spec §11: nesting at any depth).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -131,22 +132,26 @@ fn picking_split_to_mix_adds_a_split_at_the_position() {
     let c = chain_in(&p.session, 0);
     assert_eq!(c.blocks.len(), 3);
     assert!(
-        matches!(&c.blocks[1].kind, AudioBlockKind::Split(s) if s.end == SplitEnd::Mix && s.a.is_empty() && s.b.is_empty())
+        matches!(&c.blocks[1].kind, AudioBlockKind::Split(s) if s.end == SplitEnd::Mix && s.paths.iter().all(Vec::is_empty))
     );
 }
 
 #[test]
-fn a_picker_inside_a_path_offers_no_input_output_or_insert() {
+fn a_picker_inside_a_path_offers_a_split_but_no_input_output_or_insert() {
     let p = picker_on(vec![mix_chain()]);
     crate::ChainGraphBridge::get(&p.app).invoke_start_path_insert(0, "sp".into(), 0, 0);
     let types = effect_types(&p.options);
     assert!(!types.is_empty());
-    for hidden in ["input", "output", "insert", "split"] {
+    for hidden in ["input", "output", "insert"] {
         assert!(
             !types.iter().any(|t| t == hidden),
             "{hidden} offered inside a path: {types:?}"
         );
     }
+    assert!(
+        types.iter().any(|t| t == "split"),
+        "#328 §11: a split nests inside a path: {types:?}"
+    );
 }
 
 #[test]

@@ -27,7 +27,10 @@ pub fn find_split_with_end(blocks: &[AudioBlock], end: SplitEnd) -> Option<(usiz
     splits(blocks).find(|(_, split)| split.end == end)
 }
 
-/// Whether `blocks` hold a Y split, so the chain ends in its path output nodes.
+/// Whether `blocks` hold a Y split at any depth, so some path of the chain
+/// ends in its own output nodes.
 pub fn has_y_split(blocks: &[AudioBlock]) -> bool {
-    find_split_with_end(blocks, SplitEnd::Y).is_some()
+    splits(blocks).any(|(_, split)| {
+        split.end == SplitEnd::Y || split.paths.iter().any(|path| has_y_split(path))
+    })
 }

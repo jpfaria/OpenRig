@@ -33,17 +33,19 @@ fn lanes(
         .blocks
         .iter()
         .find_map(|b| match &b.kind {
-            AudioBlockKind::Split(s) => Some((s.a.clone(), s.b.clone())),
+            AudioBlockKind::Split(s) => Some((s.paths[0].clone(), s.paths[1].clone())),
             _ => None,
         })
 }
 
 /// The anchor id Part 5 gives the wire before blueprint `index` of `lane`.
-/// In both chains below the split is top-level block 1, so its stage is 2.
+/// In both chains below the split is "sp".
 fn lane_anchor(lane: usize, index: usize) -> String {
-    AnchorSlot::Lane {
-        stage: 2,
-        lane,
+    AnchorSlot {
+        path: Some(project::block::PathRef {
+            split: domain::ids::BlockId("sp".into()),
+            path: lane,
+        }),
         index,
     }
     .anchor_id()
@@ -215,7 +217,7 @@ fn mix_then_y_removing_the_y_node_asks_about_the_ys_path_b() {
         session_with(vec![crate::chain_graph_fixtures_tests::mix_then_y_chain()]),
         rows(),
     );
-    let outcome = remove_node(&session, 0, "__split_2", &target(&rows)).expect("decided");
+    let outcome = remove_node(&session, 0, "__split_y", &target(&rows)).expect("decided");
     assert!(
         matches!(&outcome, RemoveOutcome::ConfirmSplit { split, .. } if split.0 == "y"),
         "got {outcome:?}"
@@ -232,7 +234,7 @@ fn mix_then_y_removing_a_y_with_an_empty_path_b_removes_the_y_and_keeps_the_mix(
     ]);
     let (session, rows) = (session_with(vec![c]), rows());
     assert_eq!(
-        remove_node(&session, 0, "__split_2", &target(&rows)),
+        remove_node(&session, 0, "__split_y", &target(&rows)),
         Ok(RemoveOutcome::Removed)
     );
     assert_eq!(

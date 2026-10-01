@@ -1,60 +1,66 @@
 //! Responsibility: runs one callback of a split over the segment's bus.
 //!
-//! Audio-thread hot path (#328, spec §4.1): path B runs in the split's own
-//! buffer, never in another segment or runtime. No allocation (a callback
-//! larger than the buffer preallocated at build runs in chunks), no lock,
-//! no log.
+//! Audio-thread hot path (#328, spec §4.1, §11.4): every path runs in the
+//! split's own buffer for it, never in another segment or runtime. No
+//! allocation (a callback larger than the buffers preallocated at build runs
+//! in chunks), no lock, no log.
 
 use crate::runtime_audio_frame::AudioFrame;
-use crate::runtime_split::mix::{mix_frame, split_inputs};
+use crate::runtime_split::mix::{accumulate_path, finish_mix, path_input};
 use crate::runtime_split::state::SplitRuntimeState;
 use crate::runtime_state::BlockRuntimeNode;
 
-/// Runs the split over the bus in chunks no larger than path B's
-/// preallocated buffer, so an oversized callback never grows it.
+/// Runs the split over the bus in chunks no larger than the paths'
+/// preallocated buffers, so an oversized callback never grows them.
 pub(crate) fn process_split<F>(split: &mut SplitRuntimeState, frames: &mut [AudioFrame], mut run: F)
 where
     F: FnMut(&mut BlockRuntimeNode, &mut [AudioFrame]),
 {
-    let chunk = split.b_buf.capacity().max(1);
+    let chunk = split
+        .bufs
+        .iter()
+        .map(Vec::capacity)
+        .min()
+        .unwrap_or(0)
+        .max(1);
     for part in frames.chunks_mut(chunk) {
         process_chunk(split, part, &mut run);
     }
 }
 
-/// 1. fill path B's buffer from the bus and feed path A's input to the bus
-///    in place; 2. run both paths through `run`; 3. delay the shorter path;
-/// 4. mix back into the bus.
+/// 1. fill every path's buffer from the bus; 2. run each path through `run`;
+/// 3. delay every path up to the longest; 4. mix back into the bus.
 fn process_chunk<F>(split: &mut SplitRuntimeState, frames: &mut [AudioFrame], run: &mut F)
 where
     F: FnMut(&mut BlockRuntimeNode, &mut [AudioFrame]),
 {
     let SplitRuntimeState {
         mixes,
-        a,
-        b,
-        b_buf,
-        align_a,
-        align_b,
+        paths,
+        bufs,
+        aligns,
+        values,
         knobs,
     } = split;
-    let values = knobs.load(*mixes);
-    b_buf.clear();
-    for frame in frames.iter_mut() {
-        let (to_a, to_b) = split_inputs(stereo(*frame), &values);
-        *frame = AudioFrame::Stereo(to_a);
-        b_buf.push(AudioFrame::Stereo(to_b));
+    let mix = knobs.load_into(*mixes, values);
+    for (buf, path) in bufs.iter_mut().zip(values.iter()) {
+        buf.clear();
+        for frame in frames.iter() {
+            buf.push(AudioFrame::Stereo(path_input(stereo(*frame), path, &mix)));
+        }
     }
-    for node in a.iter_mut() {
-        run(node, frames);
+    for ((nodes, buf), align) in paths.iter_mut().zip(bufs.iter_mut()).zip(aligns.iter_mut()) {
+        for node in nodes.iter_mut() {
+            run(node, buf.as_mut_slice());
+        }
+        align.process(buf.as_mut_slice());
     }
-    for node in b.iter_mut() {
-        run(node, b_buf.as_mut_slice());
-    }
-    align_a.process(frames);
-    align_b.process(b_buf.as_mut_slice());
-    for (frame, path_b) in frames.iter_mut().zip(b_buf.iter()) {
-        *frame = AudioFrame::Stereo(mix_frame(stereo(*frame), stereo(*path_b), &values));
+    for (index, frame) in frames.iter_mut().enumerate() {
+        let mut acc = [0.0_f32; 2];
+        for (buf, path) in bufs.iter().zip(values.iter()) {
+            accumulate_path(&mut acc, stereo(buf[index]), path);
+        }
+        *frame = AudioFrame::Stereo(finish_mix(acc, &mix));
     }
 }
 

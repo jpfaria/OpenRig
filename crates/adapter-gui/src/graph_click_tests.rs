@@ -6,7 +6,7 @@ use crate::chain_graph_fixtures_tests::{
 };
 use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID};
 use domain::ids::BlockId;
-use project::block::{PathRef, PathSide};
+use project::block::PathRef;
 
 #[test]
 fn a_top_level_card_opens_through_its_strip_row() {
@@ -19,7 +19,7 @@ fn a_top_level_card_opens_through_its_strip_row() {
 fn a_path_card_opens_through_its_path() {
     let path = PathRef {
         split: BlockId("sp".into()),
-        side: PathSide::A,
+        path: 0,
     };
     assert_eq!(
         click_action(&mix_chain(), "a2"),
@@ -54,16 +54,16 @@ fn routing_nodes_open_their_editors() {
 fn mix_then_y_the_second_split_node_opens_the_split_editor() {
     let c = mix_then_y_chain();
     assert_eq!(
-        click_action(&c, "__split_2"),
+        click_action(&c, "__split_y"),
         Some(ClickAction::OpenSplitEditor {
             split: BlockId("y".into())
         })
     );
     assert_eq!(
-        click_action(&c, "__merge_1"),
+        click_action(&c, "__merge_mx"),
         Some(ClickAction::OpenMixerEditor {
             split: BlockId("mx".into())
         })
     );
-    assert_eq!(click_action(&c, "__merge_2"), None, "a Y has no mixer");
+    assert_eq!(click_action(&c, "__merge_y"), None, "a Y has no mixer");
 }

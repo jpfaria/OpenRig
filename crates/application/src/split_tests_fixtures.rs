@@ -8,7 +8,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use domain::ids::BlockId;
-use project::block::split_params::default_split_params;
 use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
 use project::endpoint_disables::EndpointDisables;
 use project::project::Project;
@@ -28,12 +27,7 @@ pub(crate) fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>, b: Vec<AudioBlo
     AudioBlock {
         id: BlockId(id.to_string()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end,
-            params: default_split_params(),
-            a,
-            b,
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(end, vec![a, b])),
     }
 }
 

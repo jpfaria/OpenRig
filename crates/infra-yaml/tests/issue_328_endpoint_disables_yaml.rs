@@ -3,7 +3,9 @@
 //! version bump, and a file written before them loads with every endpoint
 //! checked.
 
+use domain::ids::BlockId;
 use infra_yaml::{parse_rig_project, serialize_rig_project};
+use project::block::PathRef;
 use project::endpoint_disables::{EndpointNode, EndpointRef};
 
 const BOUND: &str = r#"
@@ -42,10 +44,15 @@ fn an_inputs_unchecked_endpoints_survive_save_and_reload() {
     let input = rig.inputs.get_mut("g").expect("input g");
     input
         .disabled_endpoints
-        .set_enabled(EndpointNode::Input, r("in 2"), false);
-    input
-        .disabled_endpoints
-        .set_enabled(EndpointNode::PathBOutput, r("out L"), false);
+        .set_enabled(&EndpointNode::Input, r("in 2"), false);
+    input.disabled_endpoints.set_enabled(
+        &EndpointNode::PathOutput(PathRef {
+            split: BlockId("y".into()),
+            path: 1,
+        }),
+        r("out L"),
+        false,
+    );
     let yaml = serialize_rig_project(&rig).expect("serialize");
     assert!(
         yaml.contains("disabled_endpoints"),
@@ -90,7 +97,7 @@ fn a_checklist_edit_changes_the_legacy_serialization_the_dirty_check_compares() 
         midi: None,
     };
     let mut unchecked = EndpointDisables::default();
-    unchecked.set_enabled(EndpointNode::Input, r("in 2"), false);
+    unchecked.set_enabled(&EndpointNode::Input, r("in 2"), false);
 
     let before = serialize_project(&project_with(EndpointDisables::default())).expect("serialize");
     let after = serialize_project(&project_with(unchecked.clone())).expect("serialize");

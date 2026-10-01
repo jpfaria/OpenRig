@@ -210,19 +210,19 @@ msgid "label-endpoints-total"
 msgstr "엔드포인트 {}개"
 
 #. The split and the mixer carry no host label; their name is translated.
-#: crates/adapter-gui/ui/components/graph_node_card.slint:52
+#: crates/adapter-gui/ui/components/graph_node_card.slint:55
 msgid "graph-node-split"
 msgstr "스플릿"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:53
+#: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
 msgstr "믹서"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:142
+#: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "블록 켜기/끄기"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:159
+#: crates/adapter-gui/ui/components/graph_node_card.slint:162
 msgid "accessible-graph-node-remove"
 msgstr "블록 제거"
 
@@ -472,6 +472,14 @@ msgstr ""
 #: crates/adapter-gui/ui/components/preset_select.slint:171
 msgid "status-no-presets-found"
 msgstr "프리셋을 찾을 수 없음"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:62
+msgid "label-remove-path"
+msgstr "경로 {} 제거"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:187
+msgid "btn-add-path"
+msgstr "경로"
 
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"

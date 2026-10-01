@@ -97,7 +97,7 @@ pub(crate) fn assemble_chain_runtime_state(
             segment.output_route_indices.clone(),
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
-            segment.paths,
+            &segment.paths,
             None,
         )?;
         input_states.push(input_state);
@@ -265,7 +265,7 @@ pub(crate) fn build_input_processing_state(
     output_route_indices: Vec<usize>,
     mid_output_taps: Vec<crate::runtime_segments::SegmentTap>,
     split_mono_sibling_count: Option<usize>,
-    paths: crate::segment_types::SegmentPaths,
+    paths: &crate::segment_types::SegmentPaths,
     prebuilt: Option<&mut PrebuiltNodes>,
 ) -> anyhow::Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
@@ -309,7 +309,7 @@ pub(crate) fn build_input_processing_state(
     // effectively mono. A DualMono/Stereo source carries independent
     // channels and is not.
     let source_is_mono = matches!(input_read_layout, AudioChannelLayout::Mono);
-    // #328: a Y → A/B split is built as the split THIS segment runs.
+    // #328: every Y split is built as the split THIS segment runs.
     let segment_chain = split_segment_view::chain_for_segment(chain, paths);
     let (blocks, _output_layout) = build_runtime_block_nodes_with(
         &segment_chain,

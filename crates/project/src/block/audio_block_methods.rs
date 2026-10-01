@@ -33,8 +33,8 @@ impl AudioBlock {
             }
             AudioBlockKind::Split(split) => {
                 split.validate_structure()?;
-                normalize_split_params(split.params.clone())?;
-                for block in split.a.iter().chain(&split.b) {
+                normalize_split_params(split.params.clone(), split.paths.len())?;
+                for block in split.paths.iter().flatten() {
                     block.validate_params()?;
                 }
                 Ok(())
@@ -60,7 +60,9 @@ impl AudioBlock {
                 .parameter_descriptors(),
             // #328: a split's own parameters are its split and mixer knobs;
             // its path blocks describe themselves.
-            AudioBlockKind::Split(split) => split_param_descriptors(&self.id, &split.params),
+            AudioBlockKind::Split(split) => {
+                split_param_descriptors(&self.id, &split.params, split.paths.len())
+            }
             AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
                 Ok(Vec::new())
             }
@@ -84,7 +86,7 @@ impl AudioBlock {
                 .audio_descriptors(),
             AudioBlockKind::Split(split) => {
                 let mut descriptors = Vec::new();
-                for block in split.a.iter().chain(&split.b) {
+                for block in split.paths.iter().flatten() {
                     descriptors.extend(block.audio_descriptors()?);
                 }
                 Ok(descriptors)

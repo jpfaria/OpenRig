@@ -4,6 +4,7 @@
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
+use project::block::split_param_keys::{mix_pan, mix_polarity};
 use project::block::split_params::{self, default_split_params};
 
 use super::process_split;
@@ -14,21 +15,21 @@ use crate::runtime_split::state::SplitRuntimeState;
 use crate::runtime_split::test_support::{delay_node, gain_node};
 use crate::runtime_state::{BlockError, BlockRuntimeNode, SEGMENT_FRAME_CAPACITY};
 
-fn knobs(overrides: &[(&str, ParameterValue)]) -> SplitKnobs {
-    let mut params = default_split_params();
+fn knobs(count: usize, overrides: &[(String, ParameterValue)]) -> SplitKnobs {
+    let mut params = default_split_params(count);
     for (key, value) in overrides {
-        params.insert(*key, value.clone());
+        params.insert(key, value.clone());
     }
-    SplitKnobs::from_params(&params)
+    SplitKnobs::from_params(&params, count)
 }
 
 fn split(
     mixes: bool,
-    a: Vec<BlockRuntimeNode>,
-    b: Vec<BlockRuntimeNode>,
-    overrides: &[(&str, ParameterValue)],
+    paths: Vec<Vec<BlockRuntimeNode>>,
+    overrides: &[(String, ParameterValue)],
 ) -> SplitRuntimeState {
-    SplitRuntimeState::new(mixes, a, b, knobs(overrides), &BlockId("split".into()))
+    let knobs = knobs(paths.len(), overrides);
+    SplitRuntimeState::new(mixes, paths, knobs, &BlockId("split".into()))
 }
 
 fn run(state: &mut SplitRuntimeState, frames: &mut [AudioFrame]) {
@@ -68,8 +69,7 @@ fn assert_half_of(out: &[AudioFrame], input: &[AudioFrame]) {
 fn identical_paths_at_default_knobs_come_out_at_the_path_level() {
     let mut s = split(
         true,
-        vec![gain_node("a", 0.5)],
-        vec![gain_node("b", 0.5)],
+        vec![vec![gain_node("a", 0.5)], vec![gain_node("b", 0.5)]],
         &[],
     );
     let input = sine(256, 0);
@@ -82,10 +82,9 @@ fn identical_paths_at_default_knobs_come_out_at_the_path_level() {
 fn inverted_b_cancels_an_identical_but_later_path_a() {
     let mut s = split(
         true,
-        vec![delay_node("ir", 64)],
-        vec![],
+        vec![vec![delay_node("ir", 64)], vec![]],
         &[(
-            split_params::MIX_B_POLARITY,
+            mix_polarity(1),
             ParameterValue::String(split_params::POLARITY_INVERT.into()),
         )],
     );
@@ -107,11 +106,10 @@ fn inverted_b_cancels_an_identical_but_later_path_a() {
 fn y_end_sums_both_paths_at_unity_ignoring_the_mixer() {
     let mut s = split(
         false,
-        vec![],
-        vec![],
+        vec![vec![], vec![]],
         &[
-            (split_params::MIX_PAN_A, ParameterValue::Float(-50.0)),
-            (split_params::MIX_MASTER, ParameterValue::Float(10.0)),
+            (mix_pan(0), ParameterValue::Float(-50.0)),
+            (split_params::MIX_MASTER.into(), ParameterValue::Float(10.0)),
         ],
     );
     let mut frames = vec![AudioFrame::Stereo([0.2, 0.1]); 4];
@@ -127,7 +125,7 @@ fn y_end_sums_both_paths_at_unity_ignoring_the_mixer() {
 
 #[test]
 fn a_mono_bus_comes_out_stereo() {
-    let mut s = split(true, vec![], vec![], &[]);
+    let mut s = split(true, vec![vec![], vec![]], &[]);
     let mut frames = vec![AudioFrame::Mono(0.3); 4];
     run(&mut s, &mut frames);
     assert!(frames.iter().all(|f| matches!(
@@ -140,12 +138,36 @@ fn a_mono_bus_comes_out_stereo() {
 fn a_callback_larger_than_the_preallocated_buffer_still_mixes_every_frame() {
     let mut s = split(
         true,
-        vec![gain_node("a", 0.5)],
-        vec![gain_node("b", 0.5)],
+        vec![vec![gain_node("a", 0.5)], vec![gain_node("b", 0.5)]],
         &[],
     );
     let input = sine(2 * SEGMENT_FRAME_CAPACITY, 0);
     let mut frames = input.clone();
     run(&mut s, &mut frames);
     assert_half_of(&frames, &input);
+}
+
+#[test]
+fn three_paths_align_and_sum_on_one_master() {
+    let mut s = split(
+        true,
+        vec![
+            vec![gain_node("a", 0.5)],
+            vec![delay_node("ir", 32), gain_node("b", 0.5)],
+            vec![gain_node("c", 0.5)],
+        ],
+        &[],
+    );
+    let input = sine(256, 0);
+    let mut frames = input.clone();
+    run(&mut s, &mut frames);
+    // Master 50 over three paths at ×0.5: 0.75 × the input, every path
+    // aligned to the 32-sample one.
+    for (i, frame) in frames.iter().enumerate().skip(32) {
+        let (o, x) = (pair(*frame), pair(input[i - 32]));
+        assert!(
+            (o[0] - 0.75 * x[0]).abs() < 1e-5,
+            "frame {i}: {o:?} is not 0.75 × the aligned input {x:?}"
+        );
+    }
 }

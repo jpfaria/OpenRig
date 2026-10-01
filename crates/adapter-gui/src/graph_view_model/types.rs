@@ -126,10 +126,12 @@ pub enum ChainStage {
     /// A single block — sits alone in one column.
     Single(BlockBlueprint),
     /// Parallel lanes after an auto-generated split node. Each inner `Vec`
-    /// is one lane, top to bottom; `end` decides whether the lanes merge
-    /// again or fan out to one terminal each (#328).
+    /// is one lane, top to bottom, and may hold further parallel stages at
+    /// any depth; `end` decides whether the lanes merge again or fan out to
+    /// one terminal each (#328). `split_id` names the split and merge nodes.
     Parallel {
-        lanes: Vec<Vec<BlockBlueprint>>,
+        split_id: String,
+        lanes: Vec<Vec<ChainStage>>,
         end: ParallelEnd,
     },
 }

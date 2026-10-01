@@ -6,9 +6,10 @@
 //! (`sync_synthetic_into_rig`) carries the list into the chain's `RigInput`,
 //! which is what `project.openrig` persists.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
-use project::endpoint_disables::EndpointRef;
+use project::block::y_leaves;
+use project::endpoint_disables::{EndpointNode, EndpointRef};
 
 use crate::command::{ChainCommand, Command};
 use crate::event::Event;
@@ -27,9 +28,14 @@ impl LocalDispatcher {
             unreachable!("handle_chain_endpoint_enabled received {cmd:?}");
         };
         self.with_chain(&chain, |c| {
+            if let EndpointNode::PathOutput(leaf) = &node {
+                if !y_leaves(&c.blocks).contains(leaf) {
+                    return Err(anyhow!("{leaf:?} is not a Y leaf of the chain"));
+                }
+            }
             // Part 1 Task 8 owns the toggle rule (idempotent, per node).
             c.disabled_endpoints
-                .set_enabled(node, EndpointRef { io, endpoint }, enabled);
+                .set_enabled(&node, EndpointRef { io, endpoint }, enabled);
             Ok(())
         })?;
         // A routing change: the MCP/MIDI drain re-syncs exactly the chain an

@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use slint::Global;
 
-use crate::chain_block_lists::side_index;
+use crate::chain_block_lists::path_index;
 use crate::compact_row_address::insert_slot;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainGraphBridge};
@@ -36,7 +36,7 @@ pub(crate) fn start_insert_above_row(
         Some(path) => ChainGraphBridge::get(main_win).invoke_start_path_insert(
             chain_index,
             path.split.0.as_str().into(),
-            side_index(&path.side),
+            path_index(&path),
             slot.index as i32,
         ),
     }

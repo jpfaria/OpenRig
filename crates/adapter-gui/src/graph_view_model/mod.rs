@@ -24,11 +24,12 @@ mod types;
 mod validation;
 
 pub use anchors::{insert_anchors, AnchorSlot, GraphAnchor};
-pub use chain_builder::linear_chain_layout;
+pub use chain_builder::{linear_chain_layout, stage_extent};
 pub use drop_target::resolve_drop_anchor;
 pub use layout::topological_layout;
 pub use palette::{default_palette, CategoryStyle};
 pub use reorder::reorder_for_drop;
+pub use routing_ids::{merge_node_id, split_node_id, MERGE_NODE_PREFIX, SPLIT_NODE_PREFIX};
 pub use types::{
     BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
     ParallelEnd,

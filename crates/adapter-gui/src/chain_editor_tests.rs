@@ -67,7 +67,7 @@ fn editing_a_chain_keeps_its_endpoint_checklists() {
 
     let mut disabled_endpoints = EndpointDisables::default();
     disabled_endpoints.set_enabled(
-        EndpointNode::Input,
+        &EndpointNode::Input,
         EndpointRef {
             io: "io-1".into(),
             endpoint: "in 2".into(),

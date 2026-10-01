@@ -7,7 +7,7 @@
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
-use project::block::{AudioBlock, AudioBlockKind, OutputBlock, SplitBlock, SplitEnd};
+use project::block::{AudioBlock, AudioBlockKind, OutputBlock, PathRef, SplitBlock, SplitEnd};
 use project::chain::Chain;
 use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 
@@ -33,7 +33,7 @@ fn chain(blocks: Vec<AudioBlock>, unchecked: &[(EndpointNode, &str)]) -> Chain {
     let mut disabled_endpoints = EndpointDisables::default();
     for (node, endpoint) in unchecked {
         disabled_endpoints.set_enabled(
-            *node,
+            node,
             EndpointRef {
                 io: "io".into(),
                 endpoint: (*endpoint).into(),
@@ -62,6 +62,14 @@ fn split(end: SplitEnd) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock::new(end)),
     }
+}
+
+/// The output node of path `path` of split `split`.
+fn path_out(split: &str, path: usize) -> EndpointNode {
+    EndpointNode::PathOutput(PathRef {
+        split: BlockId(split.into()),
+        path,
+    })
 }
 
 fn names(chain: &Chain, direction: PortDirection) -> Vec<String> {
@@ -94,7 +102,7 @@ fn a_mix_chain_ends_at_the_chain_output_node() {
     let c = chain(
         vec![split(SplitEnd::Mix)],
         &[
-            (EndpointNode::PathAOutput, "out L"),
+            (path_out("split", 0), "out L"),
             (EndpointNode::Output, "out R"),
         ],
     );
@@ -110,9 +118,9 @@ fn a_y_output_lives_while_either_path_keeps_it() {
     let c = chain(
         vec![split(SplitEnd::Y)],
         &[
-            (EndpointNode::PathAOutput, "out L"),
-            (EndpointNode::PathBOutput, "out L"),
-            (EndpointNode::PathBOutput, "out R"),
+            (path_out("split", 0), "out L"),
+            (path_out("split", 1), "out L"),
+            (path_out("split", 1), "out R"),
             (EndpointNode::Output, "out R"),
         ],
     );
@@ -132,9 +140,9 @@ fn a_mix_then_a_y_output_lives_while_either_y_path_keeps_it() {
     let c = chain(
         vec![mix, y],
         &[
-            (EndpointNode::PathAOutput, "out L"),
-            (EndpointNode::PathBOutput, "out L"),
-            (EndpointNode::PathBOutput, "out R"),
+            (path_out("y", 0), "out L"),
+            (path_out("y", 1), "out L"),
+            (path_out("y", 1), "out R"),
             (EndpointNode::Output, "out R"),
         ],
     );

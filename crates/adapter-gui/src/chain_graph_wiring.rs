@@ -15,7 +15,7 @@ use domain::ids::BlockId;
 use domain::AudioDeviceDescriptor;
 use project::chain::Chain;
 
-use crate::chain_block_lists::side_index;
+use crate::chain_block_lists::path_index;
 use crate::graph_anchor::{insert_target, parse_anchor, InsertTarget};
 use crate::graph_click::{click_action, ClickAction};
 use crate::graph_gesture_actions::{
@@ -96,7 +96,7 @@ fn wire_clicks(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
                 .invoke_open_path_block(
                     chain_index,
                     path.split.0.as_str().into(),
-                    side_index(&path.side),
+                    path_index(&path),
                     index as i32,
                 ),
             ClickAction::OpenSplitEditor { split } => ChainGraphOverlayState::get(&window)
@@ -132,7 +132,7 @@ fn wire_edits(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
                 }) => ChainGraphBridge::get(&window).invoke_start_path_insert(
                     chain_index,
                     path.split.0.as_str().into(),
-                    side_index(&path.side),
+                    path_index(&path),
                     position as i32,
                 ),
                 None => log::warn!("[chain-graph] no insert place for anchor {anchor}"),

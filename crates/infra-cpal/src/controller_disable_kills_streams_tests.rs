@@ -214,7 +214,7 @@ fn the_index_counts_streams_and_builds_per_chain() {
 fn unchecking_every_output_takes_the_chain_down_like_a_switch_off() {
     use domain::ids::DeviceId;
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-    use project::endpoint_disables::{EndpointDisables, EndpointRef};
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 
     let chain_id = ChainId("rig:input-5".into());
     let (mut controller, _runtime) = controller_with_open_streams(&chain_id);
@@ -236,15 +236,16 @@ fn unchecking_every_output_takes_the_chain_down_like_a_switch_off() {
     }];
     let mut silenced = chain(&chain_id.0, true);
     silenced.io_binding_ids = vec!["main".into()];
-    silenced.disabled_endpoints = EndpointDisables {
-        inputs: vec![],
-        outputs: vec![EndpointRef {
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(
+        &EndpointNode::Output,
+        EndpointRef {
             io: "main".into(),
             endpoint: "out".into(),
-        }],
-        path_a_outputs: vec![],
-        path_b_outputs: vec![],
-    };
+        },
+        false,
+    );
+    silenced.disabled_endpoints = disabled_endpoints;
 
     let result = controller.upsert_chain(&project(), &silenced);
 

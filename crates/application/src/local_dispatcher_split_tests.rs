@@ -30,10 +30,10 @@ fn add_split_inserts_an_empty_split_with_the_default_knobs() {
     };
     assert!(matches!(split.end, SplitEnd::Mix));
     assert!(
-        split.a.is_empty() && split.b.is_empty(),
+        split.paths.len() == 2 && split.paths.iter().all(Vec::is_empty),
         "both paths start empty"
     );
-    assert_eq!(split.params, default_split_params());
+    assert_eq!(split.params, default_split_params(2));
     assert!(
         blocks[1].id.0.starts_with("chain_0:block:"),
         "{}",

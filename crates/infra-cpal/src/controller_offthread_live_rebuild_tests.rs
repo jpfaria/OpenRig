@@ -30,9 +30,8 @@ fn a_vst3_inside_a_split_path_takes_the_in_place_rebuild() {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Mix,
-            params: default_split_params(),
-            a: vec![],
-            b: vec![vst3_block("amp_b")],
+            params: default_split_params(2),
+            paths: vec![vec![], vec![vst3_block("amp_b")]],
         }),
     });
     assert!(

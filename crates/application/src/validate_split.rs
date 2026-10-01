@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 use block_core::AudioChannelLayout;
 use project::block::split_block::SplitBlock;
 use project::block::split_params::{SPLIT_MODE, SPLIT_MODE_DUAL_MONO};
-use project::block::AudioBlock;
+use project::block::{path_letter, AudioBlock};
 use project::chain::Chain;
 
 use super::resolve_block_output_layout;
@@ -26,7 +26,8 @@ pub(super) fn resolve_split_output_layout(
     } else {
         input_layout
     };
-    for (side, lane) in [("A", &split.a), ("B", &split.b)] {
+    for (index, lane) in split.paths.iter().enumerate() {
+        let side = path_letter(index);
         let mut layout = path_input;
         for path_block in lane.iter().filter(|b| b.enabled) {
             layout = resolve_block_output_layout(chain, path_block, layout)

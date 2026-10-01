@@ -12,7 +12,7 @@
 
 use domain::io_binding::{IoBinding, IoEndpoint};
 
-use crate::block::{has_y_split, AudioBlockKind};
+use crate::block::{y_leaves, AudioBlockKind};
 use crate::chain::Chain;
 use crate::endpoint_disables::EndpointNode;
 
@@ -49,8 +49,8 @@ pub struct ChainPort {
 ///   (`io_binding_ids`) — these are never persisted in the chain.
 /// - #328: the graph's checklists (`chain.disabled_endpoints`) leave out a
 ///   head input unchecked on the input node, and a tail output unchecked on
-///   the chain output node — or, on a Y chain (no chain output node), on BOTH
-///   path output nodes. A left-out endpoint opens no stream, builds no segment
+///   the chain output node — or, on a Y chain (no chain output node), on
+///   EVERY Y leaf's output node. A left-out endpoint opens no stream, builds no segment
 ///   and claims no tap.
 /// - Mid `Input` / `Output` blocks resolve their `io`/`endpoint` reference;
 ///   they are not on the checklist.
@@ -60,7 +60,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
     let find = |id: &str| registry.iter().find(|b| b.id == id);
     let tail = chain.blocks.len();
     let disabled = &chain.disabled_endpoints;
-    let y_split = has_y_split(&chain.blocks);
+    let leaves = y_leaves(&chain.blocks);
     let mut ports = Vec::new();
 
     // Head inputs + tail outputs come from the bindings the chain selects.
@@ -69,7 +69,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             continue; // selection references a binding not in the registry → skip
         };
         for ep in &binding.inputs {
-            if !disabled.is_enabled(EndpointNode::Input, &ref_of(binding, ep)) {
+            if !disabled.is_enabled(&EndpointNode::Input, &ref_of(binding, ep)) {
                 continue;
             }
             ports.push(ChainPort {
@@ -81,7 +81,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             });
         }
         for ep in &binding.outputs {
-            if !disabled.tail_output_enabled(y_split, &ref_of(binding, ep)) {
+            if !disabled.tail_output_enabled(&leaves, &ref_of(binding, ep)) {
                 continue;
             }
             ports.push(ChainPort {

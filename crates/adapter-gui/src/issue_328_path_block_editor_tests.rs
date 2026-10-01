@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
-use project::block::{AudioBlock, AudioBlockKind, PathRef, PathSide};
+use project::block::{AudioBlock, AudioBlockKind, PathRef};
 use slint::{Global, Timer, VecModel};
 
 use crate::block_delete::delete_drafted_block;
@@ -15,10 +15,10 @@ use crate::block_param_apply::{apply_block_parameter, ParamValue};
 use crate::chain_graph_fixtures_tests::{chain_in, mix_chain, rows, session_with};
 use crate::state::BlockEditorDraft;
 
-fn on(side: PathSide) -> Option<PathRef> {
+fn on(path: usize) -> Option<PathRef> {
     Some(PathRef {
         split: BlockId("sp".into()),
-        side,
+        path,
     })
 }
 
@@ -49,22 +49,19 @@ fn volume(block: &AudioBlock) -> Option<f32> {
 
 fn lane(
     session: &Rc<RefCell<Option<crate::state::ProjectSession>>>,
-    side: PathSide,
+    path: usize,
 ) -> Vec<AudioBlock> {
     let chain = chain_in(session, 0);
     let AudioBlockKind::Split(split) = &chain.blocks[1].kind else {
         panic!("block 1 is the split")
     };
-    match side {
-        PathSide::A => split.a.clone(),
-        PathSide::B => split.b.clone(),
-    }
+    split.paths[path].clone()
 }
 
 #[test]
 fn a_knob_edit_on_a_path_block_reaches_that_block_not_the_top_level_one() {
     let session = session_with(vec![mix_chain()]);
-    let d = Rc::new(RefCell::new(Some(draft(Some(0), 0, on(PathSide::A)))));
+    let d = Rc::new(RefCell::new(Some(draft(Some(0), 0, on(0)))));
     apply_block_parameter(
         &session,
         &d,
@@ -75,11 +72,7 @@ fn a_knob_edit_on_a_path_block_reaches_that_block_not_the_top_level_one() {
         &[],
     )
     .expect("the path block exists");
-    assert_eq!(
-        volume(&lane(&session, PathSide::A)[0]),
-        Some(42.0),
-        "a1 got the edit"
-    );
+    assert_eq!(volume(&lane(&session, 0)[0]), Some(42.0), "a1 got the edit");
     assert_eq!(
         volume(&chain_in(&session, 0).blocks[0]),
         None,
@@ -90,15 +83,8 @@ fn a_knob_edit_on_a_path_block_reaches_that_block_not_the_top_level_one() {
 #[test]
 fn deleting_a_path_block_removes_it_from_its_path_only() {
     let session = session_with(vec![mix_chain()]);
-    delete_drafted_block(
-        &session,
-        &draft(Some(0), 0, on(PathSide::B)),
-        &rows(),
-        &[],
-        &[],
-    )
-    .expect("delete");
-    assert!(lane(&session, PathSide::B).is_empty(), "b1 removed");
+    delete_drafted_block(&session, &draft(Some(0), 0, on(1)), &rows(), &[], &[]).expect("delete");
+    assert!(lane(&session, 1).is_empty(), "b1 removed");
     let top: Vec<String> = chain_in(&session, 0)
         .blocks
         .iter()
@@ -117,7 +103,7 @@ fn inserting_into_path_a_puts_the_block_in_path_a() {
     ));
     crate::block_editor::persist_block_editor_draft(
         &window,
-        &draft(None, 1, on(PathSide::A)),
+        &draft(None, 1, on(0)),
         &items,
         &session,
         &rows(),
@@ -128,10 +114,7 @@ fn inserting_into_path_a_puts_the_block_in_path_a() {
         false,
     )
     .expect("insert");
-    let a: Vec<String> = lane(&session, PathSide::A)
-        .iter()
-        .map(|b| b.id.0.clone())
-        .collect();
+    let a: Vec<String> = lane(&session, 0).iter().map(|b| b.id.0.clone()).collect();
     assert_eq!(a.len(), 3, "path A grew: {a:?}");
     assert_eq!(
         (a[0].as_str(), a[2].as_str()),
@@ -147,9 +130,9 @@ fn inserting_into_path_a_puts_the_block_in_path_a() {
 
 #[test]
 fn the_graph_opens_the_editor_of_a_path_block() {
-    let opened = open_path_block_through_the_bridge(on(PathSide::B).unwrap(), 0);
+    let opened = open_path_block_through_the_bridge(on(1).unwrap(), 0);
     let d = opened.borrow().clone().expect("a draft was opened");
-    assert_eq!((d.block_index, d.path), (Some(0), on(PathSide::B)));
+    assert_eq!((d.block_index, d.path), (Some(0), on(1)));
 }
 
 /// Wires `select_chain_block_callback` the way `issue_85_click_port_opens_editor_tests.rs`
@@ -201,7 +184,7 @@ fn open_path_block_through_the_bridge(
     crate::ChainGraphBridge::get(&window).invoke_open_path_block(
         0,
         path.split.0.as_str().into(),
-        crate::chain_block_lists::side_index(&path.side),
+        crate::chain_block_lists::path_index(&path),
         index,
     );
     draft

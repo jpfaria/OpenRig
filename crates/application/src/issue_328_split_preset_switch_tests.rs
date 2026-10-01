@@ -26,10 +26,7 @@ fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            a,
-            ..SplitBlock::new(end)
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(end, vec![a, Vec::new()])),
     }
 }
 

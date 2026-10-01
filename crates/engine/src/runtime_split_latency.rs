@@ -40,7 +40,12 @@ pub(crate) fn node_latency_ceiling(node: &BlockRuntimeNode) -> usize {
             .find(|option| option.block_id == select.selected_block_id)
             .map(node_latency)
             .unwrap_or(0),
-        RuntimeProcessor::Split(split) => path_latency(&split.a).max(path_latency(&split.b)),
+        RuntimeProcessor::Split(split) => split
+            .paths
+            .iter()
+            .map(|path| path_latency(path))
+            .max()
+            .unwrap_or(0),
         RuntimeProcessor::Bypass => 0,
     }
 }

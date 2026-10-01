@@ -6,20 +6,34 @@ use super::*;
 use crate::chain_graph_fixtures_tests::{
     chain, core, mix_chain, split, y_chain, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
 };
-use crate::chain_graph_ids::{
-    INPUT_NODE_ID, OUTPUT_NODE_ID, PATH_A_OUTPUT_NODE_ID, PATH_B_OUTPUT_NODE_ID,
-};
+use crate::chain_graph_ids::{leaf_output_node_id, INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::endpoint_checklist_items::IoLabels;
 use crate::graph_anchor::{insert_target, parse_anchor};
+use crate::graph_view_model::split_node_id;
 use crate::graph_view_model::NodeKind;
-use project::block::SplitEnd;
+use domain::ids::BlockId;
+use project::block::{PathRef, SplitEnd};
+
+fn leaf(split: &str, path: usize) -> PathRef {
+    PathRef {
+        split: BlockId(split.into()),
+        path,
+    }
+}
+
+/// The output node of Y leaf `path` of split `split`.
+fn leaf_out(split: &str, path: usize) -> String {
+    leaf_output_node_id(&leaf(split, path))
+}
 
 fn labels() -> IoLabels {
     IoLabels {
         input: "In 1".into(),
         output: "Out".into(),
-        path_a: "Out A".into(),
-        path_b: "Out B".into(),
+        leaves: vec![
+            (leaf("sp", 0), "Out A".into()),
+            (leaf("sp", 1), "Out B".into()),
+        ],
     }
 }
 
@@ -84,10 +98,7 @@ fn a_split_to_mix_chain_runs_two_lanes_between_split_and_mixer() {
     ] {
         assert!(has_edge(&graph, from, to), "missing wire {from} → {to}");
     }
-    assert!(graph
-        .nodes
-        .iter()
-        .all(|n| n.id != PATH_A_OUTPUT_NODE_ID && n.id != PATH_B_OUTPUT_NODE_ID));
+    assert!(graph.nodes.iter().all(|n| !n.id.starts_with("__out_")));
 }
 
 #[test]
@@ -97,14 +108,13 @@ fn a_y_chain_ends_each_lane_in_its_own_output_node() {
         .nodes
         .iter()
         .all(|n| n.id != OUTPUT_NODE_ID && n.id != FIRST_MIXER_NODE_ID));
-    assert_eq!(node(&graph, PATH_A_OUTPUT_NODE_ID).y, node(&graph, "a1").y);
-    assert_eq!(node(&graph, PATH_B_OUTPUT_NODE_ID).y, node(&graph, "b1").y);
+    assert_eq!(node(&graph, &leaf_out("sp", 0)).y, node(&graph, "a1").y);
+    assert_eq!(node(&graph, &leaf_out("sp", 1)).y, node(&graph, "b1").y);
     assert!(
-        has_edge(&graph, "a1", PATH_A_OUTPUT_NODE_ID)
-            && has_edge(&graph, "b1", PATH_B_OUTPUT_NODE_ID)
+        has_edge(&graph, "a1", &leaf_out("sp", 0)) && has_edge(&graph, "b1", &leaf_out("sp", 1))
     );
-    assert_eq!(node(&graph, PATH_A_OUTPUT_NODE_ID).label, "Out A");
-    assert_eq!(node(&graph, PATH_B_OUTPUT_NODE_ID).label, "Out B");
+    assert_eq!(node(&graph, &leaf_out("sp", 0)).label, "Out A");
+    assert_eq!(node(&graph, &leaf_out("sp", 1)).label, "Out B");
 }
 
 #[test]
@@ -137,8 +147,8 @@ fn the_grid_centres_the_shared_lane_between_two_path_lanes() {
 fn every_node_carries_its_kind() {
     let y = chain_graph(&y_chain(), &labels());
     assert_eq!(node(&y, INPUT_NODE_ID).kind, NodeKind::IoInput);
-    assert_eq!(node(&y, PATH_A_OUTPUT_NODE_ID).kind, NodeKind::IoOutput);
-    assert_eq!(node(&y, PATH_B_OUTPUT_NODE_ID).kind, NodeKind::IoOutput);
+    assert_eq!(node(&y, &leaf_out("sp", 0)).kind, NodeKind::IoOutput);
+    assert_eq!(node(&y, &leaf_out("sp", 1)).kind, NodeKind::IoOutput);
     assert_eq!(node(&y, FIRST_SPLIT_NODE_ID).kind, NodeKind::Split);
     assert_eq!(node(&y, "a1").kind, NodeKind::Block);
     let mix = chain_graph(&mix_chain(), &labels());
@@ -179,11 +189,12 @@ fn shared_blocks_before_a_y_split_sit_on_the_input_lane() {
     // Block ids as the rig writes them: `rig:<input>:block:<uuid>`.
     let amp_id = "rig:input-4:block:990da0ea";
     let cab_id = "rig:input-4:block:62894916";
+    let split_id = "rig:input-4:block:c723fb6e";
     let graph = chain_graph(
         &chain(vec![
             core(amp_id),
             split(
-                "rig:input-4:block:c723fb6e",
+                split_id,
                 SplitEnd::Y,
                 vec![
                     core(cab_id),
@@ -197,7 +208,7 @@ fn shared_blocks_before_a_y_split_sit_on_the_input_lane() {
     );
     let input = node(&graph, INPUT_NODE_ID);
     let amp = node(&graph, amp_id);
-    let sp = node(&graph, FIRST_SPLIT_NODE_ID);
+    let sp = node(&graph, &split_node_id(split_id));
     assert_eq!(
         (amp.y, sp.y),
         (input.y, input.y),
@@ -211,8 +222,8 @@ fn shared_blocks_before_a_y_split_sit_on_the_input_lane() {
         sp.x,
         node(&graph, cab_id).x
     );
-    let a_out = node(&graph, PATH_A_OUTPUT_NODE_ID);
-    let b_out = node(&graph, PATH_B_OUTPUT_NODE_ID);
+    let a_out = node(&graph, &leaf_out(split_id, 0));
+    let b_out = node(&graph, &leaf_out(split_id, 1));
     assert!(
         a_out.y < sp.y && sp.y < b_out.y,
         "lane A above, lane B below"

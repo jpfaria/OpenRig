@@ -14,7 +14,7 @@ use project::rig_sync::sync_synthetic_into_rig;
 fn unchecked() -> EndpointDisables {
     let mut disables = EndpointDisables::default();
     disables.set_enabled(
-        EndpointNode::Output,
+        &EndpointNode::Output,
         EndpointRef {
             io: "io".into(),
             endpoint: "out R".into(),

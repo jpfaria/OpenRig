@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
-use project::block::split_params::{MIX_PAN_A, SPLIT_MODE};
+use project::block::split_params::SPLIT_MODE;
 use project::block::{
     find_block_mut, walk_blocks, AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd,
 };
@@ -16,6 +16,9 @@ use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject, RigScene};
 use project::rig_sync::sync_synthetic_into_rig;
+
+/// Path A's pan on the mixer.
+const MIX_PAN_A: &str = "mix_pan_0";
 
 fn amp(id: &str, model: &str, gain: f32) -> AudioBlock {
     let mut params = ParameterSet::default();
@@ -35,11 +38,7 @@ fn dual_amp(a: Vec<AudioBlock>, b: Vec<AudioBlock>) -> AudioBlock {
     AudioBlock {
         id: BlockId("split".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            a,
-            b,
-            ..SplitBlock::new(SplitEnd::Mix)
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(SplitEnd::Mix, vec![a, b])),
     }
 }
 
@@ -182,7 +181,7 @@ fn a_mixer_knob_is_a_scene_override_while_the_split_mode_is_preset_wide() {
     });
     let preset = &rig.presets["p"];
     assert_eq!(
-        preset.scenes[&1].params.get("split.mix_pan_a"),
+        preset.scenes[&1].params.get("split.mix_pan_0"),
         Some(&-50.0),
         "a float knob is per scene"
     );
@@ -229,14 +228,14 @@ fn a_block_added_inside_a_path_is_a_structural_edit_that_keeps_every_scene() {
     let mut rig = rig(2);
     capture(&mut rig, |blocks| {
         if let AudioBlockKind::Split(s) = &mut edited(blocks, "split").kind {
-            s.a.push(amp("amp_c", "m1", 0.5));
+            s.paths[0].push(amp("amp_c", "m1", 0.5));
         }
     });
     let preset = &rig.presets["p"];
     let AudioBlockKind::Split(split) = &preset.blocks[0].kind else {
         panic!("block 0 is the split")
     };
-    let ids: Vec<&str> = split.a.iter().map(|b| b.id.0.as_str()).collect();
+    let ids: Vec<&str> = split.paths[0].iter().map(|b| b.id.0.as_str()).collect();
     assert_eq!(
         ids,
         vec!["amp_a", "amp_c"],

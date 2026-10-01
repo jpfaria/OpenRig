@@ -94,7 +94,7 @@ fn swapping_path_b_on_a_running_split_keeps_every_output_continuous() {
     let runtime = build_runtime(&chain, &registry);
     let mut edited = chain.clone();
     if let project::block::AudioBlockKind::Split(split) = &mut edited.blocks[0].kind {
-        split.b = vec![super::issue_328_split_mix::volume_block("amp_b2", 80.0)];
+        split.paths[1] = vec![super::issue_328_split_mix::volume_block("amp_b2", 80.0)];
     }
     let mut played = [Vec::new(), Vec::new()];
     for callback in 0..600 {

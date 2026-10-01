@@ -19,10 +19,10 @@ use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di_pcm, rig
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
-use project::block::split_params::{self, default_split_params};
 use project::block::{
     schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd,
 };
+use project::block::{split_param_keys, split_params};
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -43,19 +43,26 @@ fn native_amp(id: &str, model: &str) -> AudioBlock {
 }
 
 fn dual_amp_split() -> AudioBlock {
-    let mut params = default_split_params();
-    params.insert(split_params::MIX_PAN_A, ParameterValue::Float(-50.0));
-    params.insert(split_params::MIX_PAN_B, ParameterValue::Float(50.0));
-    params.insert(split_params::MIX_MASTER, ParameterValue::Float(100.0));
+    let mut split = SplitBlock::with_paths(
+        SplitEnd::Mix,
+        vec![
+            vec![native_amp("amp_a", "tweed_breakup")],
+            vec![native_amp("amp_b", "blackface_clean")],
+        ],
+    );
+    split
+        .params
+        .insert(&split_param_keys::mix_pan(0), ParameterValue::Float(-50.0));
+    split
+        .params
+        .insert(&split_param_keys::mix_pan(1), ParameterValue::Float(50.0));
+    split
+        .params
+        .insert(split_params::MIX_MASTER, ParameterValue::Float(100.0));
     AudioBlock {
         id: BlockId("dual_amp".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end: SplitEnd::Mix,
-            params,
-            a: vec![native_amp("amp_a", "tweed_breakup")],
-            b: vec![native_amp("amp_b", "blackface_clean")],
-        }),
+        kind: AudioBlockKind::Split(split),
     }
 }
 

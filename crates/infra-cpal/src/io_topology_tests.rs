@@ -1,6 +1,24 @@
 //! Tests for the chain's stream-topology signature (#743, #881).
 
-use domain::ids::DeviceId;
+use domain::ids::{BlockId, DeviceId};
+use project::block::PathRef;
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+/// The checklists of a Y split `split`: `off[i]` are the outputs path `i`
+/// does not feed.
+fn y_disables(split: &str, off: &[Vec<EndpointRef>]) -> EndpointDisables {
+    let mut disables = EndpointDisables::default();
+    for (path, refs) in off.iter().enumerate() {
+        let node = EndpointNode::PathOutput(PathRef {
+            split: BlockId(split.into()),
+            path,
+        });
+        for r in refs {
+            disables.set_enabled(&node, r.clone(), false);
+        }
+    }
+    disables
+}
 
 // ── #881: an insert is part of the chain's stream topology ──────────────────
 
@@ -374,7 +392,7 @@ fn unchecking_an_input_endpoint_changes_the_bound_io_signature() {
     };
     let mut unchecked = EndpointDisables::default();
     unchecked.set_enabled(
-        EndpointNode::Input,
+        &EndpointNode::Input,
         EndpointRef {
             io: "io".into(),
             endpoint: "in 2".into(),
@@ -402,12 +420,11 @@ fn unchecking_an_input_endpoint_changes_the_bound_io_signature() {
 /// streams (#881, spec §4.2).
 #[test]
 fn a_path_set_change_is_a_structural_change() {
-    use domain::ids::{BlockId, ChainId};
+    use domain::ids::ChainId;
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
     use project::block::split_params::default_split_params;
     use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
     use project::chain::Chain;
-    use project::endpoint_disables::{EndpointDisables, EndpointRef};
 
     let ep = |name: &str, ch: usize| IoEndpoint {
         name: name.into(),
@@ -438,19 +455,13 @@ fn a_path_set_change_is_a_structural_change() {
             enabled: true,
             kind: AudioBlockKind::Split(SplitBlock {
                 end: SplitEnd::Y,
-                params: default_split_params(),
-                a: vec![],
-                b: vec![],
+                params: default_split_params(2),
+                paths: vec![vec![], vec![]],
             }),
         }],
         di_output: None,
         loopers: vec![],
-        disabled_endpoints: EndpointDisables {
-            inputs: vec![],
-            outputs: vec![],
-            path_a_outputs: vec![off("out-b")],
-            path_b_outputs,
-        },
+        disabled_endpoints: y_disables("split", &[vec![off("out-b")], path_b_outputs]),
     };
     // Path A → out-a. Path B → out-b only, then → out-a too.
     let before = chain(vec![off("out-a")]);
@@ -473,12 +484,11 @@ fn a_path_set_change_is_a_structural_change() {
 /// structure signature.
 #[test]
 fn a_y_path_set_change_behind_a_mix_is_a_structural_change() {
-    use domain::ids::{BlockId, ChainId};
+    use domain::ids::ChainId;
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
     use project::block::split_params::default_split_params;
     use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
     use project::chain::Chain;
-    use project::endpoint_disables::{EndpointDisables, EndpointRef};
 
     let ep = |name: &str, ch: usize| IoEndpoint {
         name: name.into(),
@@ -501,9 +511,8 @@ fn a_y_path_set_change_behind_a_mix_is_a_structural_change() {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock {
             end,
-            params: default_split_params(),
-            a: vec![],
-            b: vec![],
+            params: default_split_params(2),
+            paths: vec![vec![], vec![]],
         }),
     };
     let chain = |path_b_outputs: Vec<EndpointRef>| Chain {
@@ -517,12 +526,7 @@ fn a_y_path_set_change_behind_a_mix_is_a_structural_change() {
         blocks: vec![split("mix", SplitEnd::Mix), split("y", SplitEnd::Y)],
         di_output: None,
         loopers: vec![],
-        disabled_endpoints: EndpointDisables {
-            inputs: vec![],
-            outputs: vec![],
-            path_a_outputs: vec![off("syn-5050")],
-            path_b_outputs,
-        },
+        disabled_endpoints: y_disables("y", &[vec![off("syn-5050")], path_b_outputs]),
     };
     // Path A → frfr. Path B → syn-5050 only, then → frfr too.
     let before = chain(vec![off("frfr")]);

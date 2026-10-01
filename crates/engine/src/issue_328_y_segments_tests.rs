@@ -6,10 +6,11 @@
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use project::block::split_params::default_split_params;
-use project::block::{AudioBlock, AudioBlockKind, CoreBlock, OutputBlock, SplitBlock, SplitEnd};
+use project::block::{
+    AudioBlock, AudioBlockKind, CoreBlock, OutputBlock, PathRef, SplitBlock, SplitEnd,
+};
 use project::chain::Chain;
-use project::endpoint_disables::{EndpointDisables, EndpointRef};
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 use project::param::ParameterSet;
 
 use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io};
@@ -72,12 +73,10 @@ fn y_split() -> AudioBlock {
     AudioBlock {
         id: BlockId("split".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end: SplitEnd::Y,
-            params: default_split_params(),
-            a: vec![effect("amp-a")],
-            b: vec![effect("amp-b")],
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(
+            SplitEnd::Y,
+            vec![vec![effect("amp-a")], vec![effect("amp-b")]],
+        )),
     }
 }
 
@@ -86,12 +85,10 @@ fn mix_split() -> AudioBlock {
     AudioBlock {
         id: BlockId("mix".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end: SplitEnd::Mix,
-            params: default_split_params(),
-            a: vec![effect("amp-1")],
-            b: vec![effect("amp-2")],
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(
+            SplitEnd::Mix,
+            vec![vec![effect("amp-1")], vec![effect("amp-2")]],
+        )),
     }
 }
 
@@ -100,12 +97,10 @@ fn cab_or_nothing_y() -> AudioBlock {
     AudioBlock {
         id: BlockId("y".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end: SplitEnd::Y,
-            params: default_split_params(),
-            a: vec![effect("cab")],
-            b: vec![],
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(
+            SplitEnd::Y,
+            vec![vec![effect("cab")], vec![]],
+        )),
     }
 }
 
@@ -128,14 +123,36 @@ fn r(io: &str, endpoint: &str) -> EndpointRef {
     }
 }
 
+fn leaf(split: &str, path: usize) -> PathRef {
+    PathRef {
+        split: BlockId(split.into()),
+        path,
+    }
+}
+
+/// The segment of an output that runs these leaves of `split`.
+fn only(split: &str, paths: &[usize]) -> SegmentPaths {
+    SegmentPaths::Only(paths.iter().map(|&p| leaf(split, p)).collect())
+}
+
+/// Each leaf of `split` with the endpoints its output node unchecks.
+fn leaf_disables(split: &str, unchecked: &[&[EndpointRef]]) -> EndpointDisables {
+    let mut disables = EndpointDisables::default();
+    for (path, refs) in unchecked.iter().enumerate() {
+        for r in refs.iter() {
+            disables.set_enabled(
+                &EndpointNode::PathOutput(leaf(split, path)),
+                r.clone(),
+                false,
+            );
+        }
+    }
+    disables
+}
+
 /// Path A → out-a + out-ab; path B → out-b + out-ab.
 fn y_disables() -> EndpointDisables {
-    EndpointDisables {
-        inputs: vec![],
-        outputs: vec![],
-        path_a_outputs: vec![r("main", "out-b")],
-        path_b_outputs: vec![r("main", "out-a")],
-    }
+    leaf_disables("split", &[&[r("main", "out-b")], &[r("main", "out-a")]])
 }
 
 fn chain(
@@ -171,7 +188,7 @@ fn segments(chain: &Chain, registry: &[IoBinding]) -> (Vec<ChainSegment>, Vec<Ve
 fn routing(chain: &Chain, registry: &[IoBinding]) -> Vec<(Vec<usize>, SegmentPaths)> {
     let (segs, outs) = segments(chain, registry);
     segs.iter()
-        .map(|s| (outs[s.output_route_indices[0]].clone(), s.paths))
+        .map(|s| (outs[s.output_route_indices[0]].clone(), s.paths.clone()))
         .collect()
 }
 
@@ -185,9 +202,9 @@ fn each_output_runs_the_paths_that_check_it() {
     assert_eq!(
         routing(&chain, &registry()),
         vec![
-            (vec![0, 1], SegmentPaths::A),
-            (vec![2, 3], SegmentPaths::B),
-            (vec![4, 5], SegmentPaths::AB),
+            (vec![0, 1], only("split", &[0])),
+            (vec![2, 3], only("split", &[1])),
+            (vec![4, 5], only("split", &[0, 1])),
             (vec![6, 7], SegmentPaths::None),
         ],
         "#328: out-a runs path A, out-b path B, out-ab ONE pipeline with both; the mid \
@@ -205,13 +222,17 @@ fn each_output_runs_the_paths_that_check_it() {
 #[test]
 fn an_output_no_path_checks_has_no_pipeline() {
     let mut disables = y_disables();
-    disables.path_b_outputs.push(r("main", "out-b"));
+    disables.set_enabled(
+        &EndpointNode::PathOutput(leaf("split", 1)),
+        r("main", "out-b"),
+        false,
+    );
     let chain = chain(&["main"], vec![y_split()], disables);
     assert_eq!(
         routing(&chain, &registry()),
         vec![
-            (vec![0, 1], SegmentPaths::A),
-            (vec![4, 5], SegmentPaths::AB)
+            (vec![0, 1], only("split", &[0])),
+            (vec![4, 5], only("split", &[0, 1]))
         ],
         "#328: out-b is checked on no path — no route, no segment"
     );
@@ -235,12 +256,10 @@ fn a_head_input_still_pairs_only_with_its_own_e_s() {
             outputs: vec![stereo("out-2", "dev", [2, 3])],
         },
     ];
-    let disables = EndpointDisables {
-        inputs: vec![],
-        outputs: vec![],
-        path_a_outputs: vec![r("second", "out-2")],
-        path_b_outputs: vec![r("main", "out-main")],
-    };
+    let disables = leaf_disables(
+        "split",
+        &[&[r("second", "out-2")], &[r("main", "out-main")]],
+    );
     let chain = chain(&["main", "second"], vec![y_split()], disables);
     let (segs, outs) = segments(&chain, &registry);
     let pairing: Vec<(usize, Vec<usize>, SegmentPaths)> = segs
@@ -249,15 +268,15 @@ fn a_head_input_still_pairs_only_with_its_own_e_s() {
             (
                 s.entry_group,
                 outs[s.output_route_indices[0]].clone(),
-                s.paths,
+                s.paths.clone(),
             )
         })
         .collect();
     assert_eq!(
         pairing,
         vec![
-            (0, vec![0, 1], SegmentPaths::A),
-            (1, vec![2, 3], SegmentPaths::B)
+            (0, vec![0, 1], only("split", &[0])),
+            (1, vec![2, 3], only("split", &[1]))
         ],
         "#716: MAIN's input feeds only MAIN's output, SECOND's only SECOND's; #328: \
          each through the path its output checks"
@@ -301,12 +320,7 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
             io: "fx".into(),
         }),
     };
-    let disables = EndpointDisables {
-        inputs: vec![],
-        outputs: vec![],
-        path_a_outputs: vec![r("main", "out-b")],
-        path_b_outputs: vec![r("main", "out-a")],
-    };
+    let disables = leaf_disables("split", &[&[r("main", "out-b")], &[r("main", "out-a")]]);
     let chain = chain(&["main"], vec![insert, mid_output(), y_split()], disables);
     let (segs, outs) = segments(&chain, &registry);
 
@@ -319,15 +333,15 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
                     .iter()
                     .map(|&r| outs[r].clone())
                     .collect(),
-                s.paths,
+                s.paths.clone(),
             )
         })
         .collect();
     assert_eq!(
         finals,
         vec![
-            (vec![vec![0, 1]], SegmentPaths::A),
-            (vec![vec![2, 3]], SegmentPaths::B),
+            (vec![vec![0, 1]], only("split", &[0])),
+            (vec![vec![2, 3]], only("split", &[1])),
         ],
         "#328: the return feeds one pipeline per path set — out-a through A, out-b through B"
     );
@@ -351,12 +365,13 @@ fn behind_an_insert_the_return_feeds_one_pipeline_per_path_set() {
 /// Y path — the Mix is never shared between the two outputs' pipelines.
 #[test]
 fn a_mix_then_a_y_runs_the_mix_in_every_y_output() {
-    let disables = EndpointDisables {
-        inputs: vec![],
-        outputs: vec![],
-        path_a_outputs: vec![r("main", "out-b"), r("main", "out-ab")],
-        path_b_outputs: vec![r("main", "out-a"), r("main", "out-ab")],
-    };
+    let disables = leaf_disables(
+        "y",
+        &[
+            &[r("main", "out-b"), r("main", "out-ab")],
+            &[r("main", "out-a"), r("main", "out-ab")],
+        ],
+    );
     let chain = chain(
         &["main"],
         vec![mix_split(), effect("drive"), cab_or_nothing_y()],
@@ -364,7 +379,7 @@ fn a_mix_then_a_y_runs_the_mix_in_every_y_output() {
     );
     assert_eq!(
         routing(&chain, &registry()),
-        vec![(vec![0, 1], SegmentPaths::A), (vec![2, 3], SegmentPaths::B)],
+        vec![(vec![0, 1], only("y", &[0])), (vec![2, 3], only("y", &[1]))],
         "#328: behind a Mix, the Y still routes out-a through path A and out-b through path B"
     );
     let (segs, _) = segments(&chain, &registry());

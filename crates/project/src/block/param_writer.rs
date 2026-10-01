@@ -115,10 +115,10 @@ pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> 
 
 /// #328: a split knob is checked against the split schema before it is stored.
 fn refuse_invalid_split_knob(block: &AudioBlock, path: &str, value: &ParameterValue) -> Result<()> {
-    if !matches!(block.kind, AudioBlockKind::Split(_)) {
+    let AudioBlockKind::Split(split) = &block.kind else {
         return Ok(());
-    }
-    check_split_knob(path, value.clone())
+    };
+    check_split_knob(path, value.clone(), split.paths.len())
         .map_err(|e| anyhow!("invalid value for split '{}': {e}", block.id.0))
 }
 

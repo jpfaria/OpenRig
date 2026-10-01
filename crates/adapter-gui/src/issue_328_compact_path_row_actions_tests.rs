@@ -68,7 +68,11 @@ fn layout(
             _ => None,
         })
         .expect("the chain keeps its split");
-    (ids(&chain.blocks), ids(&split.a), ids(&split.b))
+    (
+        ids(&chain.blocks),
+        ids(&split.paths[0]),
+        ids(&split.paths[1]),
+    )
 }
 
 fn enabled(session: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> bool {
@@ -185,7 +189,7 @@ fn the_plus_under_a_path_row_adds_to_that_path() {
         draft.path,
         Some(project::block::PathRef {
             split: domain::ids::BlockId("sp".into()),
-            side: project::block::PathSide::A,
+            path: 0,
         }),
         "the new block joins path A"
     );
@@ -218,8 +222,8 @@ fn open_detail(row: i32) -> Option<Opened> {
     let s = seen.clone();
     app.on_select_chain_block(move |_, row| *s.borrow_mut() = Some(Opened::ChainRow(row)));
     let s = seen.clone();
-    crate::ChainGraphBridge::get(&app).on_open_path_block(move |_, split, side, index| {
-        *s.borrow_mut() = Some(Opened::PathBlock(split.to_string(), side, index))
+    crate::ChainGraphBridge::get(&app).on_open_path_block(move |_, split, path, index| {
+        *s.borrow_mut() = Some(Opened::PathBlock(split.to_string(), path, index))
     });
     let s = seen.clone();
     crate::ChainGraphOverlayState::get(&app).on_open_split_editor(move |_, split, kind| {
@@ -292,9 +296,9 @@ fn split_param(
 fn turning_a_knob_on_the_split_row_sets_the_split() {
     let session = session_with(vec![mix_chain()]);
     let (_app, compact) = open_compact(&session);
-    compact.invoke_update_block_parameter_number(0, 1, "level_to_a".into(), 40.0);
+    compact.invoke_update_block_parameter_number(0, 1, "level_to_0".into(), 40.0);
     assert_eq!(
-        split_param(&session, "level_to_a"),
+        split_param(&session, "level_to_0"),
         Some(domain::value_objects::ParameterValue::Float(40.0))
     );
 }

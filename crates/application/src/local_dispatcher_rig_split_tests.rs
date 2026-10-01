@@ -55,7 +55,7 @@ fn switching_preset_puts_the_new_presets_split_in_place_of_the_old_one() {
         vec!["B", "S2"],
         "p2's own split, not p1's"
     );
-    assert_eq!(ids(&split_of(&project).a), vec!["Y"]);
+    assert_eq!(ids(&split_of(&project).paths[0]), vec!["Y"]);
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn switching_scene_applies_the_scene_bypass_to_a_block_inside_a_path() {
         .expect("switch to scene 2");
 
     assert!(
-        !split_of(&project.borrow()).a[0].enabled,
+        !split_of(&project.borrow()).paths[0][0].enabled,
         "scene 2 bypasses X inside path A"
     );
 }

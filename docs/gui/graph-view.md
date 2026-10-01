@@ -79,7 +79,7 @@ struct GraphEdgeGeometry {
 }
 
 struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_anchors)
-    id: string;             // "stage:{i}" | "lane:{stage}:{lane}:{i}"
+    id: string;             // "top:{i}" | "path:{split}:{path}:{i}"
     layout_x: length;       // wire midpoint
     layout_y: length;
     always_visible: bool;   // empty segment: "+" shown without hover
@@ -138,16 +138,16 @@ The host receives layout-space coords. To persist a moved node, write them back 
 | `NodeCategory` | enum of visual categories — `as_str()` produces the slug the Slint side expects |
 | `NodeKind` | what a node IS — `Block`, `IoInput`, `IoOutput`, `Split`, `Mixer`; `as_str()` gives the slug the Slint `GraphNode.kind` carries. The auto-generated split node is `Split`, the merge node `Mixer`; `BlockBlueprint::with_kind` marks the host's I/O nodes |
 | `BlockBlueprint` | one block in a logical chain — id, label, category, bypass |
-| `ChainStage` | `Single(...)` or `Parallel { lanes, end }` — `lanes` top to bottom |
+| `ChainStage` | `Single(...)` or `Parallel { split_id, lanes, end }` — N `lanes` top to bottom, each a stage list that may hold further `Parallel` stages (#328) |
 | `ParallelEnd` | `Merge`: the lanes meet again at an auto-generated merge node. `Fan`: no merge node; each lane's last blueprint is its terminal (a Y chain's output node), the terminals share the last column, and nothing may follow (#328) |
 | `GridMetrics` | column/lane spacing + origin |
-| `linear_chain_layout(stages, metrics)` | builds positioned nodes + edges, inserts split/merge utility nodes for parallel stages |
+| `linear_chain_layout(stages, metrics)` | builds positioned nodes + edges, inserts split/merge utility nodes for parallel stages, recursing into every lane; each lane takes as many rows as its own stages need (`stage_extent`) |
 | `validate_graph(nodes, edges)` | returns error strings (empty = valid). Catches duplicate ids, dangling edges, self-loops. |
 | `validate_stages(stages)` | returns error strings for a stage list: a stage after a `Fan`, an empty `Fan` lane |
-| `insert_anchors(stages, nodes)` | one `GraphAnchor` per wire of `linear_chain_layout`'s output, at the wire midpoint: `id` (`stage:{i}` / `lane:{stage}:{lane}:{i}`), the `AnchorSlot` a block added or dropped there lands in (index in the ORIGINAL list, "insert before"), and `always_visible` for an empty segment (no block at either end) |
+| `insert_anchors(stages, nodes)` | one `GraphAnchor` per wire of `linear_chain_layout`'s output, at the wire midpoint, at any depth: `id` (`top:{i}` / `path:{split}:{path}:{i}`), the `AnchorSlot` (`PathRef` + index) a block added or dropped there lands in (index in the ORIGINAL list, "insert before"), and `always_visible` for an empty segment (no block at either end) |
 | `resolve_drop_anchor(nodes, anchors, dragged_id, x, y, metrics)` | the anchor a block dragged to layout `(x, y)` lands on: the nearest one within half a column. `None` when that nearest one is on the block's own wire (no move), when the dragged node is not a `Block`, or when nothing is in reach. The canvas asks through its `resolve-drop-anchor` pure callback |
 
-`linear_chain_layout` is pure — same input, same output. Used in tests + at runtime to compute positions from a logical chain description. Splits and merges are auto-generated with id prefix `__split_N` / `__merge_N` (a `Fan` has no `__merge_N`). `topological_layout` (auto mode) moves every terminal — a node with inputs and no outputs — to the last column, so a fan-out's terminals stay side by side there too.
+`linear_chain_layout` is pure — same input, same output. Used in tests + at runtime to compute positions from a logical chain description. Splits and merges are auto-generated with ids `__split_<split id>` / `__merge_<split id>` (a `Fan` has no merge node), so every name stays stable at any depth. `topological_layout` (auto mode) moves every terminal — a node with inputs and no outputs — to the last column, so a fan-out's terminals stay side by side there too.
 
 ## Category → colour mapping
 
@@ -184,7 +184,7 @@ The component owns no colours. The host resolves each node's `fill`/`border` fro
 
 Rust model — `crates/adapter-gui/src/graph_view_model_tests.rs`, `graph_view_model_anchor_tests.rs`, `graph_view_model_drop_tests.rs` (`cargo test -p adapter-gui --lib graph_view_model`):
 
-- stage layout: singles; merge parallels (split + merge nodes, symmetric lanes, merge column); fan parallels (no merge node, one terminal per lane on a shared last column, path A above path B)
+- stage layout: singles; merge parallels (split + merge nodes, symmetric lanes, merge column); fan parallels (no merge node, one terminal per lane on a shared last column, path A above path B); N lanes; nested trees (a lane's rows grow with its own splits)
 - `validate_stages` (nothing after a fan, no empty fan lane) and `validate_graph` (duplicate ids, dangling edges, self-loops; layout output always valid)
 - node kinds (`as_str` slugs, a blueprint's kind reaches its node, split/mixer kinds)
 - auto layout (ranks, lanes, reorder, fan terminals aligned)
@@ -207,24 +207,26 @@ Render — `ui/components/_harness_graph_view.slint` (not compiled into the app)
 Every desktop chain row hosts a `GraphView` through `ui/pages/chain_row_graph.slint`
 (`ChainRow` keeps the pedal strip for touch mode, `ChainGraphBridge.graph-enabled`).
 
-| Linear | Split → Mix | Y → A/B |
+| Linear | Split → Mix | Split → Y |
 |---|---|---|
 | ![linear](assets/chain-row-graph-linear.png) | ![split to mix](assets/chain-row-graph-split-mix.png) | ![y](assets/chain-row-graph-y.png) |
 
 - `src/chain_graph_adapter.rs` turns a `Chain` into `ChainStage`s: stage 0 is the input
-  node, every top-level block one stage, each split one `Parallel { lanes: [A, B], end }`
-  stage (`Merge` for Split → Mix, `Fan` for Y → A/B with each lane ending in its own output
-  node), then the output node. A chain with a Mix, then a Y has two parallel stages in that
-  order. Cards sit 132 px apart, lanes 108 px apart.
+  node, every top-level block one stage, each split — at any depth — one
+  `Parallel { split_id, lanes, end }` stage with one lane per path (`Merge` for Split → Mix,
+  `Fan` for Split → Y with each leaf lane ending in its own output node), then the output node
+  (a chain with Y leaves has none). The layout is a tree, computed every rebuild; no position is
+  stored. Cards sit 132 px apart, lanes 108 px apart, and the row grows to the laid-out graph's
+  height and width (a linear chain keeps its old height).
 - `src/chain_graph_ids.rs` names the nodes: a block node is its `BlockId`; the fixed ids
-  are `__io_input`, `__io_output`, `__io_output_a`, `__io_output_b`. The n-th split of the
-  chain (1-based, top-level order) is `__split_n` and, for a Mix, its mixer `__merge_n`;
-  `resolve_node` turns them back into the split's `BlockId`.
+  are `__io_input` and `__io_output`. A split's node is `__split_<split id>` and, for a Mix,
+  its mixer `__merge_<split id>`; the output node of Y leaf `p` of split `s` is `__out_<s>_<p>`.
+  `resolve_node` turns them back into the split's `BlockId` or the leaf's `PathRef`.
 - `src/chain_graph_models.rs` publishes the nodes (each block node with its strip tile in
   `GraphNode.block`), the wires and the "+" anchors on `ProjectChainItem.graph_*` once per
   row rebuild; the meter tick never rebuilds them.
-- `src/graph_anchor.rs` turns an anchor id (`stage:{i}` / `lane:{stage}:{lane}:{i}`) back
-  into a position plus a split path — where a "+" inserts and where a drop moves a block.
+- `src/graph_anchor.rs` turns an anchor id (`top:{i}` / `path:{split}:{path}:{i}`) back
+  into a position plus a `PathRef` — where a "+" inserts and where a drop moves a block, at any depth.
 - The #591 MIDI markers follow `ChainGraphBridge.selected-block-id` / `neighbor-block-id`
   (`GraphView.selected-node-id` / `neighbor-node-id`), fed from the same `SelectionState` the
   strip reads, so a row rebuild never loses them.

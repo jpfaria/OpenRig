@@ -1,7 +1,7 @@
 //! #328 spec §4.3: the shorter path is delayed by the difference, in a ring
 //! preallocated at build, capped at 16384 samples.
 
-use super::{plan_alignment, AlignDelay, AlignPlan, MAX_ALIGN_SAMPLES};
+use super::{align_delay, AlignDelay, MAX_ALIGN_SAMPLES};
 use crate::runtime_audio_frame::AudioFrame;
 
 fn ramp(start: usize, n: usize) -> Vec<AudioFrame> {
@@ -22,41 +22,25 @@ fn left(frames: &[AudioFrame]) -> Vec<f32> {
 
 #[test]
 fn the_path_with_less_latency_is_delayed_by_the_difference() {
+    let latencies = [0, 64, 7, 71];
+    let longest = 71;
+    let delays: Vec<(usize, bool)> = latencies
+        .iter()
+        .map(|&latency| align_delay(longest, latency))
+        .collect();
     assert_eq!(
-        plan_alignment(0, 64),
-        AlignPlan {
-            delay_a: 64,
-            delay_b: 0,
-            clamped: false
-        }
+        delays,
+        vec![(71, false), (7, false), (64, false), (0, false)],
+        "#328 §11.4: every path meets the longest one, which is never delayed"
     );
-    assert_eq!(
-        plan_alignment(71, 7),
-        AlignPlan {
-            delay_a: 0,
-            delay_b: 64,
-            clamped: false
-        }
-    );
-    assert_eq!(
-        plan_alignment(15, 15),
-        AlignPlan {
-            delay_a: 0,
-            delay_b: 0,
-            clamped: false
-        }
-    );
+    assert_eq!(align_delay(15, 15), (0, false));
 }
 
 #[test]
 fn a_difference_above_the_cap_is_clamped() {
     assert_eq!(
-        plan_alignment(MAX_ALIGN_SAMPLES + 10, 0),
-        AlignPlan {
-            delay_a: 0,
-            delay_b: MAX_ALIGN_SAMPLES,
-            clamped: true
-        }
+        align_delay(MAX_ALIGN_SAMPLES + 10, 0),
+        (MAX_ALIGN_SAMPLES, true)
     );
 }
 

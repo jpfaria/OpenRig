@@ -1,12 +1,12 @@
 //! Responsibility: maps a compact view row index to the block it shows.
 //!
 //! #328: the compact view lists every block of the chain in signal order, the
-//! blocks inside a split's paths included (the split, then path A, then path
-//! B). A row index is therefore not a position in `chain.blocks`; this is the
+//! blocks inside a split's paths included (the split, then each of its paths
+//! in order, at any depth). A row index is therefore not a position in `chain.blocks`; this is the
 //! one place that turns it into the list and position the block lives at.
 
 use domain::ids::BlockId;
-use project::block::{AudioBlock, AudioBlockKind, PathRef, PathSide};
+use project::block::{AudioBlock, AudioBlockKind, PathRef};
 use project::chain::Chain;
 
 /// Where a block sits: the list (`None` = the chain itself) and its position.
@@ -18,15 +18,34 @@ pub(crate) struct RowAddress {
 
 /// Every block of the chain in compact row order, with where it sits.
 pub(crate) fn compact_rows(chain: &Chain) -> Vec<(RowAddress, &AudioBlock)> {
+    walk_rows(chain)
+        .into_iter()
+        .map(|(address, block, _)| (address, block))
+        .collect()
+}
+
+/// How many splits deep each compact row sits: 0 for the chain's own
+/// blocks, 1 inside a top-level split's path, and so on.
+pub(crate) fn compact_row_depths(chain: &Chain) -> Vec<usize> {
+    walk_rows(chain)
+        .into_iter()
+        .map(|(_, _, depth)| depth)
+        .collect()
+}
+
+type Row<'a> = (RowAddress, &'a AudioBlock, usize);
+
+fn walk_rows(chain: &Chain) -> Vec<Row<'_>> {
     let mut rows = Vec::new();
-    push_rows(&chain.blocks, None, &mut rows);
+    push_rows(&chain.blocks, None, 0, &mut rows);
     rows
 }
 
 fn push_rows<'a>(
     blocks: &'a [AudioBlock],
     path: Option<PathRef>,
-    rows: &mut Vec<(RowAddress, &'a AudioBlock)>,
+    depth: usize,
+    rows: &mut Vec<Row<'a>>,
 ) {
     for (index, block) in blocks.iter().enumerate() {
         rows.push((
@@ -35,14 +54,15 @@ fn push_rows<'a>(
                 index,
             },
             block,
+            depth,
         ));
         if let AudioBlockKind::Split(split) = &block.kind {
-            for (side, lane) in [(PathSide::A, &split.a), (PathSide::B, &split.b)] {
+            for (at, lane) in split.paths.iter().enumerate() {
                 let lane_path = PathRef {
                     split: block.id.clone(),
-                    side,
+                    path: at,
                 };
-                push_rows(lane, Some(lane_path), rows);
+                push_rows(lane, Some(lane_path), depth + 1, rows);
             }
         }
     }
@@ -63,7 +83,7 @@ pub(crate) fn row_address(chain: &Chain, row: usize) -> Option<RowAddress> {
 
 /// Where a block inserted at the slot above row `before_row` goes: right after
 /// the row above it, in that row's list. Under a split row the slot opens the
-/// head of path A, which is the row drawn right below it.
+/// head of the first path, which is the row drawn right below it.
 pub(crate) fn insert_slot(chain: &Chain, before_row: usize) -> RowAddress {
     let rows = compact_rows(chain);
     let Some((above, block)) = before_row.checked_sub(1).and_then(|r| rows.get(r)) else {
@@ -76,7 +96,7 @@ pub(crate) fn insert_slot(chain: &Chain, before_row: usize) -> RowAddress {
         return RowAddress {
             path: Some(PathRef {
                 split: block.id.clone(),
-                side: PathSide::A,
+                path: 0,
             }),
             index: 0,
         };

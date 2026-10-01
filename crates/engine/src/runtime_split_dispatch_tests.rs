@@ -4,6 +4,7 @@
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
+use project::block::split_param_keys::mix_polarity;
 use project::block::split_params::{self, default_split_params};
 
 use crate::runtime_audio_frame::AudioFrame;
@@ -19,19 +20,18 @@ fn split_node(
     b: Vec<BlockRuntimeNode>,
     invert: bool,
 ) -> BlockRuntimeNode {
-    let mut params = default_split_params();
+    let mut params = default_split_params(2);
     if invert {
         params.insert(
-            split_params::MIX_B_POLARITY,
+            &mix_polarity(1),
             ParameterValue::String(split_params::POLARITY_INVERT.into()),
         );
     }
     let mut node = gain_node("split", 1.0);
     node.processor = RuntimeProcessor::Split(SplitRuntimeState::new(
         true,
-        a,
-        b,
-        SplitKnobs::from_params(&params),
+        vec![a, b],
+        SplitKnobs::from_params(&params, 2),
         &BlockId("split".into()),
     ));
     node

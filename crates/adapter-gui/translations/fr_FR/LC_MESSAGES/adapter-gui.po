@@ -210,19 +210,19 @@ msgid "label-endpoints-total"
 msgstr "{} points"
 
 #. The split and the mixer carry no host label; their name is translated.
-#: crates/adapter-gui/ui/components/graph_node_card.slint:52
+#: crates/adapter-gui/ui/components/graph_node_card.slint:55
 msgid "graph-node-split"
 msgstr "Split"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:53
+#: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
 msgstr "Mixer"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:142
+#: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "Activer ou désactiver le bloc"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:159
+#: crates/adapter-gui/ui/components/graph_node_card.slint:162
 msgid "accessible-graph-node-remove"
 msgstr "Retirer le bloc"
 
@@ -473,6 +473,14 @@ msgstr ""
 #: crates/adapter-gui/ui/components/preset_select.slint:171
 msgid "status-no-presets-found"
 msgstr "Aucun preset trouvé"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:62
+msgid "label-remove-path"
+msgstr "Supprimer le chemin {}"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:187
+msgid "btn-add-path"
+msgstr "Chemin"
 
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"

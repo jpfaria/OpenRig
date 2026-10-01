@@ -1,24 +1,24 @@
 //! Responsibility: names every node of a chain graph.
 //!
-//! #328 (spec §5.2). A block node carries the block's own `BlockId`, so a
+//! #328 (spec §5.2, §11). A block node carries the block's own `BlockId`, so a
 //! gesture on a card names the block wherever it sits. The input/output nodes
 //! and the split/mixer routing nodes are not blocks. `linear_chain_layout`
-//! gives the n-th split of the chain (1-based, top-level order) the nodes
-//! `__split_n` and, when it ends in a Mix, `__merge_n`; a chain holds at most
-//! a Mix, then a Y (spec §1.1).
+//! names a split's nodes after the split's own id (`__split_<id>` and, when it
+//! ends in a Mix, `__merge_<id>`), and every Y leaf ends in its own output
+//! node `__out_<split>_<path>`, so every name stays stable at any depth.
 
 use domain::ids::BlockId;
-use project::block::{AudioBlockKind, PathRef, PathSide, SplitEnd};
+use project::block::{y_leaves, AudioBlock, AudioBlockKind, PathRef, SplitEnd};
 use project::chain::Chain;
 use project::endpoint_disables::EndpointNode;
 
+use crate::chain_block_lists::split_by_id;
+use crate::graph_view_model::{MERGE_NODE_PREFIX, SPLIT_NODE_PREFIX};
+
 pub(crate) const INPUT_NODE_ID: &str = "__io_input";
 pub(crate) const OUTPUT_NODE_ID: &str = "__io_output";
-pub(crate) const PATH_A_OUTPUT_NODE_ID: &str = "__io_output_a";
-pub(crate) const PATH_B_OUTPUT_NODE_ID: &str = "__io_output_b";
 
-const SPLIT_NODE_PREFIX: &str = "__split_";
-const MIXER_NODE_PREFIX: &str = "__merge_";
+const LEAF_OUTPUT_PREFIX: &str = "__out_";
 
 /// What a graph node stands for in its chain.
 #[derive(Debug, Clone, PartialEq)]
@@ -37,53 +37,65 @@ pub(crate) enum NodeRef {
     Endpoints(EndpointNode),
 }
 
+/// Id of the output node Y leaf `leaf` ends in.
+pub(crate) fn leaf_output_node_id(leaf: &PathRef) -> String {
+    format!("{LEAF_OUTPUT_PREFIX}{}_{}", leaf.split.0, leaf.path)
+}
+
 pub(crate) fn resolve_node(chain: &Chain, node_id: &str) -> Option<NodeRef> {
     match node_id {
         INPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::Input)),
         OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::Output)),
-        PATH_A_OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::PathAOutput)),
-        PATH_B_OUTPUT_NODE_ID => return Some(NodeRef::Endpoints(EndpointNode::PathBOutput)),
         _ => {}
     }
-    if let Some(ordinal) = node_id.strip_prefix(SPLIT_NODE_PREFIX) {
-        return nth_split(chain, ordinal).map(|(id, _)| NodeRef::Split { id });
+    if let Some(rest) = node_id.strip_prefix(LEAF_OUTPUT_PREFIX) {
+        return leaf_of(chain, rest).map(|leaf| NodeRef::Endpoints(EndpointNode::PathOutput(leaf)));
     }
-    if let Some(ordinal) = node_id.strip_prefix(MIXER_NODE_PREFIX) {
-        return nth_split(chain, ordinal)
-            .filter(|(_, end)| *end == SplitEnd::Mix)
-            .map(|(id, _)| NodeRef::Mixer { id });
+    if let Some(id) = node_id.strip_prefix(SPLIT_NODE_PREFIX) {
+        let id = BlockId(id.to_string());
+        return split_by_id(chain, &id).map(|_| NodeRef::Split { id });
     }
-    for (index, block) in chain.blocks.iter().enumerate() {
+    if let Some(id) = node_id.strip_prefix(MERGE_NODE_PREFIX) {
+        let id = BlockId(id.to_string());
+        return split_by_id(chain, &id)
+            .filter(|(_, split)| split.end == SplitEnd::Mix)
+            .map(|_| NodeRef::Mixer { id });
+    }
+    block_in(&chain.blocks, None, node_id)
+}
+
+/// The Y leaf `<split>_<path>` names, when the chain has it.
+fn leaf_of(chain: &Chain, rest: &str) -> Option<PathRef> {
+    let (split, path) = rest.rsplit_once('_')?;
+    let leaf = PathRef {
+        split: BlockId(split.to_string()),
+        path: path.parse().ok()?,
+    };
+    y_leaves(&chain.blocks).contains(&leaf).then_some(leaf)
+}
+
+fn block_in(blocks: &[AudioBlock], path: Option<PathRef>, node_id: &str) -> Option<NodeRef> {
+    for (index, block) in blocks.iter().enumerate() {
         if block.id.0 == node_id {
             return Some(NodeRef::Block {
                 id: block.id.clone(),
-                path: None,
+                path,
                 index,
             });
         }
         if let AudioBlockKind::Split(split) = &block.kind {
-            for (side, lane) in [(PathSide::A, &split.a), (PathSide::B, &split.b)] {
-                if let Some(index) = lane.iter().position(|b| b.id.0 == node_id) {
-                    return Some(NodeRef::Block {
-                        id: lane[index].id.clone(),
-                        path: Some(PathRef {
-                            split: block.id.clone(),
-                            side,
-                        }),
-                        index,
-                    });
+            for (at, lane) in split.paths.iter().enumerate() {
+                let lane_path = PathRef {
+                    split: block.id.clone(),
+                    path: at,
+                };
+                if let Some(found) = block_in(lane, Some(lane_path), node_id) {
+                    return Some(found);
                 }
             }
         }
     }
     None
-}
-
-/// The id and end of the split a 1-based `ordinal` names.
-fn nth_split(chain: &Chain, ordinal: &str) -> Option<(BlockId, SplitEnd)> {
-    let n: usize = ordinal.parse().ok()?;
-    let (position, split) = project::block::splits(&chain.blocks).nth(n.checked_sub(1)?)?;
-    Some((chain.blocks[position].id.clone(), split.end))
 }
 
 #[cfg(test)]

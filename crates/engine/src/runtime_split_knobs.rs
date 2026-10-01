@@ -3,18 +3,19 @@
 //! Same pattern as `ChainRuntimeState::volume_pct_bits`: every knob is an
 //! atomic (f32 bits), stored off the audio thread and loaded with Relaxed
 //! ordering once per callback, so a knob value is replaced in place without
-//! rebuilding any path (#328, spec §4.1).
+//! rebuilding any path (#328, spec §4.1). One set of atomics per path; the
+//! path count is fixed at build (a path added or removed rebuilds the split).
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use block_core::param::ParameterSet;
+use project::block::split_param_keys::{balance, level_to, mix_level, mix_pan, mix_polarity};
 use project::block::split_params::{
-    default_split_params, BALANCE_A, BALANCE_B, LEVEL_TO_A, LEVEL_TO_B, MIX_B_POLARITY,
-    MIX_LEVEL_A, MIX_LEVEL_B, MIX_MASTER, MIX_MASTER_SUM, MIX_PAN_A, MIX_PAN_B, POLARITY_INVERT,
-    SPLIT_MODE, SPLIT_MODE_DUAL_MONO,
+    default_split_params, MIX_MASTER, MIX_MASTER_SUM, POLARITY_INVERT, SPLIT_MODE,
+    SPLIT_MODE_DUAL_MONO,
 };
 
-use crate::runtime_split::mix::SplitKnobValues;
+use crate::runtime_split::mix::{MixKnobs, PathKnobs};
 
 /// Percent knobs (`level_to_*`, `mix_level_*`, `mix_master`) are `x/100`.
 const PERCENT: f32 = 100.0;
@@ -40,25 +41,40 @@ fn flag(params: &ParameterSet, defaults: &ParameterSet, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn put(slot: &AtomicU32, value: f32) {
+    slot.store(value.to_bits(), Ordering::Relaxed);
+}
+
+#[inline]
+fn get(slot: &AtomicU32) -> f32 {
+    f32::from_bits(slot.load(Ordering::Relaxed))
+}
+
+#[derive(Default)]
+struct PathKnobAtomics {
+    level_to: AtomicU32,
+    balance: AtomicU32,
+    mix_level: AtomicU32,
+    mix_pan: AtomicU32,
+    invert: AtomicBool,
+}
+
 #[derive(Default)]
 pub(crate) struct SplitKnobs {
     dual_mono: AtomicBool,
-    level_to_a: AtomicU32,
-    level_to_b: AtomicU32,
-    balance_a: AtomicU32,
-    balance_b: AtomicU32,
-    mix_level_a: AtomicU32,
-    mix_level_b: AtomicU32,
-    mix_pan_a: AtomicU32,
-    mix_pan_b: AtomicU32,
-    mix_b_invert: AtomicBool,
-    mix_master: AtomicU32,
-    mix_master_sum: AtomicBool,
+    master: AtomicU32,
+    master_sum: AtomicBool,
+    paths: Vec<PathKnobAtomics>,
 }
 
 impl SplitKnobs {
-    pub(crate) fn from_params(params: &ParameterSet) -> Self {
-        let knobs = Self::default();
+    pub(crate) fn from_params(params: &ParameterSet, path_count: usize) -> Self {
+        let knobs = Self {
+            paths: (0..path_count)
+                .map(|_| PathKnobAtomics::default())
+                .collect(),
+            ..Self::default()
+        };
         knobs.store(params);
         knobs
     }
@@ -66,67 +82,63 @@ impl SplitKnobs {
     /// Replace every knob with the value in `params`, falling back to the
     /// Ampero default for a missing key. Off the audio thread.
     pub(crate) fn store(&self, params: &ParameterSet) {
-        let defaults = default_split_params();
-        let put = |slot: &AtomicU32, value: f32| slot.store(value.to_bits(), Ordering::Relaxed);
+        let defaults = default_split_params(self.paths.len());
         self.dual_mono.store(
             text(params, &defaults, SPLIT_MODE) == SPLIT_MODE_DUAL_MONO,
             Ordering::Relaxed,
         );
         put(
-            &self.level_to_a,
-            number(params, &defaults, LEVEL_TO_A) / PERCENT,
-        );
-        put(
-            &self.level_to_b,
-            number(params, &defaults, LEVEL_TO_B) / PERCENT,
-        );
-        put(&self.balance_a, number(params, &defaults, BALANCE_A));
-        put(&self.balance_b, number(params, &defaults, BALANCE_B));
-        put(
-            &self.mix_level_a,
-            number(params, &defaults, MIX_LEVEL_A) / PERCENT,
-        );
-        put(
-            &self.mix_level_b,
-            number(params, &defaults, MIX_LEVEL_B) / PERCENT,
-        );
-        put(&self.mix_pan_a, number(params, &defaults, MIX_PAN_A));
-        put(&self.mix_pan_b, number(params, &defaults, MIX_PAN_B));
-        self.mix_b_invert.store(
-            text(params, &defaults, MIX_B_POLARITY) == POLARITY_INVERT,
-            Ordering::Relaxed,
-        );
-        put(
-            &self.mix_master,
+            &self.master,
             number(params, &defaults, MIX_MASTER) / PERCENT,
         );
-        self.mix_master_sum
+        self.master_sum
             .store(flag(params, &defaults, MIX_MASTER_SUM), Ordering::Relaxed);
+        for (i, path) in self.paths.iter().enumerate() {
+            put(
+                &path.level_to,
+                number(params, &defaults, &level_to(i)) / PERCENT,
+            );
+            put(&path.balance, number(params, &defaults, &balance(i)));
+            put(
+                &path.mix_level,
+                number(params, &defaults, &mix_level(i)) / PERCENT,
+            );
+            put(&path.mix_pan, number(params, &defaults, &mix_pan(i)));
+            path.invert.store(
+                text(params, &defaults, &mix_polarity(i)) == POLARITY_INVERT,
+                Ordering::Relaxed,
+            );
+        }
     }
 
-    /// The values for this callback. A Y split (`mixes == false`) meets its
-    /// paths at unity, so its mixer knobs read neutral.
+    /// The values for this callback, written into the caller's preallocated
+    /// `paths` (one per path). A Y split (`mixes == false`) meets its paths
+    /// at unity, so its mixer knobs read neutral. No allocation.
     #[inline]
-    pub(crate) fn load(&self, mixes: bool) -> SplitKnobValues {
-        let get = |slot: &AtomicU32| f32::from_bits(slot.load(Ordering::Relaxed));
-        let values = SplitKnobValues {
+    pub(crate) fn load_into(&self, mixes: bool, paths: &mut [PathKnobs]) -> MixKnobs {
+        for (out, path) in paths.iter_mut().zip(self.paths.iter()) {
+            let values = PathKnobs {
+                level_to: get(&path.level_to),
+                balance: get(&path.balance),
+                mix_level: get(&path.mix_level),
+                mix_pan: get(&path.mix_pan),
+                invert: path.invert.load(Ordering::Relaxed),
+            };
+            *out = if mixes {
+                values
+            } else {
+                values.with_neutral_mixer()
+            };
+        }
+        let mix = MixKnobs {
             dual_mono: self.dual_mono.load(Ordering::Relaxed),
-            level_to_a: get(&self.level_to_a),
-            level_to_b: get(&self.level_to_b),
-            balance_a: get(&self.balance_a),
-            balance_b: get(&self.balance_b),
-            mix_level_a: get(&self.mix_level_a),
-            mix_level_b: get(&self.mix_level_b),
-            mix_pan_a: get(&self.mix_pan_a),
-            mix_pan_b: get(&self.mix_pan_b),
-            mix_b_invert: self.mix_b_invert.load(Ordering::Relaxed),
-            mix_master: get(&self.mix_master),
-            mix_master_sum: self.mix_master_sum.load(Ordering::Relaxed),
+            master: get(&self.master),
+            master_sum: self.master_sum.load(Ordering::Relaxed),
         };
         if mixes {
-            values
+            mix
         } else {
-            values.with_neutral_mixer()
+            mix.with_neutral_mixer()
         }
     }
 }

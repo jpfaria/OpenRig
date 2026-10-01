@@ -16,8 +16,7 @@ fn labels() -> IoLabels {
     IoLabels {
         input: "In".into(),
         output: "Out".into(),
-        path_a: "A".into(),
-        path_b: "B".into(),
+        leaves: Vec::new(),
     }
 }
 

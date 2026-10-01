@@ -10,6 +10,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Global, Model, ModelRc, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
+use project::block::path_letter;
 use project::endpoint_disables::EndpointNode;
 
 use crate::chain_graph_ids::{resolve_node, NodeRef};
@@ -50,8 +51,9 @@ pub(crate) fn checklist_title(node: &EndpointNode) -> String {
     match node {
         EndpointNode::Input => rust_i18n::t!("title-endpoints-input"),
         EndpointNode::Output => rust_i18n::t!("title-endpoints-output"),
-        EndpointNode::PathAOutput => rust_i18n::t!("title-endpoints-path-a"),
-        EndpointNode::PathBOutput => rust_i18n::t!("title-endpoints-path-b"),
+        EndpointNode::PathOutput(leaf) => {
+            rust_i18n::t!("title-endpoints-path", path = path_letter(leaf.path))
+        }
     }
     .to_string()
 }
@@ -68,7 +70,8 @@ fn current_rows(
     };
     let borrowed = checklist.ctx.project_session.borrow();
     let registry = borrowed.as_ref()?.io_bindings.borrow().clone();
-    Some((node, endpoint_rows(&chain, &registry, node)))
+    let rows = endpoint_rows(&chain, &registry, &node);
+    Some((node, rows))
 }
 
 fn toggle(

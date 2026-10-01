@@ -58,7 +58,7 @@ pub(crate) fn dispatch_binding_pick(
             log::warn!(
                 "[compact] port {} sits in path {:?} of split {}; not re-pointed",
                 block_id.0,
-                path.side,
+                path.path,
                 path.split.0
             );
             return true;

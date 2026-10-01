@@ -1,7 +1,9 @@
 //! #328 — the endpoint checklist of the chain graph's I/O nodes: recorded per
 //! node, carried into the rig, and kept by the commands that rewrite a chain.
 
+use domain::ids::BlockId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::{PathRef, SplitEnd};
 use project::endpoint_disables::{EndpointNode, EndpointRef};
 use project::rig::RigScene;
 use serde_json::json;
@@ -40,9 +42,9 @@ fn unchecking_an_input_records_it_on_that_node_only() {
 
     let disables = project.borrow().chains[0].disabled_endpoints.clone();
     assert_eq!(disables.inputs, vec![endpoint("io-main", "In 1")]);
-    assert!(!disables.is_enabled(EndpointNode::Input, &endpoint("io-main", "In 1")));
+    assert!(!disables.is_enabled(&EndpointNode::Input, &endpoint("io-main", "In 1")));
     assert!(
-        disables.is_enabled(EndpointNode::Output, &endpoint("io-main", "In 1")),
+        disables.is_enabled(&EndpointNode::Output, &endpoint("io-main", "In 1")),
         "another node is untouched"
     );
     assert!(
@@ -74,17 +76,57 @@ fn checking_it_again_clears_it_and_a_repeated_uncheck_is_recorded_once() {
 }
 
 #[test]
-fn a_path_b_output_lands_on_the_path_b_list_only() {
-    let project = project_with(vec![make_core_block("amp", true)]);
+fn a_y_leaf_output_lands_on_that_leaf_only() {
+    let project = project_with(vec![split("y", SplitEnd::Y, vec![], vec![])]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    set_enabled(&dispatcher, CHAIN, "path_b_output", "Out 3", false);
+    dispatch_json(
+        &dispatcher,
+        "SetChainEndpointEnabled",
+        json!({
+            "chain": CHAIN,
+            "node": { "path_output": { "split": "y", "path": 1 } },
+            "io": "io-main",
+            "endpoint": "Out 3",
+            "enabled": false
+        }),
+    )
+    .expect("uncheck Out 3 on leaf B");
 
     let disables = project.borrow().chains[0].disabled_endpoints.clone();
-    assert_eq!(disables.path_b_outputs, vec![endpoint("io-main", "Out 3")]);
+    let leaf = |path| {
+        EndpointNode::PathOutput(PathRef {
+            split: BlockId("y".into()),
+            path,
+        })
+    };
+    assert!(!disables.is_enabled(&leaf(1), &endpoint("io-main", "Out 3")));
+    assert!(
+        disables.is_enabled(&leaf(0), &endpoint("io-main", "Out 3")),
+        "leaf A is untouched"
+    );
     assert!(disables.inputs.is_empty());
     assert!(disables.outputs.is_empty());
-    assert!(disables.path_a_outputs.is_empty());
+}
+
+#[test]
+fn a_leaf_that_is_not_a_y_path_is_refused() {
+    let project = project_with(vec![split("mix", SplitEnd::Mix, vec![], vec![])]);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatch_json(
+        &dispatcher,
+        "SetChainEndpointEnabled",
+        json!({
+            "chain": CHAIN,
+            "node": { "path_output": { "split": "mix", "path": 0 } },
+            "io": "io-main",
+            "endpoint": "Out 3",
+            "enabled": false
+        }),
+    );
+    assert!(result.is_err(), "a Mix path has no output node");
+    assert!(project.borrow().chains[0].disabled_endpoints.is_empty());
 }
 
 #[test]

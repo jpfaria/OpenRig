@@ -18,7 +18,7 @@
 
 - **Work location:** work only in `.solvers/issue-328` on branch `feature/issue-328`. Never touch the main folder.
 - **Commit and push:** every commit is pushed immediately. Stage explicit paths only.
-- **Red-first:** each task starts with a failing test. Run it, paste the FAILED assertion line, and only then write production code.
+- **Compile once (owner's call, 2026-10-01):** write every task's code in one pass, without cargo. In each task the test is written before the production code. After the last task, run one `cargo check --workspace --tests`, fix what it reports, then run the targeted tests. The per-task "Run, see FAILED" and "PASS" steps below are deferred to that single compile.
 - **No local full builds or tests:**
   - Run only the targeted test: `nice -n 19 cargo test -p <crate> -j 2 <filter>`, one cargo at a time.
   - Before each push: `cargo fmt --all -- --check` and `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`.

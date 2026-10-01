@@ -82,14 +82,20 @@ impl AudioBlockKind {
     /// Whether this block is ROUTING rather than an in-place processor: a mid
     /// `Input`/`Output` port or an `Insert` (the runtime builds no node for
     /// them — `runtime_segments` splits the chain on the enabled ones), or a
-    /// `Split` that ends in a Y (#328: its per-output paths decide which
+    /// `Split` whose subtree holds a Y (#328: each Y leaf decides which
     /// streams exist). Enabling or disabling one is a topology change that
     /// only a rebuild can apply, never the in-place block fade (#85/#881). A
     /// `Split → Mix` is DSP inside one segment, so it is not routing.
     pub fn is_routing(&self) -> bool {
         match self {
             Self::Input(_) | Self::Output(_) | Self::Insert(_) => true,
-            Self::Split(split) => split.end == SplitEnd::Y,
+            Self::Split(split) => {
+                split.end == SplitEnd::Y
+                    || split
+                        .paths
+                        .iter()
+                        .any(|path| super::split_lookup::has_y_split(path))
+            }
             Self::Nam(_) | Self::Core(_) | Self::Select(_) => false,
         }
     }
@@ -112,10 +118,13 @@ impl AudioBlockKind {
             // id and model identity — so adding, removing, moving or swapping a
             // block inside a path is structural, while a knob or bypass is not.
             Self::Split(b) => format!(
-                "split:{}|a[{}]|b[{}]",
+                "split:{}|{}",
                 b.end.as_str(),
-                path_identity(&b.a),
-                path_identity(&b.b)
+                b.paths
+                    .iter()
+                    .map(|path| format!("[{}]", path_identity(path)))
+                    .collect::<Vec<_>>()
+                    .join("|")
             ),
         }
     }

@@ -76,6 +76,9 @@ impl ChainYaml {
             })
             .collect();
 
+        let mut disabled_endpoints = self.disabled_endpoints;
+        disabled_endpoints.adopt_legacy_paths(&parsed_blocks);
+
         // Model A (#716): I/O lives in the blocks array as pure
         // `{ model, io, endpoint }` references. Device-level legacy sections
         // no longer deserialize here — that migration is handled upstream.
@@ -89,7 +92,7 @@ impl ChainYaml {
             blocks: parsed_blocks,
             di_output: None,
             loopers: self.loopers,
-            disabled_endpoints: self.disabled_endpoints,
+            disabled_endpoints,
             mix: Default::default(),
         })
     }

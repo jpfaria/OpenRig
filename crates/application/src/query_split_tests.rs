@@ -32,11 +32,11 @@ fn list_ids_lists_the_blocks_inside_each_split_path() {
 
     assert!(out.contains("  block split_0  split  enabled"), "{out}");
     assert!(
-        out.contains("    path a  block a_0  core  enabled"),
+        out.contains("    path A  block a_0  core  enabled"),
         "{out}"
     );
     assert!(
-        out.contains("    path b  block b_0  core  enabled"),
+        out.contains("    path B  block b_0  core  enabled"),
         "{out}"
     );
 }

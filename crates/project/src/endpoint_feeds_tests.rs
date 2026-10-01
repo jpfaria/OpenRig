@@ -8,10 +8,11 @@ use super::{
     checklist_silences, head_input_enabled, inputs_all_unchecked, outputs_all_unchecked, tail_feed,
     TailFeed,
 };
-use crate::block::split_params::default_split_params;
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock, SplitBlock, SplitEnd};
+use crate::block::{
+    AudioBlock, AudioBlockKind, InputBlock, OutputBlock, PathRef, SplitBlock, SplitEnd,
+};
 use crate::chain::Chain;
-use crate::endpoint_disables::{EndpointDisables, EndpointRef};
+use crate::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 
 fn ep(name: &str, ch: usize) -> IoEndpoint {
     IoEndpoint {
@@ -39,31 +40,51 @@ fn r(endpoint: &str) -> EndpointRef {
     }
 }
 
+fn leaf(split: &str, path: usize) -> PathRef {
+    PathRef {
+        split: BlockId(split.into()),
+        path,
+    }
+}
+
+/// Unchecked endpoints per node; `path_0` / `path_1` are the output nodes of
+/// the two leaves of split `split`.
+fn disables_on(
+    split: &str,
+    inputs: &[&str],
+    outputs: &[&str],
+    path_0: &[&str],
+    path_1: &[&str],
+) -> EndpointDisables {
+    let mut disables = EndpointDisables::default();
+    let nodes = [
+        (EndpointNode::Input, inputs),
+        (EndpointNode::Output, outputs),
+        (EndpointNode::PathOutput(leaf(split, 0)), path_0),
+        (EndpointNode::PathOutput(leaf(split, 1)), path_1),
+    ];
+    for (node, names) in nodes {
+        for name in names {
+            disables.set_enabled(&node, r(name), false);
+        }
+    }
+    disables
+}
+
 fn disables(
     inputs: &[&str],
     outputs: &[&str],
-    path_a: &[&str],
-    path_b: &[&str],
+    path_0: &[&str],
+    path_1: &[&str],
 ) -> EndpointDisables {
-    let refs = |names: &[&str]| names.iter().map(|name| r(name)).collect::<Vec<_>>();
-    EndpointDisables {
-        inputs: refs(inputs),
-        outputs: refs(outputs),
-        path_a_outputs: refs(path_a),
-        path_b_outputs: refs(path_b),
-    }
+    disables_on("split", inputs, outputs, path_0, path_1)
 }
 
 fn split(end: SplitEnd) -> AudioBlock {
     AudioBlock {
         id: BlockId("split".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end,
-            params: default_split_params(),
-            a: vec![],
-            b: vec![],
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::new(end)),
     }
 }
 
@@ -162,12 +183,12 @@ fn a_y_split_sends_each_output_from_the_paths_that_check_it() {
     );
     assert_eq!(
         tail_feed(&chain, "main", "out-1"),
-        TailFeed::Paths { a: true, b: false },
+        TailFeed::Leaves(vec![leaf("split", 0)]),
         "#328: path A has out-1 checked, path B does not"
     );
     assert_eq!(
         tail_feed(&chain, "main", "out-2"),
-        TailFeed::Paths { a: false, b: true },
+        TailFeed::Leaves(vec![leaf("split", 1)]),
         "#328: the chain output list means nothing on a Y chain"
     );
 }
@@ -185,7 +206,7 @@ fn a_y_output_both_paths_uncheck_is_off() {
     );
     assert_eq!(
         tail_feed(&chain, "main", "out-2"),
-        TailFeed::Paths { a: true, b: true },
+        TailFeed::Leaves(vec![leaf("split", 0), leaf("split", 1)]),
         "#328: checked on both paths by default"
     );
 }
@@ -204,20 +225,20 @@ fn mix_then_y() -> Vec<AudioBlock> {
 fn a_mix_then_a_y_sends_each_output_from_the_y_paths() {
     let fed = chain(
         mix_then_y(),
-        disables(&[], &["out-1", "out-2"], &["out-2"], &["out-1"]),
+        disables_on("y", &[], &["out-1", "out-2"], &["out-2"], &["out-1"]),
     );
     assert_eq!(
         tail_feed(&fed, "main", "out-1"),
-        TailFeed::Paths { a: true, b: false },
+        TailFeed::Leaves(vec![leaf("y", 0)]),
         "#328: the Y is found even when a Mix comes first"
     );
     assert_eq!(
         tail_feed(&fed, "main", "out-2"),
-        TailFeed::Paths { a: false, b: true }
+        TailFeed::Leaves(vec![leaf("y", 1)])
     );
     let silent = chain(
         mix_then_y(),
-        disables(&[], &[], &["out-1", "out-2"], &["out-1", "out-2"]),
+        disables_on("y", &[], &[], &["out-1", "out-2"], &["out-1", "out-2"]),
     );
     assert!(
         outputs_all_unchecked(&silent, &registry()),

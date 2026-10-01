@@ -29,7 +29,7 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
             }
         }
         AudioBlockKind::Split(split) => {
-            for inner in split.a.iter_mut().chain(split.b.iter_mut()) {
+            for inner in split.paths.iter_mut().flatten() {
                 assign_new_block_ids_recursive(inner, chain_id);
             }
         }

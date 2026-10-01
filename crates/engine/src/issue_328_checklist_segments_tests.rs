@@ -8,7 +8,7 @@ use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::block::{AudioBlock, AudioBlockKind, InsertBlock};
 use project::chain::Chain;
-use project::endpoint_disables::{EndpointDisables, EndpointRef};
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 
 use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io};
 use crate::runtime_graph::chain_stream_count;
@@ -94,13 +94,11 @@ fn segment_count(chain: &Chain) -> usize {
 
 #[test]
 fn every_output_unchecked_invents_no_fallback_output() {
-    let chain = chain(
-        vec![],
-        EndpointDisables {
-            outputs: vec![off("out")],
-            ..EndpointDisables::default()
-        },
-    );
+    let chain = chain(vec![], {
+        let mut d = EndpointDisables::default();
+        d.set_enabled(&EndpointNode::Output, off("out"), false);
+        d
+    });
     assert_eq!(
         endpoints(&chain).1,
         0,
@@ -115,13 +113,11 @@ fn every_output_unchecked_invents_no_fallback_output() {
 
 #[test]
 fn every_input_unchecked_invents_no_fallback_input() {
-    let chain = chain(
-        vec![],
-        EndpointDisables {
-            inputs: vec![off("in")],
-            ..EndpointDisables::default()
-        },
-    );
+    let chain = chain(vec![], {
+        let mut d = EndpointDisables::default();
+        d.set_enabled(&EndpointNode::Input, off("in"), false);
+        d
+    });
     assert_eq!(
         endpoints(&chain).0,
         0,
@@ -132,13 +128,11 @@ fn every_input_unchecked_invents_no_fallback_input() {
 
 #[test]
 fn an_insert_return_never_stands_in_for_an_unchecked_input() {
-    let chain = chain(
-        vec![insert()],
-        EndpointDisables {
-            inputs: vec![off("in")],
-            ..EndpointDisables::default()
-        },
-    );
+    let chain = chain(vec![insert()], {
+        let mut d = EndpointDisables::default();
+        d.set_enabled(&EndpointNode::Input, off("in"), false);
+        d
+    });
     assert_eq!(
         segment_count(&chain),
         0,

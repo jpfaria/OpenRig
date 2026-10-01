@@ -114,6 +114,8 @@ pub mod session;
 /// #693: published immutable state snapshot — transports serve reads
 /// concurrently on their own thread (API-style), never via the GUI tick.
 pub mod snapshot;
+mod split_path_commands;
+mod split_path_references;
 mod split_rules;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.

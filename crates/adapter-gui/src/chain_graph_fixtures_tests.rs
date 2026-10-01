@@ -12,7 +12,6 @@ use application::selection_state::SelectionState;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::ChannelMode;
 use infra_filesystem::{IoBinding, IoEndpoint};
-use project::block::split_params::default_split_params;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, SplitBlock, SplitEnd};
 use project::chain::Chain;
 use project::project::Project;
@@ -21,10 +20,10 @@ use slint::VecModel;
 use crate::state::ProjectSession;
 use crate::ProjectChainItem;
 
-/// The split node of a chain's first split.
-pub(crate) const FIRST_SPLIT_NODE_ID: &str = "__split_1";
-/// The mixer node of a chain's first split, when it is a Mix.
-pub(crate) const FIRST_MIXER_NODE_ID: &str = "__merge_1";
+/// The split node of the split `sp` that `mix_chain` and `y_chain` carry.
+pub(crate) const FIRST_SPLIT_NODE_ID: &str = "__split_sp";
+/// The mixer node of `mix_chain`'s split `sp`.
+pub(crate) const FIRST_MIXER_NODE_ID: &str = "__merge_sp";
 
 /// A native gain/volume block — a real catalog model
 /// (`crates/block-gain/src/native_volume.rs`, param `volume` 0..100).
@@ -54,15 +53,15 @@ pub(crate) fn port_in(id: &str, io: &str, endpoint: &str) -> AudioBlock {
 }
 
 pub(crate) fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>, b: Vec<AudioBlock>) -> AudioBlock {
+    split_paths(id, end, vec![a, b])
+}
+
+/// A split with any number of paths.
+pub(crate) fn split_paths(id: &str, end: SplitEnd, paths: Vec<Vec<AudioBlock>>) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end,
-            params: default_split_params(),
-            a,
-            b,
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(end, paths)),
     }
 }
 

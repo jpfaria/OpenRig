@@ -295,10 +295,10 @@ fn segments_without_inserts(
                 mid_output_taps: Vec::new(),
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
-                // #328: the paths this output's node checks (none before the split).
+                // #328: the leaves whose node checks this output (none before the split).
                 paths: route_paths
                     .get(out_entry_idx)
-                    .copied()
+                    .cloned()
                     .unwrap_or(SegmentPaths::None),
             });
         }
@@ -425,8 +425,8 @@ fn segments_with_inserts(
     );
 
     let last_return_idx = return_idx(insert_positions.len() - 1);
-    // #328: a Y → A/B split runs different paths per output, so the return
-    // feeds one pipeline per path set; a split-free chain is one group with
+    // #328: a Y split runs different leaves per output, so the return
+    // feeds one pipeline per leaf set; a split-free chain is one group with
     // every tail route, exactly as before. Mid taps ride the first pipeline
     // only — two would write the tap's route twice.
     let mut taps = Some(taps);

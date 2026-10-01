@@ -405,7 +405,11 @@ fn split_mix_chain() -> (
                 .with_kind(model::NodeKind::IoInput),
         ),
         model::ChainStage::Parallel {
-            lanes: vec![vec![amp("a1")], vec![amp("b1")]],
+            split_id: "sp".into(),
+            lanes: vec![
+                vec![model::ChainStage::Single(amp("a1"))],
+                vec![model::ChainStage::Single(amp("b1"))],
+            ],
             end: model::ParallelEnd::Merge,
         },
         model::ChainStage::Single(
@@ -500,7 +504,7 @@ fn clicking_a_wire_anchor_fires_add_requested_with_its_slot_id() {
 
     assert_eq!(
         *added.borrow(),
-        ["lane:1:1:0"],
+        ["path:sp:1:0"],
         "the + on split → b1 adds first in path B"
     );
 }
@@ -517,7 +521,7 @@ fn dragging_a_block_onto_the_other_lanes_anchor_fires_node_dropped() {
 
     assert_eq!(
         *dropped.borrow(),
-        [("a1".to_string(), "lane:1:1:0".to_string())],
+        [("a1".to_string(), "path:sp:1:0".to_string())],
         "path A's block dropped on split → b1 moves first into path B"
     );
 }

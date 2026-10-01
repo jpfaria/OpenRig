@@ -18,7 +18,7 @@ use crate::runtime_split::knobs::SplitKnobs;
 use crate::runtime_split::state::SplitRuntimeState;
 use crate::runtime_state::{BlockRuntimeNode, FadeState, RuntimeProcessor};
 
-/// Build (or rebuild) the node of `block`, a split (#328). Both paths are
+/// Build (or rebuild) the node of `block`, a split (#328). Every path is
 /// built for a stereo bus — the split always hands them stereo frames — and
 /// for mono content when the bus reaching the split is mono or Mode II feeds
 /// each path one channel, so the #588 mono collapse still applies inside a
@@ -48,33 +48,26 @@ pub(crate) fn build_split_runtime_node(
     });
     let path_content_mono =
         content_mono || split.params.get_string(SPLIT_MODE) == Some(SPLIT_MODE_DUAL_MONO);
-    let a_blocks: Vec<&AudioBlock> = split.a.iter().collect();
-    let b_blocks: Vec<&AudioBlock> = split.b.iter().collect();
     // #328: paths draw from the caller's pool, so a knob move keeps every
-    // amp and a block dragged between lanes keeps its processor.
-    let (a, _, _) = build_nodes_for(
-        chain,
-        &a_blocks,
-        AudioChannelLayout::Stereo,
-        path_content_mono,
-        sample_rate,
-        reusable_nodes,
-        None,
-    )?;
-    let (b, _, _) = build_nodes_for(
-        chain,
-        &b_blocks,
-        AudioChannelLayout::Stereo,
-        path_content_mono,
-        sample_rate,
-        reusable_nodes,
-        None,
-    )?;
+    // amp and a block dragged between paths keeps its processor.
+    let mut paths = Vec::with_capacity(split.paths.len());
+    for path in &split.paths {
+        let blocks: Vec<&AudioBlock> = path.iter().collect();
+        let (nodes, _, _) = build_nodes_for(
+            chain,
+            &blocks,
+            AudioChannelLayout::Stereo,
+            path_content_mono,
+            sample_rate,
+            reusable_nodes,
+            None,
+        )?;
+        paths.push(nodes);
+    }
     let mut state = SplitRuntimeState::new(
         matches!(split.end, SplitEnd::Mix),
-        a,
-        b,
-        SplitKnobs::from_params(&split.params),
+        paths,
+        SplitKnobs::from_params(&split.params, split.paths.len()),
         &block.id,
     );
     if let Some(previous_state) = previous_state {

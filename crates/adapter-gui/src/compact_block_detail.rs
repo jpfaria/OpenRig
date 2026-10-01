@@ -11,7 +11,7 @@ use slint::Global;
 use domain::ids::BlockId;
 use project::block::AudioBlockKind;
 
-use crate::chain_block_lists::side_index;
+use crate::chain_block_lists::path_index;
 use crate::compact_row_address::{compact_rows, RowAddress};
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainGraphBridge, ChainGraphOverlayState};
@@ -61,7 +61,7 @@ pub(crate) fn open_row_detail(
         )) => ChainGraphBridge::get(main_win).invoke_open_path_block(
             chain_index,
             path.split.0.as_str().into(),
-            side_index(&path.side),
+            path_index(&path),
             index as i32,
         ),
         None => {}

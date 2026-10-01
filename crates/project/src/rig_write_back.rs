@@ -26,8 +26,11 @@ fn owned_block(preset_blocks: &[AudioBlock], live: &AudioBlock) -> AudioBlock {
                 kind: AudioBlockKind::Split(SplitBlock {
                     end: live_split.end,
                     params: base_split.params.clone(),
-                    a: owned_path(preset_blocks, &live_split.a),
-                    b: owned_path(preset_blocks, &live_split.b),
+                    paths: live_split
+                        .paths
+                        .iter()
+                        .map(|path| owned_path(preset_blocks, path))
+                        .collect(),
                 }),
             },
             _ => live.clone(),

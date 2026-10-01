@@ -4,29 +4,28 @@
 //! horizontal-S Bézier the canvas draws crosses t = 0.5. Each anchor
 //! carries the slot a block added or dropped there lands in (#328 §5.1).
 
+use domain::ids::BlockId;
+use project::block::PathRef;
+
 use super::routing_ids::{merge_node_id, split_node_id};
 use super::types::{ChainStage, GraphNode, NodeKind, ParallelEnd};
 
-/// Where a block added or dropped on an anchor lands. Indices are in the
-/// ORIGINAL stage list / lane, before any move: "insert before this one".
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AnchorSlot {
-    /// Before top-level stage `index`.
-    Stage { index: usize },
-    /// Before blueprint `index` of lane `lane` in the parallel stage `stage`.
-    Lane {
-        stage: usize,
-        lane: usize,
-        index: usize,
-    },
+/// Where a block added or dropped on an anchor lands: "insert before stage
+/// `index`" of the list `path` names (`None` = the top-level stage list),
+/// in the ORIGINAL list, before any move (#328 §11: any depth).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnchorSlot {
+    pub path: Option<PathRef>,
+    pub index: usize,
 }
 
 impl AnchorSlot {
-    /// Stable id of the anchor at this slot — unique within one graph.
-    pub fn anchor_id(self) -> String {
-        match self {
-            Self::Stage { index } => format!("stage:{index}"),
-            Self::Lane { stage, lane, index } => format!("lane:{stage}:{lane}:{index}"),
+    /// Stable id of the anchor at this slot — unique within one graph:
+    /// `"top:{index}"` or `"path:{split}:{path}:{index}"`.
+    pub fn anchor_id(&self) -> String {
+        match &self.path {
+            None => format!("top:{}", self.index),
+            Some(path) => format!("path:{}:{}:{}", path.split.0, path.path, self.index),
         }
     }
 }
@@ -54,56 +53,70 @@ pub struct GraphAnchor {
 /// `nodes` gets no anchor (panic-free).
 pub fn insert_anchors(stages: &[ChainStage], nodes: &[GraphNode]) -> Vec<GraphAnchor> {
     let mut anchors = Vec::new();
-    let mut prev_tail: Option<String> = None;
-    let mut split_counter: usize = 0;
+    walk(stages, None, None, nodes, &mut anchors);
+    anchors
+}
 
+/// Anchors of the stage list `path` names, fed from `tail`; returns the
+/// list's tail, `None` once it fanned out.
+fn walk(
+    stages: &[ChainStage],
+    path: Option<&PathRef>,
+    mut tail: Option<String>,
+    nodes: &[GraphNode],
+    anchors: &mut Vec<GraphAnchor>,
+) -> Option<String> {
     for (index, stage) in stages.iter().enumerate() {
+        let slot = AnchorSlot {
+            path: path.cloned(),
+            index,
+        };
         match stage {
             ChainStage::Single(block) => {
-                if let Some(prev) = prev_tail.take() {
-                    let slot = AnchorSlot::Stage { index };
-                    push_anchor(&mut anchors, nodes, &prev, &block.id, slot);
+                if let Some(prev) = tail.take() {
+                    push_anchor(anchors, nodes, &prev, &block.id, slot);
                 }
-                prev_tail = Some(block.id.clone());
+                tail = Some(block.id.clone());
             }
             ChainStage::Parallel { lanes, .. } if lanes.is_empty() => {}
-            ChainStage::Parallel { lanes, end } => {
-                split_counter += 1;
-                let split_id = split_node_id(split_counter);
-                let merge_id = merge_node_id(split_counter);
-                if let Some(prev) = prev_tail.take() {
-                    let slot = AnchorSlot::Stage { index };
-                    push_anchor(&mut anchors, nodes, &prev, &split_id, slot);
+            ChainStage::Parallel {
+                split_id,
+                lanes,
+                end,
+            } => {
+                let split_node = split_node_id(split_id);
+                let merge_node = merge_node_id(split_id);
+                if let Some(prev) = tail.take() {
+                    push_anchor(anchors, nodes, &prev, &split_node, slot);
                 }
-                for (lane, blueprints) in lanes.iter().enumerate() {
-                    let mut from = split_id.clone();
-                    for (at, block) in blueprints.iter().enumerate() {
-                        let slot = AnchorSlot::Lane {
-                            stage: index,
-                            lane,
-                            index: at,
+                for (lane, lane_stages) in lanes.iter().enumerate() {
+                    let lane_path = PathRef {
+                        split: BlockId(split_id.clone()),
+                        path: lane,
+                    };
+                    let lane_tail = walk(
+                        lane_stages,
+                        Some(&lane_path),
+                        Some(split_node.clone()),
+                        nodes,
+                        anchors,
+                    );
+                    if let (ParallelEnd::Merge, Some(from)) = (end, lane_tail) {
+                        let slot = AnchorSlot {
+                            path: Some(lane_path),
+                            index: lane_stages.len(),
                         };
-                        push_anchor(&mut anchors, nodes, &from, &block.id, slot);
-                        from = block.id.clone();
-                    }
-                    if *end == ParallelEnd::Merge {
-                        let slot = AnchorSlot::Lane {
-                            stage: index,
-                            lane,
-                            index: blueprints.len(),
-                        };
-                        push_anchor(&mut anchors, nodes, &from, &merge_id, slot);
+                        push_anchor(anchors, nodes, &from, &merge_node, slot);
                     }
                 }
-                prev_tail = match end {
-                    ParallelEnd::Merge => Some(merge_id),
+                tail = match end {
+                    ParallelEnd::Merge => Some(merge_node),
                     ParallelEnd::Fan => None,
                 };
             }
         }
     }
-
-    anchors
+    tail
 }
 
 fn push_anchor(

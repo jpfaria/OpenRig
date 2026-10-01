@@ -15,12 +15,7 @@ use crate::graph_view_model::resolve_drop_anchor;
 /// The anchor id a card `node_id` dragged to layout `(x, y)` lands on, or `""`.
 pub(crate) fn drop_anchor_id(chain: &Chain, node_id: &str, x: f32, y: f32) -> String {
     // Labels move no node and no anchor, so none are resolved here.
-    let labels = IoLabels {
-        input: String::new(),
-        output: String::new(),
-        path_a: String::new(),
-        path_b: String::new(),
-    };
+    let labels = IoLabels::default();
     let graph = chain_graph(chain, &labels);
     resolve_drop_anchor(
         &graph.nodes,

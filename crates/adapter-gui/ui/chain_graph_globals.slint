@@ -26,7 +26,7 @@ export global ChainGraphBridge {
     pure callback resolve-drop-anchor(int, string, length, length) -> string;
 
     // Rust → the block flows: open, or insert into, a split path.
-    // Args: chain index, split block id, side (0 = A, 1 = B), index in the path.
+    // Args: chain index, split block id, path index (0 = A, 1 = B, …), index in the path.
     callback open-path-block(int, string, int, int);
     callback start-path-insert(int, string, int, int);
 

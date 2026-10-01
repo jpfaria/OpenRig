@@ -139,8 +139,9 @@ pub(crate) fn remove_node(
             }
             NodeRef::Split { id } | NodeRef::Mixer { id } => {
                 let (_, split) = split_by_id(&chain, &id).ok_or(GestureError::NotApplicable)?;
-                if !split.b.is_empty() {
-                    let name = rust_i18n::t!("confirm-remove-split-name", n = split.b.len());
+                let dropped: usize = split.paths.iter().skip(1).map(Vec::len).sum();
+                if dropped > 0 {
+                    let name = rust_i18n::t!("confirm-remove-split-name", n = dropped);
                     return Ok(RemoveOutcome::ConfirmSplit {
                         name: name.to_string(),
                         split: id,
@@ -156,7 +157,7 @@ pub(crate) fn remove_node(
 }
 
 /// `RemoveSplit` of the split `split_id`: path A's blocks take its place,
-/// path B's go (spec §3).
+/// the other paths' go (spec §3, §11).
 pub(crate) fn remove_split(
     session: &Session,
     chain_index: usize,

@@ -3,7 +3,8 @@
 //! Every test drives the dispatcher the way a transport does. Fixtures live in
 //! `split_tests_fixtures.rs`.
 
-use project::block::split_params::{MIX_MASTER_SUM, MIX_PAN_A, SPLIT_MODE};
+use project::block::split_param_keys::mix_pan;
+use project::block::split_params::{MIX_MASTER_SUM, SPLIT_MODE};
 use project::block::SplitEnd;
 use serde_json::json;
 
@@ -25,7 +26,7 @@ fn set_block_parameter_number_reaches_a_block_inside_path_b() {
         .expect("a block inside path B is addressable by id");
 
     let split = split_of(&project.borrow());
-    let AudioBlockKind::Core(core) = &split.b[0].kind else {
+    let AudioBlockKind::Core(core) = &split.paths[1][0].kind else {
         panic!("b_0 is a core block");
     };
     assert_eq!(core.params.get_f32("gain"), Some(0.25));
@@ -44,7 +45,7 @@ fn toggle_block_enabled_reaches_a_block_inside_path_a() {
         .expect("a block inside path A is addressable by id");
 
     assert!(
-        !split_of(&project.borrow()).a[0].enabled,
+        !split_of(&project.borrow()).paths[0][0].enabled,
         "a_0 was switched off"
     );
 }
@@ -58,13 +59,13 @@ fn set_block_parameter_number_writes_a_split_mixer_knob() {
         .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: ChainId(CHAIN.into()),
             block: BlockId("split_0".into()),
-            path: MIX_PAN_A.into(),
+            path: mix_pan(0),
             value: -50.0,
         }))
         .expect("the split's knobs are ordinary block parameters");
 
     assert_eq!(
-        split_of(&project.borrow()).params.get_f32(MIX_PAN_A),
+        split_of(&project.borrow()).params.get_f32(&mix_pan(0)),
         Some(-50.0)
     );
 }
@@ -77,13 +78,13 @@ fn set_block_parameter_number_refuses_a_split_knob_outside_its_range() {
     let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: ChainId(CHAIN.into()),
         block: BlockId("split_0".into()),
-        path: MIX_PAN_A.into(),
+        path: mix_pan(0),
         value: 100.0,
     }));
 
     assert!(result.is_err(), "pan runs -50..50, 100 must be refused");
     assert_eq!(
-        split_of(&project.borrow()).params.get_f32(MIX_PAN_A),
+        split_of(&project.borrow()).params.get_f32(&mix_pan(0)),
         Some(0.0),
         "a refused value leaves the knob untouched"
     );
@@ -142,7 +143,10 @@ fn remove_block_takes_a_block_out_of_path_a() {
         }))
         .expect("a block inside path A can be removed");
 
-    assert!(split_of(&project.borrow()).a.is_empty(), "path A is empty");
+    assert!(
+        split_of(&project.borrow()).paths[0].is_empty(),
+        "path A is empty"
+    );
     assert_eq!(
         ids(&project.borrow().chains[0].blocks),
         vec!["pre", "split_0", "post"]
@@ -200,7 +204,7 @@ fn overwrite_block_refuses_to_put_an_input_port_inside_a_path() {
     // `SplitBlock::validate_structure` names the offending path block.
     assert!(
         err.to_string()
-            .contains("'b_0' is a input block; a path holds processing blocks only"),
+            .contains("'b_0' is a input block; a path holds no port or insert"),
         "{err}"
     );
     assert_eq!(project.borrow().chains[0].blocks, before);
@@ -222,8 +226,8 @@ fn overwrite_block_replaces_a_block_inside_path_b() {
         .expect("a core block may replace a core block inside a path");
 
     let split = split_of(&project.borrow());
-    assert_eq!(split.b[0].id.0, "b_0", "the original id is kept");
-    assert!(!split.b[0].enabled, "the replacement's state landed");
+    assert_eq!(split.paths[1][0].id.0, "b_0", "the original id is kept");
+    assert!(!split.paths[1][0].enabled, "the replacement's state landed");
 }
 
 fn added_id(events: &[Event]) -> BlockId {
@@ -246,15 +250,15 @@ fn add_block_with_a_path_lands_inside_that_path() {
         "AddBlock",
         json!({
             "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 0,
-            "path": { "split": "split_0", "side": "a" }
+            "path": { "split": "split_0", "path": 0 }
         }),
     )
     .expect("AddBlock into path A");
 
     let split = split_of(&project.borrow());
-    assert_eq!(split.a.len(), 2, "path A = [new, a_0]");
-    assert_eq!(split.a[1].id.0, "a_0");
-    assert_eq!(added_id(&events), split.a[0].id);
+    assert_eq!(split.paths[0].len(), 2, "path A = [new, a_0]");
+    assert_eq!(split.paths[0][1].id.0, "a_0");
+    assert_eq!(added_id(&events), split.paths[0][0].id);
     assert_eq!(
         ids(&project.borrow().chains[0].blocks),
         vec!["pre", "split_0", "post"],
@@ -280,7 +284,7 @@ fn add_block_without_a_path_still_lands_at_the_top_level() {
     assert_eq!(blocks.len(), 4);
     assert_eq!(ids(&blocks[1..]), vec!["pre", "split_0", "post"]);
     assert_eq!(
-        split_of(&project.borrow()).a.len(),
+        split_of(&project.borrow()).paths[0].len(),
         1,
         "path A is untouched"
     );
@@ -297,14 +301,13 @@ fn add_block_refuses_an_input_port_inside_a_path() {
         "AddBlock",
         json!({
             "chain": CHAIN, "kind": "input", "model_id": "standard", "position": 0,
-            "path": { "split": "split_0", "side": "b" }
+            "path": { "split": "split_0", "path": 1 }
         }),
     )
     .expect_err("an input port cannot sit inside a path");
 
     assert!(
-        err.to_string()
-            .contains("a path holds processing blocks only"),
+        err.to_string().contains("a path holds no port or insert"),
         "{err}"
     );
     assert_eq!(project.borrow().chains[0].blocks, before);
@@ -367,12 +370,15 @@ fn insert_prebuilt_block_with_a_path_lands_inside_path_b() {
         "InsertPrebuiltBlock",
         json!({
             "chain": CHAIN, "block": block, "position": 5,
-            "path": { "split": "split_0", "side": "b" }
+            "path": { "split": "split_0", "path": 1 }
         }),
     )
     .expect("InsertPrebuiltBlock into path B");
 
-    assert_eq!(ids(&split_of(&project.borrow()).b), vec!["b_0", "pre_b"]);
+    assert_eq!(
+        ids(&split_of(&project.borrow()).paths[1]),
+        vec!["b_0", "pre_b"]
+    );
     assert_eq!(project.borrow().chains[0].blocks.len(), 3);
 }
 
@@ -410,7 +416,7 @@ fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
         "AddBlock",
         json!({
             "chain": RIG_CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 0,
-            "path": { "split": "S", "side": "a" }
+            "path": { "split": "S", "path": 0 }
         }),
     )
     .expect("AddBlock into path A of the rig chain");
@@ -419,7 +425,7 @@ fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
         .expect("capture");
 
     assert_eq!(
-        preset_split(&rig.borrow(), "p1").a.len(),
+        preset_split(&rig.borrow(), "p1").paths[0].len(),
         1,
         "the block added into path A must reach project.openrig"
     );
@@ -435,7 +441,7 @@ fn move_block_drops_a_top_level_block_into_path_b() {
         "MoveBlock",
         json!({
             "chain": CHAIN, "block": "pre", "new_position": 0,
-            "path": { "split": "split_0", "side": "b" }
+            "path": { "split": "split_0", "path": 1 }
         }),
     )
     .expect("move pre into path B");
@@ -444,7 +450,10 @@ fn move_block_drops_a_top_level_block_into_path_b() {
         ids(&project.borrow().chains[0].blocks),
         vec!["split_0", "post"]
     );
-    assert_eq!(ids(&split_of(&project.borrow()).b), vec!["pre", "b_0"]);
+    assert_eq!(
+        ids(&split_of(&project.borrow()).paths[1]),
+        vec!["pre", "b_0"]
+    );
 }
 
 #[test]
@@ -457,14 +466,14 @@ fn move_block_drags_a_block_from_path_a_to_path_b() {
         "MoveBlock",
         json!({
             "chain": CHAIN, "block": "a_0", "new_position": 1,
-            "path": { "split": "split_0", "side": "b" }
+            "path": { "split": "split_0", "path": 1 }
         }),
     )
     .expect("drag a_0 across the split");
 
     let split = split_of(&project.borrow());
-    assert!(split.a.is_empty(), "path A is empty");
-    assert_eq!(ids(&split.b), vec!["b_0", "a_0"]);
+    assert!(split.paths[0].is_empty(), "path A is empty");
+    assert_eq!(ids(&split.paths[1]), vec!["b_0", "a_0"]);
     assert_eq!(
         events,
         vec![Event::ChainReloaded {
@@ -489,7 +498,10 @@ fn move_block_without_a_path_lifts_a_path_block_to_the_top_level() {
         ids(&project.borrow().chains[0].blocks),
         vec!["b_0", "pre", "split_0", "post"]
     );
-    assert!(split_of(&project.borrow()).b.is_empty(), "path B is empty");
+    assert!(
+        split_of(&project.borrow()).paths[1].is_empty(),
+        "path B is empty"
+    );
 }
 
 #[test]
@@ -503,7 +515,7 @@ fn move_block_refuses_to_put_the_split_inside_its_own_path() {
         "MoveBlock",
         json!({
             "chain": CHAIN, "block": "split_0", "new_position": 0,
-            "path": { "split": "split_0", "side": "a" }
+            "path": { "split": "split_0", "path": 0 }
         }),
     )
     .expect_err("a split cannot go inside its own path");
@@ -539,16 +551,16 @@ fn add_block_into_the_y_path_lands_in_the_y_behind_a_mix() {
         "AddBlock",
         json!({
             "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 1,
-            "path": { "split": "y", "side": "a" }
+            "path": { "split": "y", "path": 0 }
         }),
     )
     .expect("AddBlock into path A of the Y");
 
     let y = split_by_id(&project.borrow(), "y");
-    assert_eq!(y.a.len(), 2, "path A of the Y = [ya_0, new]");
-    assert_eq!(added_id(&events), y.a[1].id);
+    assert_eq!(y.paths[0].len(), 2, "path A of the Y = [ya_0, new]");
+    assert_eq!(added_id(&events), y.paths[0][1].id);
     assert_eq!(
-        ids(&split_by_id(&project.borrow(), "mix").a),
+        ids(&split_by_id(&project.borrow(), "mix").paths[0]),
         vec!["a_0"],
         "the Mix's paths are untouched"
     );
@@ -565,14 +577,13 @@ fn add_block_refuses_an_input_port_in_the_y_path_behind_a_mix() {
         "AddBlock",
         json!({
             "chain": CHAIN, "kind": "input", "model_id": "standard", "position": 0,
-            "path": { "split": "y", "side": "b" }
+            "path": { "split": "y", "path": 1 }
         }),
     )
     .expect_err("every split's paths are checked, not only the first split's");
 
     assert!(
-        err.to_string()
-            .contains("a path holds processing blocks only"),
+        err.to_string().contains("a path holds no port or insert"),
         "{err}"
     );
     assert_eq!(project.borrow().chains[0].blocks, before);

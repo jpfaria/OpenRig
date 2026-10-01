@@ -5,6 +5,8 @@ use super::{
     insert_anchors, linear_chain_layout, resolve_drop_anchor, AnchorSlot, BlockBlueprint,
     ChainStage, GridMetrics, NodeCategory, NodeKind, ParallelEnd,
 };
+use domain::ids::BlockId;
+use project::block::PathRef;
 
 /// in → split → [a1] ∥ [b1] → mixer → out on the default grid:
 /// in (80,200) · split (240,200) · a1 (400,140) · b1 (400,260) ·
@@ -18,7 +20,11 @@ fn resolve(dragged: &str, x: f32, y: f32) -> Option<AnchorSlot> {
             BlockBlueprint::new("in", "In 1", NodeCategory::Input).with_kind(NodeKind::IoInput),
         ),
         ChainStage::Parallel {
-            lanes: vec![vec![block("a1")], vec![block("b1")]],
+            split_id: "sp".into(),
+            lanes: vec![
+                vec![ChainStage::Single(block("a1"))],
+                vec![ChainStage::Single(block("b1"))],
+            ],
             end: ParallelEnd::Merge,
         },
         ChainStage::Single(
@@ -27,13 +33,16 @@ fn resolve(dragged: &str, x: f32, y: f32) -> Option<AnchorSlot> {
     ];
     let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
     let anchors = insert_anchors(&stages, &nodes);
-    resolve_drop_anchor(&nodes, &anchors, dragged, x, y, GridMetrics::default()).map(|a| a.slot)
+    resolve_drop_anchor(&nodes, &anchors, dragged, x, y, GridMetrics::default())
+        .map(|a| a.slot.clone())
 }
 
 fn lane(lane: usize, index: usize) -> AnchorSlot {
-    AnchorSlot::Lane {
-        stage: 1,
-        lane,
+    AnchorSlot {
+        path: Some(PathRef {
+            split: BlockId("sp".into()),
+            path: lane,
+        }),
         index,
     }
 }
@@ -42,7 +51,10 @@ fn lane(lane: usize, index: usize) -> AnchorSlot {
 fn a_drop_on_an_anchor_resolves_to_it() {
     assert_eq!(
         resolve("a1", 160.0, 200.0),
-        Some(AnchorSlot::Stage { index: 1 })
+        Some(AnchorSlot {
+            path: None,
+            index: 1
+        })
     );
 }
 
@@ -64,7 +76,7 @@ fn a_drop_on_the_blocks_own_wire_resolves_to_nothing() {
 #[test]
 fn only_a_block_can_be_dropped() {
     assert_eq!(
-        resolve("__split_1", 480.0, 230.0),
+        resolve("__split_sp", 480.0, 230.0),
         None,
         "the split node does not move"
     );

@@ -1,15 +1,15 @@
 //! Responsibility: lists the knobs a split editor shows.
 //!
-//! #328 (spec §1.2): the split side (mode, levels into A and B, the Mode II
-//! balances) and the mixer side (levels, pans, B polarity, master, master
-//! sum) are two views of one `SplitBlock.params`. The rows are the block
-//! editor's own (`block_parameter_items_for_specs`), fed `split_param_specs()`.
+//! #328 (spec §1.2, §11.2): the split side (mode, then the level into and the
+//! Mode II balance of each path) and the mixer side (level, pan and polarity
+//! of each path, master, master sum) are two views of one
+//! `SplitBlock.params`. The rows are the block editor's own
+//! (`block_parameter_items_for_specs`), fed the `split_param_specs` of the
+//! split's path count, so each path's knobs sit together, path by path.
 
-use project::block::split_params::{
-    split_param_specs, BALANCE_A, BALANCE_B, LEVEL_TO_A, LEVEL_TO_B, MIX_B_POLARITY, MIX_LEVEL_A,
-    MIX_LEVEL_B, MIX_MASTER, MIX_MASTER_SUM, MIX_PAN_A, MIX_PAN_B, SPLIT_MODE,
-};
-use project::block::SplitBlock;
+use project::block::split_param_keys::path_of_key;
+use project::block::split_params::{split_param_specs, MIXER_GROUP, SPLIT_GROUP};
+use project::block::{SplitBlock, MIN_SPLIT_PATHS};
 use project::param::{ParameterDomain, ParameterSpec};
 
 use crate::block_editor_param_items::block_parameter_items_for_specs;
@@ -21,17 +21,6 @@ pub(crate) enum SplitEditorKind {
     Mixer,
 }
 
-const SPLIT_KEYS: [&str; 5] = [SPLIT_MODE, LEVEL_TO_A, LEVEL_TO_B, BALANCE_A, BALANCE_B];
-const MIXER_KEYS: [&str; 7] = [
-    MIX_LEVEL_A,
-    MIX_LEVEL_B,
-    MIX_PAN_A,
-    MIX_PAN_B,
-    MIX_B_POLARITY,
-    MIX_MASTER,
-    MIX_MASTER_SUM,
-];
-
 impl SplitEditorKind {
     /// The overlay's `split-editor-kind`: 0 = split, 1 = mixer.
     pub(crate) fn from_index(index: i32) -> Option<Self> {
@@ -42,10 +31,11 @@ impl SplitEditorKind {
         }
     }
 
-    fn keys(self) -> &'static [&'static str] {
+    /// The `ParameterSpec::group` of this editor's knobs.
+    fn group(self) -> &'static str {
         match self {
-            Self::Split => &SPLIT_KEYS,
-            Self::Mixer => &MIXER_KEYS,
+            Self::Split => SPLIT_GROUP,
+            Self::Mixer => MIXER_GROUP,
         }
     }
 
@@ -58,12 +48,12 @@ impl SplitEditorKind {
     }
 }
 
-/// The specs one editor shows, in `split_param_specs()` order.
-pub(crate) fn editor_specs(kind: SplitEditorKind) -> Vec<ParameterSpec> {
-    let keys = kind.keys();
-    split_param_specs()
+/// The specs one editor shows for a split with `path_count` paths, in
+/// `split_param_specs` order.
+pub(crate) fn editor_specs(kind: SplitEditorKind, path_count: usize) -> Vec<ParameterSpec> {
+    split_param_specs(path_count)
         .into_iter()
-        .filter(|spec| keys.contains(&spec.path.as_str()))
+        .filter(|spec| spec.group.as_deref() == Some(kind.group()))
         .collect()
 }
 
@@ -71,13 +61,16 @@ pub(crate) fn split_editor_items(
     split: &SplitBlock,
     kind: SplitEditorKind,
 ) -> Vec<BlockParameterItem> {
-    block_parameter_items_for_specs(&editor_specs(kind), &split.params)
+    block_parameter_items_for_specs(&editor_specs(kind, split.paths.len()), &split.params)
 }
 
 /// The value a choice row's `index` stands for (`SelectBlockParameterOption`
-/// carries both).
+/// carries both). The choices of a knob do not depend on the path count, so
+/// the specs are listed for just enough paths to hold `path`.
 pub(crate) fn option_value(kind: SplitEditorKind, path: &str, index: usize) -> Option<String> {
-    let spec = editor_specs(kind)
+    let path_count =
+        path_of_key(path).map_or(MIN_SPLIT_PATHS, |(_, at)| (at + 1).max(MIN_SPLIT_PATHS));
+    let spec = editor_specs(kind, path_count)
         .into_iter()
         .find(|spec| spec.path == path)?;
     match spec.domain {

@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, Result};
 use domain::ids::BlockId;
-use project::block::{AudioBlock, AudioBlockKind, PathRef, PathSide, SplitBlock};
+use project::block::{AudioBlock, AudioBlockKind, PathRef, SplitBlock};
 
 /// Take the block with `id` out of whichever list holds it.
 pub fn remove_block(blocks: &mut Vec<AudioBlock>, id: &BlockId) -> Option<AudioBlock> {
@@ -24,9 +24,10 @@ pub fn list_holding<'a>(
         return Some((blocks, at));
     }
     blocks.iter_mut().find_map(|block| match &mut block.kind {
-        AudioBlockKind::Split(split) => {
-            list_holding(&mut split.a, id).or_else(|| list_holding(&mut split.b, id))
-        }
+        AudioBlockKind::Split(split) => split
+            .paths
+            .iter_mut()
+            .find_map(|path| list_holding(path, id)),
         _ => None,
     })
 }
@@ -63,8 +64,12 @@ fn lane_mut<'a>(
         return Ok(blocks);
     };
     let split = split_mut(blocks, &path.split)?;
-    Ok(match path.side {
-        PathSide::A => &mut split.a,
-        PathSide::B => &mut split.b,
+    let count = split.paths.len();
+    split.paths.get_mut(path.path).ok_or_else(|| {
+        anyhow!(
+            "split {:?} has {count} paths; path {} does not exist",
+            path.split,
+            path.path
+        )
     })
 }

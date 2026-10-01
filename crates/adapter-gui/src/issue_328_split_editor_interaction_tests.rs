@@ -7,7 +7,8 @@ use std::rc::Rc;
 use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, Global, LogicalPosition, Model, ModelRc, Timer, VecModel};
 
-use project::block::split_params::{default_split_params, MIX_MASTER_SUM, MIX_PAN_A};
+use project::block::split_param_keys::mix_pan;
+use project::block::split_params::MIX_MASTER_SUM;
 use project::block::{AudioBlockKind, SplitBlock, SplitEnd};
 
 use crate::chain_graph_fixtures_tests::{chain_in, mix_chain, rows, session_with, y_chain};
@@ -32,12 +33,7 @@ fn click(w: &impl ComponentHandle, el: &i_slint_backend_testing::ElementHandle) 
 }
 
 fn open(h: &SplitEditorHarness, kind: SplitEditorKind) {
-    let split = SplitBlock {
-        end: SplitEnd::Mix,
-        params: default_split_params(),
-        a: vec![],
-        b: vec![],
-    };
+    let split = SplitBlock::with_paths(SplitEnd::Mix, vec![vec![], vec![]]);
     let state = ChainGraphOverlayState::get(h);
     state.set_split_editor_items(ModelRc::new(VecModel::from(split_editor_items(
         &split, kind,
@@ -158,22 +154,27 @@ fn opening_the_mixer_lists_its_knobs_and_an_edit_reaches_the_split() {
     let state = ChainGraphOverlayState::get(&app);
     state.invoke_open_split_editor(0, "sp".into(), 1);
     assert!(state.get_split_editor_open());
-    assert_eq!(state.get_split_editor_items().row_count(), 7);
+    assert_eq!(
+        state.get_split_editor_items().row_count(),
+        8,
+        "level, pan and polarity per path, then master and master sum"
+    );
     assert_eq!(state.get_split_editor_split_id().as_str(), "sp");
 
-    state.invoke_split_editor_number(0, "sp".into(), MIX_PAN_A.into(), -50.0);
+    let mix_pan_a = mix_pan(0);
+    state.invoke_split_editor_number(0, "sp".into(), mix_pan_a.as_str().into(), -50.0);
 
     let AudioBlockKind::Split(split) = &chain_in(&session, 0).blocks[1].kind else {
         panic!("block 1 is the split")
     };
     assert_eq!(
-        split.params.get(MIX_PAN_A).and_then(|v| v.as_f32()),
+        split.params.get(&mix_pan_a).and_then(|v| v.as_f32()),
         Some(-50.0)
     );
     let row = state
         .get_split_editor_items()
         .iter()
-        .find(|r| r.path.as_str() == MIX_PAN_A)
+        .find(|r| r.path.as_str() == mix_pan_a)
         .unwrap();
     assert_eq!(
         row.numeric_value, -50.0,
@@ -208,8 +209,10 @@ fn a_refused_switch_shows_the_error() {
     );
 }
 
+/// #328 §11: no limit on the number of Mix splits, so the Y at the end of
+/// the chain may become a second Mix.
 #[test]
-fn mix_then_y_a_refused_switch_of_the_y_keeps_the_y_lit() {
+fn mix_then_y_the_y_at_the_end_switches_to_a_second_mix() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, session) = wired_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
     let state = ChainGraphOverlayState::get(&app);
@@ -219,16 +222,11 @@ fn mix_then_y_a_refused_switch_of_the_y_keeps_the_y_lit() {
     state.set_split_editor_end_y(true);
     state.set_split_editor_open(true);
 
-    // A second Mix is refused.
     state.invoke_split_editor_set_end(0, "y".into(), false);
 
     let AudioBlockKind::Split(y) = &chain_in(&session, 0).blocks[3].kind else {
-        panic!("block 3 is the Y")
+        panic!("block 3 is the split")
     };
-    assert_eq!(y.end, SplitEnd::Y);
-    assert!(state.get_split_editor_end_y(), "the Y stays lit");
-    assert!(
-        !app.get_status_message().is_empty(),
-        "the refusal is shown as a toast"
-    );
+    assert_eq!(y.end, SplitEnd::Mix);
+    assert!(!state.get_split_editor_end_y(), "Mix is lit");
 }

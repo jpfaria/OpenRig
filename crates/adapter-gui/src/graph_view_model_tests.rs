@@ -322,9 +322,10 @@ mod linear_layout_parallel_stage {
     #[test]
     fn parallel_split_inserts_split_and_merge_nodes() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
@@ -346,16 +347,17 @@ mod linear_layout_parallel_stage {
     #[test]
     fn split_and_merge_use_routing_node_convention() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
         let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
 
-        let split = find_node(&nodes, "__split_1");
-        let merge = find_node(&nodes, "__merge_1");
+        let split = find_node(&nodes, "__split_sp");
+        let merge = find_node(&nodes, "__merge_sp");
 
         for routing in [split, merge] {
             assert_eq!(
@@ -381,9 +383,10 @@ mod linear_layout_parallel_stage {
             lane_spacing: 80.0,
         };
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
@@ -400,15 +403,16 @@ mod linear_layout_parallel_stage {
     #[test]
     fn split_connects_to_each_path_first_block() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
         let (_, edges) = linear_chain_layout(&stages, GridMetrics::default());
 
-        let split_id = "__split_1";
+        let split_id = "__split_sp";
         let split_edges: Vec<&GraphEdge> = edges.iter().filter(|e| e.from_id == split_id).collect();
         assert_eq!(split_edges.len(), 2);
         let targets: Vec<&str> = split_edges.iter().map(|e| e.to_id.as_str()).collect();
@@ -419,15 +423,16 @@ mod linear_layout_parallel_stage {
     #[test]
     fn each_path_last_block_connects_to_merge() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
         let (_, edges) = linear_chain_layout(&stages, GridMetrics::default());
 
-        let merge_id = "__merge_1";
+        let merge_id = "__merge_sp";
         let merge_edges: Vec<&GraphEdge> = edges.iter().filter(|e| e.to_id == merge_id).collect();
         assert_eq!(merge_edges.len(), 2);
         let sources: Vec<&str> = merge_edges.iter().map(|e| e.from_id.as_str()).collect();
@@ -444,18 +449,19 @@ mod linear_layout_parallel_stage {
             lane_spacing: 50.0,
         };
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
                 vec![
-                    block("l1", "L1", NodeCategory::Amp),
-                    block("l2", "L2", NodeCategory::Time),
+                    ChainStage::Single(block("l1", "L1", NodeCategory::Amp)),
+                    ChainStage::Single(block("l2", "L2", NodeCategory::Time)),
                 ],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
         let (nodes, _) = linear_chain_layout(&stages, metrics);
 
-        let merge = find_node(&nodes, "__merge_1");
+        let merge = find_node(&nodes, "__merge_sp");
         // Split at col 0, longest path = 2 blocks → merge at col 3.
         assert_eq!(merge.x, 300.0);
     }
@@ -470,9 +476,10 @@ mod linear_layout_parallel_stage {
         };
         let stages = [
             ChainStage::Parallel {
+                split_id: "sp".into(),
                 lanes: vec![
-                    vec![block("l", "L", NodeCategory::Amp)],
-                    vec![block("r", "R", NodeCategory::Amp)],
+                    vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                    vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
                 ],
                 end: ParallelEnd::Merge,
             },
@@ -480,7 +487,7 @@ mod linear_layout_parallel_stage {
         ];
         let (nodes, _) = linear_chain_layout(&stages, metrics);
 
-        let merge = find_node(&nodes, "__merge_1");
+        let merge = find_node(&nodes, "__merge_sp");
         let rev = find_node(&nodes, "rev");
         assert!(
             rev.x > merge.x,
@@ -495,6 +502,7 @@ mod linear_layout_parallel_stage {
         let stages = [
             ChainStage::Single(block("a", "A", NodeCategory::Drive)),
             ChainStage::Parallel {
+                split_id: "sp".into(),
                 lanes: vec![],
                 end: ParallelEnd::Merge,
             },
@@ -595,14 +603,15 @@ mod validate_graph_invariants {
             ChainStage::Single(block("comp", "Comp", NodeCategory::Dynamics)),
             ChainStage::Single(block("od", "OD", NodeCategory::Drive)),
             ChainStage::Parallel {
+                split_id: "sp".into(),
                 lanes: vec![
                     vec![
-                        block("amp_l", "Amp L", NodeCategory::Amp),
-                        block("dly_l", "Delay L", NodeCategory::Time),
+                        ChainStage::Single(block("amp_l", "Amp L", NodeCategory::Amp)),
+                        ChainStage::Single(block("dly_l", "Delay L", NodeCategory::Time)),
                     ],
                     vec![
-                        block("amp_r", "Amp R", NodeCategory::Amp),
-                        block("dly_r", "Delay R", NodeCategory::Time),
+                        ChainStage::Single(block("amp_r", "Amp R", NodeCategory::Amp)),
+                        ChainStage::Single(block("dly_r", "Delay R", NodeCategory::Time)),
                     ],
                 ],
                 end: ParallelEnd::Merge,
@@ -632,12 +641,17 @@ mod fan_out_stage {
     /// to its own output.
     fn y_split() -> ChainStage {
         ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
                 vec![
-                    block("amp_a", "Amp A", NodeCategory::Amp),
-                    block("out_a", "Out A", NodeCategory::Output),
+                    ChainStage::Single(block("amp_a", "Amp A", NodeCategory::Amp)),
+                    ChainStage::Single(block("out_a", "Out A", NodeCategory::Output)),
                 ],
-                vec![block("out_b", "Out B", NodeCategory::Output)],
+                vec![ChainStage::Single(block(
+                    "out_b",
+                    "Out B",
+                    NodeCategory::Output,
+                ))],
             ],
             end: ParallelEnd::Fan,
         }
@@ -663,9 +677,9 @@ mod fan_out_stage {
         assert_eq!(
             wires,
             [
-                ("__split_1", "amp_a"),
+                ("__split_sp", "amp_a"),
                 ("amp_a", "out_a"),
-                ("__split_1", "out_b")
+                ("__split_sp", "out_b")
             ],
             "each lane ends at its terminal; nothing leaves a terminal"
         );
@@ -722,7 +736,15 @@ mod fan_out_stage {
     #[test]
     fn an_empty_fan_lane_is_reported() {
         let stages = [ChainStage::Parallel {
-            lanes: vec![vec![block("out_a", "Out A", NodeCategory::Output)], vec![]],
+            split_id: "sp".into(),
+            lanes: vec![
+                vec![ChainStage::Single(block(
+                    "out_a",
+                    "Out A",
+                    NodeCategory::Output,
+                ))],
+                vec![],
+            ],
             end: ParallelEnd::Fan,
         }];
         let errs = validate_stages(&stages);
@@ -738,7 +760,11 @@ mod fan_out_stage {
         let stages = [
             ChainStage::Single(block("in", "In", NodeCategory::Input)),
             ChainStage::Parallel {
-                lanes: vec![vec![block("l", "L", NodeCategory::Amp)], vec![]],
+                split_id: "sp".into(),
+                lanes: vec![
+                    vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                    vec![],
+                ],
                 end: ParallelEnd::Merge,
             },
             ChainStage::Single(block("out", "Out", NodeCategory::Output)),
@@ -797,31 +823,37 @@ mod node_kinds {
     #[test]
     fn a_merge_parallel_marks_its_split_and_mixer_nodes() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
-                vec![block("l", "L", NodeCategory::Amp)],
-                vec![block("r", "R", NodeCategory::Amp)],
+                vec![ChainStage::Single(block("l", "L", NodeCategory::Amp))],
+                vec![ChainStage::Single(block("r", "R", NodeCategory::Amp))],
             ],
             end: ParallelEnd::Merge,
         }];
         let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
-        assert_eq!(find_node(&nodes, "__split_1").kind, NodeKind::Split);
-        assert_eq!(find_node(&nodes, "__merge_1").kind, NodeKind::Mixer);
+        assert_eq!(find_node(&nodes, "__split_sp").kind, NodeKind::Split);
+        assert_eq!(find_node(&nodes, "__merge_sp").kind, NodeKind::Mixer);
     }
 
     #[test]
     fn a_fan_parallel_has_a_split_node_and_no_mixer() {
         let stages = [ChainStage::Parallel {
+            split_id: "sp".into(),
             lanes: vec![
                 vec![
-                    block("amp_a", "Amp A", NodeCategory::Amp),
-                    block("out_a", "Out A", NodeCategory::Output).with_kind(NodeKind::IoOutput),
+                    ChainStage::Single(block("amp_a", "Amp A", NodeCategory::Amp)),
+                    ChainStage::Single(
+                        block("out_a", "Out A", NodeCategory::Output).with_kind(NodeKind::IoOutput),
+                    ),
                 ],
-                vec![block("out_b", "Out B", NodeCategory::Output).with_kind(NodeKind::IoOutput)],
+                vec![ChainStage::Single(
+                    block("out_b", "Out B", NodeCategory::Output).with_kind(NodeKind::IoOutput),
+                )],
             ],
             end: ParallelEnd::Fan,
         }];
         let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
-        assert_eq!(find_node(&nodes, "__split_1").kind, NodeKind::Split);
+        assert_eq!(find_node(&nodes, "__split_sp").kind, NodeKind::Split);
         assert!(
             nodes.iter().all(|n| n.kind != NodeKind::Mixer),
             "a Y split has no mixer node"

@@ -1,7 +1,7 @@
 //! #328 (spec §10) — no split limit: a split nests inside a path, and every
 //! command reaches a block or a split at any depth.
 
-use project::block::{PathRef, PathSide, SplitBlock, SplitEnd};
+use project::block::{PathRef, SplitBlock, SplitEnd};
 use serde_json::json;
 
 use crate::local_dispatcher_tests::*;
@@ -35,8 +35,7 @@ fn outer(project: &Project) -> SplitBlock {
 
 fn inner(project: &Project) -> SplitBlock {
     let outer = outer(project);
-    outer
-        .a
+    outer.paths[0]
         .iter()
         .find_map(|b| match &b.kind {
             AudioBlockKind::Split(split) if b.id.0 == "inner" => Some(split.clone()),
@@ -55,7 +54,7 @@ fn add_split_goes_inside_a_path() {
         "AddSplit",
         json!({
             "chain": CHAIN, "position": 1, "end": "mix",
-            "path": { "split": "split_0", "side": "a" }
+            "path": { "split": "split_0", "path": 0 }
         }),
     )
     .expect("a split nests inside a path");
@@ -66,7 +65,7 @@ fn add_split_goes_inside_a_path() {
         3,
         "the top level is unchanged"
     );
-    let a = &split_of(&project).a;
+    let a = &split_of(&project).paths[0];
     assert_eq!(a.len(), 2);
     assert!(matches!(a[1].kind, AudioBlockKind::Split(_)), "{a:?}");
 }
@@ -82,12 +81,12 @@ fn add_block_reaches_a_nested_path() {
         "InsertPrebuiltBlock",
         json!({
             "chain": CHAIN, "block": block, "position": 0,
-            "path": { "split": "inner", "side": "b" }
+            "path": { "split": "inner", "path": 1 }
         }),
     )
     .expect("a nested path is addressable by its split's id");
 
-    assert_eq!(ids(&inner(&project.borrow()).b), vec!["new"]);
+    assert_eq!(ids(&inner(&project.borrow()).paths[1]), vec!["new"]);
 }
 
 #[test]
@@ -102,7 +101,7 @@ fn remove_block_reaches_a_nested_path() {
     )
     .expect("a block in a nested path is removable");
 
-    assert!(inner(&project.borrow()).a.is_empty());
+    assert!(inner(&project.borrow()).paths[0].is_empty());
 }
 
 #[test]
@@ -119,7 +118,7 @@ fn move_block_lifts_a_nested_block_to_the_top_level() {
 
     let project = project.borrow();
     assert_eq!(project.chains[0].blocks[0].id.0, "deep");
-    assert!(inner(&project).a.is_empty());
+    assert!(inner(&project).paths[0].is_empty());
 }
 
 #[test]
@@ -150,7 +149,7 @@ fn remove_split_reaches_a_nested_split() {
     .expect("a nested split is removable");
 
     assert_eq!(
-        ids(&outer(&project.borrow()).a),
+        ids(&outer(&project.borrow()).paths[0]),
         vec!["a_0", "deep"],
         "its path A takes its place inside the parent path"
     );
@@ -163,7 +162,7 @@ fn a_y_in_a_path_refuses_a_block_after_it_in_that_path() {
     let before = project.borrow().chains[0].blocks.clone();
     let path = PathRef {
         split: BlockId("outer".into()),
-        side: PathSide::A,
+        path: 0,
     };
 
     let err = dispatch_json(

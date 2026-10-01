@@ -3,13 +3,22 @@
 //! part of the input/output node.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, port_in, registry};
-use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+use crate::chain_graph_fixtures_tests::{chain, core, port_in, registry, y_chain};
+use domain::ids::BlockId;
+use project::block::PathRef;
+use project::endpoint_disables::{EndpointNode, EndpointRef};
 
 fn r(io: &str, endpoint: &str) -> EndpointRef {
     EndpointRef {
         io: io.into(),
         endpoint: endpoint.into(),
+    }
+}
+
+fn leaf(path: usize) -> PathRef {
+    PathRef {
+        split: BlockId("sp".into()),
+        path,
     }
 }
 
@@ -22,7 +31,7 @@ fn labels(rows: &[EndpointRow]) -> Vec<(&str, bool)> {
 #[test]
 fn the_input_node_lists_the_chains_inputs_not_its_mid_ports() {
     let c = chain(vec![port_in("port", "main", "In 2"), core("amp")]);
-    let rows = endpoint_rows(&c, &registry(), EndpointNode::Input);
+    let rows = endpoint_rows(&c, &registry(), &EndpointNode::Input);
     assert_eq!(labels(&rows), vec![("In 1", true), ("In 2", true)]);
     assert_eq!(
         (rows[1].io.as_str(), rows[1].endpoint.as_str()),
@@ -32,7 +41,7 @@ fn the_input_node_lists_the_chains_inputs_not_its_mid_ports() {
 
 #[test]
 fn outputs_with_the_same_name_carry_their_binding_name() {
-    let rows = endpoint_rows(&chain(vec![]), &registry(), EndpointNode::Output);
+    let rows = endpoint_rows(&chain(vec![]), &registry(), &EndpointNode::Output);
     assert_eq!(
         labels(&rows),
         vec![("Scarlett · Out L/R", true), ("AUX · Out L/R", true)]
@@ -42,34 +51,30 @@ fn outputs_with_the_same_name_carry_their_binding_name() {
 #[test]
 fn an_unchecked_endpoint_stays_listed_disabled() {
     let mut c = chain(vec![]);
-    c.disabled_endpoints = EndpointDisables {
-        inputs: vec![r("main", "In 2")],
-        outputs: vec![],
-        path_a_outputs: vec![],
-        path_b_outputs: vec![],
-    };
-    let rows = endpoint_rows(&c, &registry(), EndpointNode::Input);
+    c.disabled_endpoints
+        .set_enabled(&EndpointNode::Input, r("main", "In 2"), false);
+    let rows = endpoint_rows(&c, &registry(), &EndpointNode::Input);
     assert_eq!(labels(&rows), vec![("In 1", true), ("In 2", false)]);
 }
 
 #[test]
 fn a_path_output_node_reads_only_its_own_disables() {
-    let mut c = chain(vec![]);
-    c.disabled_endpoints = EndpointDisables {
-        inputs: vec![],
-        outputs: vec![],
-        path_a_outputs: vec![r("aux", "Out L/R")],
-        path_b_outputs: vec![],
-    };
-    let a = endpoint_rows(&c, &registry(), EndpointNode::PathAOutput);
-    let main = endpoint_rows(&c, &registry(), EndpointNode::Output);
+    let mut c = y_chain();
+    c.disabled_endpoints.set_enabled(
+        &EndpointNode::PathOutput(leaf(0)),
+        r("aux", "Out L/R"),
+        false,
+    );
+    let a = endpoint_rows(&c, &registry(), &EndpointNode::PathOutput(leaf(0)));
+    let b = endpoint_rows(&c, &registry(), &EndpointNode::PathOutput(leaf(1)));
+    let main = endpoint_rows(&c, &registry(), &EndpointNode::Output);
     assert_eq!(
         labels(&a),
         vec![("Scarlett · Out L/R", true), ("AUX · Out L/R", false)]
     );
     assert!(
-        main.iter().all(|row| row.enabled),
-        "the chain output node is untouched"
+        main.iter().chain(&b).all(|row| row.enabled),
+        "the chain output node and the other leaf are untouched"
     );
 }
 
@@ -102,9 +107,9 @@ fn a_node_label_names_its_checked_endpoints() {
 
 #[test]
 fn without_a_registry_the_nodes_fall_back_to_the_row_labels() {
-    let io = io_labels(&chain(vec![]), &[], "In", "Out");
+    let io = io_labels(&y_chain(), &[], "In", "Out");
     assert_eq!((io.input.as_str(), io.output.as_str()), ("In", "Out"));
-    assert_eq!((io.path_a.as_str(), io.path_b.as_str()), ("Out", "Out"));
+    assert_eq!((io.leaf(&leaf(0)), io.leaf(&leaf(1))), ("Out", "Out"));
 }
 
 #[test]

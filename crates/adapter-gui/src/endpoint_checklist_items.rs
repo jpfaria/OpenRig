@@ -9,6 +9,7 @@
 //! Part 1) — nothing is added to or removed from the E/S.
 
 use infra_filesystem::IoBinding;
+use project::block::{y_leaves, PathRef};
 use project::chain::Chain;
 use project::endpoint_candidates::endpoint_candidates;
 use project::endpoint_disables::{EndpointNode, EndpointRef};
@@ -24,12 +25,12 @@ pub(crate) struct EndpointRow {
 pub(crate) fn endpoint_rows(
     chain: &Chain,
     registry: &[IoBinding],
-    node: EndpointNode,
+    node: &EndpointNode,
 ) -> Vec<EndpointRow> {
     let (inputs, outputs) = endpoint_candidates(&chain.io_binding_ids, registry);
     let refs = match node {
         EndpointNode::Input => inputs,
-        EndpointNode::Output | EndpointNode::PathAOutput | EndpointNode::PathBOutput => outputs,
+        EndpointNode::Output | EndpointNode::PathOutput(_) => outputs,
     };
     refs.iter()
         .map(|reference| EndpointRow {
@@ -76,13 +77,24 @@ pub(crate) fn node_label(rows: &[EndpointRow], none: &str) -> String {
     }
 }
 
-/// The text of the four endpoint nodes a chain graph can have.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The text of the endpoint nodes a chain graph has: its input, its output
+/// and the output node of each Y leaf (#328 §11.3).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct IoLabels {
     pub(crate) input: String,
     pub(crate) output: String,
-    pub(crate) path_a: String,
-    pub(crate) path_b: String,
+    pub(crate) leaves: Vec<(PathRef, String)>,
+}
+
+impl IoLabels {
+    /// The text of leaf `leaf`'s output node; empty when it has none.
+    pub(crate) fn leaf(&self, leaf: &PathRef) -> &str {
+        self.leaves
+            .iter()
+            .find(|(path, _)| path == leaf)
+            .map(|(_, text)| text.as_str())
+            .unwrap_or_default()
+    }
 }
 
 /// Rows republished without a registry (many callers pass `&[]` to
@@ -95,7 +107,7 @@ pub(crate) fn io_labels(
     fallback_output: &str,
 ) -> IoLabels {
     let none = rust_i18n::t!("label-endpoints-none").to_string();
-    let label = |node: EndpointNode, fallback: &str| {
+    let label = |node: &EndpointNode, fallback: &str| {
         let rows = endpoint_rows(chain, registry, node);
         if rows.is_empty() {
             fallback.to_string()
@@ -104,10 +116,15 @@ pub(crate) fn io_labels(
         }
     };
     IoLabels {
-        input: label(EndpointNode::Input, fallback_input),
-        output: label(EndpointNode::Output, fallback_output),
-        path_a: label(EndpointNode::PathAOutput, fallback_output),
-        path_b: label(EndpointNode::PathBOutput, fallback_output),
+        input: label(&EndpointNode::Input, fallback_input),
+        output: label(&EndpointNode::Output, fallback_output),
+        leaves: y_leaves(&chain.blocks)
+            .into_iter()
+            .map(|leaf| {
+                let text = label(&EndpointNode::PathOutput(leaf.clone()), fallback_output);
+                (leaf, text)
+            })
+            .collect(),
     }
 }
 

@@ -8,8 +8,9 @@ fn all_ids(blocks: &[AudioBlock]) -> Vec<String> {
     for block in blocks {
         ids.push(block.id.0.clone());
         if let AudioBlockKind::Split(split) = &block.kind {
-            ids.extend(all_ids(&split.a));
-            ids.extend(all_ids(&split.b));
+            for path in &split.paths {
+                ids.extend(all_ids(path));
+            }
         }
     }
     ids

@@ -2,10 +2,12 @@
 //! `SetChainEndpointEnabled` for that node and that endpoint, then a resync.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, recording_session, rows};
-use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID, PATH_B_OUTPUT_NODE_ID};
+use crate::chain_graph_fixtures_tests::{chain, core, recording_session, rows, y_chain};
+use crate::chain_graph_ids::{leaf_output_node_id, INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use application::command::{ChainCommand, Command};
+use domain::ids::BlockId;
+use project::block::PathRef;
 use project::endpoint_disables::EndpointNode;
 use slint::VecModel;
 use std::rc::Rc;
@@ -58,13 +60,17 @@ fn unchecking_the_last_output_is_allowed() {
 
 #[test]
 fn a_lane_output_node_addresses_its_own_node() {
-    let (session, recorder) = recording_session(vec![chain(vec![])]);
+    let (session, recorder) = recording_session(vec![y_chain()]);
     let rows = rows();
-    set_endpoint_enabled(&session, 0, PATH_B_OUTPUT_NODE_ID, 1, false, &target(&rows))
-        .expect("toggle");
+    let leaf = PathRef {
+        split: BlockId("sp".into()),
+        path: 1,
+    };
+    let node_id = leaf_output_node_id(&leaf);
+    set_endpoint_enabled(&session, 0, &node_id, 1, false, &target(&rows)).expect("toggle");
     assert!(matches!(
         &recorder.seen.borrow()[0],
-        Command::Chain(ChainCommand::SetChainEndpointEnabled { node: EndpointNode::PathBOutput, io, .. }) if io == "aux"
+        Command::Chain(ChainCommand::SetChainEndpointEnabled { node: EndpointNode::PathOutput(r), io, .. }) if io == "aux" && *r == leaf
     ));
 }
 

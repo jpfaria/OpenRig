@@ -9,13 +9,11 @@ use std::sync::Arc;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use domain::value_objects::ParameterValue;
-use project::block::split_params::{
-    default_split_params, LEVEL_TO_A, MIX_B_POLARITY, MIX_LEVEL_A, MIX_LEVEL_B, MIX_MASTER,
-    MIX_MASTER_SUM, MIX_PAN_A,
-};
-use project::block::{AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd};
+use project::block::split_param_keys::{level_to, mix_level, mix_pan, mix_polarity};
+use project::block::split_params::{default_split_params, MIX_MASTER, MIX_MASTER_SUM};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, PathRef, SplitBlock, SplitEnd};
 use project::chain::Chain;
-use project::endpoint_disables::{EndpointDisables, EndpointRef};
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 use project::param::ParameterSet;
 
 use crate::runtime::{
@@ -77,8 +75,7 @@ fn y_split(params: ParameterSet, enabled: bool) -> AudioBlock {
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Y,
             params,
-            a: vec![volume("amp-a", 50.0)],
-            b: vec![volume("amp-b", 25.0)],
+            paths: vec![vec![volume("amp-a", 50.0)], vec![volume("amp-b", 25.0)]],
         }),
     }
 }
@@ -90,8 +87,18 @@ fn endpoint(name: &str) -> EndpointRef {
     }
 }
 
+fn path_output(path: usize) -> EndpointNode {
+    EndpointNode::PathOutput(PathRef {
+        split: BlockId("split".into()),
+        path,
+    })
+}
+
 /// Path A → out-a + out-ab; path B → out-b + out-ab.
 fn y_chain(split: AudioBlock) -> Chain {
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(&path_output(0), endpoint("out-b"), false);
+    disabled_endpoints.set_enabled(&path_output(1), endpoint("out-a"), false);
     Chain {
         mix: Default::default(),
         id: ChainId("issue-328-y".into()),
@@ -103,12 +110,7 @@ fn y_chain(split: AudioBlock) -> Chain {
         blocks: vec![split],
         di_output: None,
         loopers: vec![],
-        disabled_endpoints: EndpointDisables {
-            inputs: vec![],
-            outputs: vec![],
-            path_a_outputs: vec![endpoint("out-b")],
-            path_b_outputs: vec![endpoint("out-a")],
-        },
+        disabled_endpoints,
     }
 }
 
@@ -153,7 +155,7 @@ fn assert_peaks(peaks: [f32; 3], expected: [f32; 3], why: &str) {
 
 #[test]
 fn each_output_carries_only_the_paths_that_feed_it() {
-    let runtime = runtime(&y_chain(y_split(default_split_params(), true)));
+    let runtime = runtime(&y_chain(y_split(default_split_params(2), true)));
     assert_peaks(
         route_peaks(&runtime),
         [0.25, 0.125, 0.375],
@@ -163,11 +165,11 @@ fn each_output_carries_only_the_paths_that_feed_it() {
 
 #[test]
 fn mixer_knobs_on_a_y_split_change_no_output() {
-    let mut params = default_split_params();
-    params.insert(MIX_LEVEL_A, ParameterValue::Float(0.0));
-    params.insert(MIX_LEVEL_B, ParameterValue::Float(0.0));
-    params.insert(MIX_PAN_A, ParameterValue::Float(50.0));
-    params.insert(MIX_B_POLARITY, ParameterValue::String("invert".into()));
+    let mut params = default_split_params(2);
+    params.insert(&mix_level(0), ParameterValue::Float(0.0));
+    params.insert(&mix_level(1), ParameterValue::Float(0.0));
+    params.insert(&mix_pan(0), ParameterValue::Float(50.0));
+    params.insert(&mix_polarity(1), ParameterValue::String("invert".into()));
     params.insert(MIX_MASTER, ParameterValue::Float(10.0));
     params.insert(MIX_MASTER_SUM, ParameterValue::Bool(true));
     let runtime = runtime(&y_chain(y_split(params, true)));
@@ -180,11 +182,11 @@ fn mixer_knobs_on_a_y_split_change_no_output() {
 
 #[test]
 fn a_knob_edit_rebuilds_each_output_on_its_own_paths() {
-    let chain = y_chain(y_split(default_split_params(), true));
+    let chain = y_chain(y_split(default_split_params(2), true));
     let runtime = runtime(&chain);
     let _ = route_peaks(&runtime);
-    let mut params = default_split_params();
-    params.insert(LEVEL_TO_A, ParameterValue::Float(50.0));
+    let mut params = default_split_params(2);
+    params.insert(&level_to(0), ParameterValue::Float(50.0));
     let edited = y_chain(y_split(params, true));
     update_chain_runtime_state(
         &runtime,
@@ -204,7 +206,7 @@ fn a_knob_edit_rebuilds_each_output_on_its_own_paths() {
 
 #[test]
 fn a_bypassed_y_split_passes_the_shared_signal_once_to_every_output() {
-    let runtime = runtime(&y_chain(y_split(default_split_params(), false)));
+    let runtime = runtime(&y_chain(y_split(default_split_params(2), false)));
     assert_peaks(
         route_peaks(&runtime),
         [0.5, 0.5, 0.5],
@@ -214,7 +216,7 @@ fn a_bypassed_y_split_passes_the_shared_signal_once_to_every_output() {
 
 #[test]
 fn an_offline_render_of_a_y_chain_plays_both_paths() {
-    let chain = y_chain(y_split(default_split_params(), true));
+    let chain = y_chain(y_split(default_split_params(2), true));
     let input = vec![[INPUT, INPUT]; 4096];
     let outcome = crate::offline::render_chain(&chain, 48_000.0, &input, 64, 0)
         .expect("the offline render succeeds");
@@ -237,9 +239,8 @@ fn mix_then_y_chain(mix_params: ParameterSet) -> Chain {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Y,
-            params: default_split_params(),
-            a: vec![volume("cab", 50.0)],
-            b: vec![],
+            params: default_split_params(2),
+            paths: vec![vec![volume("cab", 50.0)], vec![]],
         }),
     };
     let mix = AudioBlock {
@@ -248,8 +249,7 @@ fn mix_then_y_chain(mix_params: ParameterSet) -> Chain {
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Mix,
             params: mix_params,
-            a: vec![volume("amp-1", 50.0)],
-            b: vec![volume("amp-2", 100.0)],
+            paths: vec![vec![volume("amp-1", 50.0)], vec![volume("amp-2", 100.0)]],
         }),
     };
     let mut chain = y_chain(y);
@@ -260,7 +260,7 @@ fn mix_then_y_chain(mix_params: ParameterSet) -> Chain {
 
 #[test]
 fn behind_a_mix_each_y_output_hears_the_mix_then_only_its_own_path() {
-    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    let runtime = runtime(&mix_then_y_chain(default_split_params(2)));
     assert_peaks(
         route_peaks(&runtime),
         [0.15, 0.3, 0.45],
@@ -270,9 +270,9 @@ fn behind_a_mix_each_y_output_hears_the_mix_then_only_its_own_path() {
 
 #[test]
 fn a_mix_knob_edit_reaches_every_y_output() {
-    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    let runtime = runtime(&mix_then_y_chain(default_split_params(2)));
     let _ = route_peaks(&runtime);
-    let mut params = default_split_params();
+    let mut params = default_split_params(2);
     params.insert(MIX_MASTER, ParameterValue::Float(100.0));
     update_chain_runtime_state(
         &runtime,
@@ -294,7 +294,7 @@ fn a_mix_knob_edit_reaches_every_y_output() {
 /// Y output runs its own copy of the Mix, and every copy must go off.
 #[test]
 fn switching_the_mix_off_in_place_reaches_every_y_output() {
-    let runtime = runtime(&mix_then_y_chain(default_split_params()));
+    let runtime = runtime(&mix_then_y_chain(default_split_params(2)));
     let _ = route_peaks(&runtime);
     crate::runtime::set_block_enabled(&runtime, &BlockId("mix".into()), false)
         .expect("the toggle is queued");

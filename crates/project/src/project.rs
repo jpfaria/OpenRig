@@ -102,9 +102,9 @@ fn find_block_recursive<'a>(block: &'a AudioBlock, block_id: &BlockId) -> Option
             .find_map(|option| find_block_recursive(option, block_id)),
         // #328: the blocks inside a split's paths.
         crate::block::AudioBlockKind::Split(split) => split
-            .a
+            .paths
             .iter()
-            .chain(&split.b)
+            .flatten()
             .find_map(|nested| find_block_recursive(nested, block_id)),
         _ => None,
     }

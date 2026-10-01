@@ -158,8 +158,8 @@ pub enum ChainCommand {
     },
 
     /// #328: check or uncheck one endpoint of the chain's E/S on one node of
-    /// the chain graph — the input node, the output node, or a Y split's path
-    /// A / path B output node. The E/S itself is never edited: an unchecked
+    /// the chain graph — the input node, the output node, or the output node
+    /// of one Y leaf (`path_output` with the split id and path index). The E/S itself is never edited: an unchecked
     /// endpoint stays listed and only stops feeding (or being fed by) that
     /// node. Unknown endpoints are ignored at runtime.
     SetChainEndpointEnabled {

@@ -105,10 +105,10 @@ fn a_y_split_row_shows_the_split_knobs() {
         knob_paths(&row),
         vec![
             "split_mode",
-            "level_to_a",
-            "level_to_b",
-            "balance_a",
-            "balance_b"
+            "level_to_0",
+            "balance_0",
+            "level_to_1",
+            "balance_1"
         ],
         "the knobs the split editor shows, on the row like any block"
     );
@@ -129,10 +129,10 @@ fn a_mix_split_row_has_a_split_tab_and_a_mixer_tab() {
         knob_paths(&row),
         vec![
             "split_mode",
-            "level_to_a",
-            "level_to_b",
-            "balance_a",
-            "balance_b"
+            "level_to_0",
+            "balance_0",
+            "level_to_1",
+            "balance_1"
         ],
         "the first tab is the split"
     );

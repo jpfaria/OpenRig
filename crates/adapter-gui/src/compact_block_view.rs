@@ -21,7 +21,7 @@ use crate::compact_block_layout::{
     assign_overlay_lines, assign_strip_lines, row_height_px, row_y_offsets,
 };
 use crate::compact_block_tabs::active_group_index;
-use crate::compact_row_address::compact_rows;
+use crate::compact_row_address::{compact_row_depths, compact_rows};
 use crate::compact_split_row::split_compact_item;
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::project_view::block_model_picker_items;
@@ -216,6 +216,7 @@ fn routing_compact_item(
         row_height: row_height_px(1, false),
         row_y: 0.0,
         path_label: SharedString::new(),
+        path_depth: 0,
     }
 }
 
@@ -230,18 +231,24 @@ pub(crate) fn build_compact_blocks(
     // #328: rows follow the signal, the blocks inside a split's paths
     // included; a row's `block_index` is its row, which `compact_row_address`
     // turns back into the block.
+    let depths = compact_row_depths(chain);
     let mut items: Vec<CompactBlockItem> = compact_rows(chain)
         .into_iter()
         .enumerate()
         .filter_map(|(block_index, (address, block))| {
+            let path_depth = depths.get(block_index).copied().unwrap_or(0) as i32;
             let path_label = SharedString::from(
                 address
                     .path
-                    .map(|p| p.side.as_str().to_uppercase())
+                    .map(|p| project::block::path_letter(p.path))
                     .unwrap_or_default(),
             );
             let item = compact_row_item(chain, chain_index, block_index, block, io_bindings)?;
-            Some(CompactBlockItem { path_label, ..item })
+            Some(CompactBlockItem {
+                path_label,
+                path_depth,
+                ..item
+            })
         })
         .collect();
 
@@ -406,5 +413,6 @@ fn compact_row_item(
         row_height: row_height_px(lines, has_tabs),
         row_y: 0.0,
         path_label: SharedString::new(),
+        path_depth: 0,
     })
 }

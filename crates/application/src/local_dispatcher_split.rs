@@ -1,20 +1,20 @@
 //! Responsibility: handles the split lifecycle commands.
 //!
-//! #328 (spec §3, §10): `AddSplit`, `SetSplitEnd` and `RemoveSplit` reshape
-//! the list that holds the split they name, at any depth. Each runs through
+//! #328 (spec §3, §10, §11): `AddSplit`, `SetSplitEnd`, `RemoveSplit` and the
+//! path commands reshape the list that holds the split they name, at any depth. Each runs through
 //! `edit_chain_blocks`, so the split rules (a Y ends its own list) are checked
 //! on the result and a refused command changes nothing.
 
 use anyhow::{anyhow, Result};
 
 use domain::ids::BlockId;
-use project::block::split_params::default_split_params;
 use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
 
 use crate::block_path::{insert_block, list_holding, split_mut};
 use crate::command::{Command, SplitCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::split_path_commands::add_split_path;
 
 impl LocalDispatcher {
     pub(crate) fn handle_split(&self, cmd: Command) -> Result<Vec<Event>> {
@@ -49,6 +49,21 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::ChainReloaded { chain }])
             }
+            SplitCommand::AddSplitPath { chain, split_id } => {
+                self.edit_chain_blocks(&chain, |blocks| {
+                    add_split_path(split_mut(blocks, &split_id)?);
+                    Ok(())
+                })?;
+                Ok(vec![Event::ChainReloaded { chain }])
+            }
+            SplitCommand::RemoveSplitPath {
+                chain,
+                split_id,
+                path,
+            } => {
+                self.remove_split_path(&chain, &split_id, path)?;
+                Ok(vec![Event::ChainReloaded { chain }])
+            }
             SplitCommand::RemoveSplit { chain, split_id } => {
                 self.edit_chain_blocks(&chain, |blocks| {
                     let (list, at) = list_holding(blocks, &split_id)
@@ -56,9 +71,9 @@ impl LocalDispatcher {
                     let AudioBlockKind::Split(removed) = list.remove(at).kind else {
                         return Err(anyhow!("block {:?} is not a split", split_id));
                     };
-                    // Path A takes the split's place; path B goes with it.
+                    // Path 0 takes the split's place; the other paths go with it.
                     let tail = list.split_off(at);
-                    list.extend(removed.a);
+                    list.extend(removed.paths.into_iter().next().unwrap_or_default());
                     list.extend(tail);
                     Ok(())
                 })?;
@@ -72,11 +87,6 @@ fn empty_split(id: BlockId, end: SplitEnd) -> AudioBlock {
     AudioBlock {
         id,
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            end,
-            params: default_split_params(),
-            a: Vec::new(),
-            b: Vec::new(),
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::new(end)),
     }
 }

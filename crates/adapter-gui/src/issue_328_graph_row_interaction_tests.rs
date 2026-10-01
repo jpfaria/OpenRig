@@ -71,7 +71,7 @@ use std::cell::Cell;
 
 use crate::chain_graph_fixtures_tests::{chain, core, split};
 use crate::graph_anchor::{move_target, parse_anchor};
-use project::block::{PathSide, SplitEnd};
+use project::block::SplitEnd;
 
 #[test]
 fn dragging_a_lane_a_card_onto_lane_b_drops_it_into_path_b() {
@@ -119,11 +119,11 @@ fn dragging_a_lane_a_card_onto_lane_b_drops_it_into_path_b() {
         .borrow()
         .clone()
         .expect("the drop reached the bridge");
-    assert_eq!((id.as_str(), anchor.as_str()), ("a1", "lane:2:1:1"));
+    assert_eq!((id.as_str(), anchor.as_str()), ("a1", "path:sp:1:1"));
     let target = parse_anchor(&anchor)
         .and_then(|slot| move_target(&row, "a1", &slot))
         .unwrap_or_else(|| panic!("anchor {anchor:?} names no place"));
-    assert_eq!(target.path.map(|p| p.side), Some(PathSide::B));
+    assert_eq!(target.path.map(|p| p.path), Some(1));
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn top_ids(session: &Rc<RefCell<Option<crate::state::ProjectSession>>>) -> Vec<S
 fn mix_then_y_clicking_the_y_node_opens_the_editor_on_the_y() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, _session) = wired_graph_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
-    ChainGraphBridge::get(&app).invoke_node_clicked(0, "__split_2".into());
+    ChainGraphBridge::get(&app).invoke_node_clicked(0, "__split_y".into());
     let state = crate::ChainGraphOverlayState::get(&app);
     assert!(state.get_split_editor_open(), "the split editor opened");
     assert_eq!(state.get_split_editor_split_id().as_str(), "y");
@@ -213,7 +213,7 @@ fn mix_then_y_clicking_the_y_node_opens_the_editor_on_the_y() {
 fn mix_then_y_confirming_the_y_removal_removes_the_y_and_keeps_the_mix() {
     i_slint_backend_testing::init_no_event_loop();
     let (app, session) = wired_graph_app(crate::chain_graph_fixtures_tests::mix_then_y_chain());
-    ChainGraphBridge::get(&app).invoke_remove_requested(0, "__split_2".into());
+    ChainGraphBridge::get(&app).invoke_remove_requested(0, "__split_y".into());
     app.show().unwrap();
     let button = i_slint_backend_testing::ElementHandle::find_by_element_id(
         &app,

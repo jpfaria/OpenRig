@@ -36,8 +36,9 @@ fn add_chain_refuses_a_chain_with_a_split_after_a_y() {
     assert_eq!(project.borrow().chains.len(), 1, "nothing was added");
 }
 
+/// #328 spec §11.1: a Select may sit in a path.
 #[test]
-fn configure_chain_refuses_a_select_inside_a_path() {
+fn configure_chain_accepts_a_select_inside_a_path() {
     let project = project_with(vec![make_core_block("amp", true)]);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let select = AudioBlock {
@@ -53,16 +54,11 @@ fn configure_chain_refuses_a_select_inside_a_path() {
         vec![split("s1", SplitEnd::Mix, vec![select], vec![])],
     );
 
-    let err = dispatcher
+    dispatcher
         .dispatch(Command::Chain(ChainCommand::ConfigureChain { chain }))
-        .expect_err("a select cannot sit inside a path");
+        .expect("a select may sit inside a path");
 
-    assert!(
-        err.to_string()
-            .contains("'sel' is a select block; a path holds processing blocks only"),
-        "{err}"
-    );
-    assert_eq!(ids(&project.borrow().chains[0].blocks), vec!["amp"]);
+    assert_eq!(ids(&project.borrow().chains[0].blocks), vec!["s1"]);
 }
 
 #[test]

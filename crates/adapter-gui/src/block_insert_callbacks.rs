@@ -193,13 +193,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         }
         // #328: a "+" inside a split path of the chain graph.
         crate::ChainGraphBridge::get(window).on_start_path_insert(
-            move |chain_index, split, side, position| {
-                let Some(side) = crate::chain_block_lists::side_from_index(side) else {
+            move |chain_index, split, path, position| {
+                let Some(path) = crate::chain_block_lists::path_from_index(path) else {
                     return;
                 };
                 let path = project::block::PathRef {
                     split: domain::ids::BlockId(split.to_string()),
-                    side,
+                    path,
                 };
                 begin_insert(chain_index, position as usize, Some(path));
             },

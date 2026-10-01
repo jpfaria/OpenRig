@@ -1,24 +1,21 @@
 //! Responsibility: turns a chain into the graph its row draws.
 //!
-//! #328 (spec §5.1, §5.2). Each of the chain's splits (a Mix, then a Y) becomes
-//! one Part 5 `Parallel` stage: lane A on top, lane B below; `Merge` ends it in
-//! the mixer node, `Fan`
-//! (Y → A/B) ends each lane in its own output node. Stage 0 is the input node
-//! and every top-level block is one stage — `graph_anchor` counts on that
-//! numbering. Positions and "+" anchors come from Part 5
-//! (`linear_chain_layout`, `insert_anchors`); this file only picks the stages
-//! and the grid.
+//! #328 (spec §5.1, §5.2, §11). Every split, at any depth, becomes one
+//! `Parallel` stage with one lane per path, top to bottom; `Merge` ends it in
+//! the mixer node, `Fan` (a Y) ends each leaf path in its own output node.
+//! Stage 0 is the input node and every top-level block is one stage —
+//! `graph_anchor` counts on that numbering. Positions and "+" anchors come
+//! from `linear_chain_layout` and `insert_anchors`; this file only picks the
+//! stages and the grid.
 
-use project::block::{AudioBlock, AudioBlockKind, SplitEnd};
+use project::block::{has_y_split, AudioBlock, AudioBlockKind, PathRef, SplitEnd};
 use project::chain::Chain;
 
-use crate::chain_graph_ids::{
-    INPUT_NODE_ID, OUTPUT_NODE_ID, PATH_A_OUTPUT_NODE_ID, PATH_B_OUTPUT_NODE_ID,
-};
+use crate::chain_graph_ids::{leaf_output_node_id, INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::endpoint_checklist_items::IoLabels;
 use crate::graph_view_model::{
-    insert_anchors, linear_chain_layout, BlockBlueprint, ChainStage, GraphAnchor, GraphEdge,
-    GraphNode, GridMetrics, NodeCategory, NodeKind, ParallelEnd,
+    insert_anchors, linear_chain_layout, stage_extent, BlockBlueprint, ChainStage, GraphAnchor,
+    GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind, ParallelEnd,
 };
 
 /// Centre-to-centre: a 100 px card plus the strip's 32 px gap (`chain_row_blocks.slint:47`).
@@ -33,12 +30,13 @@ pub(crate) struct ChainGraph {
     pub(crate) nodes: Vec<GraphNode>,
     pub(crate) edges: Vec<GraphEdge>,
     pub(crate) anchors: Vec<GraphAnchor>,
+    /// Rows of the grid: one per lane at the deepest fan-out.
     pub(crate) lanes: usize,
     pub(crate) columns: usize,
 }
 
-/// With two lanes the shared blocks sit between them, so the top lane's cards
-/// still start at the row's top edge.
+/// With several rows the shared blocks sit on their centre, so the top row's
+/// cards still start at the row's top edge.
 pub(crate) fn grid_metrics(lanes: usize) -> GridMetrics {
     GridMetrics {
         column_spacing: COLUMN_SPACING,
@@ -55,39 +53,8 @@ pub(crate) fn chain_stages(chain: &Chain, labels: &IoLabels) -> Vec<ChainStage> 
         NodeCategory::Input,
         NodeKind::IoInput,
     ))];
-    let mut lanes_end_in_outputs = false;
-    for block in &chain.blocks {
-        let AudioBlockKind::Split(split) = &block.kind else {
-            stages.push(ChainStage::Single(blueprint(block)));
-            continue;
-        };
-        let mut a: Vec<BlockBlueprint> = split.a.iter().map(blueprint).collect();
-        let mut b: Vec<BlockBlueprint> = split.b.iter().map(blueprint).collect();
-        let end = match split.end {
-            SplitEnd::Mix => ParallelEnd::Merge,
-            SplitEnd::Y => {
-                a.push(endpoint_node(
-                    PATH_A_OUTPUT_NODE_ID,
-                    &labels.path_a,
-                    NodeCategory::Output,
-                    NodeKind::IoOutput,
-                ));
-                b.push(endpoint_node(
-                    PATH_B_OUTPUT_NODE_ID,
-                    &labels.path_b,
-                    NodeCategory::Output,
-                    NodeKind::IoOutput,
-                ));
-                lanes_end_in_outputs = true;
-                ParallelEnd::Fan
-            }
-        };
-        stages.push(ChainStage::Parallel {
-            lanes: vec![a, b],
-            end,
-        });
-    }
-    if !lanes_end_in_outputs {
+    stages.extend(list_stages(&chain.blocks, labels));
+    if !has_y_split(&chain.blocks) {
         stages.push(ChainStage::Single(endpoint_node(
             OUTPUT_NODE_ID,
             &labels.output,
@@ -98,18 +65,52 @@ pub(crate) fn chain_stages(chain: &Chain, labels: &IoLabels) -> Vec<ChainStage> 
     stages
 }
 
-pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
-    let lanes = if chain
-        .blocks
+/// One stage per block of `blocks`; a split nests its paths as lanes.
+fn list_stages(blocks: &[AudioBlock], labels: &IoLabels) -> Vec<ChainStage> {
+    blocks
         .iter()
-        .any(|b| matches!(b.kind, AudioBlockKind::Split(_)))
-    {
-        2
-    } else {
-        1
-    };
-    let metrics = grid_metrics(lanes);
+        .map(|block| match &block.kind {
+            AudioBlockKind::Split(split) => {
+                let lanes = split
+                    .paths
+                    .iter()
+                    .enumerate()
+                    .map(|(at, path)| {
+                        let mut lane = list_stages(path, labels);
+                        if split.end == SplitEnd::Y && !has_y_split(path) {
+                            let leaf = PathRef {
+                                split: block.id.clone(),
+                                path: at,
+                            };
+                            lane.push(ChainStage::Single(endpoint_node(
+                                &leaf_output_node_id(&leaf),
+                                labels.leaf(&leaf),
+                                NodeCategory::Output,
+                                NodeKind::IoOutput,
+                            )));
+                        }
+                        lane
+                    })
+                    .collect();
+                let end = match split.end {
+                    SplitEnd::Mix => ParallelEnd::Merge,
+                    SplitEnd::Y => ParallelEnd::Fan,
+                };
+                ChainStage::Parallel {
+                    split_id: block.id.0.clone(),
+                    lanes,
+                    end,
+                }
+            }
+            _ => ChainStage::Single(blueprint(block)),
+        })
+        .collect()
+}
+
+pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
     let stages = chain_stages(chain, labels);
+    let lanes = stage_extent(&stages).1;
+    let metrics = grid_metrics(lanes);
     let (nodes, edges) = linear_chain_layout(&stages, metrics);
     let anchors = insert_anchors(&stages, &nodes);
     let columns = nodes

@@ -1,6 +1,6 @@
 //! Responsibility: drives the split editor overlay.
 //!
-//! #328 (spec §1.2, §5.1). One overlay edits either side of the split it was
+//! #328 (spec §1.2, §5.1). One overlay edits either end of the split it was
 //! opened on (by id — a chain may hold a Mix and a Y): kind 0 shows the
 //! split's knobs and its Mix / Y switch, kind 1 the mixer's. A knob
 //! edit goes on the bus as a `SetBlockParameter*` on the split block
@@ -15,7 +15,7 @@ use slint::{ComponentHandle, Global, Model, ModelRc, Timer, VecModel};
 
 use domain::ids::BlockId;
 use domain::AudioDeviceDescriptor;
-use project::block::SplitEnd;
+use project::block::{SplitEnd, MIN_SPLIT_PATHS};
 
 use crate::block_param_apply::{apply_parameter_to_block, ApplyParamError, ParamValue};
 use crate::chain_block_lists::split_by_id;
@@ -24,9 +24,11 @@ use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use crate::helpers::set_status_error;
 use crate::split_editor_items::{option_value, split_editor_items, SplitEditorKind};
 use crate::split_end_switch::set_split_end;
+use crate::split_path_gestures::path_letters;
 use crate::state::ProjectSession;
 use crate::{AppWindow, BlockParameterItem, ChainGraphOverlayState, ProjectChainItem};
 
+#[derive(Clone)]
 pub(crate) struct SplitEditorWiringCtx {
     pub(crate) project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub(crate) project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -41,6 +43,7 @@ struct Editor {
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
+    crate::split_path_wiring::wire(window, ctx.clone());
     let editor = Rc::new(Editor {
         ctx,
         rows: Rc::new(VecModel::default()),
@@ -65,11 +68,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
                 return;
             };
             editor.rows.set_vec(split_editor_items(split, kind));
+            let letters: Vec<slint::SharedString> =
+                path_letters(&chain, &BlockId(split_id.to_string()))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect();
             let state = ChainGraphOverlayState::get(&window);
             state.set_split_editor_chain_index(chain_index);
             state.set_split_editor_kind(kind_index);
             state.set_split_editor_split_id(split_id);
             state.set_split_editor_end_y(split.end == SplitEnd::Y);
+            state.set_split_editor_paths(ModelRc::new(VecModel::from(letters)));
+            state.set_split_editor_can_remove_path(split.paths.len() > MIN_SPLIT_PATHS);
             state.set_split_editor_title(kind.title().into());
             state.set_split_editor_open(true);
         });

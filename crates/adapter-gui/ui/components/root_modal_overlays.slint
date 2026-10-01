@@ -40,7 +40,16 @@ export component RootModalOverlays inherits Rectangle {
         confirm => { OverlayBridge.confirm-delete-recent-project(); }
     }
 
-    // #328: removing a split whose path B holds blocks deletes them (spec §3).
+    // #328: removing a path that holds blocks deletes them (spec §11).
+    if ChainGraphOverlayState.confirm-remove-path-open : ConfirmDeleteBlockDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        block-name: ChainGraphOverlayState.confirm-remove-path-name;
+        cancel => { ChainGraphOverlayState.confirm-remove-path-open = false; }
+        confirm => { ChainGraphOverlayState.confirm-remove-path(); }
+    }
+
+    // #328: removing a split deletes the blocks of every path but the first (spec §11).
     if ChainGraphOverlayState.confirm-remove-split-open : ConfirmDeleteBlockDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;

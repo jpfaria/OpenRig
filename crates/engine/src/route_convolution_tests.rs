@@ -182,9 +182,11 @@ fn a_cab_inside_a_split_path_counts_as_convolution() {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Mix,
-            params: default_split_params(),
-            a: vec![core("gain", "fuzz_ge")],
-            b: vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            params: default_split_params(2),
+            paths: vec![
+                vec![core("gain", "fuzz_ge")],
+                vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            ],
         }),
     };
     assert!(
@@ -202,9 +204,9 @@ fn a_y_output_counts_only_the_paths_that_feed_it() {
     use domain::ids::{ChainId, DeviceId};
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
     use project::block::split_params::default_split_params;
-    use project::block::{SplitBlock, SplitEnd};
+    use project::block::{PathRef, SplitBlock, SplitEnd};
     use project::chain::Chain;
-    use project::endpoint_disables::{EndpointDisables, EndpointRef};
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
 
     use super::route_has_convolution;
     use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io};
@@ -236,11 +238,22 @@ fn a_y_output_counts_only_the_paths_that_feed_it() {
         enabled: true,
         kind: AudioBlockKind::Split(SplitBlock {
             end: SplitEnd::Y,
-            params: default_split_params(),
-            a: vec![core("gain", "volume")],
-            b: vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            params: default_split_params(2),
+            paths: vec![
+                vec![core("gain", "volume")],
+                vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            ],
         }),
     };
+    let leaf = |path: usize| {
+        EndpointNode::PathOutput(PathRef {
+            split: BlockId("split".into()),
+            path,
+        })
+    };
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(&leaf(0), off("out-b"), false);
+    disabled_endpoints.set_enabled(&leaf(1), off("out-a"), false);
     let chain = Chain {
         mix: Default::default(),
         id: ChainId("rig:input-1".into()),
@@ -252,12 +265,7 @@ fn a_y_output_counts_only_the_paths_that_feed_it() {
         blocks: vec![split],
         di_output: None,
         loopers: vec![],
-        disabled_endpoints: EndpointDisables {
-            inputs: vec![],
-            outputs: vec![],
-            path_a_outputs: vec![off("out-b")],
-            path_b_outputs: vec![off("out-a")],
-        },
+        disabled_endpoints,
     };
     let (ri, ro) = resolve_chain_io(&chain, &registry);
     let (ei, ci, sp, eg) = effective_inputs(&chain, &ri, &registry);

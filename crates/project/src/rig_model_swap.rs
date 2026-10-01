@@ -15,18 +15,17 @@ use crate::block::{block_params, for_each_block_mut, walk_blocks, AudioBlock, Au
 use crate::rig::RigProject;
 
 /// The slot shape of a block list: every block id in walk order and, for a
-/// split, its end and the length of each path — so moving a block from path A
-/// to path B is a different shape even though the walk visits the same ids.
+/// split, its end and the length of each path — so moving a block from one
+/// path to another is a different shape even though the walk visits the same ids.
 fn slot_layout(blocks: &[AudioBlock]) -> Vec<String> {
     walk_blocks(blocks)
         .into_iter()
         .map(|b| match &b.kind {
             AudioBlockKind::Split(split) => format!(
-                "{}|{}|{}|{}",
+                "{}|{}|{:?}",
                 b.id.0,
                 split.end.as_str(),
-                split.a.len(),
-                split.b.len()
+                split.paths.iter().map(Vec::len).collect::<Vec<_>>()
             ),
             _ => b.id.0.clone(),
         })

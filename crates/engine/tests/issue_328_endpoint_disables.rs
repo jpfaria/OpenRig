@@ -11,7 +11,7 @@ use project::rig::{RigInput, RigPreset, RigProject};
 fn unchecked_input(endpoint: &str) -> EndpointDisables {
     let mut disables = EndpointDisables::default();
     disables.set_enabled(
-        EndpointNode::Input,
+        &EndpointNode::Input,
         EndpointRef {
             io: "shared".into(),
             endpoint: endpoint.into(),
@@ -124,12 +124,17 @@ fn a_silenced_input_holds_no_tap_on_the_rig_side() {
     use engine::runtime_endpoints::input_conflicting_chains;
 
     // g1 has its only output unchecked; g2 plays. Both select the same E/S.
-    let every_output_off = EndpointDisables {
-        outputs: vec![EndpointRef {
-            io: "shared".into(),
-            endpoint: "out".into(),
-        }],
-        ..EndpointDisables::default()
+    let every_output_off = {
+        let mut d = EndpointDisables::default();
+        d.set_enabled(
+            &EndpointNode::Output,
+            EndpointRef {
+                io: "shared".into(),
+                endpoint: "out".into(),
+            },
+            false,
+        );
+        d
     };
     let r = rig(every_output_off, EndpointDisables::default());
     let registry = vec![shared_binding()];

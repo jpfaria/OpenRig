@@ -388,8 +388,10 @@ export struct CompactBlockItem {
     // Rust because the page positions rows — and hit-tests drags — by absolute y.
     row_height: length,
     row_y: length,
-    // #328: "A" / "B" for a block inside a split's path, "" on the chain itself.
+    // #328: the letter of the path a block sits in ("A", "B", …), "" on the
+    // chain itself, and how many splits deep it sits (0 on the chain).
     path_label: string,
+    path_depth: int,
 }
 
 export struct RecentProjectItem {

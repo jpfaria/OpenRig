@@ -6,7 +6,6 @@ use std::collections::BTreeMap;
 
 use domain::ids::{BlockId, ChainId, ParameterId};
 use domain::value_objects::ParameterValue;
-use project::block::split_params::MIX_PAN_A;
 use project::block::{
     find_block_mut, for_each_block_mut, schema_for_block_model, walk_blocks, AudioBlock,
     AudioBlockKind, CoreBlock, SplitBlock, SplitEnd,
@@ -16,6 +15,9 @@ use project::param::ParameterSet;
 use project::project::Project;
 use project::project_disable_unavailable::disable_unavailable_blocks;
 use project::rig::{RigPreset, RigScene};
+
+/// Path A's pan on the mixer.
+const MIX_PAN_A: &str = "mix_pan_0";
 
 fn core(id: &str, effect_type: &str, model: &str) -> AudioBlock {
     AudioBlock {
@@ -41,18 +43,14 @@ fn split(a: Vec<AudioBlock>, b: Vec<AudioBlock>) -> AudioBlock {
     AudioBlock {
         id: BlockId("split".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            a,
-            b,
-            ..SplitBlock::new(SplitEnd::Mix)
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(SplitEnd::Mix, vec![a, b])),
     }
 }
 
 /// Paths read straight off the split, independent of the walkers under test.
 fn paths(block: &AudioBlock) -> (&[AudioBlock], &[AudioBlock]) {
     match &block.kind {
-        AudioBlockKind::Split(s) => (&s.a, &s.b),
+        AudioBlockKind::Split(s) => (&s.paths[0], &s.paths[1]),
         other => panic!("expected a split, got {}", other.label()),
     }
 }
@@ -163,7 +161,7 @@ fn a_scene_reaches_the_path_blocks_and_the_split_knobs() {
         vec![split(vec![amp("amp_a", 0.5)], vec![amp("amp_b", 0.5)])],
         100.0,
     );
-    preset.scene_params = vec!["amp_a.gain".into(), "split.mix_pan_a".into()];
+    preset.scene_params = vec!["amp_a.gain".into(), "split.mix_pan_0".into()];
     preset.scenes = BTreeMap::from([(
         2,
         RigScene {
@@ -171,7 +169,7 @@ fn a_scene_reaches_the_path_blocks_and_the_split_knobs() {
             bypass: BTreeMap::from([("amp_b".to_string(), true)]),
             params: BTreeMap::from([
                 ("amp_a.gain".to_string(), 0.9),
-                ("split.mix_pan_a".to_string(), -50.0),
+                ("split.mix_pan_0".to_string(), -50.0),
             ]),
             volume: None,
         },

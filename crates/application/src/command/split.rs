@@ -1,7 +1,8 @@
 //! Responsibility: names the split lifecycle commands.
 //!
 //! #328: a chain holds any number of splits, nested to any depth (spec §10).
-//! These commands create a split, switch its end and remove it. Blocks
+//! These commands create a split, switch its end, add or remove a path and
+//! remove it. Blocks
 //! go into a split's paths through `AddBlock` / `InsertPrebuiltBlock` /
 //! `MoveBlock` with a `path`, and its knobs are ordinary `SetBlockParameter*`
 //! writes on the split's block id.
@@ -33,8 +34,19 @@ pub enum SplitCommand {
         split_id: BlockId,
         end: SplitEnd,
     },
-    /// Remove the split, at any depth: path A's blocks take its place in the
-    /// list that held it and path B's blocks are dropped (the GUI asks first
-    /// when path B is not empty).
+    /// Append an empty path to the split, at any depth, with the default
+    /// knobs for it (spec §11.1).
+    AddSplitPath { chain: ChainId, split_id: BlockId },
+    /// Remove path `path` of the split, at any depth, with its blocks. The
+    /// knobs, MIDI maps, scene values and output picks of the paths above it
+    /// shift down one. Refused when the split would keep fewer than two paths.
+    RemoveSplitPath {
+        chain: ChainId,
+        split_id: BlockId,
+        path: usize,
+    },
+    /// Remove the split, at any depth: path 0's blocks take its place in the
+    /// list that held it and the other paths' blocks are dropped (the GUI asks
+    /// first when one of them is not empty).
     RemoveSplit { chain: ChainId, split_id: BlockId },
 }

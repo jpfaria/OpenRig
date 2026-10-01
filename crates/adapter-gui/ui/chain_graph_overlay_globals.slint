@@ -8,7 +8,15 @@
 import { ChannelOptionItem, BlockParameterItem } from "models.slint";
 
 export global ChainGraphOverlayState {
-    // ── Remove-split confirmation (spec §3: path B's blocks go with it) ──
+    // ── Remove-path confirmation (spec §11: the path's blocks go with it) ──
+    in-out property <bool> confirm-remove-path-open: false;
+    in-out property <int> confirm-remove-path-chain-index: -1;
+    in-out property <string> confirm-remove-path-split-id;
+    in-out property <int> confirm-remove-path-index: -1;
+    in-out property <string> confirm-remove-path-name;
+    callback confirm-remove-path();
+
+    // ── Remove-split confirmation (spec §11: every path but the first goes) ──
     in-out property <bool> confirm-remove-split-open: false;
     in-out property <int> confirm-remove-split-chain-index: -1;
     in-out property <string> confirm-remove-split-name;
@@ -29,11 +37,19 @@ export global ChainGraphOverlayState {
     callback split-editor-option(int, string, string, int);
     callback split-editor-bool(int, string, string, bool);
     // Mix / Y switch (split editor only): lit segment, labels, and the ask.
-    // Args: chain index, split block id, true = Y → A/B.
+    // Args: chain index, split block id, true = Y (one output per leaf).
     in-out property <bool> split-editor-end-y: false;
     in-out property <string> split-editor-end-mix-label;
     in-out property <string> split-editor-end-y-label;
     callback split-editor-set-end(int, string, bool);
+    // Paths of the split (split editor only): their letters, whether one may
+    // go (a split keeps at least two), and the asks.
+    in-out property <[string]> split-editor-paths;
+    in-out property <bool> split-editor-can-remove-path: false;
+    // Args: chain index, split block id.
+    callback split-editor-add-path(int, string);
+    // Args: chain index, split block id, path index.
+    callback split-editor-remove-path(int, string, int);
 
     // ── Endpoint checklist (spec §5.3) ──
     // Args: chain index, graph node id (`__io_input`, `__io_output`, …).

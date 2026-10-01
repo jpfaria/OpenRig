@@ -23,12 +23,8 @@ pub(crate) fn block_is_convolution(block: &AudioBlock) -> bool {
                     || core.model.starts_with("ir_")
             }
             AudioBlockKind::Nam(nam) => nam.model.starts_with("ir_"),
-            // #328: a split convolves when either of its paths does.
-            AudioBlockKind::Split(split) => split
-                .a
-                .iter()
-                .chain(split.b.iter())
-                .any(block_is_convolution),
+            // #328: a split convolves when any of its paths does.
+            AudioBlockKind::Split(split) => split.paths.iter().flatten().any(block_is_convolution),
             _ => false,
         }
 }
@@ -42,7 +38,7 @@ pub(crate) fn route_has_convolution(
     route_idx: usize,
 ) -> bool {
     // #328: a segment hears only the split paths it runs.
-    let convolves = |indices: &[usize], paths: SegmentPaths| {
+    let convolves = |indices: &[usize], paths: &SegmentPaths| {
         indices
             .iter()
             .filter_map(|&idx| chain.blocks.get(idx))
@@ -50,14 +46,14 @@ pub(crate) fn route_has_convolution(
     };
     segments.iter().any(|segment| {
         let at_tail = segment.output_route_indices.contains(&route_idx)
-            && convolves(&segment.block_indices, segment.paths);
+            && convolves(&segment.block_indices, &segment.paths);
         let at_tap = segment
             .mid_output_taps
             .iter()
             .filter(|tap| tap.route_idx == route_idx)
             .any(|tap| {
                 let before = tap.blocks_before.min(segment.block_indices.len());
-                convolves(&segment.block_indices[..before], segment.paths)
+                convolves(&segment.block_indices[..before], &segment.paths)
             });
         at_tail || at_tap
     })

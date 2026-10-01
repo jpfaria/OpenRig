@@ -30,6 +30,8 @@ use domain::ids::{BlockId, ChainId};
 const EXPECTED_VARIANTS: &[&str] = &[
     // ── Added by #14 (the metronome) ──────────────────────────────────────
     "MetronomeTap",
+    "AddSplitPath",
+    "RemoveSplitPath",
     "SetMetronomeBpm",
     "SetMetronomeCountIn",
     "SetMetronomeEnabled",

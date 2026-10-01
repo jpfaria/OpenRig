@@ -40,10 +40,10 @@ fn rig_with_the_amp_in_path_b() -> RigProject {
         AudioBlock {
             id: BlockId("rig:input-7:block:split".into()),
             enabled: true,
-            kind: AudioBlockKind::Split(SplitBlock {
-                b: vec![amp],
-                ..SplitBlock::new(SplitEnd::Mix)
-            }),
+            kind: AudioBlockKind::Split(SplitBlock::with_paths(
+                SplitEnd::Mix,
+                vec![Vec::new(), vec![amp]],
+            )),
         },
     );
     rig.inputs.get_mut(INPUT).expect("input-7").active_scene = 2;

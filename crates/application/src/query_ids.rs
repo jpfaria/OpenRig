@@ -7,8 +7,8 @@ use std::fmt::Write;
 /// Human-readable, copy-paste-ready listing of every chain and block with
 /// its full ID, instrument/kind, and enabled state — the values that go
 /// into `midi-map.yaml` `chain:` / `block:`. #328: the blocks inside a
-/// split's paths are listed under the split, one `path a` / `path b` row
-/// each, so they can be addressed too.
+/// split's paths are listed under the split, one `path A`, `path B`, … row
+/// each, at any depth, so they can be addressed too.
 pub fn list_ids(project: &Project) -> String {
     let mut out = String::new();
     let name = project.name.as_deref().unwrap_or("(unnamed)");
@@ -36,7 +36,8 @@ pub fn list_ids(project: &Project) -> String {
                 block_state(b.enabled)
             );
             if let AudioBlockKind::Split(split) = &b.kind {
-                for (side, lane) in [("a", &split.a), ("b", &split.b)] {
+                for (index, lane) in split.paths.iter().enumerate() {
+                    let side = project::block::path_letter(index);
                     for p in lane {
                         let _ = writeln!(
                             out,

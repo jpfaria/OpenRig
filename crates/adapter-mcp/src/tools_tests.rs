@@ -75,7 +75,9 @@ use application::command_schema::command_variant_names;
 /// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
 /// `ToggleChainMixerMute`/`SetChainDiFader`).
 /// Both merged (#328 + #1007): 100 + 4 + 9.
-const COMMAND_VARIANT_COUNT: usize = 113;
+/// #328 §11 bumped to 115 with `AddSplitPath`/`RemoveSplitPath` — a split
+/// with any number of paths.
+const COMMAND_VARIANT_COUNT: usize = 115;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

@@ -86,10 +86,7 @@ fn select(id: &str) -> AudioBlock {
 fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>) -> AudioBlock {
     block(
         id,
-        AudioBlockKind::Split(SplitBlock {
-            a,
-            ..SplitBlock::new(end)
-        }),
+        AudioBlockKind::Split(SplitBlock::with_paths(end, vec![a, Vec::new()])),
     )
 }
 
@@ -126,7 +123,6 @@ fn rig(blocks: Vec<AudioBlock>) -> RigProject {
 #[test]
 fn a_path_holds_processing_blocks_only() {
     let forbidden = [
-        (select("sel"), "select"),
         (input_port("in"), "input"),
         (output_port("out"), "output"),
         (insert("fx"), "insert"),
@@ -249,7 +245,7 @@ fn find_split_reports_the_split_and_where_it_sits() {
     ];
     let (position, found) = find_split(&blocks).expect("the chain has a split");
     assert_eq!(position, 1);
-    assert_eq!(found.a[0].id.0, "amp");
+    assert_eq!(found.paths[0][0].id.0, "amp");
     assert!(find_split(&[delay("drive")]).is_none());
 }
 
@@ -265,7 +261,7 @@ fn the_split_lookups_see_every_split() {
     assert_eq!(found, vec![(1, SplitEnd::Mix), (3, SplitEnd::Y)]);
     let (position, y) = find_split_with_end(&blocks, SplitEnd::Y).expect("the Y split");
     assert_eq!(position, 3);
-    assert_eq!(y.a[0].id.0, "cab");
+    assert_eq!(y.paths[0][0].id.0, "cab");
     assert!(has_y_split(&blocks), "the Y sits behind a Mix");
     assert!(!has_y_split(&blocks[..3]), "a Mix alone is not a Y");
     assert!(find_split_with_end(&blocks[..3], SplitEnd::Y).is_none());
@@ -362,12 +358,8 @@ fn a_rig_accepts_a_mix_then_a_y() {
 }
 
 #[test]
-fn a_rig_refuses_a_port_or_select_in_the_y_path_behind_a_mix() {
-    for (bad, label) in [
-        (input_port("in"), "input"),
-        (output_port("out"), "output"),
-        (select("sel"), "select"),
-    ] {
+fn a_rig_refuses_a_port_in_the_y_path_behind_a_mix() {
+    for (bad, label) in [(input_port("in"), "input"), (output_port("out"), "output")] {
         let err = rig(vec![
             split("mix", SplitEnd::Mix, vec![delay("amp1")]),
             split("y", SplitEnd::Y, vec![bad]),
@@ -379,4 +371,44 @@ fn a_rig_refuses_a_port_or_select_in_the_y_path_behind_a_mix() {
             "every split's paths are checked ({label}), got: {err}"
         );
     }
+}
+
+#[test]
+fn a_split_holds_any_number_of_paths() {
+    let s = SplitBlock::with_paths(
+        SplitEnd::Mix,
+        vec![
+            vec![delay("p0")],
+            vec![delay("p1")],
+            vec![delay("p2")],
+            Vec::new(),
+        ],
+    );
+    assert_eq!(s.paths.len(), 4);
+    assert!(s.validate_structure().is_ok());
+}
+
+#[test]
+fn a_split_refuses_fewer_than_two_paths() {
+    let s = SplitBlock::with_paths(SplitEnd::Mix, vec![vec![delay("only")]]);
+    let err = s.validate_structure().expect_err("one path");
+    assert!(err.contains("at least 2 paths"), "got: {err}");
+}
+
+#[test]
+fn a_select_may_sit_in_a_path() {
+    let s = SplitBlock::with_paths(SplitEnd::Mix, vec![vec![select("sel")], Vec::new()]);
+    assert!(
+        s.validate_structure().is_ok(),
+        "spec §11: Select is allowed in a path"
+    );
+}
+
+#[test]
+fn path_letters_name_any_index() {
+    use project::block::path_letter;
+    assert_eq!(path_letter(0), "A");
+    assert_eq!(path_letter(2), "C");
+    assert_eq!(path_letter(25), "Z");
+    assert_eq!(path_letter(26), "AA");
 }

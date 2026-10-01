@@ -67,12 +67,7 @@ pub(crate) fn settle_nodes(
     chain: &project::chain::Chain,
 ) {
     // Labels move no node, so none are resolved here.
-    let labels = crate::endpoint_checklist_items::IoLabels {
-        input: String::new(),
-        output: String::new(),
-        path_a: String::new(),
-        path_b: String::new(),
-    };
+    let labels = crate::endpoint_checklist_items::IoLabels::default();
     for node in crate::chain_graph_adapter::chain_graph(chain, &labels).nodes {
         move_node(rows, chain_index, &node.id, node.x, node.y);
     }

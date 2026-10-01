@@ -5,11 +5,14 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use project::block::param_writer::{set_parameter_number, set_parameter_option};
-use project::block::split_params::{MIX_PAN_A, SPLIT_MODE};
+use project::block::split_params::SPLIT_MODE;
 use project::block::{
     schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd,
 };
 use project::param::ParameterSet;
+
+/// Path A's pan on the mixer.
+const MIX_PAN_A: &str = "mix_pan_0";
 
 fn delay(id: &str) -> AudioBlock {
     let model = block_delay::supported_models()
@@ -35,11 +38,7 @@ fn split(end: SplitEnd, a: Vec<AudioBlock>, b: Vec<AudioBlock>) -> AudioBlock {
     AudioBlock {
         id: BlockId("split".into()),
         enabled: true,
-        kind: AudioBlockKind::Split(SplitBlock {
-            a,
-            b,
-            ..SplitBlock::new(end)
-        }),
+        kind: AudioBlockKind::Split(SplitBlock::with_paths(end, vec![a, b])),
     }
 }
 
@@ -74,7 +73,7 @@ fn identity_follows_the_paths_structure_but_not_their_knobs() {
 
     let mut knob = base.clone();
     if let AudioBlockKind::Split(s) = &mut knob.kind {
-        s.a[0].enabled = false;
+        s.paths[0][0].enabled = false;
         s.params.insert(MIX_PAN_A, ParameterValue::Float(-50.0));
     }
     assert_eq!(
@@ -110,7 +109,7 @@ fn identity_follows_the_paths_structure_but_not_their_knobs() {
 
     let mut swapped = base.clone();
     if let AudioBlockKind::Split(s) = &mut swapped.kind {
-        if let AudioBlockKind::Core(core) = &mut s.b[0].kind {
+        if let AudioBlockKind::Core(core) = &mut s.paths[1][0].kind {
             core.model = "another_model".into();
         }
     }
@@ -125,7 +124,11 @@ fn identity_follows_the_paths_structure_but_not_their_knobs() {
 fn the_parameters_of_a_split_are_its_knobs() {
     let block = split(SplitEnd::Mix, vec![delay("amp-a")], vec![]);
     let descriptors = block.parameter_descriptors().expect("describe");
-    assert_eq!(descriptors.len(), 12, "the twelve split and mixer knobs");
+    assert_eq!(
+        descriptors.len(),
+        13,
+        "the mode, five knobs per path and the two master knobs"
+    );
     assert_eq!(descriptors[0].id.0, "split::split_mode");
 }
 

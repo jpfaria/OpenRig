@@ -23,22 +23,19 @@ fn add_block_without_path_serializes_exactly_as_before() {
 #[test]
 fn add_block_keeps_the_split_path_it_was_sent() {
     let out = round_trip(
-        r#"{"AddBlock":{"chain":"c1","kind":"gain","model_id":"fuzz_ge","position":0,"path":{"split":"s1","side":"b"}}}"#,
+        r#"{"AddBlock":{"chain":"c1","kind":"gain","model_id":"fuzz_ge","position":0,"path":{"split":"s1","path":1}}}"#,
     );
-    assert_eq!(
-        out["AddBlock"]["path"],
-        json!({ "split": "s1", "side": "b" })
-    );
+    assert_eq!(out["AddBlock"]["path"], json!({ "split": "s1", "path": 1 }));
 }
 
 #[test]
 fn insert_prebuilt_block_keeps_the_split_path_it_was_sent() {
     let out = round_trip(
-        r#"{"InsertPrebuiltBlock":{"chain":"c1","block":{"id":"b1","enabled":true,"kind":{"Core":{"effect_type":"gain","model":"fuzz_ge","params":{"values":{}}}}},"position":0,"path":{"split":"s1","side":"a"}}}"#,
+        r#"{"InsertPrebuiltBlock":{"chain":"c1","block":{"id":"b1","enabled":true,"kind":{"Core":{"effect_type":"gain","model":"fuzz_ge","params":{"values":{}}}}},"position":0,"path":{"split":"s1","path":0}}}"#,
     );
     assert_eq!(
         out["InsertPrebuiltBlock"]["path"],
-        json!({ "split": "s1", "side": "a" })
+        json!({ "split": "s1", "path": 0 })
     );
 }
 
@@ -53,10 +50,10 @@ fn move_block_without_path_serializes_exactly_as_before() {
 #[test]
 fn move_block_keeps_the_destination_path_it_was_sent() {
     let out = round_trip(
-        r#"{"MoveBlock":{"chain":"c1","block":"b1","new_position":2,"path":{"split":"s1","side":"b"}}}"#,
+        r#"{"MoveBlock":{"chain":"c1","block":"b1","new_position":2,"path":{"split":"s1","path":1}}}"#,
     );
     assert_eq!(
         out["MoveBlock"]["path"],
-        json!({ "split": "s1", "side": "b" })
+        json!({ "split": "s1", "path": 1 })
     );
 }

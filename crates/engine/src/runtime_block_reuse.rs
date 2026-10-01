@@ -12,21 +12,26 @@ use crate::runtime_audio_frame::AudioProcessor;
 use crate::runtime_state::{BlockRuntimeNode, FadeState, RuntimeProcessor};
 
 /// The old nodes a rebuild may keep, keyed by block id. A split's path nodes
-/// join the pool beside it (#328), so a path block is found wherever it moved
-/// to — the other lane, or the shared blocks before or after the split.
+/// join the pool beside it (#328), at any depth, so a path block is found
+/// wherever it moved to — another path, another split, or the shared blocks
+/// before or after the split.
 pub(crate) fn reuse_pool(
     existing: Option<Vec<BlockRuntimeNode>>,
 ) -> HashMap<BlockId, BlockRuntimeNode> {
     let mut pool = HashMap::new();
-    for mut node in existing.unwrap_or_default() {
-        if let RuntimeProcessor::Split(split) = &mut node.processor {
-            for path_node in split.a.drain(..).chain(split.b.drain(..)) {
-                pool.insert(path_node.block_id.clone(), path_node);
-            }
-        }
-        pool.insert(node.block_id.clone(), node);
+    for node in existing.unwrap_or_default() {
+        pool_node(&mut pool, node);
     }
     pool
+}
+
+fn pool_node(pool: &mut HashMap<BlockId, BlockRuntimeNode>, mut node: BlockRuntimeNode) {
+    if let RuntimeProcessor::Split(split) = &mut node.processor {
+        for path_node in split.paths.drain(..).flatten() {
+            pool_node(pool, path_node);
+        }
+    }
+    pool.insert(node.block_id.clone(), node);
 }
 
 /// The live node reused for `block`, or — when it cannot be — the node it

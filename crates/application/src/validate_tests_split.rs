@@ -3,7 +3,6 @@
 
 use super::helpers::*;
 use project::block::split_block::{SplitBlock, SplitEnd};
-use project::block::split_params::default_split_params;
 
 fn unknown_delay(id: &str, enabled: bool) -> AudioBlock {
     AudioBlock {
@@ -55,12 +54,7 @@ fn chain_with_split(a: Vec<AudioBlock>, b: Vec<AudioBlock>) -> Chain {
             AudioBlock {
                 id: BlockId("block:split".to_string()),
                 enabled: true,
-                kind: AudioBlockKind::Split(SplitBlock {
-                    end: SplitEnd::Mix,
-                    params: default_split_params(),
-                    a,
-                    b,
-                }),
+                kind: AudioBlockKind::Split(SplitBlock::with_paths(SplitEnd::Mix, vec![a, b])),
             },
             test_output_block("dev-out", vec![0, 1]),
         ],

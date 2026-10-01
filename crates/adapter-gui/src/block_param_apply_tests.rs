@@ -257,14 +257,14 @@ fn a_split_knob_edit_reaches_the_split_params() {
     use crate::chain_graph_fixtures_tests::{
         chain_in, mix_chain, rows as graph_rows, session_with,
     };
-    use project::block::split_params::MIX_PAN_A;
+    let mix_pan_a = project::block::split_param_keys::mix_pan(0);
     let session = session_with(vec![mix_chain()]);
     let chain_id = chain_in(&session, 0).id;
     super::apply_parameter_to_block(
         &session,
         chain_id,
         BlockId("sp".into()),
-        MIX_PAN_A,
+        &mix_pan_a,
         ParamValue::Number(-50.0),
         &graph_rows(),
         &[],
@@ -275,7 +275,7 @@ fn a_split_knob_edit_reaches_the_split_params() {
         panic!("block 1 is the split")
     };
     assert_eq!(
-        split.params.get(MIX_PAN_A).and_then(|v| v.as_f32()),
+        split.params.get(&mix_pan_a).and_then(|v| v.as_f32()),
         Some(-50.0)
     );
 }

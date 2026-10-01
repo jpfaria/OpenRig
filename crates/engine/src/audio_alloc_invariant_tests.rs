@@ -490,9 +490,8 @@ fn an_oversized_callback_through_a_split_does_not_allocate() {
 
     let mut split = SplitRuntimeState::new(
         true,
-        vec![gain_node("a", 0.5)],
-        vec![gain_node("b", 0.5)],
-        SplitKnobs::from_params(&default_split_params()),
+        vec![vec![gain_node("a", 0.5)], vec![gain_node("b", 0.5)]],
+        SplitKnobs::from_params(&default_split_params(2), 2),
         &BlockId("split".into()),
     );
     let queue = ArrayQueue::<BlockError>::new(8);

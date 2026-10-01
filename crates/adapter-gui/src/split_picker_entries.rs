@@ -1,42 +1,42 @@
 //! Responsibility: offers the split entries of the add-block picker.
 //!
-//! #328 (spec §5.1): "Split → Mix" and "Y → A/B" follow the block types in the
-//! picker. A chain holds at most one Mix and one Y, the Mix first, and no split
-//! goes inside a path (spec §1.1). A Y must be the chain's last processing
-//! block, so it is offered only after the Mix and where no block but an I/O
-//! port follows; a Mix only where it lands before the Y (the rules
-//! `validate_split_layout` enforces).
+//! #328 (spec §5.1, §11): "Split → Mix" and "Y → A/B" follow the block types
+//! at every "+", inside a path too, at any depth. The one rule left is local to
+//! the list the "+" sits in: a Y ends its own list (the rule
+//! `validate_split_layout` enforces), so a Y is offered only where no block
+//! but a top-level I/O port follows, and no split lands behind a Y.
 
-use project::block::{find_split_with_end, AudioBlockKind, PathRef, SplitEnd};
+use project::block::{AudioBlock, AudioBlockKind, PathRef, SplitEnd};
 use project::chain::Chain;
 
+use crate::chain_block_lists::list_at;
 use crate::BlockTypePickerItem;
 
 /// `effect_type` of both entries — not a catalog type; the choose-type flow
 /// recognises the entries by their position after the block types.
 const SPLIT_ENTRY_EFFECT_TYPE: &str = "split";
 
-/// The split ends a block inserted before top-level `position` may take.
+/// The split ends a block inserted before `position` of the list `path`
+/// names may take.
 pub(crate) fn split_picker_ends(
     chain: &Chain,
     position: usize,
     path: Option<&PathRef>,
 ) -> Vec<SplitEnd> {
-    if path.is_some() {
+    let Some(list) = list_at(chain, path) else {
+        return Vec::new();
+    };
+    let position = position.min(list.len());
+    let is_y = |b: &AudioBlock| matches!(&b.kind, AudioBlockKind::Split(s) if s.end == SplitEnd::Y);
+    if list[..position].iter().any(is_y) {
         return Vec::new();
     }
-    let mix_at = find_split_with_end(&chain.blocks, SplitEnd::Mix).map(|(at, _)| at);
-    let y_at = find_split_with_end(&chain.blocks, SplitEnd::Y).map(|(at, _)| at);
-    let mut ends = Vec::new();
-    if mix_at.is_none() && y_at.is_none_or(|y| position <= y) {
-        ends.push(SplitEnd::Mix);
-    }
-    let block_follows = chain
-        .blocks
-        .iter()
-        .skip(position)
-        .any(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
-    if y_at.is_none() && mix_at.is_none_or(|mix| position > mix) && !block_follows {
+    let top_level = path.is_none();
+    let block_follows = list[position..].iter().any(|b| {
+        !(top_level && matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+    });
+    let mut ends = vec![SplitEnd::Mix];
+    if !block_follows {
         ends.push(SplitEnd::Y);
     }
     ends

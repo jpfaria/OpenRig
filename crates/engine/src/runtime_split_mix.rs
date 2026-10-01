@@ -1,39 +1,60 @@
 //! Responsibility: computes the per-sample gains a split applies to its paths.
 //!
-//! Pure numbers, no engine types (#328, spec §1.2). Levels and master are
-//! linear gains (`x/100` of the knob); balance and pan run −50…+50.
+//! Pure numbers, no engine types (#328, spec §1.2, §11.2). Levels and master
+//! are linear gains (`x/100` of the knob); balance and pan run −50…+50. Every
+//! path has its own split side (level, balance) and mixer side (level, pan,
+//! polarity); the master stage runs once on the sum.
 
 /// Where a balance or pan knob reaches its end stop.
 pub const PAN_EDGE: f32 = 50.0;
 
-/// The split and mixer knobs as the audio thread uses them.
+/// One path's knobs as the audio thread uses them.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SplitKnobValues {
-    pub dual_mono: bool,
-    pub level_to_a: f32,
-    pub level_to_b: f32,
-    pub balance_a: f32,
-    pub balance_b: f32,
-    pub mix_level_a: f32,
-    pub mix_level_b: f32,
-    pub mix_pan_a: f32,
-    pub mix_pan_b: f32,
-    pub mix_b_invert: bool,
-    pub mix_master: f32,
-    pub mix_master_sum: bool,
+pub struct PathKnobs {
+    pub level_to: f32,
+    pub balance: f32,
+    pub mix_level: f32,
+    pub mix_pan: f32,
+    pub invert: bool,
 }
 
-impl SplitKnobValues {
-    /// Y → A/B: the paths meet at unity; the mixer knobs do not apply.
+/// The split-wide knobs as the audio thread uses them.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MixKnobs {
+    pub dual_mono: bool,
+    pub master: f32,
+    pub master_sum: bool,
+}
+
+impl PathKnobs {
+    /// A path that reaches and leaves the split at unity, centred, normal.
+    pub const fn neutral() -> Self {
+        Self {
+            level_to: 1.0,
+            balance: 0.0,
+            mix_level: 1.0,
+            mix_pan: 0.0,
+            invert: false,
+        }
+    }
+
+    /// Y: the paths meet at unity; the mixer knobs do not apply.
     pub fn with_neutral_mixer(self) -> Self {
         Self {
-            mix_level_a: 1.0,
-            mix_level_b: 1.0,
-            mix_pan_a: 0.0,
-            mix_pan_b: 0.0,
-            mix_b_invert: false,
-            mix_master: 1.0,
-            mix_master_sum: false,
+            mix_level: 1.0,
+            mix_pan: 0.0,
+            invert: false,
+            ..self
+        }
+    }
+}
+
+impl MixKnobs {
+    /// Y: the master stage does not apply.
+    pub fn with_neutral_mixer(self) -> Self {
+        Self {
+            master: 1.0,
+            master_sum: false,
             ..self
         }
     }
@@ -59,40 +80,38 @@ fn balance_pick(frame: [f32; 2], balance: f32) -> f32 {
     frame[0] * (1.0 - right) + frame[1] * right
 }
 
+/// What one path receives from one bus frame: Mode I = the bus × level,
+/// Mode II = the dual-mono channel its balance picks × level.
 #[inline]
-fn path_input(frame: [f32; 2], dual_mono: bool, balance: f32, level: f32) -> [f32; 2] {
-    if dual_mono {
-        let sample = balance_pick(frame, balance) * level;
+pub fn path_input(frame: [f32; 2], path: &PathKnobs, mix: &MixKnobs) -> [f32; 2] {
+    if mix.dual_mono {
+        let sample = balance_pick(frame, path.balance) * path.level_to;
         [sample, sample]
     } else {
-        [frame[0] * level, frame[1] * level]
+        [frame[0] * path.level_to, frame[1] * path.level_to]
     }
 }
 
-/// What each path receives from one bus frame: Mode I = the bus × level,
-/// Mode II = the dual-mono channel its balance picks × level.
+/// Add one path's output to the mixer sum through its pan, level and
+/// polarity.
 #[inline]
-pub fn split_inputs(frame: [f32; 2], knobs: &SplitKnobValues) -> ([f32; 2], [f32; 2]) {
-    (
-        path_input(frame, knobs.dual_mono, knobs.balance_a, knobs.level_to_a),
-        path_input(frame, knobs.dual_mono, knobs.balance_b, knobs.level_to_b),
-    )
+pub fn accumulate_path(acc: &mut [f32; 2], out: [f32; 2], path: &PathKnobs) {
+    let (left, right) = pan_gains(path.mix_pan);
+    let gain = if path.invert {
+        -path.mix_level
+    } else {
+        path.mix_level
+    };
+    acc[0] += out[0] * left * gain;
+    acc[1] += out[1] * right * gain;
 }
 
-/// The mixer: per-path balance and level, B polarity, master, optional
-/// master sum to dual mono.
+/// The master stage on the mixer sum, with the optional sum to dual mono.
 #[inline]
-pub fn mix_frame(a: [f32; 2], b: [f32; 2], knobs: &SplitKnobValues) -> [f32; 2] {
-    let (a_left, a_right) = pan_gains(knobs.mix_pan_a);
-    let (b_left, b_right) = pan_gains(knobs.mix_pan_b);
-    let b_gain = if knobs.mix_b_invert {
-        -knobs.mix_level_b
-    } else {
-        knobs.mix_level_b
-    };
-    let left = (a[0] * a_left * knobs.mix_level_a + b[0] * b_left * b_gain) * knobs.mix_master;
-    let right = (a[1] * a_right * knobs.mix_level_a + b[1] * b_right * b_gain) * knobs.mix_master;
-    if knobs.mix_master_sum {
+pub fn finish_mix(acc: [f32; 2], mix: &MixKnobs) -> [f32; 2] {
+    let left = acc[0] * mix.master;
+    let right = acc[1] * mix.master;
+    if mix.master_sum {
         let mid = (left + right) * 0.5;
         [mid, mid]
     } else {

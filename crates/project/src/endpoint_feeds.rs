@@ -3,53 +3,55 @@
 //! #328 — the input and output nodes of a chain's graph each carry a checklist
 //! of the endpoints of the chain's own E/S (`Chain.disabled_endpoints`, copied
 //! from `RigInput`). Every endpoint is checked unless the node's list names
-//! it. A linear or Split → Mix chain has one output node; a chain holding a Y
-//! split, with or without a Mix before it, has two (path A's, path B's) and no
-//! chain output node. A reference to an endpoint the E/S no longer has matches
+//! it. A chain with no Y split anywhere has one output node; a chain holding a
+//! Y at any depth has one output node per Y leaf (spec §11.3) and no chain
+//! output node. A reference to an endpoint the E/S no longer has matches
 //! nothing, so it is ignored.
 
 use domain::io_binding::IoBinding;
 
-use crate::block::{has_y_split, AudioBlockKind};
+use crate::block::{y_leaves, AudioBlockKind, PathRef};
 use crate::chain::Chain;
 use crate::endpoint_disables::{EndpointNode, EndpointRef};
 
 /// Which output node of a chain sends to one tail endpoint of its E/S.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TailFeed {
     /// No node sends here: the endpoint is unchecked on every output node.
     Off,
     /// The chain output node (chains without a Y split).
     Chain,
-    /// The Y split's path output nodes that have the endpoint checked — at
-    /// least one of `a`, `b` is true.
-    Paths { a: bool, b: bool },
+    /// The Y leaves whose output node has the endpoint checked — never empty.
+    Leaves(Vec<PathRef>),
 }
 
 /// Whether the chain's input node reads head endpoint `endpoint` of E/S `io`.
 pub fn head_input_enabled(chain: &Chain, io: &str, endpoint: &str) -> bool {
     chain
         .disabled_endpoints
-        .is_enabled(EndpointNode::Input, &endpoint_ref(io, endpoint))
+        .is_enabled(&EndpointNode::Input, &endpoint_ref(io, endpoint))
 }
 
 /// Which output node of `chain` sends to tail endpoint `endpoint` of E/S `io`.
 pub fn tail_feed(chain: &Chain, io: &str, endpoint: &str) -> TailFeed {
     let reference = endpoint_ref(io, endpoint);
     let disables = &chain.disabled_endpoints;
-    if !has_y_split(&chain.blocks) {
-        return if disables.is_enabled(EndpointNode::Output, &reference) {
+    let leaves = y_leaves(&chain.blocks);
+    if leaves.is_empty() {
+        return if disables.is_enabled(&EndpointNode::Output, &reference) {
             TailFeed::Chain
         } else {
             TailFeed::Off
         };
     }
-    let a = disables.is_enabled(EndpointNode::PathAOutput, &reference);
-    let b = disables.is_enabled(EndpointNode::PathBOutput, &reference);
-    if a || b {
-        TailFeed::Paths { a, b }
-    } else {
+    let fed: Vec<PathRef> = leaves
+        .into_iter()
+        .filter(|leaf| disables.leaf_output_enabled(leaf, &reference))
+        .collect();
+    if fed.is_empty() {
         TailFeed::Off
+    } else {
+        TailFeed::Leaves(fed)
     }
 }
 

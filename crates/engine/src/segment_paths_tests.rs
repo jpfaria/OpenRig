@@ -1,22 +1,42 @@
 //! #328 — grouping a return's tail routes by the split paths they run.
 
+use domain::ids::BlockId;
+use project::block::PathRef;
+
 use super::{group_routes_by_paths, SegmentPaths};
+
+fn only(paths: &[usize]) -> SegmentPaths {
+    SegmentPaths::Only(
+        paths
+            .iter()
+            .map(|&path| PathRef {
+                split: BlockId("y".into()),
+                path,
+            })
+            .collect(),
+    )
+}
 
 #[test]
 fn routes_group_by_path_set_in_first_seen_order() {
-    let paths = [
-        SegmentPaths::B,
-        SegmentPaths::A,
-        SegmentPaths::B,
-        SegmentPaths::AB,
-    ];
+    let paths = [only(&[1]), only(&[0]), only(&[1]), only(&[0, 1])];
     assert_eq!(
         group_routes_by_paths(&[0, 1, 2, 3], &paths),
         vec![
-            (SegmentPaths::B, vec![0, 2]),
-            (SegmentPaths::A, vec![1]),
-            (SegmentPaths::AB, vec![3]),
+            (only(&[1]), vec![0, 2]),
+            (only(&[0]), vec![1]),
+            (only(&[0, 1]), vec![3]),
         ]
+    );
+}
+
+#[test]
+fn a_three_path_y_groups_each_leaf_set_on_its_own() {
+    let paths = [only(&[0, 2]), only(&[1]), only(&[0, 2])];
+    assert_eq!(
+        group_routes_by_paths(&[0, 1, 2], &paths),
+        vec![(only(&[0, 2]), vec![0, 2]), (only(&[1]), vec![1])],
+        "#328 §11.3: routes hearing the same leaves share one return pipeline"
     );
 }
 

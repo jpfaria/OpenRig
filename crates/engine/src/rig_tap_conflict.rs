@@ -26,7 +26,7 @@ pub(crate) fn input_taps(input: &RigInput, registry: &[IoBinding]) -> Vec<(Strin
             };
             if !input
                 .disabled_endpoints
-                .is_enabled(EndpointNode::Input, &endpoint)
+                .is_enabled(&EndpointNode::Input, &endpoint)
             {
                 continue;
             }

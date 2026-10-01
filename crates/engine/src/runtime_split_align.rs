@@ -1,35 +1,23 @@
-//! Responsibility: delays one split path so both paths meet in time.
+//! Responsibility: delays one split path so every path meets in time.
 //!
-//! Spec §4.3: summing two paths with different latency comb-filters. The
-//! shorter path is delayed by the difference in a ring preallocated at
-//! build; the longer path is never delayed, so the chain keeps its latency.
+//! Spec §4.3, §11.4: summing paths with different latency comb-filters. Each
+//! path is delayed up to the longest one in a ring preallocated at build; the
+//! longest path is never delayed, so the chain keeps its latency.
 
 use crate::runtime_audio_frame::AudioFrame;
 
 /// Longest alignment a split preallocates: 16384 samples ≈ 341 ms at 48 kHz.
 pub(crate) const MAX_ALIGN_SAMPLES: usize = 16_384;
 
-/// How far each path is delayed, and whether the cap cut the difference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct AlignPlan {
-    pub(crate) delay_a: usize,
-    pub(crate) delay_b: usize,
-    pub(crate) clamped: bool,
-}
-
-pub(crate) fn plan_alignment(latency_a: usize, latency_b: usize) -> AlignPlan {
-    let difference = latency_a.abs_diff(latency_b);
-    let applied = difference.min(MAX_ALIGN_SAMPLES);
-    let (delay_a, delay_b) = if latency_b > latency_a {
-        (applied, 0)
-    } else {
-        (0, applied)
-    };
-    AlignPlan {
-        delay_a,
-        delay_b,
-        clamped: difference > MAX_ALIGN_SAMPLES,
-    }
+/// The delay that lines a path of `latency` up with the `longest` one, and
+/// whether the cap cut it. No allocation: the audio thread calls it.
+#[inline]
+pub(crate) fn align_delay(longest: usize, latency: usize) -> (usize, bool) {
+    let difference = longest.saturating_sub(latency);
+    (
+        difference.min(MAX_ALIGN_SAMPLES),
+        difference > MAX_ALIGN_SAMPLES,
+    )
 }
 
 /// One path's delay line: a ring of stereo frames, sized at build.
