@@ -453,8 +453,10 @@ unchanged. This is the isolation law, one pipeline per output: nothing before
 the Y is shared between the outputs' runtimes, so **the CPU cost of the Mix and
 of every block before the Y counts once per Y output** (two outputs = two Mix
 passes, two amp pairs). A Mix knob edit or a Mix bypass reaches every Y output
-in place, and no Mix edit reopens streams: only the Y's per-output path sets
-enter `chain_structure_signature`.
+in place. A Mix path-structure edit (adding, reordering or swapping a path
+block, switching the end) changes the split's `model_identity`, which enters
+`chain_structure_signature`, so it reopens the chain's streams like any other
+structural edit; the Y's per-output path sets enter the signature too.
 
 On Linux with JACK-direct, one JACK client carries a chain's whole runtime.
 Every output route of that runtime (`ChainRuntimeState::output_route_count`)
