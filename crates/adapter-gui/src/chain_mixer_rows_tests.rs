@@ -80,6 +80,7 @@ fn the_master_row_shows_the_chain_volume_in_db_and_percent() {
 #[test]
 fn every_tab_gets_its_rows_from_the_chain() {
     let mut chain = project::chain::Chain {
+        disabled_endpoints: Default::default(),
         id: domain::ids::ChainId("c".into()),
         description: None,
         instrument: "electric_guitar".into(),

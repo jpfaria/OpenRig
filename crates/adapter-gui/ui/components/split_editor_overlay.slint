@@ -1,0 +1,250 @@
+// Responsibility: renders the split editor overlay.
+//
+// #328 (spec §5.1): a small root-level panel — not a PopupWindow, whose
+// content does not receive clicks (#749/#761) — with the split's or the
+// mixer's knobs drawn by the block editor's own grid. The split editor (kind
+// 0) also carries the Mix / Y switch (orchestrator decision 9) and the paths
+// row: one chip per path, with "+ path" (spec §11). State lives in
+// ChainGraphOverlayState; a click outside the card closes it.
+
+import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
+import { BlockParamGrid } from "block_param_grid.slint";
+
+// One half of the Mix / Y switch.
+component EndSegment inherits Rectangle {
+    in property <string> label;
+    in property <bool> lit;
+    callback clicked();
+    border-radius: 6px;
+    background: root.lit ? #2f6fed : (ta.has-hover ? #2b3340 : #1b2230);
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checked: root.lit;
+    accessible-action-default => { root.clicked(); }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Text {
+        text: root.label;
+        color: root.lit ? #ffffff : #d8e0ff;
+        font-size: 18px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// One path of the split: its letter, and a remove button when one may go.
+component PathChip inherits Rectangle {
+    in property <string> letter;
+    in property <bool> removable;
+    callback remove();
+    width: root.removable ? 64px : 40px;
+    border-radius: 6px;
+    background: #1b2230;
+    Text {
+        x: 12px;
+        width: 16px;
+        text: root.letter;
+        color: #d8e0ff;
+        font-size: 18px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    if root.removable : Rectangle {
+        x: parent.width - 32px;
+        y: (parent.height - 28px) / 2;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        background: remove-ta.has-hover ? #3a2430 : transparent;
+        accessible-role: button;
+        accessible-label: @tr("label-remove-path", root.letter);
+        accessible-action-default => { root.remove(); }
+        remove-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.remove(); }
+        }
+        Image {
+            x: (parent.width - 12px) / 2;
+            y: (parent.height - 12px) / 2;
+            width: 12px;
+            height: 12px;
+            source: @image-url("../modules/surrealism-ui/icons/close.svg");
+            colorize: remove-ta.has-hover ? #ff8a8a : #8a8aa2;
+        }
+    }
+}
+
+export component SplitEditorOverlay inherits Rectangle {
+    // One row per path (Rust places each knob by its tab_slot); a grid taller
+    // than the window scrolls instead of leaving the screen.
+    private property <int> cols: Math.max(1, ChainGraphOverlayState.split-editor-cols);
+    private property <length> cell: 96px;
+    private property <length> content-height: ChainGraphOverlayState.split-editor-rows * root.cell;
+    private property <length> chrome-height: 16px + 44px + 12px + root.end-switch-height + root.paths-height + 16px;
+    private property <length> grid-height: Math.max(root.cell, Math.min(root.content-height, root.height - 48px - root.chrome-height));
+    private property <bool> has-end-switch: ChainGraphOverlayState.split-editor-kind == 0;
+    private property <length> end-switch-height: root.has-end-switch ? 44px + 12px : 0px;
+    // The paths row: one chip per path plus "+ path" (split editor only).
+    private property <int> path-count: ChainGraphOverlayState.split-editor-paths.length;
+    private property <length> chip-width: ChainGraphOverlayState.split-editor-can-remove-path ? 64px : 40px;
+    private property <length> paths-width: root.path-count * (root.chip-width + 8px) + 104px;
+    private property <length> paths-height: root.has-end-switch ? 36px + 12px : 0px;
+
+    x: 0;
+    y: 0;
+    visible: ChainGraphOverlayState.split-editor-open;
+
+    backdrop := TouchArea {
+        clicked => { ChainGraphOverlayState.split-editor-open = false; }
+    }
+
+    if ChainGraphOverlayState.split-editor-open : Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: Math.max(root.cols * root.cell, 280px, root.has-end-switch ? root.paths-width : 0px) + 32px;
+        height: root.chrome-height + root.grid-height;
+        background: #111114;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #27272a;
+        drop-shadow-blur: 20px;
+        drop-shadow-color: #000000c0;
+
+        // Swallow clicks on the card so only the backdrop closes it.
+        TouchArea { }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+
+            HorizontalLayout {
+                height: 44px;
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: ChainGraphOverlayState.split-editor-title;
+                    color: #f1f4f8;
+                    font-size: 22px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    width: 88px;
+                    border-radius: 6px;
+                    background: close-ta.has-hover ? #2b3340 : #1b2230;
+                    accessible-role: button;
+                    accessible-label: @tr("btn-close");
+                    close-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { ChainGraphOverlayState.split-editor-open = false; }
+                    }
+                    Text {
+                        text: @tr("btn-close");
+                        color: #d8e0ff;
+                        font-size: 18px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            if root.has-end-switch : HorizontalLayout {
+                height: 44px;
+                spacing: 8px;
+                EndSegment {
+                    horizontal-stretch: 1;
+                    label: ChainGraphOverlayState.split-editor-end-mix-label;
+                    lit: !ChainGraphOverlayState.split-editor-end-y;
+                    clicked => {
+                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, false);
+                    }
+                }
+                end-y-ta := EndSegment {
+                    horizontal-stretch: 1;
+                    label: ChainGraphOverlayState.split-editor-end-y-label;
+                    lit: ChainGraphOverlayState.split-editor-end-y;
+                    clicked => {
+                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, true);
+                    }
+                }
+            }
+
+            if root.has-end-switch : HorizontalLayout {
+                height: 36px;
+                spacing: 8px;
+                alignment: start;
+                for letter[index] in ChainGraphOverlayState.split-editor-paths : PathChip {
+                    letter: letter;
+                    removable: ChainGraphOverlayState.split-editor-can-remove-path;
+                    remove => {
+                        ChainGraphOverlayState.split-editor-remove-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, index);
+                    }
+                }
+                Rectangle {
+                    width: 96px;
+                    border-radius: 6px;
+                    background: add-path-ta.has-hover ? #2b3340 : #1b2230;
+                    accessible-role: button;
+                    accessible-label: @tr("btn-add-path");
+                    accessible-action-default => {
+                        ChainGraphOverlayState.split-editor-add-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id);
+                    }
+                    add-path-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            ChainGraphOverlayState.split-editor-add-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id);
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 6px;
+                        alignment: center;
+                        Image {
+                            width: 14px;
+                            y: (parent.height - 14px) / 2;
+                            height: 14px;
+                            source: @image-url("../modules/surrealism-ui/icons/plus.svg");
+                            colorize: #d8e0ff;
+                        }
+                        Text {
+                            text: @tr("btn-add-path");
+                            color: #d8e0ff;
+                            font-size: 18px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            BlockParamGrid {
+                height: root.grid-height;
+                param-items: ChainGraphOverlayState.split-editor-items;
+                show-params: true;
+                show-overlays: false;
+                has-param-tabs: true;
+                has-eq-widget: false;
+                // Centred: the paths row can make the card wider than the grid.
+                grid-area-x: Math.max(0px, (self.width - root.cols * root.cell) / 2);
+                grid-cell-w: root.cell;
+                grid-cols: root.cols;
+                grid-base-y: 0px;
+                grid-row-stride: root.cell;
+                content-height: root.content-height;
+                panel-text: #f1f4f8;
+                update-number(path, value) => {
+                    ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                }
+                select-option(path, index) => {
+                    ChainGraphOverlayState.split-editor-option(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, index);
+                }
+                update-bool(path, value) => {
+                    ChainGraphOverlayState.split-editor-bool(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                }
+                pick-file(path) => { }
+            }
+        }
+    }
+}

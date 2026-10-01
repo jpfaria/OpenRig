@@ -64,6 +64,8 @@ fn parse_port_block(block: &str) -> Option<Lv2Port> {
         scale_points: parse_scale_points(block),
         range_steps: capture_after(block, "pprop:rangeSteps")
             .and_then(|raw| raw.parse::<u32>().ok()),
+        reports_latency: properties.contains("lv2:reportsLatency")
+            || capture_after(block, "lv2:designation").as_deref() == Some("lv2:latency"),
     })
 }
 

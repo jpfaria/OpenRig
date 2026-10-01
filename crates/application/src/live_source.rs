@@ -252,6 +252,14 @@ pub trait LiveSource {
         None
     }
 
+    /// #979: the chains whose input arrives stepped — the buffer-seam pattern
+    /// the rig showed, cured only by switching the chain off and on.
+    ///
+    /// Empty when this frontend hosts no audio runtime.
+    fn stepped_input_chains(&self) -> Vec<String> {
+        Vec::new()
+    }
+
     /// The audio device listing, from the frontend that owns a host.
     ///
     /// Three states, deliberately: `None` ⇒ this frontend hosts no device

@@ -66,6 +66,7 @@ fn rig_with_a_looper() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: vec![LooperConfig::new(1)],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         },
     );

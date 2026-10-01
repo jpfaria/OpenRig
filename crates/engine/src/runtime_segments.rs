@@ -29,7 +29,7 @@ use domain::io_binding::IoBinding;
 use crate::runtime_endpoints::{resolve_chain_io_by_binding, InputEntry, OutputEntry};
 pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub(crate) use crate::segment_taps::taps_for_segment;
-pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
+pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentPaths, SegmentTap};
 
 /// Split a chain into segments at enabled Insert block boundaries.
 ///
@@ -50,6 +50,13 @@ pub(crate) fn split_chain_into_segments(
     effective_outs: &[OutputEntry],
     registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
+    // #328: the input node's checklist left the chain no head input and no mid
+    // `Input` either — it has no source, so it builds nothing. An insert's
+    // return must never stand in for the missing input (the loop would feed
+    // itself).
+    if project::endpoint_feeds::inputs_all_unchecked(chain, registry) {
+        return Vec::new();
+    }
     // Find positions of enabled Insert blocks in chain.blocks. Only an insert
     // whose binding resolves on BOTH sides is a boundary (#881): the send and
     // return shims are what `effective_outputs` / `effective_inputs` append, so
@@ -78,6 +85,8 @@ pub(crate) fn split_chain_into_segments(
     let heads = |v: &[usize]| v[..regular_input_count.min(v.len())].to_vec();
 
     let (tail_routes, mid_taps, resolved_output_count) = classify_output_routes(chain, registry);
+    // #328: the split paths each route runs (a Y → A/B chain's outputs).
+    let route_paths = crate::runtime_graph::segment_paths::route_paths(chain, registry);
 
     if insert_positions.is_empty() {
         return segments_without_inserts(
@@ -91,6 +100,7 @@ pub(crate) fn split_chain_into_segments(
             &mid_taps,
             resolved_output_count,
             registry,
+            &route_paths,
         );
     }
 
@@ -120,6 +130,7 @@ pub(crate) fn split_chain_into_segments(
         resolved_output_count,
         &crate::insert_return_routes::return_tail_routes(&tail_routes, effective_outs),
         &mid_taps,
+        &route_paths,
     )
 }
 
@@ -191,6 +202,7 @@ fn segments_without_inserts(
     mid_taps: &[MidOutputTap],
     resolved_output_count: usize,
     registry: &[IoBinding],
+    route_paths: &[SegmentPaths],
 ) -> Vec<ChainSegment> {
     // Every effect block (NOT an I/O / Insert port). Disabled effect blocks
     // are KEPT — they become Bypass nodes so a live enable/disable is a
@@ -283,6 +295,11 @@ fn segments_without_inserts(
                 mid_output_taps: Vec::new(),
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
+                // #328: the leaves whose node checks this output (none before the split).
+                paths: route_paths
+                    .get(out_entry_idx)
+                    .cloned()
+                    .unwrap_or(SegmentPaths::None),
             });
         }
     }
@@ -305,6 +322,7 @@ fn segments_with_inserts(
     resolved_output_count: usize,
     tail_routes: &[usize],
     mid_taps: &[MidOutputTap],
+    route_paths: &[SegmentPaths],
 ) -> Vec<ChainSegment> {
     let mut segments = Vec::new();
     // Insert return entries start after regular inputs; the sends start after
@@ -358,6 +376,7 @@ fn segments_with_inserts(
                     mid_output_taps: taps.clone(),
                     split_mono_sibling_count: split_positions.get(i).copied().unwrap_or(None),
                     entry_group: entry_groups.get(i).copied().unwrap_or(i),
+                    paths: SegmentPaths::None,
                 });
             }
         } else {
@@ -377,6 +396,7 @@ fn segments_with_inserts(
                     .get(prev_return_idx)
                     .copied()
                     .unwrap_or(prev_return_idx),
+                paths: SegmentPaths::None,
             });
         }
 
@@ -405,21 +425,35 @@ fn segments_with_inserts(
     );
 
     let last_return_idx = return_idx(insert_positions.len() - 1);
-    segments.push(ChainSegment {
-        input: effective_ins[last_return_idx].clone(),
-        cpal_input_index: cpal_indices
-            .get(last_return_idx)
-            .copied()
-            .unwrap_or(last_return_idx),
-        block_indices,
-        output_route_indices: tail_routes.to_vec(),
-        mid_output_taps: taps,
-        split_mono_sibling_count: None,
-        entry_group: entry_groups
-            .get(last_return_idx)
-            .copied()
-            .unwrap_or(last_return_idx),
-    });
+    // #328: a Y split runs different leaves per output, so the return
+    // feeds one pipeline per leaf set; a split-free chain is one group with
+    // every tail route, exactly as before. Mid taps ride the first pipeline
+    // only — two would write the tap's route twice.
+    let mut taps = Some(taps);
+    for (paths, routes) in
+        crate::runtime_graph::segment_paths::group_routes_by_paths(tail_routes, route_paths)
+    {
+        segments.push(ChainSegment {
+            input: effective_ins[last_return_idx].clone(),
+            cpal_input_index: cpal_indices
+                .get(last_return_idx)
+                .copied()
+                .unwrap_or(last_return_idx),
+            block_indices: block_indices.clone(),
+            output_route_indices: routes,
+            mid_output_taps: taps.take().unwrap_or_default(),
+            split_mono_sibling_count: None,
+            entry_group: entry_groups
+                .get(last_return_idx)
+                .copied()
+                .unwrap_or(last_return_idx),
+            paths,
+        });
+    }
 
     segments
 }
+
+#[cfg(test)]
+#[path = "issue_328_y_segments_tests.rs"]
+mod issue_328_y_segments_tests;

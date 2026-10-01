@@ -112,6 +112,7 @@ fn insert_nam_block(session: &ProjectSession, chain: &ChainId, id: &str) -> Bloc
             chain: chain.clone(),
             block,
             position,
+            path: None,
         }))
         .expect("InsertPrebuiltBlock");
     BlockId(id.into())

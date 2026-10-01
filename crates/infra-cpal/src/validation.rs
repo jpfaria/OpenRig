@@ -66,7 +66,7 @@ pub(crate) fn validate_channels_against_devices(
     registry: &[IoBinding],
 ) -> Result<()> {
     for chain in &project.chains {
-        if !chain.enabled {
+        if !engine::runtime_graph::chain_plays(chain, registry) {
             continue;
         }
         validate_chain_channels_against_devices(host, chain, registry)?;

@@ -46,3 +46,29 @@ fn latency_is_constant() {
     let os = Oversampler2x::new();
     assert_eq!(os.latency_samples(), 7);
 }
+
+/// #328: a chain split aligns its paths with what a block reports, so the
+/// round trip must match the delay the impulse actually comes out with.
+#[test]
+fn round_trip_latency_matches_the_measured_impulse_delay() {
+    let mut os = Oversampler2x::new();
+    let response: Vec<f32> = (0..64)
+        .map(|n| {
+            let [a, b] = os.up(if n == 0 { 1.0 } else { 0.0 });
+            os.down([a, b])
+        })
+        .collect();
+    let energy: f32 = response.iter().map(|v| v * v).sum();
+    let centroid: f32 = response
+        .iter()
+        .enumerate()
+        .map(|(n, v)| n as f32 * v * v)
+        .sum::<f32>()
+        / energy;
+    let reported = Oversampler2x::new().round_trip_latency_samples() as f32;
+    assert!(
+        (reported - centroid).abs() <= 0.5 + 1e-3,
+        "reported {reported} samples, the impulse comes out at {centroid:.2}"
+    );
+    assert_eq!(Oversampler2x::new().round_trip_latency_samples(), 15);
+}

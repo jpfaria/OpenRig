@@ -16,6 +16,7 @@ fn port(index: usize, role: Lv2PortRole) -> Lv2Port {
         is_enumeration: false,
         scale_points: Vec::new(),
         range_steps: None,
+        reports_latency: false,
     }
 }
 

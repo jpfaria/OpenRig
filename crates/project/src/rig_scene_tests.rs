@@ -17,6 +17,7 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

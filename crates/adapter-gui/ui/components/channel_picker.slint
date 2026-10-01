@@ -12,8 +12,7 @@
 // intercepts a wheel gesture at `TouchPhase::Started` before its children
 // (i-slint-core `items/flickable.rs`), so the settings panel's scroll area owns
 // the whole gesture and a nested list never sees the wheel: it could only be
-// moved by dragging its own scrollbar by hand. The selection is echoed above
-// the list so it stays readable while the page scrolls.
+// moved by dragging its own scrollbar by hand.
 
 import { ChannelOptionItem } from "../models.slint";
 
@@ -92,6 +91,9 @@ export component ChannelPicker inherits Rectangle {
     // Single-select (mono) draws radios; multi-select draws checkboxes.
     in property <bool> single-select: false;
     in property <string> empty-hint;
+    // #328: the endpoint checklist reuses this list; it counts endpoints, not
+    // channels. Default is the channel wording every existing picker shows.
+    in property <string> total-caption: @tr("label-channels-total", root.channels.length);
     callback toggled(int /* index */, bool /* selected */);
 
     private property <length> row-height: 34px;
@@ -116,48 +118,14 @@ export component ChannelPicker inherits Rectangle {
         padding: 8px;
         spacing: 4px;
 
-        // Selection echo — what is picked stays visible while the list scrolls.
+        // How many channels the device has; the checkboxes already show the pick.
         header := HorizontalLayout {
             height: 22px;
             padding-left: 4px;
             spacing: 0px;
-
-            Text {
-                text: @tr("label-channels-selected");
-                color: #71717a;
-                font-size: 18px;
-                vertical-alignment: center;
-            }
-            for ch in root.channels : Rectangle {
-                // The chip is ALWAYS built so the layout can measure it; an
-                // unselected channel just collapses to zero width. Under an
-                // `if` the chip reported no width at all and every selected
-                // chip drew on top of the previous one.
-                width: ch.selected ? chip.preferred-width + 6px : 0px;
-                clip: true;
-                chip := Rectangle {
-                    x: 6px;
-                    width: parent.width - 6px;
-                    background: #112540;
-                    border-radius: 4px;
-                    HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
-                        Text {
-                            text: ch.label;
-                            color: #60a5fa;
-                            font-size: 18px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
             Rectangle { horizontal-stretch: 1; }
-            // How many channels the device actually has — with 30 of them the
-            // scrollbar alone is too quiet an affordance.
             Text {
-                text: @tr("label-channels-total", root.channels.length);
+                text: root.total-caption;
                 color: #52525b;
                 font-size: 18px;
                 vertical-alignment: center;

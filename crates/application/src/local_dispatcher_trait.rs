@@ -80,6 +80,11 @@ impl CommandDispatcher for LocalDispatcher {
                 | ChainCommand::SetChainIoBindings { .. },
             ) => self.handle_chain_crud(cmd),
 
+            // #328: the endpoint checklist of the chain graph's I/O nodes.
+            Command::Chain(ChainCommand::SetChainEndpointEnabled { .. }) => {
+                self.handle_chain_endpoint_enabled(cmd)
+            }
+
             Command::Chain(
                 ChainCommand::MoveChainUp { .. }
                 | ChainCommand::MoveChainDown { .. }
@@ -310,6 +315,9 @@ impl CommandDispatcher for LocalDispatcher {
             // #323: per-chain loopers (membership + params persisted; the
             // transport is runtime state and travels as an event).
             Command::Looper(_) => self.handle_looper(cmd),
+
+            // #328: the chain's splits — create, switch Mix/Y, remove.
+            Command::Split(_) => self.handle_split(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::IoBinding(

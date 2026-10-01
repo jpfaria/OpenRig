@@ -379,6 +379,107 @@ openrig://ids` reads back);
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
 to the legacy entries path.
 
+### Endpoint checklist
+
+The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in `project.yaml`, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs` and `outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name — and `path_outputs`, one `{ split, path, disabled }` entry per Y leaf that has something unchecked). Files saved before §11 with `path_a_outputs`/`path_b_outputs` load them as paths 0 and 1 of the chain's Y.
+
+`resolve_chain_ports` applies it before anything else sees the chain's I/O, so an unchecked endpoint opens no stream, builds no segment and claims no capture tap:
+
+- a head input is kept while the input node has it checked;
+- a tail output is kept while the chain output node has it checked — or, on a chain with Y leaves (which has no chain output node), while any leaf's output node does;
+- mid `Input`/`Output` ports are not on the checklist.
+
+The input-conflict detectors agree on it: the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.yaml` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
+
+Unchecking **every** input (with no mid `Input`) or **every** output (with no
+mid `Output`) is allowed: the chain simply has nothing to play. The engine does
+not invent its legacy fallback endpoint for it (`effective_inputs` /
+`effective_outputs` keep that fallback for a chain that selects no E/S), and
+with no input it builds no segment at all — an insert's return must never stand
+in for the missing input.
+
+The stream layer treats such a chain as switched off: the graph, the input-tap
+claims and every activation gate read one rule,
+`engine::runtime_graph::chain_plays`. Its streams die like a switch-off,
+it claims no input channel another chain wants, and it never fails the
+activation of the other chains. The rig runtime (`RigRuntime::build` /
+`enable_input`) reads the same rule, so its tap detector agrees.
+
+In the chains screen (desktop), clicking a chain graph's input node — or its output node, or on a
+chain with Y leaves a leaf's own output node — opens this checklist as a root-level panel: every input (or
+output) endpoint of the chain's E/S, checked unless that node leaves it out. Each click dispatches
+`SetChainEndpointEnabled` for that node and that endpoint and resyncs the chain; an unchecked
+endpoint stays listed so it can be checked again. The node's label names its checked endpoints
+(`None` when every one is off).
+
+Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
+
+### Y outputs
+
+A chain with a Y split keeps the stream model above: one segment per (input ×
+output) pair (`split_chain_into_segments`). A **leaf** is one path of a Y that
+holds no further Y (`project::block::y_leaves`), at any depth. Every leaf has
+its own output node; the segment of output `O` runs the shared blocks and then
+the leaves whose output node has `O` checked — its `ChainSegment.paths`
+(`segment_paths::route_paths`, `SegmentPaths::Only(leaves)`). Every leaf on one
+output is **one** segment; they are summed inside it, time-aligned, never by
+two segments on one route. An output no leaf checks is no port, so it has no
+route and no segment. The pairing is unchanged: a head input still pairs
+only with its own E/S's outputs, so a leaf can only reach outputs of the E/S
+whose input feeds it.
+
+With an insert cutting the shared blocks, the insert's return feeds one
+pipeline per distinct leaf set (routes that run the same leaves share it). A mid
+`Output` after the insert rides only the first of them, so its route is still
+written once.
+
+The builder then shapes every Y, per segment, into the split that segment runs
+(`split_segment_view`): a Split → Mix of only the paths leading to its leaves,
+with a neutral mixer — each running path at unity, centred, not inverted,
+master at unity, no sum — and every other path empty at level zero. One path:
+the output carries exactly that path, never delayed (an empty path has no
+latency). Several: their unity sum, time-aligned by the Split → Mix code. A Y
+nested at any depth is shaped the same way; a Mix keeps its own knobs. The Y's
+own knobs (mode, level into each path, balance) apply; its mixer knobs are
+ignored, since a Y has no mixer. A bypassed Y passes the signal once to every
+checked output. An offline render (no per-output routing) hears every leaf.
+
+A route's convolution cushion counts only the paths its segment
+runs: another leaf's cab does not deepen the cushion — and so the latency — of
+an output it does not feed.
+
+`chain_structure_signature` carries each output's leaf set, so checking or
+unchecking a leaf on an output that stays open is a structural edit: the chain
+gets brand-new streams, never an in-place knob-style rebuild. On
+Linux/JACK the structure signature is not consulted; there the edit is
+an in-place rebuild, which already runs the new leaf sets.
+
+**Splits before and around a Y.** A Mix may sit before a Y, inside a Y path, or
+contain a Y-free subtree; every split before a leaf is part of what that leaf's
+outputs run. So the segment of every output runs every Mix and every block on
+the way to its leaves; `split_segment_view` reshapes only the Ys. This is the
+isolation law, one pipeline per output: nothing before a Y is shared between
+the outputs' runtimes, so **the CPU cost of every block before a leaf counts
+once per output that leaf feeds** (two outputs = two Mix passes, two amp
+pairs). The app sets no cap. A Mix knob edit or a Mix bypass reaches every
+output in place. A path-structure edit (adding, removing or reordering a path
+or a path block, switching the end) changes the split's `model_identity`, which
+enters `chain_structure_signature`, so it reopens the chain's streams like any
+other structural edit.
+
+On Linux with JACK-direct, one JACK client carries a chain's whole runtime.
+Every output route of that runtime (`ChainRuntimeState::output_route_count`)
+gets **its own set of output ports**, one per device channel
+(`jack_route_ports`): route 0 keeps the historical `out_N` names, route `r`
+registers `route<r>_out_N`, and each port is connected to
+`system:playback_N`. The callback pops each route into its own ports; when two
+routes write the same channel, JACK sums them at the playback port — our code
+never adds two routes together. The callback used to pop route 0 only, which
+left a second Y leaf's output — and any chain's second output or insert send — silent.
+A single-output chain registers exactly the ports it always did. Adding or
+removing an output changes the stream signature's output count, so the client
+is rebuilt with the new port sets.
+
 ### Mid-chain ports
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it

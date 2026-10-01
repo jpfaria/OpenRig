@@ -194,9 +194,8 @@ pub(crate) fn persist_block_editor_draft(
             .get(draft.chain_index)
             .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
         let (block_id, block_enabled) = if let Some(block_index) = draft.block_index {
-            let block = chain
-                .blocks
-                .get(block_index)
+            // #328: an index inside a split path counts in that path.
+            let block = crate::chain_block_lists::block_at(chain, block_index, draft.path.as_ref())
                 .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-block")))?;
             (Some(block.id.clone()), block.enabled)
         } else {
@@ -309,7 +308,9 @@ pub(crate) fn persist_block_editor_draft(
                 .chains
                 .get(draft.chain_index)
                 .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-chain")))?;
-            draft.before_index.min(chain.blocks.len())
+            // #328: clamped to the list the draft's path names.
+            crate::chain_block_lists::insert_index(chain, draft.before_index, draft.path.as_ref())
+                .ok_or_else(|| anyhow!("{}", rust_i18n::t!("error-invalid-block")))?
         };
         log::info!(
             "[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'",
@@ -323,6 +324,7 @@ pub(crate) fn persist_block_editor_draft(
                 chain: chain_id.clone(),
                 block: new_block,
                 position: insert_index,
+                path: draft.path.clone(),
             }))
             .map_err(|e| anyhow!(e))?;
         log::info!("[persist] INSERT dispatched for chain_id='{}'", chain_id.0);

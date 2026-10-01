@@ -18,6 +18,10 @@ pub(crate) struct BlockEditorDraft {
     pub(crate) model_id: String,
     pub(crate) enabled: bool,
     pub(crate) is_select: bool,
+    /// #328: the split path `block_index` / `before_index` count in — `None`
+    /// for the chain's top level (spec §3). Every lookup goes through
+    /// `chain_block_lists::block_at` with it.
+    pub(crate) path: Option<project::block::PathRef>,
 }
 
 /// Transient state for editing an Insert block.

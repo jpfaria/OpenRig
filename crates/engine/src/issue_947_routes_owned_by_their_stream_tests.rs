@@ -47,6 +47,7 @@ fn two_guitar_chain() -> Chain {
         blocks: Vec::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

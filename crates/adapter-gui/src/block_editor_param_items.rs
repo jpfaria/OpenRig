@@ -111,8 +111,15 @@ pub(crate) fn block_parameter_items_for_model(
     let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
         return Vec::new();
     };
-    schema
-        .parameters
+    block_parameter_items_for_specs(&schema.parameters, params)
+}
+
+/// One row per spec (#328: the split editor has specs but no catalog model).
+pub(crate) fn block_parameter_items_for_specs(
+    specs: &[ParameterSpec],
+    params: &ParameterSet,
+) -> Vec<BlockParameterItem> {
+    specs
         .iter()
         .filter(|spec| spec.path != "enabled")
         .map(|spec| block_parameter_item(spec, params))

@@ -93,6 +93,7 @@ fn fresh_rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         },
     );

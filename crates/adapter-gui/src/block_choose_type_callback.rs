@@ -25,14 +25,14 @@ use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
+use crate::block_picker_items::insert_type_picker_items;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
-    block_model_picker_items, block_model_picker_labels, block_type_picker_items,
-    replace_project_chains,
+    block_model_picker_items, block_model_picker_labels, replace_project_chains,
 };
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{
@@ -128,7 +128,56 @@ pub(crate) fn wire(
             .as_ref()
             .map(|d| d.instrument.clone())
             .unwrap_or_else(|| block_core::DEFAULT_INSTRUMENT.to_string());
-        let block_types = block_type_picker_items(&instrument);
+        // #328: the same rows `begin_insert` published — a path hides I/O and
+        // Insert, and the split entries follow the block types.
+        let path = block_editor_draft
+            .borrow()
+            .as_ref()
+            .and_then(|d| d.path.clone());
+        let block_types = insert_type_picker_items(&instrument, path.as_ref());
+        let split_pick = block_editor_draft.borrow().as_ref().and_then(|draft| {
+            crate::split_insert::split_pick(
+                &project_session,
+                draft,
+                index as usize,
+                block_types.len(),
+            )
+        });
+        if let Some(pick) = split_pick {
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
+            let devices_in = input_chain_devices.borrow();
+            let devices_out = output_chain_devices.borrow();
+            let rows = crate::graph_gesture_actions::RowsTarget {
+                model: &project_chains,
+                inputs: &devices_in,
+                outputs: &devices_out,
+            };
+            match crate::split_insert::add_split(&project_session, &pick, &rows) {
+                Ok(()) => {
+                    if let Some(session) = project_session.borrow().as_ref() {
+                        sync_project_dirty(
+                            &window,
+                            session,
+                            &saved_project_snapshot,
+                            &project_dirty,
+                        );
+                    }
+                }
+                Err(error) => {
+                    log::warn!("[block-picker] split refused: {error:?}");
+                    let err = match error {
+                        crate::graph_gesture_actions::GestureError::Failed(err) => err,
+                        other => format!("{other:?}"),
+                    };
+                    window.set_status_message(
+                        rust_i18n::t!("error-graph-action", err = err)
+                            .as_ref()
+                            .into(),
+                    );
+                }
+            }
+            return;
+        }
         let Some(block_type) = block_types.get(index as usize) else {
             return;
         };
@@ -174,6 +223,7 @@ pub(crate) fn wire(
                     kind: effect_type_str.to_string(),
                     model_id: block_core::constants::IO_PORT_MODEL.to_string(),
                     position: before_index,
+                    path: None,
                 }))
             {
                 log::error!("port block AddBlock dispatch error: {e}");
@@ -241,6 +291,7 @@ pub(crate) fn wire(
                     kind: "insert".to_string(),
                     model_id: "standard".to_string(),
                     position: before_index,
+                    path: None,
                 }))
             {
                 log::error!("insert block AddBlock dispatch error: {e}");
@@ -357,11 +408,11 @@ pub(crate) fn wire(
             // knob overlays and #780 parameter tabs from `editor_data`; the
             // block is created only on save (persist inserts when index is None).
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
-            let (chain_index, before_index) = block_editor_draft
+            let (chain_index, before_index, block_path) = block_editor_draft
                 .borrow()
                 .as_ref()
-                .map(|d| (d.chain_index, d.before_index))
-                .unwrap_or((0, 0));
+                .map(|d| (d.chain_index, d.before_index, d.path.clone()))
+                .unwrap_or((0, 0, None));
             let editor_data = BlockEditorData {
                 effect_type: model.effect_type.to_string(),
                 model_id: model.model_id.to_string(),
@@ -391,6 +442,7 @@ pub(crate) fn wire(
                 enabled: true,
                 editor_data,
                 block_id: None,
+                path: block_path,
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
                 block_stream_reads: Rc::clone(&block_stream_reads),
@@ -409,6 +461,7 @@ pub(crate) fn wire(
                     open_block_windows.borrow_mut().push(BlockWindow {
                         chain_index,
                         block_index: usize::MAX,
+                        path: None,
                         window: win,
                         stream_timer,
                     });

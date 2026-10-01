@@ -1,0 +1,121 @@
+// Responsibility: hosts chain graph rows for render checks.
+//
+// #328 TEST-ONLY: three ChainRowGraph rows with fixed data — a linear chain,
+// a Split → Mix and a Y → A/B — for `tools/slint-render` PNGs and the headless
+// interaction tests. Imported by app-window.slint only so slint-build emits
+// the Rust type of the Split → Mix row; never shown in the running app.
+
+import { ChainRowGraph } from "../pages/chain_row_graph.slint";
+import "../fonts/BebasNeue.ttf";
+
+export component ChainRowGraphLinearHarness inherits Window {
+    width: 760px;
+    height: 150px;
+    background: #040708;
+    ChainRowGraph {
+        x: 18px;
+        y: 20px;
+        width: 724px;
+        height: 108px;
+        columns: 5;
+        chain-index: 0;
+        nodes: [
+            { id: "__io_input", label: "In 1, In 2", category: "input", kind: "io_input", fill: #1e8aff, border: #1359a5, layout_x: 50px, layout_y: 50px },
+            { id: "od", label: "TS9", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 182px, layout_y: 50px,
+              block: { kind: "gain", icon_kind: "gain", type_label: "GAIN", label: "ts9", enabled: true, accent_color: #d04a3a, display_name: "TS9", backend_label: "NATIVE" } },
+            { id: "amp", label: "Plexi", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 314px, layout_y: 50px,
+              block: { kind: "amp", icon_kind: "amp", type_label: "AMP", label: "plexi", enabled: true, accent_color: #4a7fd0, display_name: "Plexi", backend_label: "NAM" } },
+            { id: "rev", label: "Hall", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 446px, layout_y: 50px, bypass: true,
+              block: { kind: "reverb", icon_kind: "reverb", type_label: "REVERB", label: "hall", enabled: false, accent_color: #3aa86a, display_name: "Hall", backend_label: "NATIVE" } },
+            { id: "__io_output", label: "Main L/R", category: "output", kind: "io_output", fill: #ff8a1e, border: #a55913, layout_x: 578px, layout_y: 50px },
+        ];
+        edges: [
+            { from_id: "__io_input", to_id: "od", from_x: 50px, from_y: 50px, to_x: 182px, to_y: 50px },
+            { from_id: "od", to_id: "amp", from_x: 182px, from_y: 50px, to_x: 314px, to_y: 50px },
+            { from_id: "amp", to_id: "rev", from_x: 314px, from_y: 50px, to_x: 446px, to_y: 50px },
+            { from_id: "rev", to_id: "__io_output", from_x: 446px, from_y: 50px, to_x: 578px, to_y: 50px },
+        ];
+    }
+}
+
+export component ChainRowGraphSplitMixHarness inherits Window {
+    width: 980px;
+    height: 260px;
+    background: #040708;
+    ChainRowGraph {
+        x: 18px;
+        y: 20px;
+        width: 944px;
+        height: 216px;
+        columns: 7;
+        chain-index: 0;
+        markers-visible: true;
+        nodes: [
+            { id: "__io_input", label: "In 1", category: "input", kind: "io_input", fill: #1e8aff, border: #1359a5, layout_x: 50px, layout_y: 104px },
+            { id: "od", label: "TS9", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 182px, layout_y: 104px, selected: true,
+              block: { kind: "gain", icon_kind: "gain", type_label: "GAIN", label: "ts9", enabled: true, accent_color: #d04a3a, display_name: "TS9", backend_label: "NATIVE" } },
+            { id: "__split_1", label: "", category: "util", kind: "split", fill: #6a7483, border: #454b55, layout_x: 314px, layout_y: 104px },
+            { id: "a1", label: "Plexi", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 446px, layout_y: 50px,
+              block: { kind: "amp", icon_kind: "amp", type_label: "AMP", label: "plexi", enabled: true, accent_color: #4a7fd0, display_name: "Plexi", backend_label: "NAM" } },
+            { id: "b1", label: "AC30", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 446px, layout_y: 158px,
+              block: { kind: "amp", icon_kind: "amp", type_label: "AMP", label: "ac30", enabled: true, unavailable: true, accent_color: #4a7fd0, display_name: "AC30", backend_label: "NAM" } },
+            { id: "__merge_1", label: "", category: "util", kind: "mixer", fill: #6a7483, border: #454b55, layout_x: 578px, layout_y: 104px },
+            { id: "rev", label: "Hall", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 710px, layout_y: 104px,
+              block: { kind: "reverb", icon_kind: "reverb", type_label: "REVERB", label: "hall", enabled: true, accent_color: #3aa86a, display_name: "Hall", backend_label: "NATIVE" } },
+            { id: "__io_output", label: "Main L/R", category: "output", kind: "io_output", fill: #ff8a1e, border: #a55913, layout_x: 842px, layout_y: 104px },
+        ];
+        // What `insert_anchors` places on this chain (`od → split(A: a1 | B: b1) → rev`):
+        // stage 0 input · 1 od · 2 split · 3 rev · 4 output; one "+" per wire midpoint.
+        anchors: [
+            { id: "stage:1", layout_x: 116px, layout_y: 104px },
+            { id: "stage:2", layout_x: 248px, layout_y: 104px },
+            { id: "lane:2:0:0", layout_x: 380px, layout_y: 77px },
+            { id: "lane:2:0:1", layout_x: 512px, layout_y: 77px },
+            { id: "lane:2:1:0", layout_x: 380px, layout_y: 131px },
+            { id: "lane:2:1:1", layout_x: 512px, layout_y: 131px },
+            { id: "stage:3", layout_x: 644px, layout_y: 104px },
+            { id: "stage:4", layout_x: 776px, layout_y: 104px },
+        ];
+        edges: [
+            { from_id: "__io_input", to_id: "od", from_x: 50px, from_y: 104px, to_x: 182px, to_y: 104px },
+            { from_id: "od", to_id: "__split_1", from_x: 182px, from_y: 104px, to_x: 314px, to_y: 104px },
+            { from_id: "__split_1", to_id: "a1", from_x: 314px, from_y: 104px, to_x: 446px, to_y: 50px },
+            { from_id: "a1", to_id: "__merge_1", from_x: 446px, from_y: 50px, to_x: 578px, to_y: 104px },
+            { from_id: "__split_1", to_id: "b1", from_x: 314px, from_y: 104px, to_x: 446px, to_y: 158px },
+            { from_id: "b1", to_id: "__merge_1", from_x: 446px, from_y: 158px, to_x: 578px, to_y: 104px },
+            { from_id: "__merge_1", to_id: "rev", from_x: 578px, from_y: 104px, to_x: 710px, to_y: 104px },
+            { from_id: "rev", to_id: "__io_output", from_x: 710px, from_y: 104px, to_x: 842px, to_y: 104px },
+        ];
+    }
+}
+
+export component ChainRowGraphYHarness inherits Window {
+    width: 620px;
+    height: 260px;
+    background: #040708;
+    ChainRowGraph {
+        x: 18px;
+        y: 20px;
+        width: 584px;
+        height: 216px;
+        columns: 4;
+        chain-index: 0;
+        nodes: [
+            { id: "__io_input", label: "In 1", category: "input", kind: "io_input", fill: #1e8aff, border: #1359a5, layout_x: 50px, layout_y: 104px },
+            { id: "__split_1", label: "", category: "util", kind: "split", fill: #6a7483, border: #454b55, layout_x: 182px, layout_y: 104px },
+            { id: "a1", label: "Plexi", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 314px, layout_y: 50px,
+              block: { kind: "amp", icon_kind: "amp", type_label: "AMP", label: "plexi", enabled: true, accent_color: #4a7fd0, display_name: "Plexi", backend_label: "NAM" } },
+            { id: "__io_output_a", label: "Out 1", category: "output", kind: "io_output", fill: #ff8a1e, border: #a55913, layout_x: 446px, layout_y: 50px },
+            { id: "b1", label: "AC30", category: "other", kind: "block", fill: #8a94a2, border: #5a6069, layout_x: 314px, layout_y: 158px,
+              block: { kind: "amp", icon_kind: "amp", type_label: "AMP", label: "ac30", enabled: true, accent_color: #4a7fd0, display_name: "AC30", backend_label: "NAM" } },
+            { id: "__io_output_b", label: "Out 2", category: "output", kind: "io_output", fill: #ff8a1e, border: #a55913, layout_x: 446px, layout_y: 158px },
+        ];
+        edges: [
+            { from_id: "__io_input", to_id: "__split_1", from_x: 50px, from_y: 104px, to_x: 182px, to_y: 104px },
+            { from_id: "__split_1", to_id: "a1", from_x: 182px, from_y: 104px, to_x: 314px, to_y: 50px },
+            { from_id: "a1", to_id: "__io_output_a", from_x: 314px, from_y: 50px, to_x: 446px, to_y: 50px },
+            { from_id: "__split_1", to_id: "b1", from_x: 182px, from_y: 104px, to_x: 314px, to_y: 158px },
+            { from_id: "b1", to_id: "__io_output_b", from_x: 314px, from_y: 158px, to_x: 446px, to_y: 158px },
+        ];
+    }
+}
