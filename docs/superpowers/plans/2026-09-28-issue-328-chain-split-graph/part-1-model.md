@@ -88,7 +88,7 @@
 | `crates/infra-yaml/src/block_yaml.rs` | Modify (T2,T3) | maps a block document onto the audio block it describes | 501 |
 | `crates/infra-yaml/src/block_yaml_load.rs` | Modify (T3) | reads one audio block out of its YAML value | 194 |
 | `crates/infra-yaml/src/lib.rs` | Modify (T3) | routes the YAML crate's public surface | 69 |
-| `crates/infra-yaml/src/rig_yaml.rs` | Modify (T3) | maps the `project.openrig` document onto the rig it describes | 145 |
+| `crates/infra-yaml/src/project_file.rs` | Modify (T3) | maps the `project.yaml` document onto the rig it describes | 145 |
 | `crates/infra-yaml/src/preset_yaml.rs` | Modify (T3) | maps a chain preset file onto the blocks it carries | 138 |
 | `crates/infra-yaml/src/chain_yaml.rs` | Modify (T10) | maps a chain document onto the chain it describes | 114 |
 | `crates/engine/src/rig_projection.rs` | Modify (T10) | projects a rig into the chains the engine runs | 207 |
@@ -1061,7 +1061,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 1 T2 pushed (<hash>): A
 - Modify: `crates/infra-yaml/src/block_yaml.rs:9-12,215-216,230,301,494-499` (import, variant, `pub(crate)`, load arm, save arm)
 - Modify: `crates/infra-yaml/src/block_yaml_load.rs:190-193` (unreachable arm)
 - Modify: `crates/infra-yaml/src/lib.rs:15` (add `mod block_yaml_split;` after `mod block_yaml_save;`)
-- Modify: `crates/infra-yaml/src/rig_yaml.rs:11,33-58`
+- Modify: `crates/infra-yaml/src/project_file.rs:11,33-58`
 - Modify: `crates/infra-yaml/src/preset_yaml.rs:34-41,122`
 - Modify: `docs/projects/project-openrig-format.md` (model table, new section, versioning section)
 - Test: `crates/infra-yaml/tests/issue_328_split_yaml.rs`
@@ -1080,7 +1080,7 @@ Create `crates/infra-yaml/tests/issue_328_split_yaml.rs`:
 ```rust
 //! #328 — persistence of a chain split (spec §2).
 //!
-//! `project.openrig` carries the split through the derive (`kind: !Split`).
+//! `project.yaml` carries the split through the derive (`kind: !Split`).
 //! Chain presets and legacy project files carry it as `type: split` with
 //! positional path blocks, loaded as `<split>::a:<i>` / `<split>::b:<i>`. A
 //! document that holds a split is `version: 2`; a split-free one stays at
@@ -1313,7 +1313,7 @@ pub fn preset_format_version(_blocks: &[AudioBlock]) -> u32 {
 
 Add `pub mod format_version;` to `crates/project/src/lib.rs` after line 27 (`pub mod endpoint_ref;`).
 
-In `crates/infra-yaml/src/rig_yaml.rs` replace line 11 with
+In `crates/infra-yaml/src/project_file.rs` replace line 11 with
 
 ```rust
 use project::format_version::{project_format_version, MAX_READABLE_FORMAT_VERSION};
@@ -1325,7 +1325,7 @@ replace lines 36-42 with
 ```rust
     if file.version > MAX_READABLE_FORMAT_VERSION {
         return Err(anyhow!(
-            "project.openrig version {} is newer than this build supports \
+            "project.yaml version {} is newer than this build supports \
              (max {MAX_READABLE_FORMAT_VERSION}); please upgrade OpenRig",
             file.version
         ));
@@ -1335,7 +1335,7 @@ replace lines 36-42 with
 and replace lines 50-58 with
 
 ```rust
-/// Serialize a [`RigProject`] back to a `project.openrig` YAML string,
+/// Serialize a [`RigProject`] back to a `project.yaml` YAML string,
 /// stamping the format version its content needs (#328: `2` only when a
 /// preset holds a split, so a split-free project stays readable by builds
 /// that predate the split).
@@ -1344,7 +1344,7 @@ pub fn serialize_rig_project(project: &RigProject) -> Result<String> {
         version: project_format_version(project),
         project: project.clone(),
     };
-    serde_yaml::to_string(&file).context("failed to serialize project.openrig")
+    serde_yaml::to_string(&file).context("failed to serialize project.yaml")
 }
 ```
 
@@ -1369,7 +1369,7 @@ and line 122 with `version: project::format_version::preset_format_version(&pres
 Run: `nice -n 19 cargo test -p infra-yaml --test issue_328_split_yaml -j 2`
 Expected: 5 FAILED, 1 passed (`a_split_free_project_stays_version_1`):
 - `a_project_with_a_split_round_trips_and_is_stamped_version_2` — `a file holding a split is version 2, got: version: 1 …`
-- `this_build_reads_version_2_and_refuses_version_3` — `version 2 is readable: project.openrig version 2 is newer than this build supports (max 1); please upgrade OpenRig`
+- `this_build_reads_version_2_and_refuses_version_3` — `version 2 is readable: project.yaml version 2 is newer than this build supports (max 1); please upgrade OpenRig`
 - `a_chain_preset_writes_type_split_with_positional_path_blocks` — `save: block 'whatever': writing a split to a chain preset is not supported by this build`
 - `a_path_block_this_machine_cannot_load_drops_only_that_block` — `the split itself survives` / `left: 0` / `right: 1` (the unknown `type: split` is dropped whole by `load_audio_block_value`)
 - `a_legacy_project_file_reads_type_split` — `index out of bounds: the len is 0 but the index is 0`
@@ -1402,7 +1402,7 @@ pub fn blocks_need_split_format(blocks: &[AudioBlock]) -> bool {
         .any(|block| matches!(block.kind, AudioBlockKind::Split(_)))
 }
 
-/// The version a `project.openrig` document is written with.
+/// The version a `project.yaml` document is written with.
 pub fn project_format_version(rig: &RigProject) -> u32 {
     if rig
         .presets
@@ -1603,7 +1603,7 @@ In `crates/infra-yaml/src/block_yaml_load.rs` after the `AudioBlockYaml::Insert 
 - [ ] **Step 5: Run the test — GREEN**
 
 Run: `nice -n 19 cargo test -p infra-yaml -j 2`
-Expected: `issue_328_split_yaml` 6 passed; `rig_yaml_tests::serialize_writes_current_version`, `lib_misc_tests::preset_save_writes_version` and every other suite still pass (split-free docs stay at 1).
+Expected: `issue_328_split_yaml` 6 passed; `project_file_tests::serialize_writes_current_version`, `lib_misc_tests::preset_save_writes_version` and every other suite still pass (split-free docs stay at 1).
 
 - [ ] **Step 6: Document the format**
 
@@ -1624,10 +1624,10 @@ A preset may hold a `Split` block (`kind: !Split`). Blocks before it are shared 
 Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 ```
 
-- in "## Format versioning + backward-compat (#450)" replace the paragraph that starts "Both `project.openrig` and standalone preset files carry an explicit" and ends "— currently `1`):" with:
+- in "## Format versioning + backward-compat (#450)" replace the paragraph that starts "Both `project.yaml` and standalone preset files carry an explicit" and ends "— currently `1`):" with:
 
 ```markdown
-Both `project.openrig` and standalone preset files carry an explicit
+Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:`. A document is written with the lowest version that can
 hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
 or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
@@ -1639,7 +1639,7 @@ instead of failing inside serde:
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/format_version.rs crates/project/src/lib.rs crates/project/src/rig.rs crates/project/src/block/path_ref.rs crates/infra-yaml/src/block_yaml_split.rs crates/infra-yaml/src/block_yaml.rs crates/infra-yaml/src/block_yaml_load.rs crates/infra-yaml/src/lib.rs crates/infra-yaml/src/rig_yaml.rs crates/infra-yaml/src/preset_yaml.rs crates/infra-yaml/tests/issue_328_split_yaml.rs docs/projects/project-openrig-format.md
+git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 add crates/project/src/format_version.rs crates/project/src/lib.rs crates/project/src/rig.rs crates/project/src/block/path_ref.rs crates/infra-yaml/src/block_yaml_split.rs crates/infra-yaml/src/block_yaml.rs crates/infra-yaml/src/block_yaml_load.rs crates/infra-yaml/src/lib.rs crates/infra-yaml/src/project_file.rs crates/infra-yaml/src/preset_yaml.rs crates/infra-yaml/tests/issue_328_split_yaml.rs docs/projects/project-openrig-format.md
 git -C /Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.solvers/issue-328 commit -m "feat(#328): persist the split, version 2 only when a document holds one"
 ```
 
@@ -3596,7 +3596,7 @@ Create `crates/infra-yaml/tests/issue_328_endpoint_disables_yaml.rs`:
 
 ```rust
 //! #328 — the endpoint checklists are chain configuration (spec §1.3): they
-//! live on the rig input in `project.openrig`, survive save + reload, need no
+//! live on the rig input in `project.yaml`, survive save + reload, need no
 //! version bump, and a file written before them loads with every endpoint
 //! checked.
 
@@ -3701,7 +3701,7 @@ Replace the `#[serde(skip)]` field in `crates/project/src/rig.rs` with:
 - [ ] **Step 5: Run the test — GREEN**
 
 Run: `nice -n 19 cargo test -p infra-yaml -j 2`
-Expected: `issue_328_endpoint_disables_yaml` 1 passed; `rig_yaml_tests` (round trip determinism) green.
+Expected: `issue_328_endpoint_disables_yaml` 1 passed; `project_file_tests` (round trip determinism) green.
 
 - [ ] **Step 6: Document**
 
@@ -3907,7 +3907,7 @@ fn a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input() {
     assert_eq!(
         rig.inputs["g"].disabled_endpoints,
         unchecked(),
-        "the save path captures the checklist into project.openrig"
+        "the save path captures the checklist into project.yaml"
     );
 }
 
@@ -4036,7 +4036,7 @@ Expected: no output (a line listed only because a doc comment spells `Chain {` i
 Run: `nice -n 19 cargo test -p engine --test issue_328_endpoint_disables -j 2`, then `nice -n 19 cargo test -p project --test issue_328_endpoint_disables_capture -j 2`, then `nice -n 19 cargo test -p infra-yaml --test issue_328_endpoint_disables_yaml -j 2`, then `nice -n 19 cargo test -p adapter-gui --lib editing_a_chain_keeps_its_endpoint_checklists -j 2`
 Expected FAILs:
 - `the_projected_chain_carries_its_inputs_unchecked_endpoints` — `the synthetic chain carries the rig input's checklist` / `left: EndpointDisables { inputs: [], … }` / `right: EndpointDisables { inputs: [EndpointRef { io: "shared", endpoint: "in 2" }], … }`
-- `a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input` — `the save path captures the checklist into project.openrig`
+- `a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input` — `the save path captures the checklist into project.yaml`
 - `a_new_chain_saved_into_the_rig_keeps_its_checklist` — `left: EndpointDisables { … outputs: [] … }`
 - `a_checklist_edit_changes_the_legacy_serialization_the_dirty_check_compares` — `the dirty fingerprint must see a checklist edit, or Save answers 'no changes'`
 - `editing_a_chain_keeps_its_endpoint_checklists` — `renaming a chain must not re-check the endpoints its graph left out` / `left: EndpointDisables { inputs: [], … }`
@@ -4571,7 +4571,7 @@ In `docs/audio-config.md`, immediately before the line `### Mid-chain ports (iss
 ```markdown
 ### Endpoint checklist (issue #328)
 
-The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in `project.openrig`, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs`, `outputs`, `path_a_outputs`, `path_b_outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name).
+The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in `project.yaml`, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs`, `outputs`, `path_a_outputs`, `path_b_outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name).
 
 `resolve_chain_ports` applies it before anything else sees the chain's I/O, so an unchecked endpoint opens no stream, builds no segment and claims no capture tap:
 

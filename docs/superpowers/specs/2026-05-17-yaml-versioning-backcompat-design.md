@@ -1,4 +1,8 @@
-# YAML versioning + backward-compat (project.openrig & preset) — #450
+# YAML versioning + backward-compat (project.yaml & preset) — #450
+
+> **#1014:** the on-load conversion of chain-based project files described
+> below was removed. `project.yaml` is the only project format; a document
+> without the `project:` key fails to load.
 
 **Goal:** Make project and preset YAML forward/backward-compatible: an explicit
 `version` field, transparent legacy→rig migration on load, and a conversion
@@ -7,7 +11,7 @@ half of #450).
 
 ## Root cause
 
-Today neither `project.openrig` nor preset YAML carries a version. Legacy vs
+Today neither `project.yaml` nor preset YAML carries a version. Legacy vs
 new is guessed structurally; legacy projects never migrate on open; standalone
 legacy presets (`ChainBlocksPreset`) have **no** path into `RigPreset`. Every
 future schema change is fragile.
@@ -15,9 +19,7 @@ future schema change is fragile.
 ## Decisions (locked with user)
 
 1. Explicit `version: u32` at document top-level for both formats.
-2. Transparent migration on load (legacy `.yaml` → writes sibling
-   `project.openrig` + `.bak`, runs as rig; idempotent — reuses existing
-   `migrate_legacy_project_file`).
+2. ~~Transparent migration on load~~ — removed by #1014.
 
 ## Single source of truth
 
@@ -52,9 +54,6 @@ project:
   `version: CURRENT`.
 - `PresetYaml.version` (default); save writes it.
 - `load_legacy_preset_as_rig(path) -> (String /*name*/, RigPreset)`.
-- `load_project_any(path) -> RigProject`: try new format (version-checked);
-  else treat as legacy chain YAML and migrate transparently to a sibling
-  `project.openrig` (+ `.bak`, idempotent, validated).
 
 ## Audio safety
 
@@ -65,14 +64,12 @@ guard).
 ## Tasks (TDD, RED→GREEN)
 
 1. `RigPreset::from_legacy_blocks` + constants (project) — pure conversion test.
-2. project.openrig `version`: round-trips, missing⇒1, `>CURRENT`⇒Err,
+2. project.yaml `version`: round-trips, missing⇒1, `>CURRENT`⇒Err,
    existing golden round-trips unchanged.
 3. preset `version`: missing⇒1, `>CURRENT`⇒Err, save writes it.
 4. `load_legacy_preset_as_rig`: legacy preset file → RigPreset, blocks+volume
    preserved, scenes empty, name from name|id.
-5. `load_project_any`: new loads; legacy transparently migrates (sibling
-   `.openrig` + `.bak`); idempotent; doesn't clobber valid target;
-   `version > CURRENT` rejected.
+5. ~~On-load conversion of chain-based files~~ — removed by #1014.
 
-Docs updated same commit: `docs/project-openrig-format.md` (#449) +
+Docs updated same commit: `docs/project-format.md` (#449) +
 `docs/...migration` (#450).

@@ -148,7 +148,7 @@ orange-pi/
   README.md                          ← este arquivo
   customize-image.sh                 ← hook rodado dentro do chroot Armbian
   dtbo/
-    openrig-usbc-host.dts                ← overlay USB-C host-mode (Scarlett fix, issue #225)
+    openrig-usbc-host.dts                ← overlay USB-C host-mode (Scarlett fix)
   rootfs/
     etc/
       environment.d/50-slint.conf        ← SLINT_BACKEND=linuxkms

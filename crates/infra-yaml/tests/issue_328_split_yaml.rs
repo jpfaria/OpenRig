@@ -1,7 +1,7 @@
 //! #328 — persistence of a chain split (spec §2).
 //!
-//! `project.openrig` carries the split through the derive (`kind: !Split`).
-//! Chain presets and legacy project files carry it as `type: split` with
+//! The project file carries the split through the derive (`kind: !Split`).
+//! Chain presets carry it as `type: split` with
 //! positional path blocks, loaded as `<split>::p0:<i>` / `<split>::p1:<i>`. A
 //! document that holds a split is `version: 2`; a split-free one stays at
 //! `version: 1`, so an older build keeps opening it.
@@ -12,8 +12,8 @@ use std::fs;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use infra_yaml::{
-    load_chain_preset_file, parse_rig_project, save_chain_preset_file, serialize_rig_project,
-    ChainBlocksPreset, YamlProjectRepository,
+    load_chain_preset_file, parse_project, save_chain_preset_file, serialize_project,
+    ChainBlocksPreset,
 };
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, SplitBlock, SplitEnd};
 use project::param::ParameterSet;
@@ -102,7 +102,7 @@ fn split_of(block: &AudioBlock) -> &SplitBlock {
 #[test]
 fn a_project_with_a_split_round_trips_and_is_stamped_version_2() {
     let rig = rig_with(vec![delay("pre"), dual_amp_split("split"), delay("post")]);
-    let yaml = serialize_rig_project(&rig).expect("serialize");
+    let yaml = serialize_project(&rig).expect("serialize");
     assert!(
         yaml.contains("!Split"),
         "the split is a tagged kind, got:\n{yaml}"
@@ -111,7 +111,7 @@ fn a_project_with_a_split_round_trips_and_is_stamped_version_2() {
         yaml.contains("version: 2\n"),
         "a file holding a split is version 2, got:\n{yaml}"
     );
-    let back = parse_rig_project(&yaml).expect("a version 2 file loads in this build");
+    let back = parse_project(&yaml).expect("a version 2 file loads in this build");
     assert_eq!(
         back, rig,
         "every path block and knob survives the round trip"
@@ -137,9 +137,9 @@ fn a_project_with_a_mix_then_a_y_round_trips() {
         delay("mid"),
         cab_or_dry_y_split("y"),
     ]);
-    let yaml = serialize_rig_project(&rig).expect("serialize");
+    let yaml = serialize_project(&rig).expect("serialize");
     assert!(yaml.contains("version: 2\n"), "got:\n{yaml}");
-    let back = parse_rig_project(&yaml).expect("a Mix then a Y loads");
+    let back = parse_project(&yaml).expect("a Mix then a Y loads");
     assert_eq!(back, rig, "both splits and their paths survive");
     let blocks = &back.presets["p"].blocks;
     assert_eq!(split_of(&blocks[1]).paths[0][0].id.0, "mix::p0:0");
@@ -173,35 +173,8 @@ fn a_chain_preset_with_a_mix_then_a_y_loads_distinct_path_ids() {
 }
 
 #[test]
-fn a_legacy_project_file_reads_a_mix_then_a_y() {
-    let dir = tempdir().expect("temp dir");
-    let path = dir.path().join("legacy_mix_y.yaml");
-    let model = delay_model();
-    fs::write(
-        &path,
-        format!(
-            "chains:\n  - instrument: electric_guitar\n    blocks:\n      - type: split\n        end: mix\n        a:\n          - type: delay\n            model: {model}\n        b:\n          - type: delay\n            model: {model}\n      - type: delay\n        model: {model}\n      - type: split\n        end: y\n        a:\n          - type: delay\n            model: {model}\n        b: []\n"
-        ),
-    )
-    .expect("write");
-    let project = YamlProjectRepository { path }
-        .load_current_project()
-        .expect("legacy load");
-    let blocks = &project.chains[0].blocks;
-    assert_eq!(
-        split_of(&blocks[0]).paths[0][0].id.0,
-        "chain:0:block:0::p0:0"
-    );
-    assert_eq!(
-        split_of(&blocks[2]).paths[0][0].id.0,
-        "chain:0:block:2::p0:0"
-    );
-    assert_eq!(split_of(&blocks[2]).end, SplitEnd::Y);
-}
-
-#[test]
 fn a_split_free_project_stays_version_1() {
-    let yaml = serialize_rig_project(&rig_with(vec![delay("pre")])).expect("serialize");
+    let yaml = serialize_project(&rig_with(vec![delay("pre")])).expect("serialize");
     assert!(
         yaml.contains("version: 1\n") && !yaml.contains("version: 2"),
         "no split, no bump — older builds keep opening it, got:\n{yaml}"
@@ -210,9 +183,9 @@ fn a_split_free_project_stays_version_1() {
 
 #[test]
 fn this_build_reads_version_2_and_refuses_version_3() {
-    let v1 = serialize_rig_project(&rig_with(vec![delay("pre")])).expect("serialize");
-    parse_rig_project(&v1.replacen("version: 1", "version: 2", 1)).expect("version 2 is readable");
-    let err = parse_rig_project(&v1.replacen("version: 1", "version: 3", 1))
+    let v1 = serialize_project(&rig_with(vec![delay("pre")])).expect("serialize");
+    parse_project(&v1.replacen("version: 1", "version: 2", 1)).expect("version 2 is readable");
+    let err = parse_project(&v1.replacen("version: 1", "version: 3", 1))
         .unwrap_err()
         .to_string();
     assert!(
@@ -277,33 +250,13 @@ fn a_path_block_this_machine_cannot_load_drops_only_that_block() {
     assert_eq!(split.paths[1].len(), 1, "path B is untouched");
 }
 
-#[test]
-fn a_legacy_project_file_reads_type_split() {
-    let dir = tempdir().expect("temp dir");
-    let path = dir.path().join("legacy.yaml");
-    let model = delay_model();
-    fs::write(
-        &path,
-        format!(
-            "chains:\n  - instrument: electric_guitar\n    blocks:\n      - type: split\n        end: y\n        a:\n          - type: delay\n            model: {model}\n        b: []\n"
-        ),
-    )
-    .expect("write");
-    let project = YamlProjectRepository { path }
-        .load_current_project()
-        .expect("legacy load");
-    let split = split_of(&project.chains[0].blocks[0]);
-    assert_eq!(split.end, SplitEnd::Y);
-    assert_eq!(split.paths[0][0].id.0, "chain:0:block:0::p0:0");
-}
-
 /// A project saved before spec §11 holds its split as `a:` / `b:` lists with
 /// `_a` / `_b` knob keys (the owner's DIGITAL rig, 2026-10-01). It still opens:
 /// the lists become paths 0 and 1 and every knob keeps its value under the
 /// per-path key.
 #[test]
 fn a_project_saved_with_split_paths_a_and_b_still_opens() {
-    let one = serialize_rig_project(&rig_with(vec![delay("da")])).expect("serialize");
+    let one = serialize_project(&rig_with(vec![delay("da")])).expect("serialize");
     let start = one.find("      - id: da").expect("the delay block");
     let tail = &one[start..];
     let end = tail
@@ -344,7 +297,7 @@ fn a_project_saved_with_split_paths_a_and_b_still_opens() {
     let old = one
         .replacen("version: 1", "version: 2", 1)
         .replacen(&tail[..end], &split, 1);
-    let rig = parse_rig_project(&old).expect("a project with an a/b split opens");
+    let rig = parse_project(&old).expect("a project with an a/b split opens");
     let blocks = &rig.presets["p"].blocks;
     let s = split_of(&blocks[0]);
     let ids: Vec<Vec<&str>> = s

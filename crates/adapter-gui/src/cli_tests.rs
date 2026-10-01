@@ -5,14 +5,14 @@ use std::path::PathBuf;
 
 #[test]
 fn project_flag_takes_next_arg_as_path() {
-    let (p, _) = parse_cli_args_from(&["openrig", "--project", "/tmp/x.openrig"]);
-    assert_eq!(p, Some(PathBuf::from("/tmp/x.openrig")));
+    let (p, _) = parse_cli_args_from(&["openrig", "--project", "/tmp/x.yaml"]);
+    assert_eq!(p, Some(PathBuf::from("/tmp/x.yaml")));
 }
 
 #[test]
 fn project_flag_overrides_earlier_positional() {
-    let (p, _) = parse_cli_args_from(&["openrig", "old.yaml", "--project", "new.openrig"]);
-    assert_eq!(p, Some(PathBuf::from("new.openrig")));
+    let (p, _) = parse_cli_args_from(&["openrig", "old.yaml", "--project", "new.yaml"]);
+    assert_eq!(p, Some(PathBuf::from("new.yaml")));
 }
 
 #[test]
@@ -28,23 +28,23 @@ fn project_flag_ignores_removed_auto_save_flag() {
         "openrig",
         "--auto-save",
         "--project",
-        "r.openrig",
+        "r.yaml",
         "--fullscreen",
     ]);
-    assert_eq!(p, Some(PathBuf::from("r.openrig")));
+    assert_eq!(p, Some(PathBuf::from("r.yaml")));
     assert!(f);
 
-    let (p, f) = parse_cli_args_from(&["openrig", "--auto-save", "--project", "r.openrig"]);
-    assert_eq!(p, Some(PathBuf::from("r.openrig")));
+    let (p, f) = parse_cli_args_from(&["openrig", "--auto-save", "--project", "r.yaml"]);
+    assert_eq!(p, Some(PathBuf::from("r.yaml")));
     assert!(!f, "the removed flag must not turn anything on");
 }
 
 #[test]
 fn validate_missing_path_is_clear_error() {
-    let err = validate_project_path(std::path::Path::new("/no/such/openrig/project.openrig"))
-        .unwrap_err();
+    let err =
+        validate_project_path(std::path::Path::new("/no/such/openrig/project.yaml")).unwrap_err();
     assert!(err.contains("not found"), "got: {err}");
-    assert!(err.contains("project.openrig"), "names the path: {err}");
+    assert!(err.contains("project.yaml"), "names the path: {err}");
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn validate_directory_is_not_a_file_error() {
 #[test]
 fn validate_existing_file_ok() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("project.openrig");
+    let path = dir.path().join("project.yaml");
     std::fs::write(&path, "project:\n  name: x\n").unwrap();
     assert!(validate_project_path(&path).is_ok());
 }
@@ -76,7 +76,7 @@ fn mcp_flag_with_value_parses_addr() {
 
 #[test]
 fn mcp_flag_absent_is_none() {
-    assert_eq!(parse_mcp_addr(&["openrig", "/tmp/p.openrig"]), None);
+    assert_eq!(parse_mcp_addr(&["openrig", "/tmp/p.yaml"]), None);
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn midi_flag_with_path_is_explicit() {
 
 #[test]
 fn midi_flag_absent_is_none() {
-    assert_eq!(parse_midi_map(&["openrig", "/tmp/p.openrig"]), None);
+    assert_eq!(parse_midi_map(&["openrig", "/tmp/p.yaml"]), None);
 }
 
 // ── #712: config master switch folds into the CLI flag ────────────────

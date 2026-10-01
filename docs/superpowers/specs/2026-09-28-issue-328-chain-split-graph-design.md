@@ -100,7 +100,7 @@ Unknown refs (the endpoint was removed from the E/S) are ignored at runtime and 
 
 ## 2. Persistence (`crates/infra-yaml`)
 
-- `project.openrig`: `kind: !Split { end, params, a, b }` comes from the derive.
+- `project.yaml`: `kind: !Split { end, params, a, b }` comes from the derive.
 - Chain presets and legacy files: add `type: split` to `AudioBlockYaml`, with nested ids following the Select scheme (`<split>::a:<i>`, `<split>::b:<i>`).
 - Format version: write `version: 2` **only when the file contains a `Split`**. Split-free projects and presets stay at `version: 1`, so older builds keep opening them. An older build that opens a version 2 file refuses it with its existing "newer version" error instead of failing inside serde.
 - `disabled_endpoints` is a new `#[serde(default)]` field. It does not need a version bump.
@@ -236,7 +236,7 @@ input → Split → Mix (A: amp 1 ∥ B: amp 2) → shared blocks → Y → A/B
 - `crates/project/src/block/split_lookup.rs`: `splits` (every top-level split with its position, in chain order), `find_split` (the first one), `find_split_with_end` and `has_y_split`. No lookup assumes a single split.
 - Whatever asks where the chain ends (tail feed, `resolve_chain_ports`, endpoint discovery and feeds) looks up the Y, not the first split. A Mix + Y chain therefore ends at the Y's two path output nodes and has no chain output node. `EndpointDisables.path_a_outputs` / `path_b_outputs` belong to the Y; `outputs` applies only to chains without a Y.
 - Ids: path block ids carry their split's id (`<split id>::a:<i>` / `<split id>::b:<i>` on disk, `BlockId::generate_for_chain` for new blocks), so the paths of the two splits never collide. Every command names a split by its block id: `PathRef { split, side }`, `SetSplitEnd { split_id }`, `RemoveSplit { split_id }`, and the knobs are `SetBlockParameter*` on that id (MIDI, scenes and MCP included).
-- YAML: `project.openrig`, chain presets and legacy project files keep both splits with distinct path ids. The format version stays `2`.
+- YAML: `project.yaml`, chain presets and legacy project files keep both splits with distinct path ids. The format version stays `2`.
 
 ### 9.3 Commands
 

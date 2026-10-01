@@ -1,15 +1,12 @@
-# `project.openrig` — format reference
+# `project.yaml` — format reference
 
-Project-level I/O + per-input preset banks (rig architecture, #436). Model +
-parser (#449), engine runtime (#451), migration + format versioning (#450),
-scenes + spillover (#454).
-
-The legacy chain-based project (`project::project::Project`) is **untouched**;
-this is an additive model. Migration of legacy `chain.yaml` is #450.
+Project-level I/O + per-input preset banks: model, parser, engine runtime,
+format versioning, scenes and spillover. This is the only project file format:
+there is no other extension and no chain-based project document.
 
 ## Document shape
 
-A `project.openrig` file is YAML with a single top-level `project:` key:
+A `project.yaml` file is YAML with a single top-level `project:` key:
 
 ```yaml
 project:
@@ -29,7 +26,7 @@ project:
         1: clean
         2: drive
       active-preset: 2                  # an index present in `bank`
-      active-scene: 1                   # 1..=8 (scene structure itself is #454)
+      active-scene: 1                   # 1..=8
       routing: [out-1]                  # names of `outputs` entries
 
   outputs:
@@ -45,7 +42,7 @@ project:
     drive:
       blocks: []
 
-  midi:                                  # optional, ADR 0003 / #499
+  midi:                                  # optional, ADR 0003
     bindings:                            # what each controller event does in THIS rig
       - source: { kind: note_on, channel: 1, note: 60 }
         command: ApplyRigNav
@@ -58,17 +55,17 @@ project:
 |---|---|---|
 | `project` | `RigProject` | `crates/project/src/rig.rs` |
 | `inputs.<name>` | `RigInput` | keyed map; `BTreeMap` ⇒ deterministic order |
-| `inputs.<name>.sources[]` | `Vec<InputEntry>` | reused 1:1 from the existing block model — `mode` is **per source**, never flattened to one device/channel (invariant #4 / multi-source of #436) |
+| `inputs.<name>.sources[]` | `Vec<InputEntry>` | reused 1:1 from the existing block model — `mode` is **per source**, never flattened to one device/channel (invariant #4, multi-source) |
 | `inputs.<name>.bank` | `BTreeMap<usize, String>` | index → preset name; gaps allowed |
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
 | `inputs.<name>.disabled_endpoints` | `EndpointDisables` | #328 graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
-| `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | #328 chain split: `{ end: mix \| y, params, a: [blocks], b: [blocks] }`. Path blocks are full `AudioBlock`s with their own ids. |
-| `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003 / #499. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
+| `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | chain split: `{ end: mix \| y, params, paths: [[blocks], …] }`. Path blocks are full `AudioBlock`s with their own ids. |
+| `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
-### Edit capture: scene diff vs preset base (#690)
+### Edit capture: scene diff vs preset base
 
 `write_back_processing_blocks` (run by `Command::CaptureRigEdits` and the
 save path) captures edits made on the projected chain back into the active
@@ -76,10 +73,9 @@ preset. **Float** param edits become the active scene's f32 override
 (Helix Snapshot rule — the key is auto-marked in `scene-params`).
 **Non-float** params (Bool/Int/String — e.g. a NAM noise-gate toggle)
 cannot live in the f32 scene diff: they are written into the preset base
-`blocks`, shared by every scene. Before #690 these edits were silently
-dropped and reverted on save+reload.
+`blocks`, shared by every scene, so they survive save+reload.
 
-### Model swap keeps the scenes (#986)
+### Model swap keeps the scenes
 
 Changing a block's model keeps its id and position, so it is **not** a
 structural edit. `write_back_model_swaps` (`crates/project/src/rig_model_swap.rs`)
@@ -90,15 +86,13 @@ dropped. Every other scene, bypass, override, the other blocks' base values
 and `active-scene` survive. `ReplaceBlockModel` mirrors the swap into the rig
 right away and re-resolves the live block through the active scene; the
 block editor's `OverwriteBlock` path gets the same treatment on the next
-capture (scene switch or save). Before #986 the swap took the structural
-path (#627): the whole preset base was replaced by the live, scene-applied
-chain and every scene was cleared.
+capture (scene switch or save).
 
-### Chain split (#328)
+### Chain split
 
-A preset may hold a `Split` block (`kind: !Split`). Blocks before it are shared by both paths; for `end: mix` the blocks after it are shared again after the mixer. `a` and `b` are the two paths. The split and mixer knobs live in `params` (see `docs/blocks-catalog.md` → Chain split).
+A preset may hold any number of `Split` blocks (`kind: !Split`), at the top level or inside a path, at any depth. A split runs N paths (`paths`, at least two) side by side. `end: mix` sums them in a mixer and the chain continues after it; `end: y` sends each path to its own output node. The split and mixer knobs live in `params`, numbered by the 0-based path index (`level_to_<i>`, `balance_<i>`, `mix_level_<i>`, `mix_pan_<i>`, `mix_polarity_<i>`, plus `split_mode`, `mix_master`, `mix_master_sum`; see `docs/blocks-catalog.md` → Chain split).
 
-A preset holds at most one `end: mix` split and at most one `end: y` split. When it holds both, the Mix comes first and the Y is the last processing block: only the chain's own ports may follow it. Two Mix, two Y, a Y before a Mix or a processing block after the Y fail validation (spec §9, `docs/superpowers/specs/2026-09-28-issue-328-chain-split-graph-design.md`).
+Validation refuses a split with fewer than two paths, an input, output or insert block inside a path, and a block after a Y in the same list (at the top level only the chain's own ports may follow it).
 
 A Mix, then a Y: two amps summed, then one output with a cab and one without (abridged: each block's `params` are left out):
 
@@ -114,31 +108,30 @@ project:
         enabled: true
         kind: !Split
           end: mix
-          params: { values: { mix_pan_a: -50.0, mix_pan_b: 50.0 } }  # plus the other split knobs
-          a:
-          - id: rig:guitar:block:amp-1
-            kind: !Core { effect_type: amp, model: blackface_clean }
-          b:
-          - id: rig:guitar:block:amp-2
-            kind: !Core { effect_type: preamp, model: american_clean }
+          params: { values: { mix_pan_0: -50.0, mix_pan_1: 50.0 } }  # plus the other split knobs
+          paths:
+          - - id: rig:guitar:block:amp-1
+              kind: !Core { effect_type: amp, model: blackface_clean }
+          - - id: rig:guitar:block:amp-2
+              kind: !Core { effect_type: preamp, model: american_clean }
       - id: rig:guitar:block:y
         enabled: true
         kind: !Split
           end: y
-          params: { values: { level_to_a: 100.0, level_to_b: 100.0 } }  # plus the other split knobs
-          a:                                  # path A → its outputs (FRFR): with a cab
-          - id: rig:guitar:block:cab
-            kind: !Core { effect_type: cab, model: american_2x12 }
-          b: []                               # path B → its outputs (a real cab): no cab
+          params: { values: { level_to_0: 100.0, level_to_1: 100.0 } }  # plus the other split knobs
+          paths:
+          - - id: rig:guitar:block:cab        # path 0 → its outputs (FRFR): with a cab
+              kind: !Core { effect_type: cab, model: american_2x12 }
+          - []                                # path 1 → its outputs (a real cab): no cab
 ```
 
-Each Y path feeds every output endpoint of the chain's E/S that the input's `disabled_endpoints.path_a_outputs` / `path_b_outputs` does not leave out. The two splits' path blocks keep distinct ids in every format, so they never collide.
+Each Y leaf (a Y path holding no further Y) feeds every output endpoint of the chain's E/S that its entry in the input's `disabled_endpoints.path_outputs` (`{ split, path, disabled }`) does not leave out. Files with the older two-path shape (`a` / `b`, `path_a_outputs` / `path_b_outputs`) load as paths 0 and 1.
 
-Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
+Chain preset files write the split as `type: split` with `end`, `params` and `paths`. Path blocks carry no id on disk; block `i` of path `p` loads as `<split id>::p<p>:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
-Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide, #690). Swapping a path block's model keeps every scene (#986 applies inside paths). Adding, removing or moving a block inside a path is a structural edit and follows the #986 rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
+Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene; `split_mode`, `mix_polarity_<i>` and `mix_master_sum` preset-wide). Swapping a path block's model keeps every scene. Adding, removing or moving a block inside a path is a structural edit and follows the rule below like a top-level one.
 
-### Structural edits keep the scenes; an insert belongs to its preset (#986)
+### Structural edits keep the scenes; an insert belongs to its preset
 
 Adding, removing or reordering blocks (the insert included) is structural:
 `replace_preset_blocks_if_structural` (`crates/project/src/rig_write_back.rs`)
@@ -181,17 +174,16 @@ engine at runtime, not by `validate()`.
 
 | Fn | Purpose |
 |---|---|
-| `parse_rig_project(&str) -> Result<RigProject>` | parse + version-check + validate |
-| `serialize_rig_project(&RigProject) -> Result<String>` | deterministic serialize (stamps `version`) |
-| `load_rig_project_file(&Path) -> Result<RigProject>` | read + parse + validate |
-| `save_rig_project_file(&Path, &RigProject)` | serialize + write (creates dirs) |
-| `load_project_any(&Path) -> Result<RigProject>` | transparent: new format as-is, **or** auto-migrate legacy on load |
+| `parse_project(&str) -> Result<RigProject>` | parse + version-check + validate |
+| `serialize_project(&RigProject) -> Result<String>` | deterministic serialize (stamps `version`) |
+| `load_project_file(&Path) -> Result<RigProject>` | read + parse + validate |
+| `save_project_file(&Path, &RigProject)` | serialize + write (creates dirs) |
 | `load_legacy_preset_as_rig(&Path) -> Result<(String, RigPreset)>` | convert a standalone legacy preset file into a `RigPreset` |
 
 Round-trip (`parse → serialize → parse → serialize`) is byte-deterministic
 because every map is a `BTreeMap`.
 
-## Engine runtime (#451)
+## Engine runtime
 
 `engine::rig_runtime` bridges the model to the audio engine without changing
 the audio-thread contract:
@@ -221,12 +213,12 @@ the audio-thread contract:
   switch click-free. Other inputs are untouched. Switching presets also
   resets `active_scene` to `1` — scenes are per-preset, so carrying the
   previous preset's scene index over would leak a phantom scene into the
-  new preset on the next `write_back_processing_blocks` call (#535).
+  new preset on the next `write_back_processing_blocks` call.
 
 Transport-agnostic (no Slint/cpal in `engine`); the host wires the resulting
 `RuntimeGraph` to its backend.
 
-## Spillover (#454-T5) — DONE
+## Spillover
 
 A preset/scene switch retains the **previous** pipeline as a decaying
 `OutgoingTail` so its delay/reverb tail rings out in parallel while the new
@@ -243,7 +235,7 @@ Gated by `rig_spillover` golden (retains-then-drops + non-spillover
 byte-identical) plus `volume_invariants`/`stream_isolation`/
 `audio_signal_integrity` all green.
 
-## Migration from legacy `chain.yaml` (#450)
+## In-memory chain model → rig conversion
 
 `project::migrate::migrate_legacy_project(&Project) -> RigProject` is a pure,
 deterministic (⇒ idempotent) transform:
@@ -267,20 +259,13 @@ input's bank** — one guitar with many songs ⇒ one input + N presets.
 No preset is lost (`presets.len() == chains.len()`, each in a bank slot) and the
 result always passes `validate()`. Deterministic ⇒ idempotent.
 
-File orchestrator `infra-yaml::migrate_legacy_project_file(legacy, out)`:
+## Format versioning + backward-compat
 
-- returns the existing target untouched if it is already a valid `RigProject`
-  (idempotent — legacy not re-read, target not clobbered);
-- backs the legacy file up to `<legacy>.bak` exactly once before writing;
-- validates the migrated project before saving.
-
-## Format versioning + backward-compat (#450)
-
-Both `project.openrig` and standalone preset files carry an explicit
+Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:`. A document is written with the lowest version that can
 hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
 or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
-`Split` (#328). This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
+`Split`. This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
 older build refuses a version 2 file with its "newer than this build" error
 instead of failing inside serde:
 
@@ -295,17 +280,8 @@ project: { ... }
   error instead of silently dropping unknown fields (an old binary will not
   corrupt a newer project).
 - **`version < CURRENT`** ⇒ staged in-memory upgrade (no upgrades exist for
-  v1 yet; the hook is in `parse_rig_project`).
+  v1 yet; the hook is in `parse_project`).
 
-`load_project_any` makes migration transparent: opening a legacy chain
-`*.yaml` auto-writes a sibling `project.openrig` (+ one-time `<legacy>.bak`),
-idempotently, and returns the migrated `RigProject` — the caller never
-branches on format. Legacy standalone presets convert via
-`load_legacy_preset_as_rig` (blocks + volume preserved bit-identical ⇒ audio
-unchanged; no scenes/scene-params ⇒ behaves as one Default scene).
-
-## Out of scope here (tracked elsewhere)
-
-- Spillover — old preset/scene tail decaying in parallel (#454-T5; design locked in spec)
-- CLI `--project` — #452
-- UI project picker + bank/scene navigator — #453
+Legacy standalone presets convert via `load_legacy_preset_as_rig` (blocks +
+volume preserved bit-identical ⇒ audio unchanged; no scenes/scene-params ⇒
+behaves as one Default scene).

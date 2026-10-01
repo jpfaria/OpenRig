@@ -172,7 +172,7 @@ fn bank_scene_acts_on_selected_input_only_shared_timbre() {
 #[test]
 fn open_and_create_project_emit_intent_effects_only() {
     let mut s = BankSceneState::from_project(&rig());
-    let p = PathBuf::from("/x/project.openrig");
+    let p = PathBuf::from("/x/project.yaml");
     assert_eq!(
         s.apply(BankSceneEvent::OpenProject(p.clone())),
         vec![BankSceneEffect::OpenProject(p.clone())]

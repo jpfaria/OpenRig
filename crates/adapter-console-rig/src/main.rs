@@ -1,16 +1,14 @@
 //! Responsibility: runs a rig headless.
 //! Headless rig runner (#436 / #1 integration).
 //!
-//! Loads a `project.openrig` (or transparently migrates a legacy
-//! `*.yaml` via `load_project_any`), builds a `RigRuntime` (validates +
+//! Loads the project `.yaml` via `load_project_file`, builds a `RigRuntime` (validates +
 //! auto-enables every non-tap-conflicting input), projects the enabled
 //! inputs onto synthetic legacy chains, and drives them through the
 //! EXISTING proven cpal path (`build_runtime_graph` /
 //! `build_streams_for_project`). No UI, no new audio code — so every
 //! audio invariant the legacy path holds is held here by construction.
 //!
-//!   cargo run -p adapter-console-rig -- --project /path/project.openrig
-//!   cargo run -p adapter-console-rig -- --project /path/legacy.yaml   # auto-migrates
+//!   cargo run -p adapter-console-rig -- --project /path/project.yaml
 
 use anyhow::Result;
 use application::validate::validate_project;
@@ -30,9 +28,7 @@ fn main() -> Result<()> {
     let project_path = parse_project_path()?;
     infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
 
-    // Transparent: new `.openrig` as-is, or legacy `*.yaml` auto-migrated
-    // (writes a sibling `.openrig` + one-time `.bak`).
-    let rig = infra_yaml::load_project_any(&project_path)?;
+    let rig = infra_yaml::load_project_file(&project_path)?;
     // Model A (#716): device I/O comes from the per-machine binding registry
     // (system config), never from the project. Load it; empty if unconfigured.
     let registry = infra_filesystem::FilesystemStorage::load_app_config()
@@ -97,5 +93,5 @@ fn parse_project_path() -> Result<PathBuf> {
             }
         }
     }
-    anyhow::bail!("usage: adapter-console-rig --project <path to .openrig or legacy .yaml>")
+    anyhow::bail!("usage: adapter-console-rig --project <path to project .yaml>")
 }

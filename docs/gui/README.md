@@ -294,15 +294,14 @@ When changing the GUI direction or implementing material behavior based on this 
 - do not silently diverge from the decisions above
 - if implementation forces a tradeoff, record the tradeoff here
 
-## Reading a headless render (#323)
+## Reading a headless render
 
 `tools/slint-render` captures the **first frame**. Any property under an
 `animate` block is therefore rendered at its *starting* value, not its
 settled one: an `animate colorize` makes icons come out dark and muddy, an
 `animate background` gives buttons an off colour, and it reads exactly like a
 contrast bug that is not there. When a rendered component looks washed out,
-check for `animate` before redesigning it — the panel of #323 lost two
-iterations to this. Prefer no animation on the properties a render has to
+check for `animate` before redesigning it. Prefer no animation on the properties a render has to
 prove (state colour, enabled/disabled), and keep animations for hover
 transitions the PNG does not need to show.
 

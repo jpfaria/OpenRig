@@ -35,7 +35,7 @@ const OPEN_PARSE_BUDGET: Duration = Duration::from_millis(200);
 
 // The rig #692 was reported on: several chains, each with a full preset
 // bank of amp + cab + effect blocks and their scenes, serializing to a
-// ~158 KB `.openrig`. The fixture is dimensioned to that document — a
+// ~158 KB `project.yaml`. The fixture is dimensioned to that document — a
 // two-block project parses fast even when open is doing work it should
 // not, so a small fixture would pin nothing.
 const FIXTURE_CHAINS: usize = 4;
@@ -167,8 +167,8 @@ fn write_fixture_rig(dir: &Path) -> PathBuf {
         midi: None,
         chain_order: Vec::new(),
     };
-    let path = dir.join("project.openrig");
-    infra_yaml::save_rig_project_file(&path, &rig).expect("write fixture rig");
+    let path = dir.join("project.yaml");
+    infra_yaml::save_project_file(&path, &rig).expect("write fixture rig");
     path
 }
 
@@ -231,7 +231,7 @@ fn issue_692_runtime_start_probe() {
         std::env::var_os("OPENRIG_OWNER_PLUGINS"),
     ) else {
         eprintln!(
-            "issue_692: SKIPPED — needs OPENRIG_OWNER_PROJECT=<project.openrig> and \
+            "issue_692: SKIPPED — needs OPENRIG_OWNER_PROJECT=<project.yaml> and \
              OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source>"
         );
         return;
@@ -249,7 +249,7 @@ fn issue_692_runtime_start_probe() {
 
     // Copy before loading: the probe must never mutate the operator's file.
     let tmp = TempDir::new().expect("tempdir");
-    let project_path = tmp.path().join("project.openrig");
+    let project_path = tmp.path().join("project.yaml");
     std::fs::copy(&owner_project, &project_path).expect("copy owner project");
     let config_path = tmp.path().join("config.yaml");
 

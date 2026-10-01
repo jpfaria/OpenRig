@@ -37,7 +37,7 @@ const INSERT: &str = "rig:input-7:insert:5";
 fn fixture_rig() -> RigProject {
     let path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/issue_986_insert_bank.yaml");
-    infra_yaml::load_rig_project_file(&path).expect("load the #986 insert-bank fixture")
+    infra_yaml::load_project_file(&path).expect("load the #986 insert-bank fixture")
 }
 
 fn preset(rig: &RigProject, key: &str) -> RigPreset {

@@ -168,7 +168,7 @@ pub fn rig_to_legacy_project(
         name: rig.name.clone(),
         device_settings: Vec::new(),
         chains,
-        // #513: project-owned MIDI bindings travel with `.openrig`. A rig-
+        // #513: project-owned MIDI bindings travel with `project.yaml`. A rig-
         // projected `Project` is a synthetic view — bindings live on the
         // source RigProject if needed, so the projection starts with none.
         midi: None,

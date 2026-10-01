@@ -1,5 +1,5 @@
 //! Responsibility: describes a rig with its per-input preset banks.
-//! `project.openrig` — project-level I/O + per-input preset banks (#436).
+//! `project.yaml` — project-level I/O + per-input preset banks (#436).
 //!
 //! References the per-machine I/O binding registry (model A, #716) instead
 //! of embedding device endpoints. The legacy chain-based
@@ -22,7 +22,7 @@ fn default_instrument() -> String {
     block_core::DEFAULT_INSTRUMENT.to_string()
 }
 
-/// Root of a `project.openrig` document (under the top-level `project:` key).
+/// Root of a `project.yaml` document (under the top-level `project:` key).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RigProject {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -70,7 +70,7 @@ pub struct RigInput {
     pub routing: Vec<String>,
     /// The instrument type for this input chain (e.g. "electric_guitar",
     /// "acoustic_guitar"). Defaults to "electric_guitar" for backward
-    /// compatibility with pre-#627 `.openrig` files that have no field.
+    /// compatibility with pre-#627 `project.yaml` files that have no field.
     #[serde(default = "default_instrument")]
     pub instrument: String,
     /// I/O binding id that this input's capture block references (#716).

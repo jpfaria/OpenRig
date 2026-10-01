@@ -45,7 +45,7 @@ pub struct RigRuntime {
     /// Resolved into chain ports at build/upsert time (model A, #716).
     registry: Vec<IoBinding>,
     /// Inputs currently activated, **in memory only** — never persisted to
-    /// `project.openrig`. A tap-sharing input can only be enabled if no
+    /// `project.yaml`. A tap-sharing input can only be enabled if no
     /// already-enabled input holds the same `(device, channel)`.
     enabled: BTreeSet<String>,
 }
@@ -60,7 +60,7 @@ impl RigRuntime {
     pub fn build(project: RigProject, sample_rate: f32, registry: Vec<IoBinding>) -> Result<Self> {
         project
             .validate()
-            .map_err(|e| anyhow!("invalid project.openrig: {e}"))?;
+            .map_err(|e| anyhow!("invalid project.yaml: {e}"))?;
         let mut graph = RuntimeGraph {
             chains: HashMap::new(),
         };

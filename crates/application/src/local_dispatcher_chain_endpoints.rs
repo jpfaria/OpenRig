@@ -4,7 +4,7 @@
 //! endpoint of the chain's E/S, checked by default. Unchecking one records it
 //! in the chain's `disabled_endpoints` for that node only. The rig capture
 //! (`sync_synthetic_into_rig`) carries the list into the chain's `RigInput`,
-//! which is what `project.openrig` persists.
+//! which is what `project.yaml` persists.
 
 use anyhow::{anyhow, Result};
 

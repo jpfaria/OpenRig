@@ -11,7 +11,7 @@ fn tmp_dir(_name: &str) -> tempfile::TempDir {
 
 #[test]
 fn loops_live_next_to_the_project_in_a_named_folder() {
-    let project = std::path::Path::new("/rigs/live.openrig");
+    let project = std::path::Path::new("/rigs/live.yaml");
     let path = loop_file_path(project, &domain::ids::ChainId("chain:7".into()), 3);
 
     assert_eq!(
@@ -28,7 +28,7 @@ fn loops_live_next_to_the_project_in_a_named_folder() {
 #[test]
 fn a_saved_loop_round_trips_at_its_own_rate() {
     let dir = tmp_dir("looper-roundtrip");
-    let project = dir.path().join("song.openrig");
+    let project = dir.path().join("song.yaml");
     let chain = domain::ids::ChainId("chain:1".into());
     let pcm = vec![0.0, 0.0, 0.5, -0.5, 1.0, -1.0];
 
@@ -46,7 +46,7 @@ fn a_saved_loop_round_trips_at_its_own_rate() {
 #[test]
 fn reading_a_missing_loop_is_an_error_not_a_panic() {
     let dir = tmp_dir("looper-missing");
-    let project = dir.path().join("song.openrig");
+    let project = dir.path().join("song.yaml");
     assert!(read_loop_wav(&project, "nope.wav").is_err());
 }
 

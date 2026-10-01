@@ -30,7 +30,7 @@ fn is_chain_own_io(block: &AudioBlock, input: &str, io_binding_ids: &[String]) -
 /// Write every rig chain's edited processing blocks **and chain volume**
 /// back into the rig's active preset, per active scene, so edits made on
 /// the projected synthetic chains survive re-projection and are saved to
-/// `project.openrig`. Non-rig chains are ignored. Pure; mirrors
+/// `project.yaml`. Non-rig chains are ignored. Pure; mirrors
 /// `rig_to_chains` in reverse.
 ///
 /// Also captures the user-defined chain order (issue #502, regression of
@@ -38,7 +38,7 @@ fn is_chain_own_io(block: &AudioBlock, input: &str, io_binding_ids: &[String]) -
 /// stored in `rig.chain_order` so a reorder via `ChainCommand::MoveChainUp` /
 /// `MoveChainDown` survives save+reload. When the projected chain list
 /// matches the alphabetical `inputs` order exactly, `chain_order` is
-/// cleared so legacy `.openrig` files keep their lean shape.
+/// cleared so `project.yaml` files keep their lean shape.
 pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
     for chain in &project.chains {
         let Some(input) = chain.id.0.strip_prefix("rig:") else {
@@ -85,7 +85,7 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
 /// the input names that actually exist in `rig.inputs` are kept (a stale
 /// entry from a removed chain would otherwise leak into the YAML). When
 /// the projected list matches the alphabetical `inputs` order, the field
-/// is left empty so default `.openrig` files don't grow a redundant key.
+/// is left empty so default `project.yaml` files don't grow a redundant key.
 fn sync_chain_order(rig: &mut RigProject, project: &Project) {
     let order: Vec<String> = project
         .chains

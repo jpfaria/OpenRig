@@ -258,7 +258,7 @@ fn step_scene_wraps_within_scene_count() {
     assert_eq!(p.step_scene("missing", 1), None, "unknown input → None");
 }
 
-/// A `.openrig` YAML without the `instrument` field must deserialize to the default
+/// A `project.yaml` YAML without the `instrument` field must deserialize to the default
 /// ("electric_guitar") so projects saved before #627 open without error.
 #[test]
 fn rig_input_missing_instrument_defaults_to_electric_guitar() {

@@ -20,7 +20,6 @@ use application::validate::validate_project;
 use cpal::traits::StreamTrait;
 use engine::runtime::build_runtime_graph;
 use infra_cpal::{build_streams_for_project, list_devices, resolve_project_chain_sample_rates};
-use infra_yaml::YamlProjectRepository;
 use project::project::Project;
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -149,8 +148,10 @@ fn main() -> Result<()> {
         plugin_loader::registry::len(),
         plugin_loader::registry::native_count(),
     );
-    let project_repo = YamlProjectRepository { path: project_path };
-    let project = project_repo.load_current_project()?;
+    let rig = infra_yaml::load_project_file(&project_path)?;
+    // Headless: every input the project declares plays.
+    let every_input = rig.inputs.keys().cloned().collect();
+    let project = engine::rig_runtime::rig_to_legacy_project(&rig, &every_input);
     validate_project(&project)?;
     println!("=== Devices ===");
     for line in list_devices()? {

@@ -65,7 +65,7 @@ fn chain_input_names(rig: &RigProject) -> Vec<String> {
 
 #[test]
 fn rig_to_chains_falls_back_to_alphabetical_when_chain_order_empty() {
-    // Back-compat: a `.openrig` file without `chain-order` keeps its
+    // Back-compat: a `project.yaml` file without `chain-order` keeps its
     // historical alphabetical projection.
     let rig = rig_with_inputs(&["b", "a"]);
     assert_eq!(

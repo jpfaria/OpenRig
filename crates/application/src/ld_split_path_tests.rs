@@ -427,7 +427,7 @@ fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
     assert_eq!(
         preset_split(&rig.borrow(), "p1").paths[0].len(),
         1,
-        "the block added into path A must reach project.openrig"
+        "the block added into path A must reach the project file"
     );
 }
 

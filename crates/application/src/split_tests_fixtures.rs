@@ -1,7 +1,7 @@
 //! Shared fixtures for the #328 split command tests.
 //!
 //! One chain (`CHAIN`) whose blocks each test sets. Later tasks add a
-//! one-input rig for the tests that follow an edit into `project.openrig`.
+//! one-input rig for the tests that follow an edit into `project.yaml`.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};

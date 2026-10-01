@@ -383,7 +383,7 @@ fn move_chain_up_then_capture_writes_chain_order_into_rig() {
     // synthetic chains in that order. User clicks ▲ on the "beta"
     // chain → MoveChainUp swaps them. CaptureRigEdits must persist the
     // new order to RigProject.chain_order so a later
-    // `save_rig_project_file` keeps it through reload.
+    // `save_project_file` keeps it through reload.
     let rig = Rc::new(RefCell::new(two_input_rig()));
     let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
         &rig.borrow(),
@@ -411,7 +411,7 @@ fn move_chain_up_then_capture_writes_chain_order_into_rig() {
 #[test]
 fn rig_to_legacy_project_after_capture_reflects_persisted_chain_order() {
     // Round-trip the persistence path: after the move + capture, a
-    // fresh projection (what `load_project_any` + projection does on
+    // fresh projection (what `load_project_file` + projection does on
     // reopen) must yield chains in the persisted order.
     let rig = Rc::new(RefCell::new(two_input_rig()));
     let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(

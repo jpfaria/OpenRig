@@ -1,4 +1,4 @@
-//! Unit tests for the `project.openrig` model + validation (#449).
+//! Unit tests for the `project.yaml` model + validation (#449).
 
 use super::*;
 use crate::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock};

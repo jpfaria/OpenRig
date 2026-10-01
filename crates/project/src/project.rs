@@ -15,7 +15,7 @@ pub struct Project {
     pub device_settings: Vec<DeviceSettings>,
     pub chains: Vec<Chain>,
     /// #513 / #493: project-owned MIDI bindings (ADR 0003). Travels with the
-    /// `.openrig` file so the same setlist behaves the same on every machine.
+    /// `project.yaml` file so the same setlist behaves the same on every machine.
     /// Absent on pre-#513 projects — `#[serde(default)]` keeps them parsing
     /// unchanged. The dispatcher's `SaveMidiMapping` handler writes here.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -1,7 +1,7 @@
 # `openrig-render` — headless offline render
 
 `openrig-render` is the headless console binary shipped by
-`crates/adapter-render` (issue #552). It applies a chain/preset to an
+`crates/adapter-render`. It applies a chain/preset to an
 input WAV (or captures live from your interface) and writes the
 processed result to an output WAV. No GUI, no MCP, no MIDI. Same
 `engine::offline::render_chain` that the realtime callback uses — a
@@ -10,9 +10,7 @@ emit for the same input samples.
 
 Before loading the chain the binary fills the same model catalogs the GUI
 does (`adapter_render::bootstrap::init_plugin_catalogs`): native models,
-disk packages under the plugins roots, and the VST3 bundles in them. The
-VST3 scan was missing until #938, so every VST3 block failed with "not
-found in catalog". A VST3 block may name the plugin by its catalog id
+disk packages under the plugins roots, and the VST3 bundles in them. A VST3 block may name the plugin by its catalog id
 (`vst3:{bundle}:{class}`) or by the package id `openrig://plugins` lists
 (`vst3_room_reverb`).
 
@@ -78,7 +76,7 @@ renderer exits with `1` and the message
 | `1` | Render failed (bad chain, bad input WAV, capture failed, engine error, **one or more chain blocks could not be built**, IO error). No partial output file remains |
 | `2` | Argument error (missing required flag, invalid value such as `--bit-depth 19`, unknown flag) |
 
-### Failing-block policy (issue #574)
+### Failing-block policy
 
 `engine::offline::render_chain` is best-effort: when an individual block
 fails to build at setup time (missing plugin file, unresolvable model
@@ -95,9 +93,9 @@ openrig-render: 1 block(s) in the chain failed to build and would have been sile
 refusing to write a WAV that would be missing those blocks' contribution
 ```
 
-Before #574 the same render exited `0` with a WAV that silently omitted
-the failing blocks' contribution — two different presets could produce
-byte-identical output. Refusing to claim success is the only honest
+Exiting `0` with a WAV that silently omitted the failing blocks'
+contribution would let two different presets produce byte-identical
+output. Refusing to claim success is the only honest
 outcome for an offline render.
 
 ## Scope
@@ -126,13 +124,13 @@ compile Slint, MCP, and MIDI even when none of them initialise. It
 follows the same pattern as `adapter-console` and `adapter-console-rig`:
 console-style adapters around the same engine core.
 
-Shipped in every platform package as `openrig-render` (issue #741),
+Shipped in every platform package as `openrig-render`,
 alongside the headless `openrig-console` / `openrig-console-rig` and the
 GUI `openrig` — so an installed OpenRig can render offline without a
 separate `cargo run`. The packagers build and stage these from
 `scripts/lib/console-binaries.tsv` (the single source of truth).
 
-## Render as a `Command` (issue #576)
+## Render as a `Command`
 
 Offline render is exposed as `Command::RenderChain`. It does not mutate
 the live project's State; it sits on the command bus purely for

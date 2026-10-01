@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Unify OpenRig configuration into a single Settings screen with five sections (System / Audio, System / Language, System / MIDI devices, Project / Metadata, Project / MIDI mapping) backed by Commands and split between `config.yaml` (per-machine) and `.openrig` (per-project), per ADR 0003. Closes #513 and #493.
+**Goal:** Unify OpenRig configuration into a single Settings screen with five sections (System / Audio, System / Language, System / MIDI devices, Project / Metadata, Project / MIDI mapping) backed by Commands and split between `config.yaml` (per-machine) and `project.yaml` (per-project), per ADR 0003. Closes #513 and #493.
 
 **Architecture:** Refactor the existing `project_settings.slint` (340 LOC, misnamed) into a `settings.slint` container with one reusable `SettingsSection` component and one extracted `.slint` per section. Each section has its own wiring module under `crates/adapter-gui/src/settings/`. New data types live in `crates/infra-filesystem` (system layer) and reuse `project::midi::{Source, Binding, Scale, RigProjectMidi}` (project layer). New Commands: `SaveMidiDevices`, `StartMidiLearn`, `StopMidiLearn`, `SaveMidiMapping`. Refresh-devices and "MIDI Learn capture" do not need new Commands — the adapter calls `adapter_midi::list_input_ports()` directly and the daemon publishes a new `Event::MidiEventReceived` while learn-mode is active.
 
@@ -708,7 +708,7 @@ Create `crates/adapter-gui/ui/components/settings_section.slint`:
 ```slint
 // Visual frame shared by every Settings section. Holds the scope badge
 // ("System" or "Project") so the user can see at a glance whether the
-// values travel with the .openrig file or stay on this machine
+// values travel with the project.yaml file or stay on this machine
 // (ADR 0003). Body content is injected via a Slint child slot.
 
 export enum SettingsScope { system, project }
@@ -2103,7 +2103,7 @@ gh pr create \
 ## Summary
 - Unified Settings screen with five sections under two scope headers (System / Project).
 - New MIDI devices section: enumerates with alias-based identity (`MidiPortKey { name, instance }`); persists to `config.yaml`.
-- New Project / MIDI mapping editor with single-shot Learn (closes #493); persists to `.openrig`.
+- New Project / MIDI mapping editor with single-shot Learn (closes #493); persists to `project.yaml`.
 - Refactored `ProjectSettingsPage` → `SettingsPage`; per-section `.slint` files + per-section Rust wirings under `crates/adapter-gui/src/settings/`.
 - New Commands: `SaveMidiDevices`, `SaveMidiMapping`, `StartMidiLearn`, `StopMidiLearn`. New Events: `MidiDevicesSaved`, `MidiMappingSaved`, `MidiLearnStarted`, `MidiLearnStopped`, `MidiEventReceived`.
 - New `adapter_midi::list_input_ports()` with duplicate-name disambiguation; daemon honours a single-shot learn-mode flag.
@@ -2114,7 +2114,7 @@ gh pr create \
 - [ ] `cargo clippy --workspace -- -D warnings` clean
 - [ ] `cargo fmt --check` clean
 - [ ] Manual: open Settings, refresh devices, edit alias, restart, confirm persistence
-- [ ] Manual: open MIDI mapping, "+ Add", wiggle a knob on a controller, pick a Command, restart, confirm binding persists in `.openrig`
+- [ ] Manual: open MIDI mapping, "+ Add", wiggle a knob on a controller, pick a Command, restart, confirm binding persists in `project.yaml`
 - [ ] Manual: rename project from the Project / Metadata section, save project, reload, confirm name persisted
 
 ## Related

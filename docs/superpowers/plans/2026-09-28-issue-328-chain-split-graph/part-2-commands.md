@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every transport (GUI, MCP, MIDI map, gRPC) can build, edit and tear down a chain split — blocks addressed inside path A / path B, the split's knobs edited as ordinary block parameters, the endpoint checklist toggled — through the `Command` bus, with every structural edit refused unless the result obeys the split rules, and every edit captured into `project.openrig`.
+**Goal:** Every transport (GUI, MCP, MIDI map, gRPC) can build, edit and tear down a chain split — blocks addressed inside path A / path B, the split's knobs edited as ordinary block parameters, the endpoint checklist toggled — through the `Command` bus, with every structural edit refused unless the result obeys the split rules, and every edit captured into `project.yaml`.
 
 **Architecture:** Two small pure modules in `crates/application` carry the new logic: `block_path.rs` addresses a block anywhere in the one-level block tree (top level + the split's two paths), and `split_rules.rs` says whether a block list obeys the three split rules. A new dispatcher helper, `edit_chain_blocks`, runs every structural edit on a copy of the chain's blocks and commits it only when `split_rules` accepts the result, so a refused command never leaves a half-applied chain. New variants live in a new `SplitCommand` sub-enum (`AddSplit`, `SetSplitEnd`, `RemoveSplit`) and in `ChainCommand` (`SetChainEndpointEnabled`); their handlers live in new `local_dispatcher_*` files. MCP tools are derived from the `Command` schema automatically — this part bumps the parity pin and proves each tool builds its command.
 
@@ -48,7 +48,7 @@ Parts 3–4 (engine) and 5–6 (GUI) are not needed by any test here. Part 6 (ch
 
 1. **Payloads written before #328** — an MCP client, a `midi-map.yaml` line, or GUI code that sends `AddBlock` / `InsertPrebuiltBlock` / `MoveBlock` without `path` — must keep landing at the chain's top level and serialize byte-identical. Pinned by Task 4 `add_block_without_path_serializes_exactly_as_before` + `add_block_without_a_path_still_lands_at_the_top_level`, Task 5 `move_block_without_path_serializes_exactly_as_before`.
 2. **A forbidden structure reaching the project through any door** (a second split; a split, select, input, output or insert inside a path; a processing block after a Y split; `RemoveBlock` on the split silently dropping both paths) must be refused with the chain untouched — otherwise the saved project no longer reopens. Pinned by Task 3 `remove_block_refuses_the_split_and_leaves_the_chain_untouched` / `overwrite_block_refuses_to_put_an_input_port_inside_a_path`, Task 4 `insert_prebuilt_block_refuses_a_second_split` / `add_block_refuses_a_processing_block_after_a_y_split`, Task 5 `move_block_refuses_to_put_the_split_inside_its_own_path`, Task 6 `add_split_refuses_a_second_split`, Task 8 `configure_chain_refuses_a_select_inside_a_path` / `load_chain_preset_refuses_a_block_after_a_y_split`.
-3. **An edit inside a path lost on save** — a block added into path A, or a new split, must reach the rig preset that `project.openrig` persists. Pinned by Task 4 `add_block_into_a_path_reaches_the_rig_preset_on_capture`, Task 6 `add_split_reaches_the_rig_preset_on_capture`.
+3. **An edit inside a path lost on save** — a block added into path A, or a new split, must reach the rig preset that `project.yaml` persists. Pinned by Task 4 `add_block_into_a_path_reaches_the_rig_preset_on_capture`, Task 6 `add_split_reaches_the_rig_preset_on_capture`.
 4. **A preset or scene switch keeping the OLD split** (the rig-nav port merge treats every `is_routing()` block as a chain port, and the split is routing) — the new preset's split and the new scene's path values must win. Fixed by Part 1 Task 5; pinned end to end here by Task 10 `switching_preset_puts_the_new_presets_split_in_place_of_the_old_one` / `switching_scene_applies_the_scene_bypass_to_a_block_inside_a_path`. A model swap inside a path must keep the active scene on the live block: Task 10b `a_model_swap_inside_a_path_keeps_the_active_scene_on_the_live_block`.
 5. **The endpoint checklist silently reset** by the chain editor's Save (rename / E/S change), by a scene switch, or by save + reopen. Pinned by Task 7 `the_chain_editor_save_keeps_the_checklist`, `the_checklist_survives_a_scene_switch`, `the_checklist_is_captured_into_the_rig_input`.
 
@@ -150,7 +150,7 @@ Create `crates/application/src/split_tests_fixtures.rs`:
 //! Shared fixtures for the #328 split command tests.
 //!
 //! One chain (`CHAIN`) whose blocks each test sets. Later tasks add a
-//! one-input rig for the tests that follow an edit into `project.openrig`.
+//! one-input rig for the tests that follow an edit into `project.yaml`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -1403,7 +1403,7 @@ fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
     assert_eq!(
         preset_split(&rig.borrow(), "p1").a.len(),
         1,
-        "the block added into path A must reach project.openrig"
+        "the block added into path A must reach project.yaml"
     );
 }
 ```
@@ -2268,7 +2268,7 @@ fn add_split_reaches_the_rig_preset_on_capture() {
     assert_eq!(
         ids(&rig.borrow().presets["p1"].blocks),
         vec!["A".to_string(), split_id.0.clone()],
-        "the new split must reach project.openrig"
+        "the new split must reach project.yaml"
     );
 }
 ```
@@ -2703,7 +2703,7 @@ fn the_checklist_is_captured_into_the_rig_input() {
     assert_eq!(
         rig.borrow().inputs["in"].disabled_endpoints.outputs,
         vec![endpoint("io-main", "Out 1")],
-        "project.openrig persists the checklist on the input"
+        "project.yaml persists the checklist on the input"
     );
 }
 
@@ -2844,7 +2844,7 @@ Create `crates/application/src/local_dispatcher_chain_endpoints.rs`:
 //! endpoint of the chain's E/S, checked by default. Unchecking one records it
 //! in the chain's `disabled_endpoints` for that node only. The rig capture
 //! (`sync_synthetic_into_rig`) carries the list into the chain's `RigInput`,
-//! which is what `project.openrig` persists.
+//! which is what `project.yaml` persists.
 
 use anyhow::Result;
 
@@ -2949,7 +2949,7 @@ with:
   "path_a_output" | "path_b_output", io, endpoint, enabled }`) checks
   or unchecks one endpoint of the chain's E/S on one node of the chain
   graph. The E/S itself is not edited: the unchecked endpoint stays
-  listed, is saved with the chain's input in `project.openrig`, and
+  listed, is saved with the chain's input in `project.yaml`, and
   survives preset/scene switches and the chain editor's Save.
 ```
 
@@ -2974,7 +2974,7 @@ gh issue comment 328 --repo jpfaria/OpenRig --body "Part 2 / Task 7 pushed ($(gi
 
 ### Task 7b: A checklist ref the E/S no longer offers is dropped on save
 
-Spec §1.3: "Unknown refs (the endpoint was removed from the E/S) are ignored at runtime and dropped on the next save." Part 1 Task 11 covers "ignored at runtime" (an unknown ref matches no resolved port) and Part 1 Task 8 ships `EndpointDisables::retain_known` + `endpoint_candidates`, handing the save-path call to this part. Nothing called it: a ref to a deleted endpoint (or a binding removed from the chain's E/S) stayed in `project.openrig` forever. The save path is `CaptureRigEdits` (`local_dispatcher_project.rs:241` dispatches it before writing), and the dispatcher holds the E/S registry (`LocalDispatcher::io_bindings`, `local_dispatcher.rs:139`).
+Spec §1.3: "Unknown refs (the endpoint was removed from the E/S) are ignored at runtime and dropped on the next save." Part 1 Task 11 covers "ignored at runtime" (an unknown ref matches no resolved port) and Part 1 Task 8 ships `EndpointDisables::retain_known` + `endpoint_candidates`, handing the save-path call to this part. Nothing called it: a ref to a deleted endpoint (or a binding removed from the chain's E/S) stayed in `project.yaml` forever. The save path is `CaptureRigEdits` (`local_dispatcher_project.rs:241` dispatches it before writing), and the dispatcher holds the E/S registry (`LocalDispatcher::io_bindings`, `local_dispatcher.rs:139`).
 
 **Files:**
 - Create: `crates/project/src/endpoint_prune.rs`
@@ -3117,7 +3117,7 @@ A ref to an endpoint the E/S no longer offers matches nothing and is ignored; `E
 ```
 with:
 ```
-A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.openrig` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings).
+A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.yaml` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings).
 ```
 
 - [ ] **Step 6: Commit and push**

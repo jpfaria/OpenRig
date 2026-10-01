@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MAIN-FOLDER GUARD (LEI ZERO OpenRig).
+# MAIN-FOLDER GUARD (OpenRig CLAUDE.md law 1).
 #
 # Agents may mutate the repo ONLY inside a .solvers/issue-N workspace (an
 # isolated clone). The MAIN folder proper (everything under repo_root that is
@@ -37,11 +37,11 @@ deny() {
   exit 0
 }
 
-REASON="LEI ZERO (OpenRig): the MAIN folder is off-limits to agents. Edit/Write/VCS that land in the main working tree are BLOCKED. Work ONLY inside .solvers/issue-N (isolated clone) — set it up there, edit there, commit there, push there. (CLAUDE.md LEI ZERO)"
+REASON="OpenRig law 1: the MAIN folder is off-limits to agents. Edit/Write/VCS that land in the main working tree are BLOCKED. Work ONLY inside .solvers/issue-N (isolated clone) — set it up there, edit there, commit there, push there. (CLAUDE.md law 1)"
 
 # True if $1 references repo_root at a PATH BOUNDARY (followed by /, end, space
 # or quote). Anchored so a sibling repo like "<repo_root>-plugins" is NOT taken
-# for the repo itself (issue #751).
+# for the repo itself.
 names_main() {
   case "$1" in
     *"$repo_root"/*|*"$repo_root") return 0 ;;
@@ -67,12 +67,12 @@ case "$tool" in
     # `git checkout <branch>` in the main folder aborts with "already used by
     # worktree at …". Isolation is clone-only (each .solvers/issue-N is its own
     # `git clone` with an independent .git). This check runs BEFORE any allow
-    # path below, including the .solvers-cwd early-allow (issue #804).
+    # path below, including the .solvers-cwd early-allow.
     if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_])git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?worktree([^[:alnum:]_]|$)'; then
-      deny "LEI ZERO (OpenRig): 'git worktree' is FORBIDDEN. A worktree shares the main repo's .git and locks the branch, breaking the user's checkout. Isolate with 'git clone' into .solvers/issue-N instead (independent .git). (CLAUDE.md LEI ZERO)"
+      deny "OpenRig law 1: 'git worktree' is FORBIDDEN. A worktree shares the main repo's .git and locks the branch, breaking the user's checkout. Isolate with 'git clone' into .solvers/issue-N instead (independent .git). (CLAUDE.md law 1)"
     fi
     # Working dir already inside an isolated clone → allow (covers bare VCS like
-    # `git commit` run after a cd, which carries no .solvers/ token; issue #751).
+    # `git commit` run after a cd, which carries no .solvers/ token).
     case "$PWD" in
       "$solvers"/*|"$solvers") exit 0 ;;
     esac

@@ -21,7 +21,7 @@ pub fn blocks_need_split_format(blocks: &[AudioBlock]) -> bool {
         .any(|block| matches!(block.kind, AudioBlockKind::Split(_)))
 }
 
-/// The version a `project.openrig` document is written with.
+/// The version a `project.yaml` document is written with.
 pub fn project_format_version(rig: &RigProject) -> u32 {
     if rig
         .presets

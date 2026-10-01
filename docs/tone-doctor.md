@@ -1,4 +1,4 @@
-# Tone Doctor (#791, #809)
+# Tone Doctor
 
 Reference-free tone diagnosis. It answers two questions a spectrum analyzer
 cannot: *is this chain's tone unhealthy?* and, when it is, *which block caused
@@ -9,7 +9,7 @@ render belong to OpenRig, Tone Doctor can measure the chain with blocks added
 and removed and prove causation. A third-party analyzer plugin sees only the
 final signal and cannot re-render the chain without its neighbours.
 
-Since #809 the verdict is **genre-aware**: what counts as too much fizz for a
+The verdict is **genre-aware**: what counts as too much fizz for a
 blues-rock tone is normal for grunge, so the limits come from a table
 calibrated against real reference recordings instead of one global constant.
 
@@ -25,7 +25,7 @@ descriptors out. No state, no smoothing, no UI.
 | `clip_fraction` | fraction of samples pinned at the ±1.0 rail |
 | `fizz_ratio` | presence-band (3–8 kHz) power ÷ note-body (200 Hz–2 kHz) power |
 | `mud_ratio` | low-mid (160–500 Hz) power ÷ total power |
-| `boom_ratio` | low-end (40–120 Hz) power ÷ total power (#809) |
+| `boom_ratio` | low-end (40–120 Hz) power ÷ total power |
 
 Band energy is a Welch-averaged power spectrum (Hann window, 50 % overlap), so
 a multi-second take collapses to one stable estimate.
@@ -40,19 +40,19 @@ score means `Ok`.
 |---|---|---|---|
 | `Fizz` | `fizz_ratio` | excess | presence band dominates the note body |
 | `Mud` | `mud_ratio` | excess | low-mid buildup |
-| `Boomy` | `boom_ratio` | excess (#809) | low-end buildup below the note fundamental |
-| `Thin` | `mud_ratio` | **deficit** (#809) | not enough low-mid body for the genre |
-| `Squash` | `crest_db` | **deficit** (#809) | over-compressed — peaks flattened into the RMS |
+| `Boomy` | `boom_ratio` | excess | low-end buildup below the note fundamental |
+| `Thin` | `mud_ratio` | **deficit** | not enough low-mid body for the genre |
+| `Squash` | `crest_db` | **deficit** | over-compressed — peaks flattened into the RMS |
 | `Clipping` | `clip_fraction` | excess | samples pinned at the rail |
 
-The two deficit symptoms are the point of #809: an excess-only doctor could
-only ever tell you to turn something *down*.
+The two deficit symptoms exist because an excess-only doctor could only ever
+tell you to turn something *down*.
 
-### Genre-calibrated limits (#809)
+### Genre-calibrated limits
 
 Each symptom's limit comes from a per-genre `SymptomLimits` row. Picking a
 genre in the panel selects that row; picking none uses the conservative global
-defaults, which keep the original #791 behaviour.
+defaults.
 
 **The deficit floors default to zero, which disables them** — so `Thin` and
 `Squash` can only ever fire when you have selected a genre. Without a genre,
@@ -103,8 +103,8 @@ Everything runs offline and reuses the existing deterministic render path:
 - No new block in the signal graph, no per-block instrumentation, no descriptor
   maths on the audio thread — invariants #7 and #8 are untouched by
   construction.
-- Per-chain isolation (#4) holds: every render sees only its own chain.
-- Deterministic (#9): the same samples always yield the same descriptors, so
+- Per-chain isolation (invariant 4) holds: every render sees only its own chain.
+- Deterministic (invariant 9): the same samples always yield the same descriptors, so
   the tests pin behaviour with synthetic fixtures of known spectral content.
 
 ## Symptom → parameter suggestion (`engine::tone_doctor_suggestion`)
@@ -119,7 +119,7 @@ valid range. It never invents a parameter a block lacks; NAM/Insert/Select
 blocks yield no suggestion. Applying is the caller's job — a
 `SetBlockParameterNumber` command with the suggestion's block, path and value.
 
-### Measured, bidirectional auto-fix (`engine::tone_doctor_fix`, #809)
+### Measured, bidirectional auto-fix (`engine::tone_doctor_fix`)
 
 The panel does not ship the unverified nudge above. It calls
 `measure_fix_with_limits`, which **proves** the fix instead of guessing it: for
@@ -144,7 +144,7 @@ sits in a group that is switched off.
 The diagnosis and its fix are `Command`s, not GUI behaviour:
 
 - `ToneDoctorCommand::DiagnoseChainTone { chain, genre, seconds }` — picks the
-  signal in the owner's order (#948), taking the first one **sounding**: the live
+  signal in the owner's order, taking the first one **sounding**: the live
   guitars (every input stream of the chain, summed; registered via
   `LocalDispatcher::attach_tone_doctor_input`), then the playing loops (summed and
   repeated over the window; `RuntimeControl::playing_chain_loops`), then the loaded DI loop.
@@ -189,14 +189,14 @@ A stethoscope button sits in every chain header (`chain_row.slint` main page +
 `compact_chain_view_header.slint`), left of the DI fone. Clicking it seeds the
 `ToneDoctorState` global and opens an inline overlay panel (`tone_doctor_panel`
 via `tone_doctor_overlay`, rendered at the window root — never a `PopupWindow`,
-per #749/#761), scoped to that chain.
+see `docs/development/ui-rules.md` §1), scoped to that chain.
 
 The panel's **Diagnose** button dispatches `DiagnoseChainTone`; the verdict
 arrives on the frontend drain as `Event::ChainToneDiagnosed` and
 `tone_doctor_events` paints it on whichever window has the panel open. It shows
 a symptom traffic light, the culprit block, and the suggested fix as
 `Tone 70 → 45`, with an **Apply** button that dispatches `ApplyToneDoctorFix`
-and then re-syncs the chain's live runtime (#808). With no DI and no live chain
+and then re-syncs the chain's live runtime. With no DI and no live chain
 the command errors and the panel says there is nothing to analyse. The glue
 lives in `tone_doctor_compact_wiring` (both the main page and the compact window
 reuse it); the report → view mapping is the pure, unit-tested
@@ -207,7 +207,7 @@ Strings are translated across all nine locales. The dynamic symptom words
 for now. The culprit is shown by its catalog display name, not its raw model
 identity.
 
-### Genre selector (#809)
+### Genre selector
 
 Between the take-length chips and the **Diagnose** button sits a searchable
 genre select listing the 15 calibrated genres, plus a `—` entry meaning *no
@@ -219,7 +219,7 @@ The choice feeds the next Diagnose run and **is not persisted** — it is neithe
 a project field nor a `config.yaml` key, and it is not a `Command`. Reopening
 the panel starts at the default again.
 
-### Meters (#809)
+### Meters
 
 Under the verdict the panel draws four bars — **FIZZ**, **MUD**, **BOOM**,
 **CLIP** — each reading `value / limit` for the selected genre. The tick sits
@@ -231,7 +231,7 @@ Only the excess axes are metered. `Thin` and `Squash` are deficits of `MUD`
 and of crest factor, so they surface as the verdict word rather than as bars of
 their own.
 
-## Per-genre calibration data (#809)
+## Per-genre calibration data
 
 The limit table is regenerated offline by the dev-only
 `openrig-tone-calibrate` binary — it **never** runs in the app or on the audio
@@ -253,10 +253,3 @@ stdout when the path is omitted. The committed dump is
 `assets/tone-profiles/per-song-measurements.csv`. Methodology, the genre
 labelling rules, and the caveats live in
 [`development/tone-doctor-calibration.md`](development/tone-doctor-calibration.md).
-
-## Not yet built (tracked in #791)
-
-- Layer 1 *live* traffic light reading the output tap while playing (today the
-  light updates on an explicit Diagnose run, not continuously).
-- An interaction test (`i-slint-backend-testing`) driving the button → panel →
-  Apply click path headlessly.
