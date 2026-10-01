@@ -263,6 +263,9 @@ pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 mod gui_device_settings;
 #[cfg(test)]
+#[path = "issue_1023_block_window_compact_refresh_tests.rs"]
+mod issue_1023_block_window_compact_refresh_tests;
+#[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]

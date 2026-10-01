@@ -189,6 +189,7 @@ fn wire_model_selection(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window = ctx.open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_choose_block_model(move |index| {
@@ -272,6 +273,7 @@ fn wire_model_selection(
                     project_dirty.clone(),
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
+                    open_compact_window.clone(),
                     "block-window.choose-model",
                 );
             }

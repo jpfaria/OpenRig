@@ -342,6 +342,7 @@ pub(crate) fn create_and_wire(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
+            open_compact_window: open_compact_window.clone(),
         },
     );
 
