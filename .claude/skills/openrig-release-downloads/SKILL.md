@@ -9,7 +9,7 @@ description: Use when asked for OpenRig's GitHub release download counts — "ho
 
 `scripts/release-downloads.sh` wraps `gh api` to report download counts for
 OpenRig's GitHub releases — the single source of truth for this data, used by
-the marketing site (`site/app.js`, live-fetched via the GitHub Releases API)
+the marketing site (`site/js/release.js`, live-fetched via the GitHub Releases API)
 and safe to reuse from a chat answer or a script.
 
 ## When to use
