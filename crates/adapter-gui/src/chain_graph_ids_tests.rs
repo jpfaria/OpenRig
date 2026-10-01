@@ -1,7 +1,9 @@
 //! #328 (spec §5.2) — every graph node id resolves to what it stands for.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain};
+use crate::chain_graph_fixtures_tests::{
+    chain, core, mix_chain, mix_then_y_chain, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
+};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide};
 use project::endpoint_disables::EndpointNode;
@@ -58,14 +60,17 @@ fn split_and_mixer_nodes_name_the_chains_split() {
     let c = mix_chain();
     let sp = || BlockId("sp".into());
     assert_eq!(
-        resolve_node(&c, SPLIT_NODE_ID),
+        resolve_node(&c, FIRST_SPLIT_NODE_ID),
         Some(NodeRef::Split { id: sp() })
     );
     assert_eq!(
-        resolve_node(&c, MIXER_NODE_ID),
+        resolve_node(&c, FIRST_MIXER_NODE_ID),
         Some(NodeRef::Mixer { id: sp() })
     );
-    assert_eq!(resolve_node(&chain(vec![core("x")]), SPLIT_NODE_ID), None);
+    assert_eq!(
+        resolve_node(&chain(vec![core("x")]), FIRST_SPLIT_NODE_ID),
+        None
+    );
 }
 
 #[test]

@@ -21,6 +21,11 @@ use slint::VecModel;
 use crate::state::ProjectSession;
 use crate::ProjectChainItem;
 
+/// The split node of a chain's first split.
+pub(crate) const FIRST_SPLIT_NODE_ID: &str = "__split_1";
+/// The mixer node of a chain's first split, when it is a Mix.
+pub(crate) const FIRST_MIXER_NODE_ID: &str = "__merge_1";
+
 /// A native gain/volume block — a real catalog model
 /// (`crates/block-gain/src/native_volume.rs`, param `volume` 0..100).
 pub(crate) fn core(id: &str) -> AudioBlock {

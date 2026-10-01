@@ -1,8 +1,10 @@
 //! #328 (spec §5.1) — a click opens what the node stands for.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{mix_chain, mix_then_y_chain};
-use crate::chain_graph_ids::{INPUT_NODE_ID, MIXER_NODE_ID, OUTPUT_NODE_ID, SPLIT_NODE_ID};
+use crate::chain_graph_fixtures_tests::{
+    mix_chain, mix_then_y_chain, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
+};
+use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide};
 
@@ -30,11 +32,11 @@ fn routing_nodes_open_their_editors() {
     let c = mix_chain();
     let sp = || BlockId("sp".into());
     assert_eq!(
-        click_action(&c, SPLIT_NODE_ID),
+        click_action(&c, FIRST_SPLIT_NODE_ID),
         Some(ClickAction::OpenSplitEditor { split: sp() })
     );
     assert_eq!(
-        click_action(&c, MIXER_NODE_ID),
+        click_action(&c, FIRST_MIXER_NODE_ID),
         Some(ClickAction::OpenMixerEditor { split: sp() })
     );
     assert_eq!(

@@ -3,8 +3,10 @@
 
 use super::*;
 use crate::chain_graph_adapter::chain_graph;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, registry, rows};
-use crate::chain_graph_ids::{INPUT_NODE_ID, MIXER_NODE_ID, OUTPUT_NODE_ID, SPLIT_NODE_ID};
+use crate::chain_graph_fixtures_tests::{
+    chain, core, mix_chain, registry, rows, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
+};
+use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::endpoint_checklist_items::IoLabels;
 use crate::project_view::replace_project_chains;
 use project::project::Project;
@@ -33,8 +35,8 @@ fn each_node_carries_its_kind_and_its_block_tile() {
     let nodes: Vec<GraphNode> = models.nodes.iter().collect();
     let find = |id: &str| nodes.iter().find(|n| n.id.as_str() == id).cloned().unwrap();
     assert_eq!(find(INPUT_NODE_ID).kind.as_str(), "io_input");
-    assert_eq!(find(SPLIT_NODE_ID).kind.as_str(), "split");
-    assert_eq!(find(MIXER_NODE_ID).kind.as_str(), "mixer");
+    assert_eq!(find(FIRST_SPLIT_NODE_ID).kind.as_str(), "split");
+    assert_eq!(find(FIRST_MIXER_NODE_ID).kind.as_str(), "mixer");
     assert_eq!(find(OUTPUT_NODE_ID).kind.as_str(), "io_output");
     let a1 = find("a1");
     assert_eq!(a1.kind.as_str(), "block");
@@ -53,7 +55,7 @@ fn each_node_carries_its_kind_and_its_block_tile() {
         ),
     );
     assert_eq!(
-        find(SPLIT_NODE_ID).block.display_name.as_str(),
+        find(FIRST_SPLIT_NODE_ID).block.display_name.as_str(),
         "",
         "no hover tooltip on routing nodes"
     );

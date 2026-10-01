@@ -3,10 +3,11 @@
 //! own output node.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, split, y_chain};
+use crate::chain_graph_fixtures_tests::{
+    chain, core, mix_chain, split, y_chain, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
+};
 use crate::chain_graph_ids::{
-    INPUT_NODE_ID, MIXER_NODE_ID, OUTPUT_NODE_ID, PATH_A_OUTPUT_NODE_ID, PATH_B_OUTPUT_NODE_ID,
-    SPLIT_NODE_ID,
+    INPUT_NODE_ID, OUTPUT_NODE_ID, PATH_A_OUTPUT_NODE_ID, PATH_B_OUTPUT_NODE_ID,
 };
 use crate::endpoint_checklist_items::IoLabels;
 use crate::graph_anchor::{insert_target, parse_anchor};
@@ -63,22 +64,22 @@ fn a_linear_chain_is_one_lane_from_input_to_output() {
 fn a_split_to_mix_chain_runs_two_lanes_between_split_and_mixer() {
     let graph = chain_graph(&mix_chain(), &labels());
     assert_eq!(graph.lanes, 2);
-    let split_y = node(&graph, SPLIT_NODE_ID).y;
+    let split_y = node(&graph, FIRST_SPLIT_NODE_ID).y;
     assert!(
         node(&graph, "a1").y < split_y && split_y < node(&graph, "b1").y,
         "lane A above, lane B below"
     );
     assert_eq!(node(&graph, "pre").y, split_y);
-    assert_eq!(node(&graph, "post").y, node(&graph, MIXER_NODE_ID).y);
+    assert_eq!(node(&graph, "post").y, node(&graph, FIRST_MIXER_NODE_ID).y);
     for (from, to) in [
         (INPUT_NODE_ID, "pre"),
-        ("pre", SPLIT_NODE_ID),
-        (SPLIT_NODE_ID, "a1"),
+        ("pre", FIRST_SPLIT_NODE_ID),
+        (FIRST_SPLIT_NODE_ID, "a1"),
         ("a1", "a2"),
-        ("a2", MIXER_NODE_ID),
-        (SPLIT_NODE_ID, "b1"),
-        ("b1", MIXER_NODE_ID),
-        (MIXER_NODE_ID, "post"),
+        ("a2", FIRST_MIXER_NODE_ID),
+        (FIRST_SPLIT_NODE_ID, "b1"),
+        ("b1", FIRST_MIXER_NODE_ID),
+        (FIRST_MIXER_NODE_ID, "post"),
         ("post", OUTPUT_NODE_ID),
     ] {
         assert!(has_edge(&graph, from, to), "missing wire {from} → {to}");
@@ -95,7 +96,7 @@ fn a_y_chain_ends_each_lane_in_its_own_output_node() {
     assert!(graph
         .nodes
         .iter()
-        .all(|n| n.id != OUTPUT_NODE_ID && n.id != MIXER_NODE_ID));
+        .all(|n| n.id != OUTPUT_NODE_ID && n.id != FIRST_MIXER_NODE_ID));
     assert_eq!(node(&graph, PATH_A_OUTPUT_NODE_ID).y, node(&graph, "a1").y);
     assert_eq!(node(&graph, PATH_B_OUTPUT_NODE_ID).y, node(&graph, "b1").y);
     assert!(
@@ -112,8 +113,8 @@ fn empty_mix_lanes_still_draw_split_and_mixer() {
         &chain(vec![split("sp", SplitEnd::Mix, vec![], vec![])]),
         &labels(),
     );
-    assert!(has_edge(&graph, SPLIT_NODE_ID, MIXER_NODE_ID));
-    assert!(has_edge(&graph, MIXER_NODE_ID, OUTPUT_NODE_ID));
+    assert!(has_edge(&graph, FIRST_SPLIT_NODE_ID, FIRST_MIXER_NODE_ID));
+    assert!(has_edge(&graph, FIRST_MIXER_NODE_ID, OUTPUT_NODE_ID));
 }
 
 #[test]
@@ -138,10 +139,10 @@ fn every_node_carries_its_kind() {
     assert_eq!(node(&y, INPUT_NODE_ID).kind, NodeKind::IoInput);
     assert_eq!(node(&y, PATH_A_OUTPUT_NODE_ID).kind, NodeKind::IoOutput);
     assert_eq!(node(&y, PATH_B_OUTPUT_NODE_ID).kind, NodeKind::IoOutput);
-    assert_eq!(node(&y, SPLIT_NODE_ID).kind, NodeKind::Split);
+    assert_eq!(node(&y, FIRST_SPLIT_NODE_ID).kind, NodeKind::Split);
     assert_eq!(node(&y, "a1").kind, NodeKind::Block);
     let mix = chain_graph(&mix_chain(), &labels());
-    assert_eq!(node(&mix, MIXER_NODE_ID).kind, NodeKind::Mixer);
+    assert_eq!(node(&mix, FIRST_MIXER_NODE_ID).kind, NodeKind::Mixer);
     assert_eq!(node(&mix, OUTPUT_NODE_ID).kind, NodeKind::IoOutput);
 }
 
@@ -196,7 +197,7 @@ fn shared_blocks_before_a_y_split_sit_on_the_input_lane() {
     );
     let input = node(&graph, INPUT_NODE_ID);
     let amp = node(&graph, amp_id);
-    let sp = node(&graph, SPLIT_NODE_ID);
+    let sp = node(&graph, FIRST_SPLIT_NODE_ID);
     assert_eq!(
         (amp.y, sp.y),
         (input.y, input.y),

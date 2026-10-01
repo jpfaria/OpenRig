@@ -16,8 +16,6 @@ pub(crate) const INPUT_NODE_ID: &str = "__io_input";
 pub(crate) const OUTPUT_NODE_ID: &str = "__io_output";
 pub(crate) const PATH_A_OUTPUT_NODE_ID: &str = "__io_output_a";
 pub(crate) const PATH_B_OUTPUT_NODE_ID: &str = "__io_output_b";
-pub(crate) const SPLIT_NODE_ID: &str = "__split_1";
-pub(crate) const MIXER_NODE_ID: &str = "__merge_1";
 
 const SPLIT_NODE_PREFIX: &str = "__split_";
 const MIXER_NODE_PREFIX: &str = "__merge_";

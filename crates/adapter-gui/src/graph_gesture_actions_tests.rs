@@ -7,8 +7,8 @@ use super::*;
 use crate::chain_graph_adapter::{CARD_HALF, COLUMN_SPACING};
 use crate::chain_graph_fixtures_tests::{
     chain, chain_in, core, mix_chain, port_in, registry, rows, session_with, split,
+    FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
 };
-use crate::chain_graph_ids::{MIXER_NODE_ID, SPLIT_NODE_ID};
 use crate::graph_view_model::AnchorSlot;
 use crate::state::ProjectSession;
 use project::block::{AudioBlock, AudioBlockKind, SplitEnd};
@@ -84,7 +84,7 @@ fn removing_a_path_block_removes_it_from_its_lane() {
 #[test]
 fn removing_a_split_with_blocks_in_path_b_asks_first() {
     let (session, rows) = (session_with(vec![mix_chain()]), rows());
-    let outcome = remove_node(&session, 0, SPLIT_NODE_ID, &target(&rows)).expect("decided");
+    let outcome = remove_node(&session, 0, FIRST_SPLIT_NODE_ID, &target(&rows)).expect("decided");
     assert!(
         matches!(outcome, RemoveOutcome::ConfirmSplit { .. }),
         "got {outcome:?}"
@@ -104,7 +104,7 @@ fn removing_a_split_with_an_empty_path_b_needs_no_confirmation() {
     ]);
     let (session, rows) = (session_with(vec![c]), rows());
     assert_eq!(
-        remove_node(&session, 0, MIXER_NODE_ID, &target(&rows)),
+        remove_node(&session, 0, FIRST_MIXER_NODE_ID, &target(&rows)),
         Ok(RemoveOutcome::Removed)
     );
     // spec §3: path A's blocks take the split's place.

@@ -2,8 +2,10 @@
 //! place in the chain: a position in one list plus the path of that list.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, split, y_chain};
-use crate::chain_graph_ids::{INPUT_NODE_ID, SPLIT_NODE_ID};
+use crate::chain_graph_fixtures_tests::{
+    chain, core, mix_chain, mix_then_y_chain, split, y_chain, FIRST_SPLIT_NODE_ID,
+};
+use crate::chain_graph_ids::INPUT_NODE_ID;
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide, SplitEnd};
 
@@ -159,7 +161,7 @@ fn shared_and_path_positions_trade_blocks() {
 #[test]
 fn only_block_nodes_move() {
     let c = mix_chain();
-    assert_eq!(move_target(&c, SPLIT_NODE_ID, &lane(2, 0, 0)), None);
+    assert_eq!(move_target(&c, FIRST_SPLIT_NODE_ID, &lane(2, 0, 0)), None);
     assert_eq!(move_target(&c, INPUT_NODE_ID, &lane(2, 0, 0)), None);
 }
 
