@@ -3,12 +3,13 @@
 //! from compact_chain_block_handlers.rs).
 
 use crate::compact_block_view::build_compact_blocks;
+use crate::compact_row_address::{move_target, row_block};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, CompactChainViewWindow};
 use application::command::{BlockCommand, Command};
-use slint::{ComponentHandle, Global, Model, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -53,7 +54,7 @@ pub(crate) fn wire_block_delete(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 match block.model_ref() {
@@ -112,7 +113,7 @@ pub(crate) fn wire_block_delete(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())
@@ -172,42 +173,22 @@ pub(crate) fn wire_block_reorder(
         compact_win.on_reorder_block(move |ci, compact_from, compact_before| {
             let Some(main_win) = weak_main.upgrade() else { return; };
             let Some(cw) = weak_compact.upgrade() else { return; };
-            // Look up real chain.blocks indices from the Slint compact model
-            let compact_model = cw.get_compact_blocks();
-            let compact_len = compact_model.row_count();
-            let from_pos = compact_from as usize;
-            if from_pos >= compact_len { return; }
-            let from_index = compact_model.row_data(from_pos)
-                .map(|item| item.block_index as usize)
-                .unwrap_or(0);
-            let before_pos = compact_before as usize;
-            let real_before = if before_pos < compact_len {
-                compact_model.row_data(before_pos)
-                    .map(|item| item.block_index as usize)
-                    .unwrap_or(0)
-            } else {
-                // "after last compact block" → one position after last compact block's real index
-                compact_model.row_data(compact_len - 1)
-                    .map(|item| item.block_index as usize + 1)
-                    .unwrap_or(0)
-            };
-            log::info!("[compact] reorder-block: compact_from={}, compact_before={}, real_from={}, real_before={}", compact_from, compact_before, from_index, real_before);
-            if real_before == from_index || real_before == from_index + 1 { return; }
             let chain_idx = ci as usize;
-            // Resolve block_id and compute insert_at before dispatching.
-            let (chain_id, block_id, insert_at) = {
+            // #328: rows list the split's paths too, so the drop is resolved
+            // against the chain's rows, never as a `chain.blocks` position.
+            let (chain_id, block_id, target) = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else { return; };
                 let proj = session.project.borrow();
                 let Some(chain) = proj.chains.get(chain_idx) else { return; };
-                let block_count = chain.blocks.len();
-                if from_index >= block_count { return; }
-                let block_id = chain.blocks[from_index].id.clone();
-                let mut normalized_before = real_before;
-                if normalized_before > from_index { normalized_before -= 1; }
-                let insert_at = normalized_before.min(block_count.saturating_sub(1));
-                (chain.id.clone(), block_id, insert_at)
+                let Some((block_id, target)) =
+                    move_target(chain, compact_from as usize, compact_before as usize)
+                else {
+                    return;
+                };
+                (chain.id.clone(), block_id, target)
             };
+            log::info!("[compact] reorder-block: row {compact_from} before row {compact_before} -> {target:?}");
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else { return; };
             // Dispatch BlockCommand::MoveBlock — mutates project via shared Rc.
@@ -216,7 +197,8 @@ pub(crate) fn wire_block_reorder(
                 .dispatch(Command::Block(BlockCommand::MoveBlock {
                     chain: chain_id.clone(),
                     block: block_id,
-                    new_position: insert_at,
+                    new_position: target.index,
+                    path: target.path,
                 })) {
                 log::error!("[compact] reorder-block dispatch: {}", e);
                 return;

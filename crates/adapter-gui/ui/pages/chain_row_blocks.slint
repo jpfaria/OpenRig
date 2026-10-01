@@ -10,6 +10,7 @@ import { ChainEndpointChip } from "../components/chain_chips.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
+import { ChainLatencyBadge } from "../components/chain_latency_badge.slint";
 
 export component ChainRowBlocks inherits Rectangle {
     in property <ProjectChainItem> chain;
@@ -301,50 +302,10 @@ export component ChainRowBlocks inherits Rectangle {
         interactive: false;
     }
 
-    if root.chain.latency_ms > 0 : Rectangle {
+    if root.chain.latency_ms > 0 : ChainLatencyBadge {
         x: min(root.out-chip-x + 4px, parent.width - self.width);
         y: root.out-chip-y - 12px;
-        // #954: the badge follows its two labels.
-        width: lat-lbl.preferred-width + lat-ms.preferred-width + 14px;
-        height: 22px;
-        border-radius: 4px;
-        background: root.chain.latency_ms < 10.0 ? #4ade8018
-                  : root.chain.latency_ms < 20.0 ? #facc1518
-                  : #f8717118;
-        border-width: 1px;
-        border-color: root.chain.latency_ms < 10.0 ? #4ade8055
-                    : root.chain.latency_ms < 20.0 ? #facc1555
-                    : #f8717155;
-
-        lat-lbl := Text {
-            x: 5px;
-            y: 0px;
-            width: self.preferred-width;
-            height: parent.height;
-            text: @tr("label-lat");
-            color: root.chain.latency_ms < 10.0 ? #4ade8099
-                 : root.chain.latency_ms < 20.0 ? #facc1599
-                 : #f8717199;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
-
-        lat-ms := Text {
-            x: lat-lbl.x + lat-lbl.width + 4px;
-            y: 0px;
-            width: self.preferred-width;
-            height: parent.height;
-            text: Math.round(root.chain.latency_ms) + "ms";
-            color: root.chain.latency_ms < 10.0 ? #4ade80
-                 : root.chain.latency_ms < 20.0 ? #facc15
-                 : #f87171;
-            font-size: 18px;
-            font-weight: 600;
-            horizontal-alignment: left;
-            vertical-alignment: center;
-        }
+        latency-ms: root.chain.latency_ms;
     }
 
     // In chip tooltip — aparece à direita do chip In

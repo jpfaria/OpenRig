@@ -15,6 +15,10 @@ msgstr ""
 msgid "OpenRig"
 msgstr "OpenRig"
 
+#: crates/adapter-gui/ui/components/block_insert_slot.slint:80
+msgid "accessible-add-block-here"
+msgstr "在此添加模块"
+
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:276
 msgid "btn-load-file"
 msgstr "Load"
@@ -35,11 +39,19 @@ msgstr "+"
 msgid "di-loop-button-label"
 msgstr "DI 循环"
 
+#: crates/adapter-gui/ui/components/chain_latency_badge.slint:26
+msgid "label-lat"
+msgstr "LAT"
+
 # I/O Bindings UI strings (added #716)
 # Looper UI strings (added #323)
 #: crates/adapter-gui/ui/components/chain_looper_button.slint:53
 msgid "looper-button-label"
 msgstr "循环器"
+
+#: crates/adapter-gui/ui/components/chain_meters_button.slint:38
+msgid "label-meters"
+msgstr "输入 / 输出"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:78
 msgid "Scene {}"
@@ -89,43 +101,40 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/channel_picker.slint:126
-msgid "label-channels-selected"
-msgstr "已选择："
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:160
+#. channels. Default is the channel wording every existing picker shows.
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr "{} 个通道"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:55
 msgid "label-mixer-no-inputs"
 msgstr "无输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-outputs"
 msgstr "无输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-loopers"
 msgstr "无循环器"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "label-mixer"
 msgstr "调音台"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-in"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-out"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-looper"
 msgstr "循环器"
 
@@ -189,6 +198,51 @@ msgstr "删除?"
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "全局"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
+msgid "btn-close"
+msgstr "关闭"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
+msgid "hint-endpoint-checklist"
+msgstr "取消勾选的端点仍保留在列表中，但不再连接到此节点。"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
+msgid "hint-endpoints-empty"
+msgstr "此链的 E/S 没有此节点的端点。"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
+msgid "label-endpoints-total"
+msgstr "{} 个端点"
+
+#. The split and the mixer carry no host label; their name is translated.
+#: crates/adapter-gui/ui/components/graph_node_card.slint:55
+msgid "graph-node-split"
+msgstr "分路"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-input"
+msgstr "In"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-output"
+msgstr "Out"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:56
+msgid "graph-node-mixer"
+msgstr "混音器"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:145
+msgid "accessible-graph-node-bypass"
+msgstr "开启或关闭模块"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:162
+msgid "accessible-graph-node-remove"
+msgstr "移除模块"
+
+#: crates/adapter-gui/ui/components/graph_view.slint:119
+msgid "accessible-graph-view"
+msgstr "信号链图"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -432,6 +486,14 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr "未找到预设"
 
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:62
+msgid "label-remove-path"
+msgstr "移除路径 {}"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:187
+msgid "btn-add-path"
+msgstr "路径"
+
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"
 msgstr "Tone Doctor"
@@ -600,27 +662,19 @@ msgstr "端点"
 msgid "msg-pick-io-endpoint"
 msgstr "选择 I/O 和端点"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
-msgid "label-meters"
-msgstr "输入 / 输出"
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
-msgid "label-lat"
-msgstr "LAT"
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:419
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:380
 msgid "label-output"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:170
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:181
 msgid "tooltip-expand-blocks"
 msgstr "展开块"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:178
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:189
 msgid "tooltip-measure-latency"
 msgstr "测量延迟（发出哔声）"
 
@@ -814,10 +868,6 @@ msgstr "元数据"
 #: crates/adapter-gui/ui/pages/settings.slint:291
 msgid "btn-save-audio-settings"
 msgstr "应用"
-
-#: crates/adapter-gui/ui/pages/settings.slint:295
-msgid "btn-close"
-msgstr "关闭"
 
 #: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:97
 msgid "label-endpoint-device"

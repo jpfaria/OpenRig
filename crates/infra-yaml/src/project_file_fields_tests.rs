@@ -20,6 +20,7 @@ fn input(preset: &str, instrument: &str, io_binding_ids: Vec<String>) -> RigInpu
         io_binding_ids,
         loopers: Vec::new(),
         mix: Default::default(),
+        disabled_endpoints: Default::default(),
     }
 }
 

@@ -5,7 +5,8 @@
 //! [`RigProject::validate`]; round-trip is deterministic (`BTreeMap` ordering).
 
 use anyhow::{anyhow, Context, Result};
-use project::rig::{RigProject, PROJECT_FORMAT_VERSION};
+use project::format_version::{project_format_version, MAX_READABLE_FORMAT_VERSION};
+use project::rig::RigProject;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -29,10 +30,10 @@ struct ProjectFile {
 /// staged-upgraded in memory (no upgrades exist for v1 yet).
 pub fn parse_project(yaml: &str) -> Result<RigProject> {
     let file: ProjectFile = serde_yaml::from_str(yaml).context("failed to parse project")?;
-    if file.version > PROJECT_FORMAT_VERSION {
+    if file.version > MAX_READABLE_FORMAT_VERSION {
         return Err(anyhow!(
             "project version {} is newer than this build supports \
-             (max {PROJECT_FORMAT_VERSION}); please upgrade OpenRig",
+             (max {MAX_READABLE_FORMAT_VERSION}); please upgrade OpenRig",
             file.version
         ));
     }
@@ -43,11 +44,12 @@ pub fn parse_project(yaml: &str) -> Result<RigProject> {
     Ok(file.project)
 }
 
-/// Serialize a [`RigProject`] to the project YAML, stamping the current
-/// format version.
+/// Serialize a [`RigProject`] to the project YAML, stamping the format version
+/// its content needs (#328: `2` only when a preset holds a split, so a
+/// split-free project stays readable by builds that predate the split).
 pub fn serialize_project(project: &RigProject) -> Result<String> {
     let file = ProjectFile {
-        version: PROJECT_FORMAT_VERSION,
+        version: project_format_version(project),
         project: project.clone(),
     };
     serde_yaml::to_string(&file).context("failed to serialize project")

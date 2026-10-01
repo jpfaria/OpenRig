@@ -30,6 +30,7 @@ pub mod plugin;
 pub mod project;
 pub mod selection;
 pub mod settings;
+pub mod split;
 pub mod tone_doctor;
 
 pub use block::BlockCommand;
@@ -43,6 +44,7 @@ pub use plugin::PluginCommand;
 pub use project::ProjectCommand;
 pub use selection::SelectionCommand;
 pub use settings::SettingsCommand;
+pub use split::SplitCommand;
 pub use tone_doctor::ToneDoctorCommand;
 
 pub use crate::di_loader::DiLoopSource;
@@ -76,6 +78,8 @@ pub enum Command {
     /// #323: per-chain loopers — membership, transport, params, endpoints and
     /// the linked preset (phase 2).
     Looper(LooperCommand),
+    /// #328: the chain's splits — create one, switch Mix/Y, remove one.
+    Split(SplitCommand),
     /// #1007: the global mixer — one fader and one mute per I/O endpoint.
     Mixer(MixerCommand),
 }

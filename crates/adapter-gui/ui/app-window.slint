@@ -1,6 +1,8 @@
 // Responsibility: hosts the desktop application window.
 import "fonts/CooperHewitt-Semibold.ttf";
 import { ChainEditorBridge } from "chain_editor_globals.slint";
+import { ChainGraphBridge } from "chain_graph_globals.slint";
+import { ChainGraphOverlayState } from "chain_graph_overlay_globals.slint";
 import { AnalyzerBridge } from "analyzer_globals.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
@@ -25,18 +27,20 @@ import { LooperHarness } from "components/looper_panel_test_harness.slint";
 import { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
 import { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
+import { GraphViewHarness, GraphViewScrollHarness } from "components/graph_view_test_harness.slint";
+import { ChainRowGraphSplitMixHarness } from "components/chain_row_graph_test_harness.slint";
+import { SplitEditorOverlay } from "components/split_editor_overlay.slint";
+import { SplitEditorHarness } from "components/split_editor_test_harness.slint";
+import { EndpointChecklistOverlay } from "components/endpoint_checklist_overlay.slint";
+import { EndpointChecklistHarness } from "components/endpoint_checklist_test_harness.slint";
 import { MixerHarness } from "components/mixer_test_harness.slint";
 import { ProjectChainsHarness } from "components/project_chains_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, MixerHarness, ProjectChainsHarness }
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, ProjectChainsHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MixerWindow, MixerBridge, MixerStripRow } from "pages/pages.slint";
-import { Toast } from "components/toast.slint";
-import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
-import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
-import { ConfirmDeleteRecentProjectDialog } from "components/confirm_delete_recent_project_dialog.slint";
-import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
+import { RootModalOverlays } from "components/root_modal_overlays.slint";
 import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow } from "secondary_windows_chain.slint";
@@ -44,7 +48,7 @@ import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_blo
 export { AppUpdate } from "components/app_update_globals.slint";
 export { ChainMixerBridge } from "components/chain_mixer_globals.slint"; export { ChainMixerPanel } from "components/chain_mixer_panel_globals.slint";
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs, MixerBridge, MixerStripRow }
-export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge }
+export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge, ChainGraphBridge, ChainGraphOverlayState }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow, MixerWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -378,51 +382,14 @@ export component AppWindow inherits Window {
         // Inline chain editor
     }
 
-    if OverlayBridge.show-confirm-delete-block : ConfirmDeleteBlockDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        block-name: OverlayBridge.confirm-delete-block-name;
-        cancel => { OverlayBridge.cancel-delete-block(); }
-        confirm => { OverlayBridge.confirm-delete-block(); }
-    }
+    // #328: the split / mixer knobs (root level: never clipped by the chain list).
+    // Declared before the root dialogs so its remove-path confirmation paints over it.
+    SplitEditorOverlay { width: root.width; height: root.height; }
+    // #328: the input/output node checklist (root level: never clipped).
+    EndpointChecklistOverlay { width: root.width; height: root.height; }
 
-    if OverlayBridge.show-confirm-delete-chain : ConfirmDeleteChainDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        chain-name: OverlayBridge.confirm-delete-chain-name;
-        cancel => { OverlayBridge.cancel-delete-chain(); }
-        confirm => { OverlayBridge.confirm-delete-chain(); }
-    }
-
-    if OverlayBridge.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        project-name: OverlayBridge.confirm-delete-recent-project-name;
-        cancel => { OverlayBridge.cancel-delete-recent-project(); }
-        confirm => { OverlayBridge.confirm-delete-recent-project(); }
-    }
-
-    Toast {
-        message: OverlayBridge.toast-message;
-        level: OverlayBridge.toast-level;
-        container-width: root.width;
-        container-height: root.height;
-    }
-
-    // Root-level modal: works in BOTH desktop and touch modes so the
-    // bundled presets are always reachable in-app (issue #479 — desktop
-    // previously had only a native FileDialog and no visible list).
-    PresetPickerOverlay {
-        width: root.width;
-        height: root.height;
-        visible-overlay: OverlayBridge.show-preset-picker;
-        items: OverlayBridge.preset-picker-items;
-        search-query <=> OverlayBridge.preset-picker-search-query;
-        confirm(i) => { OverlayBridge.preset-picker-confirm(i); }
-        cancel() => { OverlayBridge.preset-picker-cancel(); }
-        delete(i) => { OverlayBridge.preset-picker-delete(i); }
-        query-changed(t) => { OverlayBridge.preset-picker-query-changed(t); }
-    }
+    // #328: confirm dialogs, toast and preset picker — moved so this file stays under its cap.
+    RootModalOverlays { x: 0; y: 0; width: root.width; height: root.height; }
 
     // #749/#791: DI loop + Tone Doctor root overlays (extracted to components).
     DiLoopOverlay {
@@ -478,7 +445,6 @@ export component AppWindow inherits Window {
         run-diagnosis(ci) => { root.tone-doctor-run(ci); }
         apply-suggestion(ci) => { root.tone-doctor-apply(ci); }
     }
-
     PresetSaveOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;

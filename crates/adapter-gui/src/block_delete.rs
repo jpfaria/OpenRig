@@ -52,7 +52,10 @@ pub(crate) fn delete_drafted_block(
             log::warn!("[block-drawer.delete] chain {} is gone", draft.chain_index);
             return Err(DeleteBlockError::Gone);
         };
-        let Some(block) = chain.blocks.get(block_index) else {
+        // #328: an index inside a split path counts in that path.
+        let Some(block) =
+            crate::chain_block_lists::block_at(chain, block_index, draft.path.as_ref())
+        else {
             log::warn!("[block-drawer.delete] block {block_index} is gone");
             return Err(DeleteBlockError::Gone);
         };

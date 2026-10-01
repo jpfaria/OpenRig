@@ -1,0 +1,134 @@
+// Responsibility: hosts the graph view for a render check.
+// #328 render harness — the three chain shapes the graph chain editor draws
+// (linear, Split → Mix, Y → A/B) plus the linear one zoomed out, with fake
+// data on the default grid (graph_view_model::GridMetrics: origin 80,200 ·
+// column 160 · lane 120; anchors on wire midpoints). Not compiled into the
+// app; rendered headlessly with tools/slint-render. The interpreter has no
+// translation catalog, so @tr text renders as its key.
+import { GraphView } from "graph_view.slint";
+import "../fonts/BebasNeue.ttf";
+
+// IN → DRIVE (selected, MIDI marker) → AMP (unavailable, neighbor marker)
+// → REVERB (bypassed) → OUT.
+export component LinearChain inherits Window {
+    in property <float> zoom: 1.0;
+    width: 900px;
+    height: 420px;
+    background: #0a0d12;
+    default-font-family: "Bebas Neue";
+
+    GraphView {
+        width: 100%;
+        height: 100%;
+        zoom: root.zoom;
+        markers_visible: true;
+        nodes: [
+            { id: "in", kind: "io_input", label: "IN 1", category: "input", fill: #1e8aff, border: #1359a5, layout_x: 80px, layout_y: 200px, bypass: false, selected: false, neighbor: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "", unavailable: false } },
+            { id: "od", kind: "block", label: "OD", category: "drive", fill: #00000000, border: #00000000, layout_x: 240px, layout_y: 200px, bypass: false, selected: true, neighbor: false, block: { type_label: "DRIVE", icon_kind: "gain", accent_color: #d04a3a, display_name: "Tube Screamer", unavailable: false } },
+            { id: "amp", kind: "block", label: "AMP", category: "amp", fill: #00000000, border: #00000000, layout_x: 400px, layout_y: 200px, bypass: false, selected: false, neighbor: true, block: { type_label: "AMP", icon_kind: "amp", accent_color: #4a7fd0, display_name: "Clean Amp", unavailable: true } },
+            { id: "rev", kind: "block", label: "REV", category: "reverb", fill: #00000000, border: #00000000, layout_x: 560px, layout_y: 200px, bypass: true, selected: false, neighbor: false, block: { type_label: "REVERB", icon_kind: "reverb", accent_color: #3aa86a, display_name: "Hall", unavailable: false } },
+            { id: "out", kind: "io_output", label: "OUT 1-2", category: "output", fill: #ff8a1e, border: #a55913, layout_x: 720px, layout_y: 200px, bypass: false, selected: false, neighbor: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "", unavailable: false } },
+        ];
+        edges: [
+            { from_id: "in", to_id: "od", from_x: 80px, from_y: 200px, to_x: 240px, to_y: 200px },
+            { from_id: "od", to_id: "amp", from_x: 240px, from_y: 200px, to_x: 400px, to_y: 200px },
+            { from_id: "amp", to_id: "rev", from_x: 400px, from_y: 200px, to_x: 560px, to_y: 200px },
+            { from_id: "rev", to_id: "out", from_x: 560px, from_y: 200px, to_x: 720px, to_y: 200px },
+        ];
+        anchors: [
+            { id: "stage:1", layout_x: 160px, layout_y: 200px, always_visible: false },
+            { id: "stage:2", layout_x: 320px, layout_y: 200px, always_visible: false },
+            { id: "stage:3", layout_x: 480px, layout_y: 200px, always_visible: false },
+            { id: "stage:4", layout_x: 640px, layout_y: 200px, always_visible: false },
+        ];
+    }
+}
+
+export component LinearChainZoomedOut inherits LinearChain {
+    zoom: 0.5;
+}
+
+// IN → COMP → SPLIT → [AMP A → CAB A] ∥ [AMP B] → MIXER → REVERB → OUT.
+export component SplitMixChain inherits Window {
+    width: 1300px;
+    height: 420px;
+    background: #0a0d12;
+    default-font-family: "Bebas Neue";
+
+    GraphView {
+        width: 100%;
+        height: 100%;
+        nodes: [
+            { id: "in", kind: "io_input", label: "IN 1", category: "input", fill: #1e8aff, border: #1359a5, layout_x: 80px, layout_y: 200px, bypass: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "comp", kind: "block", label: "COMP", category: "dynamics", fill: #00000000, border: #00000000, layout_x: 240px, layout_y: 200px, bypass: false, block: { type_label: "DYN", icon_kind: "dynamics", accent_color: #c69b3f, display_name: "Compressor" } },
+            { id: "__split_1", kind: "split", label: "", category: "util", fill: #6a7483, border: #444b55, layout_x: 400px, layout_y: 200px, bypass: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "amp_a", kind: "block", label: "AMP A", category: "amp", fill: #00000000, border: #00000000, layout_x: 560px, layout_y: 140px, bypass: false, block: { type_label: "AMP", icon_kind: "amp", accent_color: #4a7fd0, display_name: "Clean Amp" } },
+            { id: "cab_a", kind: "block", label: "CAB A", category: "amp", fill: #00000000, border: #00000000, layout_x: 720px, layout_y: 140px, bypass: false, block: { type_label: "CAB", icon_kind: "cab", accent_color: #4a7fd0, display_name: "2x12" } },
+            { id: "amp_b", kind: "block", label: "AMP B", category: "amp", fill: #00000000, border: #00000000, layout_x: 560px, layout_y: 260px, bypass: false, block: { type_label: "AMP", icon_kind: "amp", accent_color: #4a7fd0, display_name: "Lead Amp" } },
+            { id: "__merge_1", kind: "mixer", label: "", category: "util", fill: #6a7483, border: #444b55, layout_x: 880px, layout_y: 200px, bypass: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "rev", kind: "block", label: "REV", category: "reverb", fill: #00000000, border: #00000000, layout_x: 1040px, layout_y: 200px, bypass: false, block: { type_label: "REVERB", icon_kind: "reverb", accent_color: #3aa86a, display_name: "Hall" } },
+            { id: "out", kind: "io_output", label: "OUT 1-2", category: "output", fill: #ff8a1e, border: #a55913, layout_x: 1200px, layout_y: 200px, bypass: false, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+        ];
+        edges: [
+            { from_id: "in", to_id: "comp", from_x: 80px, from_y: 200px, to_x: 240px, to_y: 200px },
+            { from_id: "comp", to_id: "__split_1", from_x: 240px, from_y: 200px, to_x: 400px, to_y: 200px },
+            { from_id: "__split_1", to_id: "amp_a", from_x: 400px, from_y: 200px, to_x: 560px, to_y: 140px },
+            { from_id: "amp_a", to_id: "cab_a", from_x: 560px, from_y: 140px, to_x: 720px, to_y: 140px },
+            { from_id: "cab_a", to_id: "__merge_1", from_x: 720px, from_y: 140px, to_x: 880px, to_y: 200px },
+            { from_id: "__split_1", to_id: "amp_b", from_x: 400px, from_y: 200px, to_x: 560px, to_y: 260px },
+            { from_id: "amp_b", to_id: "__merge_1", from_x: 560px, from_y: 260px, to_x: 880px, to_y: 200px },
+            { from_id: "__merge_1", to_id: "rev", from_x: 880px, from_y: 200px, to_x: 1040px, to_y: 200px },
+            { from_id: "rev", to_id: "out", from_x: 1040px, from_y: 200px, to_x: 1200px, to_y: 200px },
+        ];
+        anchors: [
+            { id: "stage:1", layout_x: 160px, layout_y: 200px, always_visible: false },
+            { id: "stage:2", layout_x: 320px, layout_y: 200px, always_visible: false },
+            { id: "lane:2:0:0", layout_x: 480px, layout_y: 170px, always_visible: false },
+            { id: "lane:2:0:1", layout_x: 640px, layout_y: 140px, always_visible: false },
+            { id: "lane:2:0:2", layout_x: 800px, layout_y: 170px, always_visible: false },
+            { id: "lane:2:1:0", layout_x: 480px, layout_y: 230px, always_visible: false },
+            { id: "lane:2:1:1", layout_x: 720px, layout_y: 230px, always_visible: false },
+            { id: "stage:3", layout_x: 960px, layout_y: 200px, always_visible: false },
+            { id: "stage:4", layout_x: 1120px, layout_y: 200px, always_visible: false },
+        ];
+    }
+}
+
+// IN → COMP → SPLIT → [AMP A → CAB A → OUT A] ∥ [OUT B]: path B is empty,
+// so its "+" is always visible.
+export component SplitYChain inherits Window {
+    width: 1000px;
+    height: 420px;
+    background: #0a0d12;
+    default-font-family: "Bebas Neue";
+
+    GraphView {
+        width: 100%;
+        height: 100%;
+        nodes: [
+            { id: "in", kind: "io_input", label: "IN 1", category: "input", fill: #1e8aff, border: #1359a5, layout_x: 80px, layout_y: 200px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "comp", kind: "block", label: "COMP", category: "dynamics", fill: #00000000, border: #00000000, layout_x: 240px, layout_y: 200px, block: { type_label: "DYN", icon_kind: "dynamics", accent_color: #c69b3f, display_name: "Compressor" } },
+            { id: "__split_1", kind: "split", label: "", category: "util", fill: #6a7483, border: #444b55, layout_x: 400px, layout_y: 200px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "amp_a", kind: "block", label: "AMP A", category: "amp", fill: #00000000, border: #00000000, layout_x: 560px, layout_y: 140px, block: { type_label: "AMP", icon_kind: "amp", accent_color: #4a7fd0, display_name: "Clean Amp" } },
+            { id: "cab_a", kind: "block", label: "CAB A", category: "amp", fill: #00000000, border: #00000000, layout_x: 720px, layout_y: 140px, block: { type_label: "CAB", icon_kind: "cab", accent_color: #4a7fd0, display_name: "2x12" } },
+            { id: "out_a", kind: "io_output", label: "OUT 1", category: "output", fill: #ff8a1e, border: #a55913, layout_x: 880px, layout_y: 140px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "out_b", kind: "io_output", label: "OUT 2", category: "output", fill: #ff8a1e, border: #a55913, layout_x: 880px, layout_y: 260px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+        ];
+        edges: [
+            { from_id: "in", to_id: "comp", from_x: 80px, from_y: 200px, to_x: 240px, to_y: 200px },
+            { from_id: "comp", to_id: "__split_1", from_x: 240px, from_y: 200px, to_x: 400px, to_y: 200px },
+            { from_id: "__split_1", to_id: "amp_a", from_x: 400px, from_y: 200px, to_x: 560px, to_y: 140px },
+            { from_id: "amp_a", to_id: "cab_a", from_x: 560px, from_y: 140px, to_x: 720px, to_y: 140px },
+            { from_id: "cab_a", to_id: "out_a", from_x: 720px, from_y: 140px, to_x: 880px, to_y: 140px },
+            { from_id: "__split_1", to_id: "out_b", from_x: 400px, from_y: 200px, to_x: 880px, to_y: 260px },
+        ];
+        anchors: [
+            { id: "stage:1", layout_x: 160px, layout_y: 200px, always_visible: false },
+            { id: "stage:2", layout_x: 320px, layout_y: 200px, always_visible: false },
+            { id: "lane:2:0:0", layout_x: 480px, layout_y: 170px, always_visible: false },
+            { id: "lane:2:0:1", layout_x: 640px, layout_y: 140px, always_visible: false },
+            { id: "lane:2:0:2", layout_x: 800px, layout_y: 140px, always_visible: false },
+            { id: "lane:2:1:0", layout_x: 640px, layout_y: 230px, always_visible: true },
+        ];
+    }
+}

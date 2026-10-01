@@ -43,6 +43,7 @@ fn session(blocks: Vec<AudioBlock>) -> Rc<RefCell<Option<ProjectSession>>> {
                 blocks,
                 di_output: None,
                 loopers: vec![],
+                disabled_endpoints: Default::default(),
                 mix: Default::default(),
             }],
             midi: None,
@@ -63,6 +64,7 @@ fn draft(block_index: Option<usize>) -> Rc<RefCell<Option<BlockEditorDraft>>> {
         model_id: "volume".into(),
         enabled: true,
         is_select: false,
+        path: None,
     })))
 }
 
@@ -245,5 +247,35 @@ fn setting_a_parameter_to_the_value_it_already_has_still_counts_as_a_change() {
     assert_eq!(
         apply(&session, &draft, "level", ParamValue::Number(0.5)),
         Ok(true)
+    );
+}
+
+/// #328 (spec §1.2): a split knob is an ordinary `SetBlockParameter*` on the
+/// split block — no draft, no model.
+#[test]
+fn a_split_knob_edit_reaches_the_split_params() {
+    use crate::chain_graph_fixtures_tests::{
+        chain_in, mix_chain, rows as graph_rows, session_with,
+    };
+    let mix_pan_a = project::block::split_param_keys::mix_pan(0);
+    let session = session_with(vec![mix_chain()]);
+    let chain_id = chain_in(&session, 0).id;
+    super::apply_parameter_to_block(
+        &session,
+        chain_id,
+        BlockId("sp".into()),
+        &mix_pan_a,
+        ParamValue::Number(-50.0),
+        &graph_rows(),
+        &[],
+        &[],
+    )
+    .expect("the split exists");
+    let AudioBlockKind::Split(split) = &chain_in(&session, 0).blocks[1].kind else {
+        panic!("block 1 is the split")
+    };
+    assert_eq!(
+        split.params.get(&mix_pan_a).and_then(|v| v.as_f32()),
+        Some(-50.0)
     );
 }

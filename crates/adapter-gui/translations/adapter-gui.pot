@@ -16,6 +16,10 @@ msgstr ""
 msgid "OpenRig"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/block_insert_slot.slint:80
+msgid "accessible-add-block-here"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:276
 msgid "btn-load-file"
 msgstr ""
@@ -36,8 +40,16 @@ msgstr ""
 msgid "di-loop-button-label"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/chain_latency_badge.slint:26
+msgid "label-lat"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/chain_looper_button.slint:53
 msgid "looper-button-label"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_meters_button.slint:38
+msgid "label-meters"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:78
@@ -88,43 +100,40 @@ msgstr ""
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/channel_picker.slint:126
-msgid "label-channels-selected"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:160
+#. channels. Default is the channel wording every existing picker shows.
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:55
 msgid "label-mixer-no-inputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-outputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-loopers"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "label-mixer"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-in"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-out"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-di"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-looper"
 msgstr ""
 
@@ -187,6 +196,51 @@ msgstr ""
 
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
+msgid "btn-close"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
+msgid "hint-endpoint-checklist"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
+msgid "hint-endpoints-empty"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
+msgid "label-endpoints-total"
+msgstr ""
+
+#. The split and the mixer carry no host label; their name is translated.
+#: crates/adapter-gui/ui/components/graph_node_card.slint:55
+msgid "graph-node-split"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:56
+msgid "graph-node-mixer"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:145
+msgid "accessible-graph-node-bypass"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:162
+msgid "accessible-graph-node-remove"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/graph_view.slint:119
+msgid "accessible-graph-view"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
@@ -430,6 +484,14 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:62
+msgid "label-remove-path"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:187
+msgid "btn-add-path"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"
 msgstr ""
@@ -598,27 +660,19 @@ msgstr ""
 msgid "msg-pick-io-endpoint"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
-msgid "label-meters"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
-msgid "label-lat"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:419
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:380
 msgid "label-output"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:170
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:181
 msgid "tooltip-expand-blocks"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:178
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:189
 msgid "tooltip-measure-latency"
 msgstr ""
 
@@ -812,10 +866,6 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint:291
 msgid "btn-save-audio-settings"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings.slint:295
-msgid "btn-close"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:97

@@ -24,6 +24,7 @@ use crate::local_dispatcher::LocalDispatcher;
 
 fn chain(id: &str) -> Chain {
     Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),

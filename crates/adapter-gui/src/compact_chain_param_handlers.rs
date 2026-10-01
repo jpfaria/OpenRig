@@ -19,6 +19,7 @@ use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
+use crate::compact_row_address::row_block;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
@@ -81,7 +82,7 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())
@@ -150,30 +151,14 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
-                // Resolve option value string from schema + index.
-                let Some(data) = crate::block_editor::block_editor_data(block) else {
-                    return;
-                };
-                let schema =
-                    match project::block::schema_for_block_model(&data.effect_type, &data.model_id)
-                    {
-                        Ok(s) => s,
-                        Err(_) => return,
-                    };
-                let Some(param_spec) = schema.parameters.iter().find(|p| p.path == path.as_str())
-                else {
-                    return;
-                };
-                let option_value = match &param_spec.domain {
-                    block_core::param::ParameterDomain::Enum { options } => {
-                        options.get(option_index as usize).map(|o| o.value.clone())
-                    }
-                    _ => None,
-                };
-                let Some(value) = option_value else {
+                let Some(value) = crate::block_option_value::block_option_value(
+                    block,
+                    path.as_str(),
+                    option_index as usize,
+                ) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone(), value)
@@ -241,7 +226,7 @@ pub(crate) fn wire(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

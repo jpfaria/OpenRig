@@ -13,6 +13,7 @@ use std::rc::Rc;
 
 fn chain(name: &str) -> Chain {
     Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId(format!("test:{name}")),
         description: Some(name.to_string()),
         instrument: "electric_guitar".to_string(),

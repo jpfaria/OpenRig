@@ -1,0 +1,50 @@
+// Responsibility: shows a chain's probed latency.
+//
+// #328: extracted verbatim from chain_row_blocks.slint so the graph row shows
+// the same badge. < 10 ms green, < 20 ms yellow, else red; #954: the badge
+// follows its two labels.
+
+export component ChainLatencyBadge inherits Rectangle {
+    in property <float> latency-ms;
+
+    width: lat-lbl.preferred-width + lat-ms.preferred-width + 14px;
+    height: 22px;
+    border-radius: 4px;
+    background: root.latency-ms < 10.0 ? #4ade8018
+              : root.latency-ms < 20.0 ? #facc1518
+              : #f8717118;
+    border-width: 1px;
+    border-color: root.latency-ms < 10.0 ? #4ade8055
+                : root.latency-ms < 20.0 ? #facc1555
+                : #f8717155;
+
+    lat-lbl := Text {
+        x: 5px;
+        y: 0px;
+        width: self.preferred-width;
+        height: parent.height;
+        text: @tr("label-lat");
+        color: root.latency-ms < 10.0 ? #4ade8099
+             : root.latency-ms < 20.0 ? #facc1599
+             : #f8717199;
+        font-size: 18px;
+        font-weight: 700;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+
+    lat-ms := Text {
+        x: lat-lbl.x + lat-lbl.width + 4px;
+        y: 0px;
+        width: self.preferred-width;
+        height: parent.height;
+        text: Math.round(root.latency-ms) + "ms";
+        color: root.latency-ms < 10.0 ? #4ade80
+             : root.latency-ms < 20.0 ? #facc15
+             : #f87171;
+        font-size: 18px;
+        font-weight: 600;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+}

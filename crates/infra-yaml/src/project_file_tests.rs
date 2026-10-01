@@ -278,6 +278,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
             mix: Default::default(),
+            disabled_endpoints: Default::default(),
         },
     );
     let rig = RigProject {

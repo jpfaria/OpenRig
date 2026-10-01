@@ -24,6 +24,10 @@ mod project_presets_tests;
 #[path = "query_plugin_params_tests.rs"]
 mod plugin_params_tests;
 
+#[cfg(test)]
+#[path = "query_split_tests.rs"]
+mod split_tests;
+
 // `query_tests.rs` hangs off this module and reaches its fixtures through
 // `super::*`, as it did before the split (#873).
 #[cfg(test)]

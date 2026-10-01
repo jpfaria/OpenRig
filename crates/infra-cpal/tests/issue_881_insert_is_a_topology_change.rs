@@ -91,6 +91,7 @@ fn adding_an_insert_to_a_live_chain_is_an_io_change() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let project = Project {

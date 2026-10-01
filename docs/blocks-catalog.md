@@ -18,6 +18,7 @@
 | **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — time-domain granular, low-latency); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
 | **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, neural_amp_modeler |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
+| **Split** | Chain split: N paths, ending in a Mix or a Y, nestable at any depth (#328) | — | split |
 
 **Total: ~804 modelos em 16 tipos (5 backends: Native 34, NAM 215, IR 139, LV2 ~351, VST3 6).**
 
@@ -72,6 +73,122 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
 
 ⚠️ `pitch_delay` (Delay block, 2048-sample grain) is **not** `native_pitch_shifter`
 (Pitch block, 1024-sample grain) — different models, different blocks.
+
+## Chain split (#328)
+
+A `Split` block divides the signal into **N paths** (at least two, no upper bound), shown as A, B, C, …, AA, …
+Blocks before it are shared by every path.
+
+- **Split → Mix** (`end: mix`): every path → mixer → the rest of the list the split sits in. Main use: amp A hard
+  left, amp B hard right.
+- **Split → Y** (`end: y`): every path → its own outputs. No mixer.
+
+A split may sit inside a path, at any depth: a Mix inside a Y path, a Y inside a Mix path, a Mix inside a Mix. The
+app lays the graph out from the tree; no position is stored. Spec:
+`docs/superpowers/specs/2026-09-28-issue-328-chain-split-graph-design.md` §11.
+
+Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and are edited with the ordinary
+`SetBlockParameter*` commands. The schema is generated from the path count (`split_param_specs(path_count)`):
+`<i>` is the 0-based path index, so path A is `_0`, path B is `_1`. The split editor shows the `Split` group, the
+mixer editor the `Mixer` group.
+
+| Key | Range | Default | Meaning |
+|---|---|---|---|
+| `split_mode` | `same` \| `dual_mono` | `same` | Mode I / Mode II |
+| `level_to_<i>` | 0–100 | 100 | Linear gain into path `i` (`x/100`) |
+| `balance_<i>` | −50…+50 | 0 | Mode II only. −50 = L only, 0 = (L+R)/2, +50 = R only; the path gets dual mono `[s, s]` |
+| `mix_level_<i>` | 0–100 | 100 | Mix only. Linear gain of path `i` into the mixer |
+| `mix_pan_<i>` | −50…+50 | 0 | Mix only. Balance law: centre = unity on both sides; the opposite side falls linearly to 0 at ±50 |
+| `mix_polarity_<i>` | `normal` \| `invert` | `normal` | Mix only. Multiplies path `i` by −1 |
+| `mix_master` | 0–100 | 50 | Mix only. Output gain `x/100`, whatever the path count; at the default two identical paths sum to unity |
+| `mix_master_sum` | bool | false | Mix only. Output becomes dual mono `L = R = (L+R)/2` |
+
+Adding a path adds its keys at their defaults. Removing a path drops its keys and renumbers the keys above it; the
+MIDI mappings and scene values that name a renumbered key move with it.
+
+Rules (`project::block::split_block_methods`, enforced by `validate_structure` and `RigProject::validate`), judged
+at every depth:
+
+1. A split has at least two paths.
+2. A Y ends the list it sits in. At the top level only the chain's own `Input`/`Output` ports may follow it; inside
+   a path nothing may follow it.
+3. A path holds no `Input`, `Output` or `Insert` (an insert's return is a separate input stream, and summing it with
+   the other paths of a Mix would mix streams in our code). `Select` and `Split` are allowed in a path.
+
+There is no limit on how many splits a chain holds, how many paths each has, or how deep they nest; the limit is
+the machine.
+
+**Y leaves and outputs.** A leaf is one path of a Y that holds no further Y. Every leaf ends in its own output
+node, with the endpoint checklist (`disabled_endpoints.path_outputs`, one entry per leaf that has something
+disabled). Several leaves may check the same output; that output sums them, time-aligned. Every output runs its
+own copy of everything on the way to the leaves that feed it (one pipeline per output), so CPU grows with the
+outputs. A Y nested in a Y gives one more leaf per extra path: a two-path Y inside path A of a two-path Y gives
+three outputs.
+
+**Migration.** Projects saved by this branch before §11 (`a`/`b` paths, `*_a`/`*_b` keys, `mix_b_polarity`,
+`path_a_outputs`/`path_b_outputs`) load as paths 0 and 1, keys `*_0`/`*_1`, `mix_polarity_1`, and `path_outputs`
+of the root Y.
+
+In the GUI, clicking a split node of a chain graph (or a Split chip in touch and compact views) opens the
+**split editor**: the Mix / Y switch (`SetSplitEnd`; a switch the chain refuses shows the error as a toast), the
+paths row — one chip per path, a remove button on each chip while the split has more than two paths
+(`RemoveSplitPath`; a path that holds blocks asks first), and "+ Path" (`AddSplitPath`) — then mode, the level
+into each path and the balances. Clicking the mixer node opens the **mixer editor**: level, pan and polarity per
+path, master, master sum. Both are a small root-level panel drawn from `split_param_specs()` by the block editor's
+own grid, one row per path (`split_editor_grid`): the mode alone on top, then A, B, C… each on its own row,
+master and master sum below; a grid taller than the window scrolls. In the compact view's split row a path's
+knobs never wrap apart. Each knob is an ordinary `SetBlockParameter*` on the split block, so MIDI mapping,
+scenes and MCP reach them like any knob. Mode II needs a stereo or dual-mono signal before any mono block; with a mono source every
+balance gives the same signal. On a one-channel output, pan has no audible effect (the route averages L and R).
+
+### Split engine behaviour (#328)
+
+A Split → Mix runs inside the chain's own segment: shared blocks → split →
+every path → mixer → shared blocks. Nothing is summed across segments or
+runtimes (stream isolation); every path beyond the first runs in its own
+buffer, preallocated at build for a 1024-frame callback. A larger callback runs
+through the split in 1024-frame chunks, so no buffer grows on the audio thread.
+
+**Into the paths.** Mode I (`split_mode: same`): path `i` gets the bus ×
+`level_to_<i>` (`x/100`). Mode II (`dual_mono`): path `i` gets the one channel
+its balance picks — −50 = L, 0 = (L+R)/2, +50 = R, linear in between — as dual
+mono, × its level. Mode II only means something when the bus is still stereo at
+the split (a stereo or dual-mono source, before any mono block); with a mono
+source every path gets the same signal.
+
+**Mixer.** Per path: balance law (centre = unity on both sides; toward one side
+the other side falls linearly to 0 at ±50) × `mix_level_<i>` (`x/100`), × −1
+with `mix_polarity_<i>: invert`; the sum × `mix_master` (`x/100`); with
+`mix_master_sum` on, both sides become `(L+R)/2`. At the defaults two identical
+paths come out at unity (`mix_master` 50 halves the doubled sum); with more
+paths the sum grows with the count, so lower `mix_master` or the path levels.
+The split's output is always stereo; a 1-channel output averages L/R, so pan
+does nothing there. A Y meets each leaf at unity: its mixer knobs do not apply.
+
+**Alignment.** Every block reports the processing latency it adds. At build the
+split sums it per path and delays every shorter path up to the longest one, in
+a ring preallocated up to 16384 samples; above that it clamps and logs. The
+longest path is never delayed, so the chain's latency does not change. A nested
+Mix aligns inside its path first, and its path then counts its latency. The same
+holds where several Y leaves meet on one output.
+A knob move or a path edit reuses every path processor by block id (also when
+a block is dragged between lanes, between depths or to the shared blocks) and
+continues the delay lines where they were, so it is not heard as a gap.
+A block switched on or off inside a path (a footswitch) fades like any block and
+every split above it lines its paths up again on the same callback.
+
+| Source | Reported latency |
+|---|---|
+| IR convolution (cab, body, `generic_ir`) | 64 samples (one partition) |
+| 2× oversampler round trip (ring modulator) | 15 samples |
+| Brick wall limiter | its look-ahead: `lookahead_ms` in samples (144 at the 3 ms default, 48 kHz) |
+| VST3 | `IAudioProcessor::getLatencySamples()`, read at load |
+| LV2 | the `lv2:reportsLatency` output port, read once at build |
+| everything else | 0 |
+
+Not aligned by design: delays and the pitch shifter (their delay is the
+effect), the IR reverb's dry/wet blend and the ring modulator below 100 % mix
+(their dry part is not delayed inside the block).
 
 ## Backends de áudio
 

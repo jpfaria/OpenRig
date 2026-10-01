@@ -39,6 +39,7 @@ fn chain_on(device: &str) -> (Chain, Vec<IoBinding>) {
         }],
     }];
     let chain = Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId(format!("chain-{device}")),
         description: None,
         instrument: "electric_guitar".into(),

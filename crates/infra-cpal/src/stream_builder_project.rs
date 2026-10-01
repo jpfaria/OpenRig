@@ -46,7 +46,7 @@ pub fn build_streams_for_project(
             crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project, registry)?;
         let mut streams = Vec::new();
         for chain in &project.chains {
-            if !chain.enabled {
+            if !engine::runtime_graph::chain_plays(chain, registry) {
                 continue;
             }
             // Issue #350 phase 3: a chain owns N per-input runtimes (one

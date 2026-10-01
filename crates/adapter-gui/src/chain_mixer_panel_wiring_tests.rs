@@ -25,6 +25,7 @@ fn chain(id: &str, volume: f32) -> Chain {
         di_output: None,
         loopers: vec![],
         mix: Default::default(),
+        disabled_endpoints: Default::default(),
     }
 }
 

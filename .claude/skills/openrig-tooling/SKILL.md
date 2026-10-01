@@ -90,6 +90,42 @@ fixed size, fake data) and render that. **`docs/render.md` is a different tool**
   timing tests are `#[cfg_attr(debug_assertions, ignore)]`). See `docs/testing.md`.
   Without the env var they no-op; they never fail the normal run.
 
+## Opening the app yourself (agent test)
+
+Before handing the owner a checklist, the agent opens the solver's app and tests
+everything that does not need his ear (log lines, `openrig://routes`,
+`openrig://meters`, restarts, isolation between chains). Recipe proven on #979:
+
+1. **Wait for any other OpenRig to close (CLAUDE.md law).** Poll, never kill:
+   `while pgrep -f 'target/(debug|release)/adapter-gui|OpenRig.app/Contents/MacOS/openrig' >/dev/null; do sleep 30; done`.
+   Same for your own probes or recorders that open the interface.
+2. **Isolate with `HOME`, not only `--config`.** The session loader reads the I/O
+   bindings and device settings from the default config path
+   (`$HOME/Library/Application Support/OpenRig/config.yaml`), whatever `--config`
+   says. Write the test config there under a scratch `HOME` and pass the same path
+   to `--config`. The owner's config and project are never read for writing.
+3. **Project format = the branch's.** `version:` must not exceed the branch's
+   `PROJECT_FORMAT_VERSION` (`crates/project/src/rig.rs`), or the app falls back
+   to the launcher. Every input loads OFF.
+4. **Virtual device, no speakers.** BlackHole 2ch (`coreaudio:BlackHole2ch_UID`,
+   48000 Hz, 64 frames, matching its current rate so nothing is changed). It loops
+   output back to input, so give the preset `volume: 0`. Feed it from a Python
+   `sounddevice` stream (BlackHole as output device).
+5. **Launch the built binary directly**, not via `nohup` or `env`: macOS strips
+   `DYLD_*` when it runs a system binary, and the binary needs the NAM wrapper.
+   ```
+   HOME=<scratch>/home DYLD_FALLBACK_LIBRARY_PATH=$PWD/$(ls -td target/debug/build/nam-*/out/lib | head -1) \
+   OPENRIG_PLUGINS_ROOT=<plugins_path> RUST_LOG=info target/debug/adapter-gui \
+     --config "<scratch>/home/Library/Application Support/OpenRig/config.yaml" \
+     --project <scratch>/project.yaml --mcp=127.0.0.1:4124 > <scratch>/app.log 2>&1
+   ```
+   Use a port other than 4123 (the owner's app).
+6. **Drive and read over MCP:** `toggle_chain_enabled {"chain":"rig:<input-id>"}`
+   to start a chain; `openrig://routes` (callbacks, underruns per route) and
+   `openrig://meters` (input/output dBFS per chain); the log for warnings.
+7. **Close everything:** kill the app and the feeder, confirm the device's rate is
+   unchanged (`system_profiler SPAudioDataType`) and the project file untouched.
+
 ## Linux .deb / Orange Pi
 
 `./scripts/build-deb-local.sh` cross-compiles inside the same Debian Docker

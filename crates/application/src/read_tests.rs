@@ -152,6 +152,7 @@ fn test_project_with_one_chain() -> Project {
                 output: None,
                 preset: None,
             }],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }],
         midi: None,

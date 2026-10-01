@@ -8,7 +8,8 @@
 //! Scope of #449: model + parser + validation only. No engine wiring, no
 //! migration, no UI, no scenes (those are #450/#451/#452/#453/#454).
 
-use crate::block::{AudioBlock, AudioBlockKind};
+use crate::block::{block_params_mut, for_each_block_mut, AudioBlock};
+use crate::endpoint_disables::EndpointDisables;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -93,6 +94,12 @@ pub struct RigInput {
     /// written before the looper existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loopers: Vec<crate::chain::LooperConfig>,
+    /// #328: the endpoints of this input's own bindings that a node of its
+    /// chain graph leaves out (the input/output checklists). Chain
+    /// configuration, not preset data. Empty — the default — keeps every
+    /// endpoint, so pre-#328 files load unchanged and it needs no version bump.
+    #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
+    pub disabled_endpoints: EndpointDisables,
     /// #1007: the chain's own faders, persisted here for the same reason
     /// as `loopers` — the projected chain is rebuilt from the rig.
     #[serde(default, skip_serializing_if = "crate::chain::ChainMix::is_unity")]
@@ -153,9 +160,11 @@ pub fn humanize_preset_label(id: &str) -> String {
         .join(" ")
 }
 
-/// Single source of truth for the on-disk format versions. Bumped only
-/// when the YAML schema changes in a way that needs a staged upgrade;
-/// the loader uses these to migrate older docs and to refuse newer ones.
+/// The version a document WITHOUT a split is written with (#328: a document
+/// that holds a split is written with `format_version::SPLIT_FORMAT_VERSION`;
+/// the loader refuses anything above `format_version::MAX_READABLE_FORMAT_VERSION`).
+/// Bumped only when the YAML schema changes in a way that needs a staged
+/// upgrade.
 pub const PROJECT_FORMAT_VERSION: u32 = 1;
 /// See [`PROJECT_FORMAT_VERSION`]; the standalone preset file schema.
 pub const PRESET_FORMAT_VERSION: u32 = 1;
@@ -236,21 +245,18 @@ impl RigPreset {
     /// Resolve scene `idx` into concrete blocks: clone the base blocks, apply
     /// the scene's bypass (`enabled = !bypassed`) and override **only** the
     /// marked `scene_params` with the scene's values. Anything not marked is
-    /// fixed by the preset (Helix Snapshot rule). Pure & deterministic.
+    /// fixed by the preset (Helix Snapshot rule). #328: the blocks inside a
+    /// split's paths and the split's own knobs are resolved exactly like a
+    /// top-level block. Pure & deterministic.
     pub fn apply_scene(&self, idx: usize) -> Vec<AudioBlock> {
         let scene = self.scene_or_default(idx);
         let mut blocks = self.blocks.clone();
-        for block in &mut blocks {
+        for_each_block_mut(&mut blocks, &mut |block| {
             let bid = block.id.0.clone();
             if let Some(&bypassed) = scene.bypass.get(&bid) {
                 block.enabled = !bypassed;
             }
-            let params = match &mut block.kind {
-                AudioBlockKind::Core(c) => Some(&mut c.params),
-                AudioBlockKind::Nam(n) => Some(&mut n.params),
-                _ => None,
-            };
-            if let Some(params) = params {
+            if let Some(params) = block_params_mut(&mut block.kind) {
                 let prefix = format!("{bid}.");
                 for key in &self.scene_params {
                     if let Some(param_id) = key.strip_prefix(&prefix) {
@@ -260,7 +266,7 @@ impl RigPreset {
                     }
                 }
             }
-        }
+        });
         blocks
     }
 }

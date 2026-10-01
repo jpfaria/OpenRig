@@ -1,0 +1,16 @@
+// Responsibility: hosts the split editor overlay for a test.
+// #328 TEST-ONLY: SplitEditorOverlay in a real Window so the headless tests
+// (i-slint-backend-testing) can click its knobs. Imported by app-window.slint
+// only so slint-build emits the Rust type; never shown in the running app.
+import { SplitEditorOverlay } from "split_editor_overlay.slint";
+import "../fonts/BebasNeue.ttf";
+
+export component SplitEditorHarness inherits Window {
+    width: 800px;
+    height: 500px;
+    background: #040708;
+    SplitEditorOverlay {
+        width: root.width;
+        height: root.height;
+    }
+}
