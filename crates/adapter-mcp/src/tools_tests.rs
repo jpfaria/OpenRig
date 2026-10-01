@@ -69,7 +69,9 @@ use application::command_schema::command_variant_names;
 /// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO, then to 109 with a
 /// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
 /// `ToggleChainMixerMute`/`SetChainDiFader`).
-const COMMAND_VARIANT_COUNT: usize = 109;
+/// #1021 bumped to 110 with `DeleteLooperTake` — removing a saved take from
+/// the library, so a headless client can prune it as the DI panel's trash does.
+const COMMAND_VARIANT_COUNT: usize = 110;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

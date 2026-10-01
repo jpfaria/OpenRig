@@ -16,7 +16,7 @@ use crate::looper_take_library::{save_take, take_file_name, TakeSaveError};
 
 impl LocalDispatcher {
     /// Where takes are written: the attached override, else the OS default.
-    fn looper_takes_dir(&self) -> std::path::PathBuf {
+    pub(crate) fn looper_takes_dir(&self) -> std::path::PathBuf {
         self.looper_takes_path
             .borrow()
             .clone()

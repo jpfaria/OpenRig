@@ -41,14 +41,7 @@ const EXTENSION: &str = ".wav";
 /// folder or confuse a file system becomes `-`, and `.wav` is appended once.
 pub fn take_file_name(name: &str) -> Result<String, TakeSaveError> {
     let trimmed = name.trim();
-    let stem = match trimmed.len().checked_sub(EXTENSION.len()) {
-        Some(cut)
-            if trimmed.is_char_boundary(cut) && trimmed[cut..].eq_ignore_ascii_case(EXTENSION) =>
-        {
-            &trimmed[..cut]
-        }
-        _ => trimmed,
-    };
+    let stem = strip_extension(trimmed).unwrap_or(trimmed);
     let safe: String = stem
         .chars()
         .map(|c| {
@@ -64,6 +57,13 @@ pub fn take_file_name(name: &str) -> Result<String, TakeSaveError> {
         return Err(TakeSaveError::EmptyName);
     }
     Ok(format!("{safe}{EXTENSION}"))
+}
+
+/// `name` without a trailing `.wav` (any case); `None` when it has none.
+fn strip_extension(name: &str) -> Option<&str> {
+    let cut = name.len().checked_sub(EXTENSION.len())?;
+    (name.is_char_boundary(cut) && name[cut..].eq_ignore_ascii_case(EXTENSION))
+        .then(|| &name[..cut])
 }
 
 /// Write a take into `dir` (created on demand) and return its path. An
@@ -120,6 +120,61 @@ pub fn list_takes(dir: &Path) -> Vec<PathBuf> {
         .collect();
     takes.sort();
     takes
+}
+
+/// #1021: why a take could not be deleted. Typed like [`TakeSaveError`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TakeDeleteError {
+    /// The name is not a plain file name inside the library.
+    InvalidName,
+    /// No take with this file name is in the library.
+    NotFound(String),
+    /// The file could not be removed.
+    Io(String),
+}
+
+impl std::fmt::Display for TakeDeleteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidName => write!(f, "not a take of the library"),
+            Self::NotFound(file) => write!(f, "no take named {file}"),
+            Self::Io(err) => write!(f, "could not delete the take: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for TakeDeleteError {}
+
+/// #1021: the path of the take `name` (`.wav` optional) in `dir`. Only a
+/// plain file name resolves — a separator, `..` or an absolute path is refused
+/// before the file system is asked anything, so nothing outside the library
+/// can ever be addressed.
+pub fn resolve_take(dir: &Path, name: &str) -> Result<PathBuf, TakeDeleteError> {
+    let trimmed = name.trim();
+    let (stem, file) = match strip_extension(trimmed) {
+        Some(stem) => (stem, trimmed.to_string()),
+        None => (trimmed, format!("{trimmed}{EXTENSION}")),
+    };
+    let mut components = Path::new(stem).components();
+    let plain = matches!(
+        (components.next(), components.next()),
+        (Some(std::path::Component::Normal(_)), None)
+    );
+    if !plain || stem.contains(['/', '\\']) {
+        return Err(TakeDeleteError::InvalidName);
+    }
+    let path = dir.join(&file);
+    if !path.is_file() {
+        return Err(TakeDeleteError::NotFound(file));
+    }
+    Ok(path)
+}
+
+/// #1021: delete the take `name` from `dir`, returning the path it had.
+pub fn delete_take(dir: &Path, name: &str) -> Result<PathBuf, TakeDeleteError> {
+    let path = resolve_take(dir, name)?;
+    std::fs::remove_file(&path).map_err(|e| TakeDeleteError::Io(e.to_string()))?;
+    Ok(path)
 }
 
 #[cfg(test)]

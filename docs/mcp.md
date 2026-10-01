@@ -205,6 +205,10 @@ follow-up.
     take saved with `save_chain_looper_take` lands there as
     `<name>.wav`, and handing that path to `set_chain_di_loop_source`
     as `{"File": "<path>"}` plays it on any chain's DI.
+    `delete_looper_take` (#1021) removes a take from that library by
+    file name (`riff` or `riff.wav`); any chain playing it as its DI
+    stops and unloads it. A name that is not a plain file of the
+    library is refused.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.

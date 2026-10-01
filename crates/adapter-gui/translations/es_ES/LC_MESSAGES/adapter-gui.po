@@ -180,6 +180,12 @@ msgstr "Quitar"
 msgid "di-output-select-label"
 msgstr "Salida del DI"
 
+msgid "di-take-delete-label"
+msgstr "Eliminar toma"
+
+msgid "di-take-delete-confirm"
+msgstr "¿Eliminar?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "GLOBAL"
