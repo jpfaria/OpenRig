@@ -301,6 +301,9 @@ pub mod midi_profile_wiring;
 mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
+#[cfg(test)]
+#[path = "chain_row_mixer_tests.rs"]
+mod chain_row_mixer_tests;
 mod gui_device_settings;
 #[cfg(test)]
 #[path = "issue_1007_external_fader_keeps_views_tests.rs"]

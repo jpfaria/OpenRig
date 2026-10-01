@@ -1,6 +1,6 @@
-// Responsibility: carries the state of the chain list's mixer overlay.
-// #1007 — a chain card's mixer button opens THAT chain's mixer over the chain
-// list. `chain-index` names the chain; `opened` asks Rust to draw it. The
+// Responsibility: carries the state of the chain list's open chain mixer.
+// A chain card's mixer button opens THAT chain's mixer at the bottom of its
+// card. `chain-index` names the chain; `opened` asks Rust to draw it. The
 // global halves of its dual strips are only that chain's endpoints, so they
 // live here instead of on `MixerBridge` (which carries every endpoint for the
 // Mixer window). The chain's own faders stay on `ChainMixerBridge`.

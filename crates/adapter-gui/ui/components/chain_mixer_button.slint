@@ -1,8 +1,9 @@
 // Responsibility: renders the mixer trigger of a chain header.
-// #1007 — beside the meters and the looper: a click opens THIS chain's mixer
-// over the chain list through the `ChainMixerPanel` global (the looper
-// button's pattern, #323). Lit while that mixer is open. Offered on every
-// chain, running or not: the faders are settings, not live levels.
+// Beside the meters and the looper: a click opens THIS chain's mixer at the
+// bottom of its card through the `ChainMixerPanel` global, and a second click
+// closes it. One chain's mixer is open at a time. Lit while that mixer is
+// open. Offered on every chain, running or not: the faders are settings, not
+// live levels.
 
 import { ChainMixerPanel } from "chain_mixer_panel_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
@@ -35,12 +36,16 @@ export component ChainMixerButton inherits Rectangle {
 
     ta := TouchArea {
         mouse-cursor: pointer;
-        clicked => { root.open-mixer(); }
+        clicked => { root.toggle-mixer(); }
     }
 
     IconTooltip { text: @tr("tooltip-chain-mixer"); show: ta.has-hover; }
 
-    function open-mixer() {
+    function toggle-mixer() {
+        if root.active {
+            ChainMixerPanel.open = false;
+            return;
+        }
         ChainMixerPanel.chain-index = root.chain-index;
         ChainMixerPanel.open = true;
         ChainMixerPanel.opened(root.chain-index);
@@ -48,5 +53,5 @@ export component ChainMixerButton inherits Rectangle {
 
     accessible-role: button;
     accessible-label: @tr("tooltip-chain-mixer");
-    accessible-action-default => { root.open-mixer(); }
+    accessible-action-default => { root.toggle-mixer(); }
 }
