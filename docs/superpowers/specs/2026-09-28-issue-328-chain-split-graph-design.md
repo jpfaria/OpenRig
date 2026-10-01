@@ -372,8 +372,10 @@ Decided:
 - **Paths join only in a Mix node.** It takes N incoming edges and sets the level, pan and polarity
   of each input, plus a master level, before it sums them (the Ampero mixer, widened to N inputs).
   A processing block accepts a single incoming edge.
-- **The signal divides by edges, with no Split node.** Any block's output can feed any number of
-  edges (Fractal-style cables). There is no grid and no row or column limit.
+- **The signal divides only through a split, chosen from the "+" picker, as today.** The line
+  keeps its "+" buttons. "Split Y" divides, and each path ends at its own outputs. "Split Mix"
+  divides, then joins again in its Mix node. There are no free-drawn cables. There is no grid and
+  no limit on how many splits, where they sit (inside paths too), or how deep they nest.
 - The design no longer copies the Ampero II. That reference was the agent's choice and was never
   compared with Fractal, Quad Cortex or Helix. The model is an unbounded graph, limited only by
   the user's machine.
