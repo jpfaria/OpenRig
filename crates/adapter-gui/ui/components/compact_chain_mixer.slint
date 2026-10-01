@@ -3,14 +3,16 @@
 // (`ChainMixerTabs`: IN | OUT | DI | LOOPER). Inside the compact view
 // `MixerBridge` carries only this chain's endpoints, so it feeds the global
 // halves of the dual strips directly. The section opens collapsed every time:
-// only its header shows until it is expanded.
+// only its header shows until it is expanded. #1022: the host owns `expanded`
+// (one compact section open at a time), so the header only asks for a flip.
 
 import { MixerBridge } from "mixer_globals.slint";
 import { ChainMixerTabs } from "chain_mixer_tabs.slint";
 import { SectionToggle } from "section_toggle.slint";
 
 export component CompactChainMixer inherits Rectangle {
-    private property <bool> expanded: false;
+    in property <bool> expanded: false;
+    callback toggled(bool);
     private property <length> header-height: 36px;
     // Height the host reserves for the mixer: just the header while collapsed.
     out property <length> preferred-area-height: root.expanded ? 416px : root.header-height;
@@ -35,7 +37,7 @@ export component CompactChainMixer inherits Rectangle {
         width: parent.width; height: root.header-height - 1px;
         title: @tr("label-mixer");
         expanded: root.expanded;
-        toggled(expanded) => { root.expanded = expanded; }
+        toggled(expanded) => { root.toggled(expanded); }
     }
 
     if root.expanded : ChainMixerTabs {

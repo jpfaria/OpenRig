@@ -393,6 +393,7 @@ pub fn run_desktop_app(
         project_chains: project_chains.clone(),
         audio_taps: Rc::clone(&audio_taps),
         block_stream_reads: Rc::clone(&block_stream_reads),
+        looper_live: Rc::clone(&looper_live),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),

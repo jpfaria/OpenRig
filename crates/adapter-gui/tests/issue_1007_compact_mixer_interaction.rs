@@ -239,12 +239,12 @@ fn master_is_the_first_fader_of_the_out_tab() {
     assert_eq!(*hits.borrow(), vec!["master".to_string()]);
 }
 
-/// The IN / OUT meters button in the compact view's header.
+/// #1022: the IN / OUT meters section header, under the mixer.
 fn meters_button(w: &CompactChainViewWindow) -> Option<ElementHandle> {
-    ElementHandle::find_by_element_id(w, "ChainMetersButton::ta").next()
+    ElementHandle::find_by_element_id(w, "CompactChainSections::meters-toggle").next()
 }
 
-/// Where the mixer section starts: it sits right above the meter rows.
+/// Where the mixer section starts: the sections below it push it up.
 fn mixer_top(w: &CompactChainViewWindow) -> f32 {
     ElementHandle::find_by_element_id(w, "CompactChainMixer::mixer-toggle")
         .next()
@@ -254,7 +254,7 @@ fn mixer_top(w: &CompactChainViewWindow) -> f32 {
 }
 
 #[test]
-fn the_meters_open_hidden_and_the_header_icon_shows_them() {
+fn the_meters_open_hidden_and_their_section_shows_them() {
     let w = collapsed(vec![row("in:0@d", true)], vec![]);
     let hidden = mixer_top(&w);
     click_at(&w, &meters_button(&w).expect("meters button not found"));
@@ -268,7 +268,7 @@ fn the_meters_open_hidden_and_the_header_icon_shows_them() {
 }
 
 #[test]
-fn a_stopped_chain_has_no_meters_button() {
+fn a_stopped_chain_has_no_meters_section() {
     let w = collapsed(vec![row("in:0@d", true)], vec![]);
     w.set_chain_enabled(false);
     assert!(meters_button(&w).is_none());
