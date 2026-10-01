@@ -205,6 +205,10 @@ the HD 8 input arrives stepped while a chain runs. The automatic restart stays
 as recovery, but every restart must leave a mark: the evidence of that
 moment, kept so the cause can be found. Investigation continues.
 
+**#979 stays open until the root cause is found and fixed** (owner,
+2026-10-01). No commit or PR uses a closing keyword for it (`closes`,
+`fixes`, `resolves #979`); a mitigation PR references it as `Refs #979`.
+
 **Fix 2 as built.**
 
 - Measure: per input channel, the mean |3rd difference| at each phase of the
