@@ -368,5 +368,7 @@ Confirmed by the owner:
 - Everything is wired by edges drawn in the graph itself.
 - No count limit on any of the above: the limit is the machine.
 
-Open (asked, not yet answered): how paths join — an explicit Mix node, or any block accepting
-several incoming edges.
+Decided:
+- **Paths join only in a Mix node.** It takes N incoming edges and sets the level, pan and polarity
+  of each input, plus a master level, before it sums them (the Ampero mixer, widened to N inputs).
+  A processing block accepts a single incoming edge.
