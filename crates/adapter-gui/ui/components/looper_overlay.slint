@@ -6,8 +6,9 @@
 // path stays in Rust.
 
 import { Theme } from "../theme.slint";
-import { LooperPanel } from "looper_panel_globals.slint";
+import { LooperPanel, LooperTake } from "looper_panel_globals.slint";
 import { LooperPanelView } from "looper_panel.slint";
+import { LooperTakeSaveDialog } from "looper_take_save_dialog.slint";
 import { LooperItem } from "../models.slint";
 
 export component LooperOverlay inherits Rectangle {
@@ -73,6 +74,13 @@ export component LooperOverlay inherits Rectangle {
         input-picked(uid, v) => { root.input-picked(LooperPanel.chain-index, uid, v); }
         output-picked(uid, v) => { root.output-picked(LooperPanel.chain-index, uid, v); }
         edit(uid) => { root.edit(LooperPanel.chain-index, uid); }
+        // #827: a new dialog starts clean — the last save's name and outcome
+        // belong to another loop.
+        save-take(uid) => {
+            LooperTake.name = "";
+            LooperTake.status = 0;
+            LooperTake.dialog-uid = uid;
+        }
         preset-open(uid, sel) => {
             LooperPanel.preset-picker-uid = uid;
             LooperPanel.preset-picker-selected = sel;
@@ -213,5 +221,12 @@ export component LooperOverlay inherits Rectangle {
                 }
             }
         }
+    }
+
+    // #827: the save-take dialog a row's floppy opens — a root-level modal,
+    // never a PopupWindow (#749/#761).
+    if LooperTake.dialog-uid >= 0 : LooperTakeSaveDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
     }
 }

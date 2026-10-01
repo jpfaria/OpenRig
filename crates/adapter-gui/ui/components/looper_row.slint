@@ -38,6 +38,8 @@ export component LooperRow inherits Rectangle {
     callback preset-open();
     // #826: open the waveform editor for this loop.
     callback edit();
+    // #827: open the save-take dialog for this loop.
+    callback save-take();
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
     private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
@@ -105,11 +107,22 @@ export component LooperRow inherits Rectangle {
         clicked => { root.edit(); }
     }
 
+    // #827: keep this loop as a named take any chain's DI can play. Needs
+    // material, and a closed take — a loop still recording has no end yet.
+    save-btn := LooperIconButton {
+        x: 184px;
+        y: 10px;
+        icon: @image-url("../assets/save.svg");
+        label: @tr("looper-take-save-title");
+        is-enabled: root.has-material && !root.recording;
+        clicked => { root.save-take(); }
+    }
+
     // ── state + progress ────────────────────────────────────────────────
     Rectangle {
-        x: 188px;
+        x: 232px;
         y: 10px;
-        width: parent.width - 188px - 96px;
+        width: parent.width - 232px - 96px;
         height: 40px;
         clip: true;
         background: transparent;

@@ -1,4 +1,4 @@
-//! #827, red-first: the editor tells the user which of the save outcomes
+//! #827, red-first: the dialog tells the user which of the save outcomes
 //! happened — a silent Save button is indistinguishable from a broken one.
 
 use super::*;
@@ -43,7 +43,7 @@ fn an_untyped_failure_is_a_failed_save_not_a_success() {
 }
 
 #[test]
-fn the_codes_are_the_ones_the_editor_reads() {
+fn the_codes_are_the_ones_the_dialog_reads() {
     // looper_panel_globals.slint: 1 saved, 2 name taken, 3 nothing recorded,
     // 4 could not write, 5 the name has nothing usable.
     assert_eq!(
@@ -75,7 +75,7 @@ mod wiring {
 
     use super::super::wire_looper_take_callbacks;
     use crate::state::ProjectSession;
-    use crate::{AppWindow, LooperEditor};
+    use crate::{AppWindow, LooperTake};
 
     /// Answers every save with `refusal` (or success) and remembers it.
     #[derive(Default)]
@@ -136,10 +136,10 @@ mod wiring {
     #[test]
     fn save_dispatches_the_take_for_that_loop_and_clears_the_name() {
         let (window, spy) = wired(None);
-        let editor = window.global::<LooperEditor>();
-        editor.set_take_name("verse".into());
+        let take = window.global::<LooperTake>();
+        take.set_name("verse".into());
 
-        editor.invoke_save_take(0, 1, "verse".into());
+        take.invoke_save(0, 1, "verse".into());
 
         let seen = spy.seen.borrow();
         assert!(matches!(
@@ -147,21 +147,21 @@ mod wiring {
             [Command::Looper(LooperCommand::SaveChainLooperTake { chain, looper: 1, name })]
                 if chain.0 == "rig:in" && name == "verse"
         ));
-        assert_eq!(editor.get_take_status(), super::TAKE_SAVED);
-        assert_eq!(editor.get_take_name(), "", "a saved take clears the field");
+        assert_eq!(take.get_status(), super::TAKE_SAVED);
+        assert_eq!(take.get_name(), "", "a saved take clears the field");
     }
 
     #[test]
     fn a_refused_save_keeps_the_name_and_says_why() {
         let (window, _spy) = wired(Some(TakeSaveError::NameTaken("verse.wav".into())));
-        let editor = window.global::<LooperEditor>();
-        editor.set_take_name("verse".into());
+        let take = window.global::<LooperTake>();
+        take.set_name("verse".into());
 
-        editor.invoke_save_take(0, 1, "verse".into());
+        take.invoke_save(0, 1, "verse".into());
 
-        assert_eq!(editor.get_take_status(), super::TAKE_NAME_TAKEN);
+        assert_eq!(take.get_status(), super::TAKE_NAME_TAKEN);
         assert_eq!(
-            editor.get_take_name(),
+            take.get_name(),
             "verse",
             "the name is kept so it can be changed, not retyped"
         );
@@ -170,9 +170,7 @@ mod wiring {
     #[test]
     fn a_row_that_no_longer_exists_dispatches_nothing() {
         let (window, spy) = wired(None);
-        window
-            .global::<LooperEditor>()
-            .invoke_save_take(7, 1, "x".into());
+        window.global::<LooperTake>().invoke_save(7, 1, "x".into());
         assert!(spy.seen.borrow().is_empty());
     }
 
@@ -181,10 +179,10 @@ mod wiring {
         i_slint_backend_testing::init_no_event_loop();
         let window = AppWindow::new().expect("window");
         wire_looper_take_callbacks(&window, &Rc::new(RefCell::new(None)));
-        let editor = window.global::<LooperEditor>();
+        let take = window.global::<LooperTake>();
 
-        editor.invoke_save_take(0, 1, "verse".into());
+        take.invoke_save(0, 1, "verse".into());
 
-        assert_eq!(editor.get_take_status(), 0, "nothing was attempted");
+        assert_eq!(take.get_status(), 0, "nothing was attempted");
     }
 }

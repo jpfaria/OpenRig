@@ -182,7 +182,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             project_dirty: ctx.project_dirty.clone(),
         },
     );
-    // #827: the editor's Save take row.
+    // #827: the looper row's Save take dialog.
     crate::looper_take_callbacks::wire_looper_take_callbacks(window, &ctx.project_session);
 }
 
