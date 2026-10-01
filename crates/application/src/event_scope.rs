@@ -70,6 +70,8 @@ impl Event {
             | Event::RecentProjectInvalidated { .. }
             | Event::ChainPresetSaved { .. }
             | Event::ChainPresetDeleted { .. }
+            // #1021: the take library is app-wide, listed by every chain.
+            | Event::LooperTakeDeleted { .. }
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
             | Event::MetronomeEnabledChanged { .. }

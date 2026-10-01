@@ -140,3 +140,80 @@ fn a_take_whose_audio_cannot_be_written_leaves_no_file_behind() {
         "a half-written take must not show up in the DI picker"
     );
 }
+
+// ── #1021: deleting a saved take ─────────────────────────────────────────
+
+fn library_with(names: &[&str]) -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    for name in names {
+        save_take(tmp.path(), name, &[0.25; 8], 48_000).expect("save");
+    }
+    tmp
+}
+
+#[test]
+fn deleting_a_take_removes_its_file_from_the_library() {
+    let tmp = library_with(&["verse", "chorus"]);
+
+    let path = delete_take(tmp.path(), "verse.wav").expect("delete");
+
+    assert_eq!(path, tmp.path().join("verse.wav"));
+    assert!(!path.exists());
+    assert_eq!(list_takes(tmp.path()), vec![tmp.path().join("chorus.wav")]);
+}
+
+#[test]
+fn a_take_can_be_named_without_its_extension() {
+    let tmp = library_with(&["riff"]);
+
+    delete_take(tmp.path(), "riff").expect("delete");
+
+    assert!(list_takes(tmp.path()).is_empty());
+}
+
+#[test]
+fn a_name_that_is_not_a_plain_file_in_the_library_is_refused() {
+    let tmp = library_with(&["riff"]);
+    let outside = tmp.path().join("outside.wav");
+    std::fs::write(&outside, b"not a take").expect("write");
+    let lib = tmp.path().join("lib");
+    save_take(&lib, "riff", &[0.25; 8], 48_000).expect("save");
+
+    for name in [
+        "",
+        "   ",
+        "../outside.wav",
+        "../outside",
+        "sub/riff.wav",
+        outside.to_str().unwrap(),
+        ".",
+        "..",
+    ] {
+        assert_eq!(
+            delete_take(&lib, name),
+            Err(TakeDeleteError::InvalidName),
+            "{name:?} must never reach the file system"
+        );
+    }
+    assert!(outside.exists(), "nothing outside the library is touched");
+}
+
+#[test]
+fn a_take_that_is_not_there_is_reported_missing() {
+    let tmp = library_with(&[]);
+
+    assert_eq!(
+        delete_take(tmp.path(), "ghost"),
+        Err(TakeDeleteError::NotFound("ghost.wav".into()))
+    );
+}
+
+#[test]
+fn resolving_a_take_names_its_path_without_deleting_it() {
+    let tmp = library_with(&["solo"]);
+
+    let path = resolve_take(tmp.path(), "solo").expect("resolve");
+
+    assert_eq!(path, tmp.path().join("solo.wav"));
+    assert!(path.exists());
+}

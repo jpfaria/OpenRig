@@ -38,11 +38,18 @@ pub(crate) fn apply_di_sources_to_rows(
         let selected = loaded.as_ref().map_or(-1, |source| {
             crate::di_loop_ui_sources::di_loop_selected_index(&desired, source)
         });
+        // #1021: which entries carry the DI panel's trash.
+        let take_rows = crate::di_loop_ui_sources::di_loop_take_rows(&desired, takes);
         let current: Vec<String> = row.di_loop_sources.iter().map(|s| s.to_string()).collect();
+        let current_take_rows: Vec<bool> = row.di_loop_take_rows.iter().collect();
         let sources_changed = current != desired;
         let selected_changed = row.di_loop_selected_index != selected;
-        if !sources_changed && !selected_changed {
+        let take_rows_changed = current_take_rows != take_rows;
+        if !sources_changed && !selected_changed && !take_rows_changed {
             continue;
+        }
+        if take_rows_changed {
+            row.di_loop_take_rows = ModelRc::from(Rc::new(VecModel::from(take_rows)));
         }
         if sources_changed {
             row.di_loop_sources = ModelRc::from(Rc::new(VecModel::from(

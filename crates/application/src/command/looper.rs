@@ -99,6 +99,12 @@ pub enum LooperCommand {
         name: String,
     },
 
+    /// #1021: delete a saved take from the app-wide take library. `name` is
+    /// its file name as the DI picker lists it (`.wav` optional). Every chain
+    /// whose DI has that take loaded stops and unloads it. Refused for a name
+    /// that is not a plain file of the library, or a take that is not there.
+    DeleteLooperTake { name: String },
+
     /// #323 phase 2: link a looper to the preset whose effects it plays through.
     /// The loop records DRY; this id says WHICH preset renders it, so switching
     /// the chain's live preset to solo does not change the loop's tone. Set to

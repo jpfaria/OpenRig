@@ -180,6 +180,12 @@ msgstr "移除"
 msgid "di-output-select-label"
 msgstr "DI输出"
 
+msgid "di-take-delete-label"
+msgstr "删除录音"
+
+msgid "di-take-delete-confirm"
+msgstr "删除?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "全局"
