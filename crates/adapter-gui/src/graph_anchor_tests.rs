@@ -101,6 +101,20 @@ fn a_y_lane_ends_before_its_own_output_node() {
     assert_eq!(insert_target(&c, &lane(2, 1, 0)), at(0, on(PathSide::B))); // split → b1
 }
 
+/// Live DIGITAL (2026-10-01): one Mix split and nothing else — 0 input ·
+/// 1 split · 2 output. The anchor past the mixer must reach the chain's end,
+/// or there is nowhere to put the Y.
+#[test]
+fn mix_then_y_a_lone_mix_has_an_anchor_past_its_mixer() {
+    let c = chain(vec![split(
+        "sp",
+        SplitEnd::Mix,
+        vec![core("amp_a")],
+        vec![core("amp_b")],
+    )]);
+    assert_eq!(insert_target(&c, &stage(2)), at(1, None));
+}
+
 #[test]
 fn a_lane_anchor_on_a_chain_without_a_split_is_nothing() {
     assert_eq!(insert_target(&chain(vec![core("x")]), &lane(1, 0, 0)), None);

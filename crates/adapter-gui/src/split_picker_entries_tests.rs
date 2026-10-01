@@ -1,7 +1,7 @@
 //! #328 — Review Focus 5: a split is offered only where it can go.
 
 use super::*;
-use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, y_chain};
+use crate::chain_graph_fixtures_tests::{chain, core, mix_chain, mix_then_y_chain, split, y_chain};
 use domain::ids::BlockId;
 use project::block::{PathRef, PathSide, SplitEnd};
 
@@ -56,6 +56,20 @@ fn mix_then_y_a_chain_with_both_offers_no_split() {
             "position {position}"
         );
     }
+}
+
+/// Live DIGITAL (2026-10-01): the chain is a single Mix split, nothing after
+/// it. The "+" past the mixer must still offer the Y — that is the whole
+/// point of "sum two amps, then split to FRFR and to the SYN-5050".
+#[test]
+fn mix_then_y_a_lone_mix_offers_a_y_after_it() {
+    let c = chain(vec![split(
+        "sp",
+        SplitEnd::Mix,
+        vec![core("amp_a")],
+        vec![core("amp_b")],
+    )]);
+    assert_eq!(split_picker_ends(&c, 1, None), vec![SplitEnd::Y]);
 }
 
 #[test]
