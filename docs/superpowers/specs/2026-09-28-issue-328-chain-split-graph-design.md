@@ -380,3 +380,7 @@ Decided:
 - **The app lays the graph out automatically from its edges.** No node position is stored.
 - **The graph area grows to fit the graph.** In the chains list, each chain's graph takes the
   height and width its layout needs. It is not clipped to a fixed strip.
+- **No cycles.** The signal only moves forward; an edge that would close a loop is refused.
+- **Stream isolation is unchanged (LAW ZERO).** The graph starts at one Input node. Each input of
+  the chain's E/S runs its own isolated copy of the graph, exactly like a linear chain today.
+  Two inputs never meet in a Mix.
