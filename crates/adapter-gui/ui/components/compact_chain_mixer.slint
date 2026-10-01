@@ -36,6 +36,7 @@ export component CompactChainMixer inherits Rectangle {
         x: 0; y: 1px;
         width: parent.width; height: root.header-height - 1px;
         title: @tr("label-mixer");
+        icon: @image-url("../assets/mixer-faders.svg");
         expanded: root.expanded;
         toggled(expanded) => { root.toggled(expanded); }
     }
