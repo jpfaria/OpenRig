@@ -172,3 +172,138 @@ fn dragging_a_block_moves_only_that_card() {
     assert_eq!((a1.layout_x, a1.layout_y), (999.0, 777.0));
     assert_ne!((a2.layout_x, a2.layout_y), (999.0, 777.0));
 }
+
+/// A Mix whose path B is empty: its "+" and the bent wire through it sit on
+/// that lane, not on any card.
+fn empty_lane_chain() -> project::chain::Chain {
+    use crate::chain_graph_fixtures_tests::{chain, core, split};
+    use project::block::SplitEnd;
+    chain(vec![
+        core("pre"),
+        split("sp", SplitEnd::Mix, vec![core("a1")], vec![]),
+        core("post"),
+    ])
+}
+
+#[test]
+fn dragging_a_split_carries_the_plus_and_the_wire_of_its_empty_lane() {
+    let rows = rows();
+    let chain = empty_lane_chain();
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    replace_project_chains(&rows, &project, &[], &[], &registry());
+    let row = rows.row_data(0).unwrap();
+    let plus = |row: &crate::ProjectChainItem| {
+        row.graph_anchors
+            .iter()
+            .find(|a| a.id.as_str() == "path:sp:1:0")
+            .map(|a| (a.layout_x, a.layout_y))
+            .expect("the empty lane's +")
+    };
+    let bends = |row: &crate::ProjectChainItem| -> Vec<(f32, f32)> {
+        row.graph_edges
+            .iter()
+            .flat_map(|e| {
+                let mut ends = Vec::new();
+                if e.from_id.is_empty() {
+                    ends.push((e.from_x, e.from_y));
+                }
+                if e.to_id.is_empty() {
+                    ends.push((e.to_x, e.to_y));
+                }
+                ends
+            })
+            .collect()
+    };
+    let (px, py) = plus(&row);
+    let before_bends = bends(&row);
+    assert!(!before_bends.is_empty(), "the empty lane's wire bends");
+    let split = row
+        .graph_nodes
+        .iter()
+        .find(|n| n.id.as_str() == "__split_sp")
+        .unwrap();
+
+    drag_node(
+        &rows,
+        0,
+        &chain,
+        "__split_sp",
+        split.layout_x + 100.0,
+        split.layout_y + 10.0,
+    );
+
+    let row = rows.row_data(0).unwrap();
+    assert_eq!(
+        plus(&row),
+        (px + 100.0, py + 10.0),
+        "the + follows the split"
+    );
+    let moved: Vec<(f32, f32)> = before_bends
+        .iter()
+        .map(|(x, y)| (x + 100.0, y + 10.0))
+        .collect();
+    assert_eq!(bends(&row), moved, "the bent wire follows the split");
+    let pre = row
+        .graph_anchors
+        .iter()
+        .find(|a| a.id.as_str() == "top:0")
+        .map(|a| (a.layout_x, a.layout_y));
+    let fresh = crate::chain_graph_fixtures_tests::rows();
+    replace_project_chains(&fresh, &project, &[], &[], &registry());
+    let laid = fresh
+        .row_data(0)
+        .unwrap()
+        .graph_anchors
+        .iter()
+        .find(|a| a.id.as_str() == "top:0")
+        .map(|a| (a.layout_x, a.layout_y));
+    assert_eq!(pre, laid, "a + outside the split stays put");
+}
+
+#[test]
+fn a_released_split_drag_puts_its_empty_lane_back() {
+    let rows = rows();
+    let chain = empty_lane_chain();
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    replace_project_chains(&rows, &project, &[], &[], &registry());
+    let marks = |row: &crate::ProjectChainItem| {
+        let anchors: Vec<(String, f32, f32)> = row
+            .graph_anchors
+            .iter()
+            .map(|a| (a.id.to_string(), a.layout_x, a.layout_y))
+            .collect();
+        let edges: Vec<(f32, f32, f32, f32)> = row
+            .graph_edges
+            .iter()
+            .map(|e| (e.from_x, e.from_y, e.to_x, e.to_y))
+            .collect();
+        (anchors, edges)
+    };
+    let laid_out = marks(&rows.row_data(0).unwrap());
+    let split = rows
+        .row_data(0)
+        .unwrap()
+        .graph_nodes
+        .iter()
+        .find(|n| n.id.as_str() == "__split_sp")
+        .unwrap();
+
+    drag_node(&rows, 0, &chain, "__split_sp", split.layout_x + 50.0, 5.0);
+    settle_nodes(&rows, 0, &chain);
+
+    assert_eq!(
+        marks(&rows.row_data(0).unwrap()),
+        laid_out,
+        "every + and wire returns to the layout"
+    );
+}

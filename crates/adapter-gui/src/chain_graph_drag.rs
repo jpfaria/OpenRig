@@ -7,7 +7,7 @@
 
 use slint::{Model, VecModel};
 
-use crate::{GraphEdgeGeometry, GraphNode, ProjectChainItem};
+use crate::{GraphAnchor, GraphEdgeGeometry, GraphNode, ProjectChainItem};
 
 /// A card dragged to layout `(x, y)`. A split or mixer card carries its
 /// whole split by the same offset; any other card moves alone.
@@ -36,9 +36,63 @@ pub(crate) fn drag_node(
         return;
     };
     let (dx, dy) = (x - from_x, y - from_y);
-    for id in crate::chain_graph_split_group::group_node_ids(chain, &split) {
-        if let Some((nx, ny)) = at(&id) {
-            move_node(rows, chain_index, &id, nx + dx, ny + dy);
+    let ids = crate::chain_graph_split_group::group_node_ids(chain, &split);
+    for id in &ids {
+        if let Some((nx, ny)) = at(id) {
+            move_node(rows, chain_index, id, nx + dx, ny + dy);
+        }
+    }
+    let splits = crate::chain_graph_split_group::group_split_ids(chain, &split);
+    shift_lane_marks(&row, &ids, &splits, dx, dy);
+}
+
+/// The "+" of every lane the dragged split holds, and the bend an empty
+/// lane's wire makes through its own row, move with the split: neither
+/// belongs to a card, so `move_node` never reaches them.
+fn shift_lane_marks(
+    row: &ProjectChainItem,
+    group: &[String],
+    splits: &[domain::ids::BlockId],
+    dx: f32,
+    dy: f32,
+) {
+    let prefixes: Vec<String> = splits.iter().map(|s| format!("path:{}:", s.0)).collect();
+    if let Some(anchors) = row
+        .graph_anchors
+        .as_any()
+        .downcast_ref::<VecModel<GraphAnchor>>()
+    {
+        for i in 0..anchors.row_count() {
+            let Some(mut anchor) = anchors.row_data(i) else {
+                continue;
+            };
+            if prefixes.iter().any(|p| anchor.id.starts_with(p.as_str())) {
+                anchor.layout_x += dx;
+                anchor.layout_y += dy;
+                anchors.set_row_data(i, anchor);
+            }
+        }
+    }
+    let held = |id: &str| group.iter().any(|g| g == id);
+    if let Some(edges) = row
+        .graph_edges
+        .as_any()
+        .downcast_ref::<VecModel<GraphEdgeGeometry>>()
+    {
+        for i in 0..edges.row_count() {
+            let Some(mut edge) = edges.row_data(i) else {
+                continue;
+            };
+            if edge.from_id.is_empty() && held(edge.to_id.as_str()) {
+                edge.from_x += dx;
+                edge.from_y += dy;
+            } else if edge.to_id.is_empty() && held(edge.from_id.as_str()) {
+                edge.to_x += dx;
+                edge.to_y += dy;
+            } else {
+                continue;
+            }
+            edges.set_row_data(i, edge);
         }
     }
 }
@@ -102,8 +156,33 @@ pub(crate) fn settle_nodes(
 ) {
     // Labels move no node, so none are resolved here.
     let labels = crate::endpoint_checklist_items::IoLabels::default();
-    for node in crate::chain_graph_adapter::chain_graph(chain, &labels).nodes {
+    let graph = crate::chain_graph_adapter::chain_graph(chain, &labels);
+    for node in &graph.nodes {
         move_node(rows, chain_index, &node.id, node.x, node.y);
+    }
+    let Some(row) = rows.row_data(chain_index) else {
+        return;
+    };
+    let laid = crate::chain_graph_models::row_graph_models(chain, &graph);
+    settle_model::<GraphAnchor>(&row.graph_anchors, &laid.anchors);
+    settle_model::<GraphEdgeGeometry>(&row.graph_edges, &laid.edges);
+}
+
+/// Puts every row of `published` back to the laid-out `laid` row.
+fn settle_model<T: Clone + PartialEq + 'static>(
+    published: &slint::ModelRc<T>,
+    laid: &slint::ModelRc<T>,
+) {
+    let Some(rows) = published.as_any().downcast_ref::<VecModel<T>>() else {
+        return;
+    };
+    if rows.row_count() != laid.row_count() {
+        return;
+    }
+    for (i, row) in laid.iter().enumerate() {
+        if rows.row_data(i).as_ref() != Some(&row) {
+            rows.set_row_data(i, row);
+        }
     }
 }
 
