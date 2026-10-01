@@ -53,8 +53,10 @@ mod chain_editor_save_cancel_callbacks;
 mod chain_fader_intent;
 mod chain_level_law;
 mod chain_mixer_intents;
+mod chain_mixer_panel_wiring;
 mod chain_mixer_rows;
 mod chain_mixer_rows_sync;
+mod chain_mixer_source;
 mod chain_name_wiring;
 mod chain_preset_bank;
 mod chain_preset_wiring;
@@ -66,6 +68,7 @@ mod chain_row_seams_tests;
 mod chain_row_wiring;
 mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
+mod chain_volume_row_patch;
 mod cli;
 mod compact_block_layout;
 mod compact_block_tabs;
@@ -175,6 +178,7 @@ mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
+mod view_refresh_policy;
 mod virtual_key_text;
 mod virtual_keyboard_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
@@ -262,6 +266,9 @@ mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 mod gui_device_settings;
+#[cfg(test)]
+#[path = "issue_1007_external_fader_keeps_views_tests.rs"]
+mod issue_1007_external_fader_keeps_views_tests;
 #[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
