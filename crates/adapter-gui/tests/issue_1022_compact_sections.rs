@@ -177,6 +177,14 @@ fn an_open_section_pushes_the_headers_above_it_up() {
     assert_eq!(top(&w), closed);
 }
 
+/// Every section header carries the icon its old header button had, between
+/// the chevron and the title.
+#[test]
+fn every_section_header_shows_its_icon() {
+    let w = window(true);
+    assert_eq!(count(&w, "SectionToggle::icon"), 5);
+}
+
 /// An open section body is the section itself, not the floating panel boxed
 /// inside it: the panel spans the view (16px gutter each side) and drops its
 /// own title, since the section header already names it.

@@ -20,6 +20,7 @@ import { CompactLooper } from "compact_looper_globals.slint";
 // The header strip every non-mixer section shares: a 1px rule, then the toggle.
 component SectionHeader inherits Rectangle {
     in property <string> title;
+    in property <image> icon;
     in property <bool> expanded;
     callback toggled(bool);
     height: 36px;
@@ -29,6 +30,7 @@ component SectionHeader inherits Rectangle {
         x: 0; y: 1px;
         width: parent.width; height: parent.height - 1px;
         title: root.title;
+        icon: root.icon;
         expanded: root.expanded;
         toggled(e) => { root.toggled(e); }
     }
@@ -118,6 +120,7 @@ export component CompactChainSections inherits Rectangle {
 
         di-toggle := SectionHeader {
             title: @tr("di-loop-button-label");
+            icon: @image-url("../assets/headphones.svg");
             expanded: root.open == 1;
             toggled(e) => { root.pick(1, e); }
         }
@@ -145,6 +148,7 @@ export component CompactChainSections inherits Rectangle {
 
         looper-toggle := SectionHeader {
             title: @tr("looper-button-label");
+            icon: @image-url("../assets/loop.svg");
             expanded: root.open == 2;
             toggled(e) => { root.pick(2, e); }
         }
@@ -194,6 +198,7 @@ export component CompactChainSections inherits Rectangle {
 
         doctor-toggle := SectionHeader {
             title: @tr("tone-doctor-button-label");
+            icon: @image-url("../assets/stethoscope.svg");
             expanded: root.open == 3;
             toggled(e) => { root.pick(3, e); }
         }
@@ -230,6 +235,7 @@ export component CompactChainSections inherits Rectangle {
         // Only a running chain has live levels.
         if root.chain-enabled : meters-toggle := SectionHeader {
             title: @tr("label-meters");
+            icon: @image-url("../assets/meters.svg");
             expanded: root.open == 4;
             toggled(e) => { root.pick(4, e); }
         }
