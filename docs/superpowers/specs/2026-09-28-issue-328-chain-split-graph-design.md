@@ -384,3 +384,10 @@ Decided:
 - **Stream isolation is unchanged (LAW ZERO).** The graph starts at one Input node. Each input of
   the chain's E/S runs its own isolated copy of the graph, exactly like a linear chain today.
   Two inputs never meet in a Mix.
+- **Output nodes, unlimited.** Each Output node picks, from a checklist, any of the chain's E/S
+  outputs. Several Output nodes may pick the same output. The app sums them there; it is the same
+  stream, so isolation holds.
+- **Every sum is time-aligned.** This applies to a Mix node's inputs and to Output nodes sharing an
+  output. Owner decision 5 now covers any point where edges meet.
+- **Any block kind may sit anywhere.** This includes Insert and Select. The path restrictions of
+  §1.1 and §10 are gone.
