@@ -7,7 +7,7 @@ use anyhow::Result;
 use application::command::{Command, ProjectCommand};
 
 /// The dirty-detection fingerprint. For a rig session the saved artifact
-/// is the `.openrig` (the `RigProject`), so the fingerprint MUST include
+/// is the project `.yaml` (the `RigProject`), so the fingerprint MUST include
 /// it — switching preset/scene or editing sources often projects an
 /// identical legacy `Project` (e.g. a scene with no overrides), so a
 /// legacy-only snapshot would never flip dirty and Save would never be
@@ -16,11 +16,11 @@ pub(crate) fn dirty_snapshot(
     project: &project::project::Project,
     rig: Option<&project::rig::RigProject>,
 ) -> Result<String> {
-    let legacy = infra_yaml::serialize_project(project)?;
+    let legacy = serde_yaml::to_string(project)?;
     match rig {
         Some(rig) => Ok(format!(
-            "{legacy}\n---openrig---\n{}",
-            infra_yaml::serialize_rig_project(rig)?
+            "{legacy}\n---rig---\n{}",
+            infra_yaml::serialize_project(rig)?
         )),
         None => Ok(legacy),
     }

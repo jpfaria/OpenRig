@@ -82,7 +82,7 @@ it and a red test pins the chosen behavior.
 New per-chain field: the chosen DI **output endpoint** — one of the chain's
 **already-bound output endpoints** (owner decision: the select lists the outputs
 this chain already uses, NOT every system device). It travels with the chain, so
-it lives **inside the chain in `project.openrig`** (project config), not
+it lives **inside the chain in `project.yaml`** (project config), not
 `config.yaml`. Absent → default to the chain's **main output** (current
 behaviour, so existing projects are unchanged).
 
@@ -142,7 +142,7 @@ commit.
    the loop is NOT on the guitar runtime. (RED against today's input-injection.)
 2. **DI plays on its own runtime at the chosen output's rate** (reuses the
    #749 length-per-rate assertion, now on the dedicated DI runtime).
-3. **Chosen output persists** — round-trips through `project.openrig`.
+3. **Chosen output persists** — round-trips through `project.yaml`.
 4. **Command parity** — the new variant is covered; MCP tool count matches.
 5. **Real-hardware:** no xruns with guitar + DI running together.
 

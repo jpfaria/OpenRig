@@ -2,30 +2,30 @@
 
 | Argumento / Variável | Efeito |
 |---|---|
-| `openrig --project /path/project.openrig` | Abre o projeto direto, pula launcher (forma documentada do #436) |
+| `openrig --project /path/project.yaml` | Abre o projeto direto, pula launcher |
 | `openrig /path/project.yaml` (posicional) | Idem (forma legada, ainda aceita) |
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
-| `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
-| `OPENRIG_UPDATE_CURRENT_VERSION=0.0.1` | macOS only (#959): the launcher's update check compares the latest GitHub release against this version instead of the compiled one, so the update button can be exercised without publishing a new release. Display is unchanged. |
-| `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |
+| `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking: records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
+| `OPENRIG_UPDATE_CURRENT_VERSION=0.0.1` | macOS only: the launcher's update check compares the latest GitHub release against this version instead of the compiled one, so the update button can be exercised without publishing a new release. Display is unchanged. |
+| `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml`. |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`), overriding config for this run. |
-| `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
-| `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). A map that binds mixer strips also gets motor-fader / LED feedback on the outputs named by its `input:` (#1007, see `docs/midi.md`). |
+| `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003): project bindings (from `project.yaml`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml`. See `docs/midi.md`. |
+| `--midi=PATH` | Direct legacy-file load (no migration, no resolution), overriding config for this run. Useful for testing an explicit map (e.g. `--midi=~/maps/chocolate.yaml`). A map that binds mixer strips also gets motor-fader / LED feedback on the outputs named by its `input:` (see `docs/midi.md`). |
 
-> **#712 — these flags are overrides, not the only switch.** Packaged builds launch the binary with no arguments, so MIDI/MCP enablement is driven by the per-machine `config.yaml` master switches `midi_enabled` / `mcp_enabled` (both default `false`; toggle them in Settings or by hand). A present `--midi` / `--mcp` flag forces the subsystem on for that single run regardless of config. See [`config-taxonomy.md`](config-taxonomy.md).
+> **These flags are overrides, not the only switch.** Packaged builds launch the binary with no arguments, so MIDI/MCP enablement is driven by the per-machine `config.yaml` master switches `midi_enabled` / `mcp_enabled` (both default `false`; toggle them in Settings or by hand). A present `--midi` / `--mcp` flag forces the subsystem on for that single run regardless of config. See [`config-taxonomy.md`](config-taxonomy.md).
 
 For headless offline rendering, see the **`openrig-render`** binary documented in [`render.md`](render.md). It is a separate executable shipped by `crates/adapter-render` — no GUI, no audio device, no MCP, no MIDI.
 
 Precedência do path: `--project <PATH>` > posicional > `OPENRIG_PROJECT_PATH`
 
-Precedência do `config.yaml` (#968): `--config <PATH>` > um `config.yaml` no diretório atual (override de desenvolvimento) > o config do app (`~/Library/Application Support/OpenRig/config.yaml` no macOS, `%APPDATA%\OpenRig\` no Windows, `~/.config/OpenRig/` no Linux) — o mesmo arquivo que a tela Settings → Paths escreve, e de onde sai o `paths.plugins_path` usado pelo catálogo de plugins.
+Precedência do `config.yaml`: `--config <PATH>` > um `config.yaml` no diretório atual (override de desenvolvimento) > o config do app (`~/Library/Application Support/OpenRig/config.yaml` no macOS, `%APPDATA%\OpenRig\` no Windows, `~/.config/OpenRig/` no Linux) — o mesmo arquivo que a tela Settings → Paths escreve, e de onde sai o `paths.plugins_path` usado pelo catálogo de plugins.
 (last-wins entre formas CLI). O path resolvido é **validado** (`validate_project_path`):
 não existe → `project file not found: <path>`; não é arquivo →
 `project path is not a file: <path>`. Path inválido **não derruba o app** —
 loga o erro e cai no launcher (alinhado com `2026-04-09-cli-project-path-autosave-design.md`;
-autosave não foi reinventado). Carregar/parsear o `project.openrig` no engine
-é wiring fora do escopo do #452.
+autosave não foi reinventado). Carregar/parsear o `project.yaml` no engine
+é wiring à parte.
 
 Parsing em `adapter-gui/src/{cli,main,lib}.rs`.
 
-**No autosave (#986).** The project file is written **only** on an explicit save: the Save button, the MCP `save_project` tool or a MIDI binding to `SaveProject` (all three dispatch `ProjectCommand::SaveProject`). Edits only flip the unsaved-changes flag (`sync_project_dirty()`). The old `--auto-save` flag and `OPENRIG_AUTO_SAVE` env var are gone; a leftover `--auto-save` on a command line is ignored like any unknown flag.
+**No autosave.** The project file is written **only** on an explicit save: the Save button, the MCP `save_project` tool or a MIDI binding to `SaveProject` (all three dispatch `ProjectCommand::SaveProject`). Edits only flip the unsaved-changes flag (`sync_project_dirty()`). The old `--auto-save` flag and `OPENRIG_AUTO_SAVE` env var are gone; a leftover `--auto-save` on a command line is ignored like any unknown flag.

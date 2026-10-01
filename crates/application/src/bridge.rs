@@ -94,7 +94,7 @@ impl CommandBridge {
         let snap = crate::snapshot::latest()?;
         match kind {
             QueryKind::ProjectYaml => {
-                Some(infra_yaml::serialize_project(&snap.project).map_err(|e| e.to_string()))
+                Some(serde_yaml::to_string(&snap.project).map_err(|e| e.to_string()))
             }
             QueryKind::Ids => Some(Ok(q::list_ids(&snap.project))),
             QueryKind::ListChainPresets { chain } => Some(match &snap.rig {

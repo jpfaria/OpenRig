@@ -88,66 +88,14 @@ gh pr create --title "Release v1.0.0" --base main
 git tag -a v1.0.0 -m "Release v1.0.0"
 ```
 
-## Parallel Agents with Git Worktrees
+## Parallel agents
 
-Multiple AI agents (Claude Code sessions) can work on different issues simultaneously using Git worktrees. Each agent gets an isolated copy of the repo with its own branch.
-
-### Directory structure
-
-```
-OpenRig/                              ← develop (main workspace)
-OpenRig-worktrees/
-  issue-4-lv2/                        ← feature/issue-4-lv2-plugin-host
-  issue-1-48khz/                      ← feature/issue-1-force-48khz
-  issue-3-timbre/                     ← bugfix/issue-3-timbre
-```
-
-### Creating a worktree for an issue
-
-```bash
-# From the main repo
-cd /path/to/OpenRig
-
-# Create the branch from develop
-git checkout develop
-git pull origin develop
-git checkout -b feature/issue-{N}-short-description
-
-# Create the worktree
-git worktree add ../OpenRig-worktrees/issue-{N}-short-description feature/issue-{N}-short-description
-```
-
-### Agent naming convention
-
-Each agent has a short name matching the issue topic:
-
-| Agent Name | Worktree | Branch | Issue |
-|------------|----------|--------|-------|
-| `lv2` | `issue-4-lv2/` | `feature/issue-4-lv2-plugin-host` | #4 |
-| `48khz` | `issue-1-48khz/` | `feature/issue-1-force-48khz` | #1 |
-| `timbre` | `issue-3-timbre/` | `bugfix/issue-3-timbre` | #3 |
-
-### Rules
-
-- **One agent per worktree** — never share a worktree between agents
-- **One branch per issue** — never mix issues in a single branch
-- **Always start from develop** — create the branch from latest develop
-- **Merge develop regularly** — keep your branch up to date with `git merge develop`
-- **PR when done** — push and create PR to develop, then remove the worktree
-
-### Cleanup
-
-```bash
-# After PR is merged
-git worktree remove ../OpenRig-worktrees/issue-{N}-short-description
-git branch -d feature/issue-{N}-short-description
-```
-
-### Listing active worktrees
-
-```bash
-git worktree list
-```
+Multiple AI agents (Claude Code sessions) work on different issues at the same
+time, each in its own clone under `.solvers/issue-N/`, made by
+`scripts/solver-setup.sh <N> <branch> [release-base]`. `git worktree` is
+forbidden: a worktree shares the main folder's `.git` and locks the branch. The
+main folder belongs to the owner. Rules and cleanup:
+[`docs/development/gitflow.md`](docs/development/gitflow.md) → "Workspace isolado".
 
 ## Product Priorities (Non-Regression)
 
@@ -190,6 +138,7 @@ A new feature **does not justify** regressing the invariants above. Real conflic
 - **Single source of truth** — constants defined once, never duplicated
 - **Separation of concerns** — business logic crates have no UI/visual config
 - **No dead code** — remove unused functions, no commented-out code
+- **No issue tags in runtime logs** — never write `[#NNN]` into a `log::*` message. The module path already names the source, and the tags are noise to the owner The log messages themselves are diagnostics the owner uses, so removing a tag means editing the string, not deleting the line or ripping out the instrumentation behind it. Test-only `println!` may keep them. More generally: when he asks to remove something, the scope is the literal string he quoted; make the smallest possible edit and confirm.
 
 See the [openrig-code-quality skill](/.claude/skills/openrig-code-quality) for the full checklist.
 

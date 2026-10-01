@@ -3,7 +3,7 @@
 //!
 //! ADR 0003 puts these in the SYSTEM `config.yaml`: a practice tempo belongs
 //! to the person at the machine, not to the rig, so it must not travel inside
-//! a `.openrig`.
+//! a `project.yaml`.
 //!
 //! There is deliberately no `enabled` field. The metronome always boots off,
 //! and leaving the flag out of the persisted shape means no code path can

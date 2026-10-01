@@ -86,7 +86,7 @@ fn sync_captures_reordered_chains_in_chain_order() {
 #[test]
 fn sync_leaves_chain_order_empty_when_alphabetical() {
     // Order matches the BTreeMap iteration — no need to write
-    // chain_order. Keeps legacy `.openrig` files lean.
+    // chain_order. Keeps `project.yaml` files lean.
     let mut rig = rig_with_inputs(&["a", "b", "c"]);
     let proj = project_with_chain_ids(&["rig:a", "rig:b", "rig:c"]);
 

@@ -18,7 +18,31 @@ proibido.
    Slint, que unit test não exercita), **dizer isso honestamente e parar**.
 4. **Só depois do RED**, investigar a causa — guiada pelo teste que falhou —
    e corrigir até passar (GREEN).
-5. Rodar a suíte cheia + invariantes de áudio.
+5. The full suite + audio invariants run in CI, not locally.
+
+**Two rounds per delivery, never per micro-step.** A delivery with
+several items does not compile once per item:
+
+1. Write ALL the tests of the change — no cargo.
+2. ONE round: compile + run those tests, see ALL of them fail (RED).
+3. Implement EVERYTHING — no cargo.
+4. ONE round: compile + run the same targeted tests, see them pass (GREEN).
+5. `cargo fmt --all -- --check` + `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`,
+   then ONE commit at the end, and push.
+
+No commit and no `cargo build`/`cargo test` between steps. Every `fix(`/`feat(`
+commit closes a dev-rules cycle and re-arms the gate, so committing per step
+forces a new RED (and a new compile) per step. Exception: while the owner is
+validating on his machine, a fix he is waiting for is committed and pushed
+right away.
+
+**Local push gate.** Never `cargo test --workspace` or `cargo build --workspace`
+locally (10+ minutes on the owner's Mac; CI runs them). Without
+`cargo fmt --all -- --check` the `release → main` PR fails on the `fmt` metric.
+`./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
+the commit that diff is empty and it always passes — use
+`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
+broken (unused import, needless `mut`, dead code).
 
 **Não investigue o código para achar a causa antes do teste existir e
 falhar.** Ler o código primeiro produz hipótese enviesada vendida como
@@ -46,13 +70,12 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
 - **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
-- **CI time budget (#991)**: the Test Suite runs under `timeout 1500` (25 min) and
+- **CI time budget**: the Test Suite runs under `timeout 1500` (25 min) and
   Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
   both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
   pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
-  Instrumentation is what makes long simulations expensive: in CI the engine lib
-  tests took 372 s under llvm-cov against 22 s in the Test Suite, and locally the
-  long #979 simulations ran ~6x slower instrumented. A test that simulates minutes
+  Instrumentation is what makes long simulations expensive: they run several times
+  slower under llvm-cov. A test that simulates minutes
   of audio or sweeps many seeds costs minutes of Coverage.
 - **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
   localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
@@ -60,7 +83,7 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
   `codecov.yml`. O relatório é reaproveitado enquanto a árvore não muda (`--fresh`
   força de novo); `--files` lista o que ainda falta; `PATCH_COV_OFF=1` pula.
 
-### CI measures the Linux + JACK build (#987)
+### CI measures the Linux + JACK build
 
 The coverage job runs `cargo llvm-cov --workspace` on Linux, where
 `adapter-gui` turns on `infra-cpal/jack` (and through it `engine/jack`). Every
@@ -75,7 +98,7 @@ that runs in both builds: drive the layer below the controller (a
 `issue_987_slot_handover_tests.rs` and `issue_987_in_place_edit_paths_tests.rs`
 are the reference.
 
-### What is deliberately outside the coverage target (#913)
+### What is deliberately outside the coverage target
 
 Two layers cannot be reached by a test as they stand. They are listed in
 `codecov.yml` under `ignore:` so they stop dragging every release PR's patch
@@ -117,7 +140,7 @@ Two things make this work in practice, both learned the hard way:
   touching.** Anything that reaches `config.yaml` takes an explicit path
   (`save_io_bindings_at`, `apply_*_override_at`), and the production entry
   point is that same function called with the real path — so the test drives
-  the SAME body against a temp file (#701).
+  the SAME body against a temp file.
 
 Two functions doing the same job in two files is a duplicate to collapse, not
 two tests to write: the chain-editor save, the analyzer dispatch helper, the DI
@@ -133,7 +156,7 @@ it is not laziness and it should not be chased with contrived tests:
   and removing it would mean unwrapping.
 - **The path-resolving wrappers.** `save_io_bindings`, `apply_*_path` and their
   siblings are two lines: resolve the machine's real `config.yaml` and call the
-  `_at` function. Exercising THEM means writing that file (#701). The body they
+  `_at` function. Exercising THEM means writing that file. The body they
   delegate to is covered.
 
 ## Convenções
@@ -146,7 +169,7 @@ it is not laziness and it should not be chased with contrived tests:
 
 - **Integração com áudio real**: `#[ignore]` (rodar com `cargo test -- --ignored`)
 - **DSP nativos**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
-- **Caracterização de DSP nativos** (block-delay, `src/dsp_probe.rs`, test-only): provas determinísticas de que cada modelo cumpre a proposta dele — timing de eco (`peaks`), decaimento por feedback, brilho/escurecimento (`spectral_centroid`), saturação (`harmonic_ratio`). Não basta non-NaN: o teste mede a característica que dá nome ao modelo (#388)
+- **Caracterização de DSP nativos** (block-delay, `src/dsp_probe.rs`, test-only): provas determinísticas de que cada modelo cumpre a proposta dele — timing de eco (`peaks`), decaimento por feedback, brilho/escurecimento (`spectral_centroid`), saturação (`harmonic_ratio`). Não basta non-NaN: o teste mede a característica que dá nome ao modelo
 - **NAM/LV2/IR builds**: `#[ignore]` (assets externos)
 - **Registry tests** em block-* crates: iterar TODOS os modelos via registry
 - **Deadline / xrun (timing)**: `#[cfg_attr(debug_assertions, ignore)]` — só
@@ -155,10 +178,10 @@ it is not laziness and it should not be chased with contrived tests:
   por-bloco) medem o custo por-buffer do audio thread. O custo é dominado
   pela inferência NAM; empilhar vários NAM amps satura o orçamento de 64
   frames → overrun de deadline (xrun) → crackle. O overrun é contado em
-  runtime por `ChainRuntimeState::record_callback_load` (#670), alimentado
+  runtime por `ChainRuntimeState::record_callback_load`, alimentado
   pelo callback de input via `infra-cpal::callback_load_timing`.
 
-### Looper (#323)
+### Looper
 
 The looper is a recorder living on the audio thread, so it is covered at
 every layer instead of "it plays, ship it":
@@ -171,18 +194,18 @@ every layer instead of "it plays, ship it":
 | `audio_alloc_invariant_tests::looper_record_overdub_and_undo_do_not_allocate` | zero allocation on the audio thread while recording / overdubbing / undoing (invariant #8) |
 | `infra-cpal/tests/issue_323_controller_loopers.rs` | ops fan out to every runtime of a chain, each with its OWN buffer |
 | `application` dispatcher + `query_loopers` tests | command validation, the footswitch uid-0 sentinel, and the read model every transport shares |
-| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — a `LooperCommand` must flip the store and the loop's isolated stream, on the bus and with no GUI in the picture |
+| `adapter-gui/tests/issue_323_looper_wiring.rs` | dispatching alone is dead — a `LooperCommand` must flip the store and the loop's isolated stream, on the bus and with no GUI in the picture |
 | `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
 | `adapter-gui/src/runtime_loopers_tests.rs` | save → reopen round-trip of the wav sidecar (the save dispatched, not called), and that a missing sidecar never blocks opening a project |
 | `application/src/local_dispatcher_looper_save_tests.rs` | `SaveProject` exports the loops itself, forgets a cleared loop's stale pointer, and touches nothing when the rig is stopped |
-| `adapter-gui/src/runtime_loopers_826_tests.rs` | the same round-trip on a RIG project, reopened FROM DISK — record → close → reopen, plus the same after a chain rename and after a waveform edit (#826) |
+| `adapter-gui/src/runtime_loopers_826_tests.rs` | the same round-trip on a RIG project, reopened FROM DISK — record → close → reopen, plus the same after a chain rename and after a waveform edit |
 | `infra-cpal/tests/issue_323_looper_hw.rs` (`OPENRIG_HW_TESTS=1`) | the REAL stack: record + 7 overdubs + undo/redo/clear on live CoreAudio streams at buffer 64 cost **zero** xruns / underruns |
 
 A persistence round-trip has to reopen the way the app reopens: read the file
 back with `project_ops::load_rig_and_project` and restore into a FRESH
 controller. `runtime_loopers_tests` does not — its session carries `rig: None`
-and it reuses the in-memory project — and two bugs that emptied the user's
-looper walked straight past it (#826). The app's project is a rig: what hits
+and it reuses the in-memory project — so a bug that only shows on a real
+reopen walks straight past it. The app's project is a rig: what hits
 disk is built from `RigProject`, not from `Project`, so anything stamped onto a
 chain AFTER the rig capture never reaches the file. `runtime_loopers_826_tests`
 is the version that reopens for real; prefer it as the template.
@@ -197,7 +220,7 @@ on a machine without it every block is dropped, the chain never comes up, and
 the counters read zero for a runtime that does not exist — a vacuously green
 measurement. It asserts the chain is live before measuring, and drives
 `poll_pending_rebuilds` the way the app's timer does, because the cold
-activation is asynchronous (#740).
+activation is asynchronous.
 
 ## Workspace
 
@@ -207,7 +230,7 @@ cargo test --workspace
 
 (~1100+ testes)
 
-## Real-hardware battery (issues #670 / #698)
+## Real-hardware battery
 
 `crates/infra-cpal/tests/issue_670_cab_swap.rs`,
 `crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs`,
@@ -215,9 +238,9 @@ cargo test --workspace
 `crates/infra-cpal/tests/issue_698_owner_64_dual_chain.rs` open the REAL
 audio interface (CoreAudio streams, the owner's presets and DI takes) and
 assert real-time deadlines through the engine's own xrun/underrun counters.
-They are the full-fidelity reproduction harness for the #670 crackle and
-the #698 multi-chain RT-budget overcommit (shared helpers live in
-`tests/hw_harness/`). The #698 owner-recipe tests additionally need the
+They are the full-fidelity reproduction harness for a crackle on cab swaps
+and for a multi-chain RT-budget overcommit (shared helpers live in
+`tests/hw_harness/`). The `issue_698_*` owner-recipe tests additionally need the
 real capture library via `OPENRIG_OWNER_PLUGINS=<plugins/source>`.
 
 They are only meaningful on an otherwise idle machine, so they are gated by
@@ -239,7 +262,7 @@ tests serialize access to the physical device across processes via a lock
 file.
 
 The same gate covers the metronome's runtime doors
-(`crates/adapter-gui/src/metronome_runtime_tests.rs`, issue #127): starting the
+(`crates/adapter-gui/src/metronome_runtime_tests.rs`): starting the
 click means `find_output_device_by_id` → `host.output_devices()`, so those
 tests enumerate the machine's real interfaces and one of them opens a (silent)
 output stream. They are seconds, not minutes:
@@ -267,7 +290,7 @@ never enabled):
 OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --test issue_127_metronome_runtime
 ```
 
-**Mid-chain ports (#85)** get their own three files in the same battery. They
+**Mid-chain ports** get their own three files in the same battery. They
 need no player and make no noise: a **loopback device** (BlackHole 2ch) stands
 in for the second interface, a DI loop (or a tone written by the test) is the
 source, and the test opens the loopback's input to hear what actually arrived.
@@ -283,13 +306,12 @@ OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
 
 Requirements: BlackHole 2ch installed, plus one other interface. Two things a
 headless run needs and the GUI does for you: install the binding registry
-**before** `start` (`start_with_io_bindings`, #716), then **poll pending
+**before** `start` (`start_with_io_bindings`), then **poll pending
 activations** — the cpal streams are created on the polling thread, so without
 `poll_pending_rebuilds()` nothing ever opens and every measurement reads zero.
 
 **Counting underruns is not listening.** A tap can hold its last frame, alias or
-drift and still report zero underruns; the owner called that evidence what it
-was, a false positive. `issue_85_mid_output_other_rate` keeps every frame the
+drift and still report zero underruns — a false positive. `issue_85_mid_output_other_rate` keeps every frame the
 device popped and measures how much of it is NOT the tone, per short window (so
 a slow clock trim is not counted as distortion), against the chain's OWN tail
 captured in the same run — same processing, no conversion. Any new audio-path
@@ -299,7 +321,7 @@ claim needs that shape of oracle, not a counter.
 loopback (which shares the machine's clock), which is where a cross-rate tap
 actually misbehaves, and reports the peak callback load alongside the counters.
 
-The teardown / whole-graph doors (issue #127) need no hardware either. At the
+The teardown / whole-graph doors need no hardware either. At the
 dispatcher level, `crates/application/src/local_dispatcher_runtime_doors_tests.rs`
 drives a spy `RuntimeControl` and pins that `StopProjectRuntime` and
 `CloseProject` stop the rig, that `SaveAudioSettings` rebuilds the whole graph
@@ -311,8 +333,7 @@ commands against a device-less controller and asserts the controller is dropped
 and the engine rate goes back to the reference, plus that the whole-graph
 rebuild never CREATES a controller on a stopped rig.
 
-The poll tick's doors (`crates/adapter-gui/src/runtime_health_tests.rs`, issue
-#127) need no hardware: they drive a device-less controller
+The poll tick's doors (`crates/adapter-gui/src/runtime_health_tests.rs`) need no hardware: they drive a device-less controller
 (`ProjectRuntimeController::for_testing`) whose rebuilds resolve their
 endpoints from the binding registry. They pin that a finished rebuild is
 INSTALLED by the write door (and only into the chain that asked for it), that a
@@ -342,7 +363,7 @@ peak of the window the audio callback pushed, the raw window honours its cap, a
 subscription never hears a sibling chain, and one multi-channel subscription
 keeps its channels apart.
 
-## Structural invariant: the UI may not name the audio backend (#127)
+## Structural invariant: the UI may not name the audio backend
 
 `crates/adapter-gui/src/no_infra_cpal_in_wiring_tests.rs` asserts on the crate's
 own SOURCE rather than on behaviour, because what it protects is a boundary no
@@ -370,7 +391,7 @@ guard: the UI may not name the backend".
 cargo test -p adapter-gui --lib no_infra_cpal
 ```
 
-## Real-plugin VST3 battery (issues #776 / #780)
+## Real-plugin VST3 battery
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on
 `OPENRIG_TEST_VST3_DIR` — the plugins `vst3/` dir (e.g.

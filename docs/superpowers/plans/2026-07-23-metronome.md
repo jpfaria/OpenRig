@@ -268,7 +268,7 @@ git commit -m "feat(#14): metronome commands, events and dispatcher handler"
 - Modify: `crates/infra-filesystem/src/app_config_io.rs`, `crates/application/src/app_config_persist.rs`
 - Create: `crates/application/tests/issue_14_metronome_config_persistence.rs`
 
-Per ADR 0003 this is **system** config (`config.yaml`) — a practice tempo does not travel in `.openrig`.
+Per ADR 0003 this is **system** config (`config.yaml`) — a practice tempo does not travel in `project.yaml`.
 
 Persisted: `bpm`, `beats_per_bar`, `subdivision`, `timbre`, `volume`, `count_in`, `output_device`.
 **Not persisted:** `enabled` — the app always starts with the metronome off.

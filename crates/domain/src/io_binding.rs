@@ -52,7 +52,7 @@ pub struct IoEndpoint {
 ///
 /// Stored in the per-machine system config registry so it survives project
 /// portability (ADR 0003). Projects reference bindings by `id`, not by
-/// device path, so `.openrig` files stay portable across machines.
+/// device path, so `project.yaml` files stay portable across machines.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct IoBinding {
     /// Stable registry key (e.g. `"main"`, `"monitor"`).

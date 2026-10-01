@@ -480,7 +480,7 @@ fn loading_a_project_with_two_enabled_chains_on_one_channel_disables_the_extra()
         .dispatch(Command::Project(
             application::command::ProjectCommand::LoadProject {
                 project: loaded,
-                path: std::path::PathBuf::from("project.openrig"),
+                path: std::path::PathBuf::from("project.yaml"),
             },
         ))
         .expect("load must succeed");

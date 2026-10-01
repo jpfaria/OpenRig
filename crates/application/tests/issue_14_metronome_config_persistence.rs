@@ -1,5 +1,5 @@
 //! #14: the metronome's settings live in the per-machine SYSTEM `config.yaml`
-//! (ADR 0003 — a practice tempo does not travel inside a `.openrig`).
+//! (ADR 0003 — a practice tempo does not travel inside a `project.yaml`).
 //!
 //! Two contracts are pinned here.
 //!

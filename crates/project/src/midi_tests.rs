@@ -1,6 +1,6 @@
 //! Tests for the project-level MIDI binding data types (ADR 0003, #499).
 //!
-//! Bindings live in `project.openrig` so they travel with the rig. The data
+//! Bindings live in `project.yaml` so they travel with the rig. The data
 //! types (`Source`, `Scale`, `Binding`) used to live in `adapter-midi`; this
 //! suite covers the surface needed for a YAML round-trip inside a project
 //! file. The runtime validator stays in `adapter-midi`.

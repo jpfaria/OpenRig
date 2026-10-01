@@ -1,6 +1,6 @@
 //! #1007: the global mixer's faders and mutes live in the per-machine SYSTEM
 //! `config.yaml` (ADR 0003 — a monitor level belongs to this desk, not to a
-//! `.openrig` that travels to another machine).
+//! `project.yaml` that travels to another machine).
 //!
 //! Every write targets a `tempfile` directory — never the user's real config
 //! (#701 / #731).

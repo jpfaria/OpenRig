@@ -8,7 +8,7 @@
 Unifies the three configuration surfaces of OpenRig (system, project, MIDI) into a
 single Settings screen, and gives MIDI device selection + MIDI mapping their
 first GUI. Ratifies ADR 0003 in the UI: every section is labelled with its
-storage scope so users can see at a glance what travels with the `.openrig`
+storage scope so users can see at a glance what travels with the `project.yaml`
 file and what stays on the machine.
 
 ## Goal
@@ -22,7 +22,7 @@ A single Settings screen in the desktop GUI with five sections:
 5. **Project / MIDI mapping** — in-app editor for CC/PC/Note → `Command` bindings, with single-shot "MIDI Learn" capture; replaces hand-edited `midi-bindings.yaml`.
 
 Sections 1, 2, 3 persist to `config.yaml` (per-machine). Sections 4, 5 persist
-to the active `.openrig` (per-project), per ADR 0003.
+to the active `project.yaml` (per-project), per ADR 0003.
 
 All edits flow through `Command`s — no `borrow_mut()` in callbacks. The GUI
 stays a pure dispatcher.
@@ -216,7 +216,7 @@ to the `mappable: bool` flag (already used by adapter-mcp for tool-surface
 gating).
 
 Persistence: `Command::SaveMidiMapping` writes the full binding list into
-`project.openrig` under `midi.bindings`, replacing whatever was there. The
+`project.yaml` under `midi.bindings`, replacing whatever was there. The
 project save path is unchanged.
 
 ### Navigation
@@ -236,7 +236,7 @@ rename is a closed change.
 ```
 section change ─► wiring dispatches Command
                   └─► dispatcher updates state + queues SideEffect
-                       └─► adapter persists (config.yaml or .openrig)
+                       └─► adapter persists (config.yaml or project.yaml)
                             └─► Event fan-out tells the UI to refresh
 ```
 
@@ -282,7 +282,7 @@ extracted sections inherit that coverage.
 - The Settings screen opens from the existing top-bar entry and shows five sections grouped under two scope headers ("System" / "Project").
 - The audio interface and language sections behave identically to today (no regression — existing tests must still pass without modification beyond rename).
 - The MIDI devices section lists connected input ports, lets the user toggle `enabled` per device, lets the user edit an alias per device, and persists to `config.yaml`. Two physically distinct devices with the same OS-reported name appear as separate rows (`instance` 1 and 2) and can carry different aliases. Closing and reopening the app preserves selections and aliases.
-- The MIDI mapping section lets the user add a binding via MIDI Learn, edit it, delete it, and persists to `.openrig`. Moving the `.openrig` to another machine carries the mapping with it; the device selection does NOT carry over.
+- The MIDI mapping section lets the user add a binding via MIDI Learn, edit it, delete it, and persists to `project.yaml`. Moving the `project.yaml` to another machine carries the mapping with it; the device selection does NOT carry over.
 - Every state change flows through a `Command`. No callback calls `borrow_mut` on the model or writes to disk directly.
 - `cargo build --workspace` is clean. No new warnings.
 - New tests are red before the implementation, then green after.

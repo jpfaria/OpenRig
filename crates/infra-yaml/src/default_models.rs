@@ -81,8 +81,8 @@ pub(crate) const fn default_enabled() -> bool {
     true
 }
 
-pub(crate) fn default_instrument() -> String {
-    block_core::DEFAULT_INSTRUMENT.to_string()
+pub(crate) fn default_io_yaml_model() -> String {
+    "standard".to_string()
 }
 
 #[cfg(test)]

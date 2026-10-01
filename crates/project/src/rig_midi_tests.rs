@@ -1,6 +1,6 @@
 //! Tests for `RigProject.midi` — project-owned MIDI bindings (ADR 0003 / #499).
 //!
-//! Bindings live in the project so they travel with the `.openrig` file: same
+//! Bindings live in the project so they travel with the `project.yaml` file: same
 //! setlist, same behavior on every machine. The system layer (device profile,
 //! fallback bindings) is covered by `infra-filesystem` and the resolver.
 

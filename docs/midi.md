@@ -1,4 +1,4 @@
-# Control OpenRig with a MIDI controller (#22)
+# Control OpenRig with a MIDI controller
 
 You can drive OpenRig live with **any** MIDI controller — a footswitch,
 a pedalboard, a knob/fader box, an expression pedal, an iPad app. There
@@ -80,11 +80,11 @@ ids on the Chains screen (`rig:<input>` for rig chains).
 
 ## Turn it on
 
-Bindings can live in two places after #499 (see ADR 0003 for the rule):
+Bindings can live in two places (see ADR 0003 for the rule):
 
-- **Inside your project** (`project.openrig`, under `midi.bindings`) —
+- **Inside your project** (`project.yaml`, under `midi.bindings`) —
   travels with the rig: the same setlist behaves identically on every
-  machine. Edit via the in-app editor (#493) or by hand.
+  machine. Edit via the in-app editor or by hand.
 - **System-wide fallback** (`midi-bindings.yaml`) — used when the open
   project has no `midi:` field.
 
@@ -103,9 +103,9 @@ The recommended way to create project bindings is the **Settings screen**:
    captured automatically.
 4. Pick a Command from the list and fill in any required arguments.
 5. Repeat for each binding. Bindings are saved to `midi.bindings` inside
-   your `.openrig` project file.
+   your `project.yaml` project file.
 
-Enable MIDI. Two ways (#712):
+Enable MIDI. Two ways:
 
 - **Persistent (recommended):** **Settings → System / Integrations →
   MIDI control surface**. This flips `midi_enabled` in `config.yaml` (a
@@ -135,7 +135,7 @@ silently ignores a binding.
 > | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
 > | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
 
-### Upgrading from a pre-#499 `midi-map.yaml`
+### Upgrading from a legacy `midi-map.yaml`
 
 If you already had `midi-map.yaml` in your config folder, **OpenRig
 migrates it on first launch**: the `input:` field moves to
@@ -148,7 +148,7 @@ going forward.
 ### Per-project bindings
 
 To override the system fallback for a specific rig, add a `midi:` block
-to your `project.openrig`:
+to your `project.yaml`:
 
 ```yaml
 midi:
@@ -172,7 +172,7 @@ human-readable **alias** for each port (e.g. rename "Chocolate MIDI 1" to
 "Lead guitar board") — the alias appears in the MIDI mapping editor when
 you pick a binding source, making it easy to tell devices apart. Aliases
 and enable/disable state are per-machine; they persist to `config.yaml`
-and do not travel with the `.openrig`.
+and do not travel with the `project.yaml`.
 
 ### MIDI device identity and the alias system
 
@@ -305,7 +305,7 @@ standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
 
 ---
 
-## Global mixer strips and control surfaces (#1007)
+## Global mixer strips and control surfaces
 
 Every input and output endpoint of the machine's I/O bindings is a mixer
 strip (see `docs/screens.md` → Mixer). The strip id is the one
@@ -360,7 +360,7 @@ The compact chain view gives each chain its **own** fader and mute on every
 endpoint it plays through, on top of that endpoint's global strip, plus a
 fader for its DI loop. The chain fader multiplies with the global one and
 never moves it or any other chain. It is project data: it travels with
-`project.openrig`. `strip` is the global strip id of the endpoint.
+`project.yaml`. `strip` is the global strip id of the endpoint.
 
 | `command` | What it does | `args` |
 |---|---|---|
