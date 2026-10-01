@@ -245,8 +245,14 @@ Python feeder plays a 220 Hz sine on ch 0 (plus a 64-frame step pattern of
   previous restart's wait. Fixed red-first: the trip clears after 1 s of clean
   input (`a_trip_clears_after_one_second_of_clean_input`,
   `the_mark_clears_once_the_input_is_clean_again`).
-- On the first enable, `rig:in-a` logged 64 underruns and one "audio
-  overload" warning, at startup only (debug build); not seen afterwards.
+- Run 2, with the fix (03:45–03:47 local): 20 s clean → 0 restarts; stepped
+  at :48 → restart at :50; clean from :51 for 45 s → no restart (the 30 s
+  boundary passed silent); stepped again at 46:36 → restarts at 46:38 and
+  47:08. `rig:in-b`: 0 restarts, 0 underruns, 97 812 callbacks. Device
+  rates and the project file unchanged afterwards.
+- On the first enable, in both runs, the chain enabled first (`rig:in-a`)
+  logged 64 underruns and one "audio overload" warning, at startup only
+  (debug build); 0 underruns after its restarts.
 - OPEN: during this test (03:33–03:37 local) the owner reported trouble on the
   HD 8 in another OpenRig. Not measured. A second OpenRig process opens
   CoreAudio and enumerates every device even when its chains use only
