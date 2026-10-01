@@ -5,7 +5,7 @@ Step-by-step for cutting a release. *What* each tag triggers is in
 
 ## No clone — the whole release runs through the GitHub API
 
-The agent never touches the main folder (CLAUDE.md → LAW ZERO) and a working
+The agent never touches the main folder (CLAUDE.md law 1) and a working
 copy of this repo is expensive to create. Every step below is a `gh api` /
 `gh pr` call: branch syncs use the [merges API], the tag is created as a tag
 object plus a ref, and merges go through PRs. Nothing here needs a checkout.

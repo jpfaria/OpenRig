@@ -5,6 +5,15 @@ cost a session (or several) and was stated by the owner; they are not
 suggestions. Read this before touching the UI, together with `docs/gui/README.md`
 (direction) and `docs/screens.md` (what each screen holds).
 
+## 0. Before any UI work
+
+Invoke `claude-plugin:ux-ui` and `slint-best-practices` first. Never assume a
+layout: render it with `tools/slint-render` (headless PNG) and look at the PNG
+before saying "done", then close the visual in a short loop with the owner.
+Icons are SVG via `@image-url` + colorize, never a glyph (it renders as tofu on
+the Orange Pi). Bebas Neue is the default font by choice — do not propose
+changing it. Keep the look consistent across screens.
+
 ## 1. `PopupWindow` content does not reliably receive clicks
 
 In this Slint version (1.16.1) a `PopupWindow` renders its content on a separate

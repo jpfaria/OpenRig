@@ -12,7 +12,7 @@ obvious from the script names. The per-script detail lives in `docs/scripts.md`
 and each script's header comment + `--help`; this skill is the fast path and
 fills the gaps those don't cover.
 
-**Golden rule (LEI ZERO):** an agent never builds in the user's main working
+**Golden rule (CLAUDE.md law 1):** an agent never builds in the user's main working
 tree. Work in a `.solvers/issue-N` clone (or, for a throwaway artifact, a temp
 clone outside the repo). Clone the branch you actually want — a build from a
 stale clone ships stale code.

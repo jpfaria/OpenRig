@@ -10,7 +10,9 @@ God-files surgem quando lógica feature-specific entra em arquivos compartilhado
 
 **Só arquivo de teste pode ser grande.** Teste não tem cap de linhas. Produção (`.rs` não-test, `.slint`) tem cap E tem a lei da responsabilidade — e a lei é a que manda: 300 linhas fazendo 4 coisas já viola, mesmo passando no cap.
 
-Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela.
+Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela. Antes de adicionar QUALQUER linha a um arquivo de produção, olhe o tamanho e a responsabilidade dele.
+
+Split é sempre behavior-preserving: move código, não muda comportamento, e nenhum teste existente é reescrito pra caber na forma nova.
 
 ### A declaração no cabeçalho
 

@@ -129,6 +129,21 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
 - Solo input passa unity em qualquer combinação (Input mode × Output
   mode), pinned em `crates/engine/src/volume_invariants_tests.rs`.
 
+### Isolation is by stream identity
+
+- Every selection or grouping of runtimes on the I/O path (`slots_for_*`,
+  output routing, taps, DI, meters) uses the identity of the stream/device —
+  never the sample rate, never "every runtime that matches". The same rate on
+  two devices cross-mixes, and a mis-resolved rate groups the wrong runtimes
+  (underrun, cross-talk). An output serves only its own stream's runtime, a
+  tap reads only its own, a rebuild rebuilds only its own.
+- Isolation includes CPU time. A playing stream must not raise another
+  stream's latency: a loop/DI pipeline in the same RT time-constraint class as
+  a live chain's audio callback couples the two through the clock, even with
+  separate buffers. The fix is separating priority/class, never "make the
+  other one spend less CPU" — that hides the coupling until N streams bring
+  it back.
+
 ### Por que essas regras (invariantes 4 / 5 / 10)
 
 - **4 — Isolation entre streams.** Cada InputBlock tem o próprio
