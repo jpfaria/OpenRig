@@ -141,7 +141,7 @@ pub(crate) fn remove_node(
                 let (_, split) = split_by_id(&chain, &id).ok_or(GestureError::NotApplicable)?;
                 let dropped: usize = split.paths.iter().skip(1).map(Vec::len).sum();
                 if dropped > 0 {
-                    let name = rust_i18n::t!("confirm-remove-split-name", n = dropped);
+                    let name = rust_i18n::t!("confirm-remove-split-name");
                     return Ok(RemoveOutcome::ConfirmSplit {
                         name: name.to_string(),
                         split: id,

@@ -100,7 +100,7 @@ label-metronome-timbre-beep: "ビープ"
 
 # --- #328 chain split graph
 label-endpoints-none: "なし"
-confirm-remove-split-name: "スプリット（+ 他のパスの%{n}ブロック）"
+confirm-remove-split-name: "スプリット"
 error-graph-action: "変更を適用できません: %{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "複数のパスをミキサーで合成"

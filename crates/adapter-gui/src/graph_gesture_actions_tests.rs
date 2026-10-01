@@ -98,6 +98,21 @@ fn removing_a_split_with_blocks_in_path_b_asks_first() {
 }
 
 #[test]
+fn removing_a_split_names_it_without_a_block_count() {
+    let c = chain(vec![split("sp", SplitEnd::Mix, vec![], vec![core("b1")])]);
+    let (session, rows) = (session_with(vec![c]), rows());
+    match remove_node(&session, 0, FIRST_SPLIT_NODE_ID, &target(&rows)) {
+        Ok(RemoveOutcome::ConfirmSplit { name, .. }) => {
+            assert!(
+                !name.is_empty() && !name.chars().any(|c| c.is_ascii_digit()),
+                "the dialog names the split alone, no block count: got {name:?}"
+            );
+        }
+        other => panic!("expected a confirmation, got {other:?}"),
+    }
+}
+
+#[test]
 fn removing_a_split_with_an_empty_path_b_needs_no_confirmation() {
     let c = chain(vec![
         core("pre"),

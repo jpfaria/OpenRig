@@ -100,7 +100,7 @@ label-metronome-timbre-beep: "Beep"
 
 # --- #328 chain split graph
 label-endpoints-none: "None"
-confirm-remove-split-name: "Split (+ %{n} blocks in the other paths)"
+confirm-remove-split-name: "Split"
 error-graph-action: "Could not apply the change: %{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "Paths summed by a mixer"

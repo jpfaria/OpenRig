@@ -100,7 +100,7 @@ label-metronome-timbre-beep: "비프"
 
 # --- #328 chain split graph
 label-endpoints-none: "없음"
-confirm-remove-split-name: "스플릿 (+ 다른 경로의 블록 %{n}개)"
+confirm-remove-split-name: "스플릿"
 error-graph-action: "변경을 적용할 수 없음: %{err}"
 picker-split-mix: "SPLIT MIX"
 picker-split-mix-subtitle: "여러 경로를 믹서로 합산"
