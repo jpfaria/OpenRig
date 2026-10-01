@@ -122,7 +122,7 @@ pub fn list_takes(dir: &Path) -> Vec<PathBuf> {
     takes
 }
 
-/// #1021: why a take could not be deleted. Typed like [`TakeSaveError`].
+/// Why a take could not be deleted. Typed like [`TakeSaveError`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TakeDeleteError {
     /// The name is not a plain file name inside the library.
@@ -145,7 +145,7 @@ impl std::fmt::Display for TakeDeleteError {
 
 impl std::error::Error for TakeDeleteError {}
 
-/// #1021: the path of the take `name` (`.wav` optional) in `dir`. Only a
+/// The path of the take `name` (`.wav` optional) in `dir`. Only a
 /// plain file name resolves — a separator, `..` or an absolute path is refused
 /// before the file system is asked anything, so nothing outside the library
 /// can ever be addressed.
@@ -170,7 +170,7 @@ pub fn resolve_take(dir: &Path, name: &str) -> Result<PathBuf, TakeDeleteError> 
     Ok(path)
 }
 
-/// #1021: delete the take `name` from `dir`, returning the path it had.
+/// Delete the take `name` from `dir`, returning the path it had.
 pub fn delete_take(dir: &Path, name: &str) -> Result<PathBuf, TakeDeleteError> {
     let path = resolve_take(dir, name)?;
     std::fs::remove_file(&path).map_err(|e| TakeDeleteError::Io(e.to_string()))?;

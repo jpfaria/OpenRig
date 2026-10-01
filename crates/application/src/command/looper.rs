@@ -99,7 +99,7 @@ pub enum LooperCommand {
         name: String,
     },
 
-    /// #1021: delete a saved take from the app-wide take library. `name` is
+    /// Delete a saved take from the app-wide take library. `name` is
     /// its file name as the DI picker lists it (`.wav` optional). Every chain
     /// whose DI has that take loaded stops and unloads it. Refused for a name
     /// that is not a plain file of the library, or a take that is not there.

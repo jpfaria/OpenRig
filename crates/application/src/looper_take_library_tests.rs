@@ -141,7 +141,7 @@ fn a_take_whose_audio_cannot_be_written_leaves_no_file_behind() {
     );
 }
 
-// ── #1021: deleting a saved take ─────────────────────────────────────────
+// ── Deleting a saved take ─────────────────────────────────────────
 
 fn library_with(names: &[&str]) -> tempfile::TempDir {
     let tmp = tempfile::tempdir().expect("tempdir");

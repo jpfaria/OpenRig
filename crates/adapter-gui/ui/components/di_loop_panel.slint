@@ -21,7 +21,7 @@ export component DiLoopPanel inherits Rectangle {
     // #771: the chain's already-bound output endpoints + the persisted pick.
     in property <[string]> outputs;
     in property <int> output-selected-index;
-    // #1021: per entry of `sources`, true when it is a deletable saved take.
+    // Per entry of `sources`, true when it is a deletable saved take.
     in property <[bool]> take-rows;
 
     callback source-picked(int, string);
@@ -30,14 +30,14 @@ export component DiLoopPanel inherits Rectangle {
     callback stop();
     // #771: an output endpoint was picked (index into `outputs`, label).
     callback output-picked(int, string);
-    // #1021: a take row's trash, confirmed (index into `sources`, label).
+    // A take row's trash, confirmed (index into `sources`, label).
     callback delete-take(int, string);
 
     private property <bool> expanded;
-    // #1021: the take row whose trash was clicked once and now asks to
+    // The take row whose trash was clicked once and now asks to
     // confirm; -1 ⇒ none. Two clicks delete, so a stray one never loses a take.
     private property <int> armed-delete: -1;
-    // #1021: the armed trash grows to fit "Delete?" in the active language.
+    // The armed trash grows to fit "Delete?" in the active language.
     private property <length> armed-w: min(confirm-probe.preferred-width + 36px, 150px);
     // #771: the output select's own expansion — opening one collapses the other.
     private property <bool> out-expanded;
@@ -66,7 +66,7 @@ export component DiLoopPanel inherits Rectangle {
     border-color: #3b4250;
     clip: true;
 
-    // #1021: measures the confirm label; never shown.
+    // Measures the confirm label; never shown.
     confirm-probe := Text {
         visible: false;
         text: @tr("di-take-delete-confirm");
@@ -255,7 +255,7 @@ export component DiLoopPanel inherits Rectangle {
             accessible-role: button;
             accessible-label: src;
 
-            // #1021: a saved take's trash — first click arms, second deletes.
+            // A saved take's trash — first click arms, second deletes.
             if i < root.take-rows.length && root.take-rows[i] : Rectangle {
                 x: parent.width - self.width - 3px;
                 y: 3px;

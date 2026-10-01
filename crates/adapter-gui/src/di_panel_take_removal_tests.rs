@@ -1,4 +1,4 @@
-//! #1021, red-first: the open DI panel drops a deleted take at once — it
+//! The open DI panel drops a deleted take at once — it
 //! shows a snapshot of the chain's list, so without this the row would sit
 //! there, pointing at a file that is gone, until the panel is reopened.
 

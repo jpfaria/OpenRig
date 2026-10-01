@@ -1,4 +1,4 @@
-//! #1021, red-first: `DeleteLooperTake` removes a saved take from the
+//! `DeleteLooperTake` removes a saved take from the
 //! app-wide library, and a chain whose DI has that take loaded stops playing
 //! it and unloads it — it never keeps pointing at a file that is gone.
 

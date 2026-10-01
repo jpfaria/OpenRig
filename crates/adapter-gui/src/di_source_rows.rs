@@ -38,7 +38,7 @@ pub(crate) fn apply_di_sources_to_rows(
         let selected = loaded.as_ref().map_or(-1, |source| {
             crate::di_loop_ui_sources::di_loop_selected_index(&desired, source)
         });
-        // #1021: which entries carry the DI panel's trash.
+        // Which entries carry the DI panel's trash.
         let take_rows = crate::di_loop_ui_sources::di_loop_take_rows(&desired, takes);
         let current: Vec<String> = row.di_loop_sources.iter().map(|s| s.to_string()).collect();
         let current_take_rows: Vec<bool> = row.di_loop_take_rows.iter().collect();

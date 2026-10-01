@@ -154,7 +154,7 @@ fn take_rows(model: &VecModel<ProjectChainItem>, idx: usize) -> Vec<bool> {
 
 #[test]
 fn every_row_knows_which_entries_are_deletable_takes() {
-    // #1021: the DI panel shows a trash only on a saved take.
+    // The DI panel shows a trash only on a saved take.
     let project = Project {
         name: None,
         device_settings: vec![],
@@ -171,7 +171,7 @@ fn every_row_knows_which_entries_are_deletable_takes() {
 
 #[test]
 fn a_deleted_take_loses_its_row_and_its_trash() {
-    // #1021: the next tick after a delete lists the library as it now is.
+    // The next tick after a delete lists the library as it now is.
     let project = Project {
         name: None,
         device_settings: vec![],

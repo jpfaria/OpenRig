@@ -1,4 +1,4 @@
-//! #1021, red-first: the DI picker knows which of its entries are saved takes
+//! The DI picker knows which of its entries are saved takes
 //! (deletable) — never a bundled loop, a hand-picked file outside the library,
 //! or the "Choose file…" sentinel.
 

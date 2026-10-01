@@ -243,7 +243,7 @@ pub(crate) fn replace_project_chains(
                     )))
                 },
                 di_loop_selected_index: -1, // #661: refreshed by meter timer
-                di_loop_take_rows: ModelRc::default(), // #1021: meter timer
+                di_loop_take_rows: ModelRc::default(), // the meter timer fills it
                 // #323: the looper rows and the header tint start empty and
                 // are refreshed by the meter timer from the live runtimes.
                 // #323: build the looper rows from the chain's PERSISTED

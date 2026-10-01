@@ -1,5 +1,5 @@
 //! Responsibility: deletes a saved take from the looper take library.
-//! #1021 — the `DeleteLooperTake` handler.
+//! The `DeleteLooperTake` handler.
 //!
 //! A chain whose DI has the take loaded keeps no reference to a file that is
 //! gone: its isolated DI stream is disarmed and the source unloaded, chain by

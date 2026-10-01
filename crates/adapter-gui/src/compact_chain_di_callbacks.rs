@@ -52,7 +52,7 @@ pub(crate) fn wire(
     // #771 on_di_loop_output_selected: user picked an output endpoint.
     crate::di_output_select_wiring::wire_compact(compact_win, chain_index, project_session.clone());
 
-    // #1021: the DI panel's trash on a saved take.
+    // The DI panel's trash on a saved take.
     crate::di_take_delete_wiring::wire_compact(
         compact_win,
         &project_session,
