@@ -1,6 +1,6 @@
 //! Responsibility: maps a split block document onto the split block it describes.
 //!
-//! #328 (spec §2, §11.3): a chain preset or legacy project writes a split as
+//! #328 (spec §2, §11.3): a chain preset writes a split as
 //! `type: split` with `end`, `params` and `paths`. Path blocks carry no id on
 //! disk; block `i` of path `p` loads as `<split>::p<p>:<i>`. Files saved before
 //! §11 hold `a` and `b` instead of `paths`; they load as paths 0 and 1. A path
