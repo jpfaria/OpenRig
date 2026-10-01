@@ -1,10 +1,8 @@
-//! #717 — the DI fone in the DETACHED compact chain window must open the DI
-//! panel. The compact view runs in its own `CompactChainViewWindow`; the fone
-//! (`ChainDiLoopButton`) sets `DiPanel.open = true`, but the overlay that
-//! renders the panel (`if DiPanel.open : DiLoopPanel {…}`) lived ONLY in the
-//! main `app-window.slint`, never in the compact window — so in compact view
-//! the fone did nothing ("botão não faz nada"). This drives a real pointer
-//! click at the fone and asserts the panel appears in the SAME window.
+//! #717 — the DI control in the DETACHED compact chain window must open the DI
+//! panel IN that window ("botão não faz nada" when the panel lived only in the
+//! main window). Since #1022 the control is the view's DI accordion section,
+//! not a header fone: this drives a real pointer click at the section header
+//! and asserts the panel appears in the SAME window.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -35,12 +33,14 @@ fn click_id(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
     true
 }
 
+const DI_SECTION: &str = "CompactChainSections::di-toggle";
+
 fn count_id(w: &impl ComponentHandle, id: &str) -> usize {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).count()
 }
 
 #[test]
-fn compact_window_fone_opens_the_di_panel() {
+fn compact_window_di_section_opens_the_di_panel() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = CompactChainViewWindow::new().unwrap();
@@ -51,35 +51,34 @@ fn compact_window_fone_opens_the_di_panel() {
     ])));
     w.show().unwrap();
 
-    // The fone is present; the panel is NOT open yet.
+    // The DI section is present; the panel is NOT open yet.
     assert!(
-        count_id(&w, "ChainDiLoopButton::ta") >= 1,
-        "the compact window must show the DI fone"
+        count_id(&w, DI_SECTION) >= 1,
+        "the compact window must show the DI section"
     );
     assert_eq!(
         count_id(&w, "DiLoopPanel::sel-ta"),
         0,
-        "the DI panel must be closed until the fone is clicked"
+        "the DI panel must be closed until its section opens"
     );
 
-    // Click the fone.
+    // Open the section.
     assert!(
-        click_id(&w, "ChainDiLoopButton::ta", 0),
-        "the DI fone must be hittable"
+        click_id(&w, DI_SECTION, 0),
+        "the DI section header must be hittable"
     );
 
     // The panel must now be rendered IN THIS WINDOW.
     assert!(
         count_id(&w, "DiLoopPanel::sel-ta") >= 1,
-        "#717: clicking the fone in the detached compact window must open the DI \
-         panel — today the overlay is missing from CompactChainViewWindow so the \
-         button does nothing"
+        "#717: opening the DI section in the detached compact window must show the \
+         DI panel in that window"
     );
 }
 
 /// #717 — with a source selected, the compact panel must reflect the selection
 /// and expose the play/stop control. The window must plumb
-/// `di-loop-selected-index` through to the fone/panel; without it the panel
+/// `di-loop-selected-index` through to the panel; without it the panel
 /// opens at -1 (nothing selected), so it shows no source and hides play/stop —
 /// "não mostra o que selecionei e não consigo dar stop".
 #[test]
@@ -102,8 +101,8 @@ fn compact_panel_reflects_selection_and_can_stop() {
     w.show().unwrap();
 
     assert!(
-        click_id(&w, "ChainDiLoopButton::ta", 0),
-        "the DI fone must be hittable"
+        click_id(&w, DI_SECTION, 0),
+        "the DI section header must be hittable"
     );
 
     // A selected source must surface the play/stop button (it renders only when
@@ -134,11 +133,11 @@ fn compact_di_meter_row_shows_only_while_playing() {
     w.set_chain_index(0);
     w.set_di_loop_playing(false);
     w.show().unwrap();
-    // #1007: the meter rows sit behind the header's meters icon (running chain).
+    // #1022: the meter rows sit in the Meters section (running chain only).
     w.set_chain_enabled(true);
     assert!(
-        click_id(&w, "ChainMetersButton::ta", 0),
-        "the meters icon must be hittable"
+        click_id(&w, "CompactChainSections::meters-toggle", 0),
+        "the meters section header must be hittable"
     );
 
     assert_eq!(

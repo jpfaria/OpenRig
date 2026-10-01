@@ -35,6 +35,7 @@ fn chain(id: &str) -> Chain {
         loopers: vec![],
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        disabled_endpoints: Default::default(),
     }
 }
 

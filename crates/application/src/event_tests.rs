@@ -56,3 +56,15 @@ fn chain_mixer_events_are_scoped_to_their_chain() {
         Some(&c)
     );
 }
+
+#[test]
+fn a_deleted_looper_take_belongs_to_no_chain() {
+    // The take library is app-wide; every chain's DI picker lists it.
+    assert_eq!(
+        Event::LooperTakeDeleted {
+            path: std::path::PathBuf::from("verse.wav"),
+        }
+        .chain(),
+        None
+    );
+}

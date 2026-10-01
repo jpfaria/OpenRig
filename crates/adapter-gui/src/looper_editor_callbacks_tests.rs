@@ -336,13 +336,50 @@ fn a_chain_index_that_names_no_chain_is_a_no_op() {
     );
 }
 
+/// #1022: the compact view's Looper section opens the editor in ITS window
+/// (each Slint window owns its own `LooperEditor`), while the dirty flag
+/// still goes to the main window that owns the save.
 #[test]
-fn opening_the_editor_clears_the_last_take_save_outcome() {
-    // #827: "Saved" from the previous loop must not sit under a new one.
-    let w = wire_with(FakeLive::default());
-    w.editor().set_take_status(1);
+fn the_compact_window_opens_its_own_editor_and_edits_through_the_bus() {
+    let main = wire_with_store(FakeLive::default(), true);
+    let compact = crate::CompactChainViewWindow::new().expect("compact window");
+    let session = Rc::new(RefCell::new(Some(ProjectSession::with_dispatcher(
+        Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain()],
+            midi: None,
+        },
+        Rc::clone(&main.spy) as Rc<dyn CommandDispatcher>,
+        None,
+        None,
+        std::path::PathBuf::from("./presets"),
+    ))));
+    let dirty = EditorDirtyCtx {
+        window: main.window.as_weak(),
+        saved_project_snapshot: Rc::new(RefCell::new(None)),
+        project_dirty: Rc::new(RefCell::new(false)),
+    };
+    wire_looper_editor_callbacks(
+        &compact,
+        &session,
+        &(Rc::new(FakeLive::default()) as Rc<dyn LiveSource>),
+        &dirty,
+    );
 
-    w.window.invoke_looper_edit(0, 1);
+    let actions = compact.global::<crate::CompactLooper>();
+    actions.invoke_edit(0, 1);
+    assert!(compact.global::<LooperEditor>().get_open());
+    assert!(!main.editor().get_open(), "the main window stays as it was");
 
-    assert_eq!(w.editor().get_take_status(), 0);
+    actions.invoke_edit_apply(0, 1, LoopEditKind_slint::Crop, 0.25, 0.75);
+    assert!(matches!(
+        main.commands().last(),
+        Some(Command::Looper(LooperCommand::EditChainLooperAudio { .. }))
+    ));
+    actions.invoke_edit_undo(0, 1);
+    assert!(matches!(
+        main.commands().last(),
+        Some(Command::Looper(LooperCommand::UndoChainLooperEdit { .. }))
+    ));
 }

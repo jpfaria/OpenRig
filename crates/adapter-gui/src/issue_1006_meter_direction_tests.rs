@@ -35,13 +35,16 @@ fn texts(w: &impl ComponentHandle, id: &str) -> Vec<String> {
         .collect()
 }
 
-/// #1007: the rows sit behind the header's meters icon; open them the way
-/// the user does before reading them.
+/// #1022: the rows sit in the view's Meters section; open it the way the
+/// user does before reading them.
 fn open_compact_meters(w: &CompactChainViewWindow) {
     w.set_chain_enabled(true);
-    let el = i_slint_backend_testing::ElementHandle::find_by_element_id(w, "ChainMetersButton::ta")
-        .next()
-        .expect("meters button not found");
+    let el = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        w,
+        "CompactChainSections::meters-toggle",
+    )
+    .next()
+    .expect("meters section not found");
     let (pos, size) = (el.absolute_position(), el.size());
     let at = LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0);
     let win = w.window();

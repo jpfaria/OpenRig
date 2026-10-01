@@ -67,6 +67,8 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     /// #127: the blocks' diagnostic streams, through the read seam.
     pub block_stream_reads: Rc<dyn LiveSource>,
+    /// #1022: the loopers' live read seam, for the waveform editor.
+    pub looper_live: Rc<dyn LiveSource>,
     /// #127: the subscription seam the Tone Doctor records through.
     pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -84,6 +86,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
     let CompactChainCallbacksCtx {
         project_session,
         block_stream_reads,
+        looper_live,
         audio_taps,
         project_chains,
         input_chain_devices,
@@ -475,6 +478,21 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             window.as_weak(),
             toast_timer.clone(),
         );
+
+        // #1022: the Looper section drives the main window's looper wiring;
+        // its waveform editor and Save take dialog live in this window.
+        crate::compact_looper_wiring::wire(&window, &compact_win);
+        crate::looper_editor_callbacks::wire_looper_editor_callbacks(
+            &compact_win,
+            &project_session,
+            &looper_live,
+            &crate::looper_editor_callbacks::EditorDirtyCtx {
+                window: window.as_weak(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+            },
+        );
+        crate::looper_take_callbacks::wire_looper_take_callbacks(&compact_win, &project_session);
 
         show_child_window(window.window(), compact_win.window());
     });

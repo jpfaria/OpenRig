@@ -21,9 +21,10 @@ use domain::ids::ChainId;
 use engine::LooperState;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::looper_editor_host::LooperEditorHost;
 use crate::project_ops::sync_project_dirty;
 use crate::state::ProjectSession;
-use crate::{AppWindow, LoopEditKind as LoopEditKind_slint, LooperEditor};
+use crate::{AppWindow, LoopEditKind as LoopEditKind_slint};
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 type Live = Rc<dyn LiveSource>;
@@ -66,9 +67,14 @@ const WAVEFORM_BUCKETS: usize = 256;
 /// the peaks, and what the undo/redo buttons enable on. Called when the editor
 /// opens and again after every edit, so the view always draws what the store
 /// actually holds.
-fn refresh_editor(window: &AppWindow, live: &Live, chain: &ChainId, uid: u64) -> Option<usize> {
+fn refresh_editor(
+    window: &impl LooperEditorHost,
+    live: &Live,
+    chain: &ChainId,
+    uid: u64,
+) -> Option<usize> {
     let reading = live.chain_loop_edit(chain, uid, WAVEFORM_BUCKETS)?;
-    let editor = window.global::<LooperEditor>();
+    let editor = window.editor();
     editor.set_peaks(ModelRc::new(VecModel::from(reading.peaks)));
     editor.set_length_label(reading.length_label.into());
     editor.set_playing(reading.playing);
@@ -94,8 +100,10 @@ fn chain_id_at(session: &ProjectSession, index: i32) -> Option<ChainId> {
     project.chains.get(index as usize).map(|c| c.id.clone())
 }
 
-pub(crate) fn wire_looper_editor_callbacks(
-    window: &AppWindow,
+/// Wire one window's waveform editor. #1022: the main window and the compact
+/// view each have their own; the dirty flag is always the main window's.
+pub(crate) fn wire_looper_editor_callbacks<W: LooperEditorHost>(
+    window: &W,
     session: &Session,
     live: &Live,
     dirty_ctx: &EditorDirtyCtx,
@@ -118,7 +126,7 @@ pub(crate) fn wire_looper_editor_callbacks(
                 let Some(window) = window_weak.upgrade() else {
                     return;
                 };
-                let editor = window.global::<LooperEditor>();
+                let editor = window.editor();
                 if !editor.get_open() {
                     return;
                 }
@@ -154,7 +162,7 @@ pub(crate) fn wire_looper_editor_callbacks(
         // The timer is owned by this callback, so it lives exactly as long as
         // the window does and is dropped with it.
         let _playhead_timer = playhead_timer;
-        window.on_looper_edit(move |index, uid| {
+        window.on_edit(move |index, uid| {
             let _keep_ticking = &_playhead_timer;
             let Some(window) = window_weak.upgrade() else {
                 return;
@@ -169,14 +177,12 @@ pub(crate) fn wire_looper_editor_callbacks(
                 log::debug!("no material to edit on loop {uid} of chain {}", chain.0);
                 return;
             }
-            let editor = window.global::<LooperEditor>();
+            let editor = window.editor();
             editor.set_chain_index(index);
             editor.set_uid(uid);
             editor.set_sel_start(0.0);
             editor.set_sel_end(1.0);
             editor.set_status_code(0);
-            // #827: a new loop starts with no save outcome on screen.
-            editor.set_take_status(0);
             editor.set_open(true);
         });
     }
@@ -187,7 +193,7 @@ pub(crate) fn wire_looper_editor_callbacks(
         let live = live.clone();
         let window_weak = window.as_weak();
         let dirty_ctx = dirty_ctx.clone();
-        window.on_looper_edit_apply(move |index, uid, kind, from, to| {
+        window.on_edit_apply(move |index, uid, kind, from, to| {
             let Some(window) = window_weak.upgrade() else {
                 return;
             };
@@ -221,7 +227,7 @@ pub(crate) fn wire_looper_editor_callbacks(
             // The loop may be a different length now: reset the selection to
             // the whole take rather than keep ratios of a loop that no longer
             // exists, and re-read what the store actually holds.
-            let editor = window.global::<LooperEditor>();
+            let editor = window.editor();
             editor.set_sel_start(0.0);
             editor.set_sel_end(1.0);
             let after = refresh_editor(&window, &live, &chain, uid);
@@ -245,7 +251,7 @@ pub(crate) fn wire_looper_editor_callbacks(
         let session = session.clone();
         let live = live.clone();
         let window_weak = window.as_weak();
-        window.on_looper_edit_play_stop(move |index, uid| {
+        window.on_edit_play_stop(move |index, uid| {
             let Some(window) = window_weak.upgrade() else {
                 return;
             };
@@ -301,7 +307,7 @@ pub(crate) fn wire_looper_editor_callbacks(
                     log::warn!("loop edit history step failed: {err}");
                     return;
                 }
-                let editor = window.global::<LooperEditor>();
+                let editor = window.editor();
                 editor.set_sel_start(0.0);
                 editor.set_sel_end(1.0);
                 refresh_editor(&window, &live, &chain, uid);
@@ -310,8 +316,8 @@ pub(crate) fn wire_looper_editor_callbacks(
         }};
     }
 
-    step!(on_looper_edit_undo, UndoChainLooperEdit);
-    step!(on_looper_edit_redo, RedoChainLooperEdit);
+    step!(on_edit_undo, UndoChainLooperEdit);
+    step!(on_edit_redo, RedoChainLooperEdit);
 }
 
 #[cfg(test)]

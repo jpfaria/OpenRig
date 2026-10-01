@@ -77,7 +77,9 @@ use application::command_schema::command_variant_names;
 /// Both merged (#328 + #1007): 100 + 4 + 9.
 /// #328 §11 bumped to 115 with `AddSplitPath`/`RemoveSplitPath` — a split
 /// with any number of paths.
-const COMMAND_VARIANT_COUNT: usize = 115;
+/// #1021 bumped to 116 with `DeleteLooperTake` — removing a saved take from
+/// the library, so a headless client can prune it as the DI panel's trash does.
+const COMMAND_VARIANT_COUNT: usize = 116;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

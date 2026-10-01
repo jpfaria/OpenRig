@@ -1,9 +1,9 @@
-//! Responsibility: wires the waveform editor's Save take button to the bus.
-//! #827 — keep the open loop as a named take.
+//! Responsibility: wires the looper row's Save take dialog to the bus.
+//! #827 — keep a loop as a named take.
 //!
 //! Dispatch only: `SaveChainLooperTake` exports the mixdown and writes the wav
 //! (the same command an MCP client sends). This module maps the outcome to the
-//! status the editor shows, and nothing else.
+//! status the dialog shows, and nothing else.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,16 +14,16 @@ use application::looper_take_library::TakeSaveError;
 use slint::ComponentHandle;
 
 use crate::state::ProjectSession;
-use crate::{AppWindow, LooperEditor};
+use crate::LooperTake;
 
-// The editor's `take-status` codes (looper_panel_globals.slint).
+// The dialog's `status` codes (looper_panel_globals.slint).
 pub(crate) const TAKE_SAVED: i32 = 1;
 pub(crate) const TAKE_NAME_TAKEN: i32 = 2;
 pub(crate) const TAKE_NOTHING_RECORDED: i32 = 3;
 pub(crate) const TAKE_FAILED: i32 = 4;
 pub(crate) const TAKE_NEEDS_NAME: i32 = 5;
 
-/// The editor's `take-status` for a save's outcome. An error the core did not
+/// The dialog's `status` for a save's outcome. An error the core did not
 /// type is a failed save — never reported as a success.
 pub(crate) fn take_status_code(result: &anyhow::Result<Vec<Event>>) -> i32 {
     let Err(err) = result else {
@@ -39,14 +39,19 @@ pub(crate) fn take_status_code(result: &anyhow::Result<Vec<Event>>) -> i32 {
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 
-/// Wire the editor's `save-take` to `SaveChainLooperTake`. On success the name
+/// Wire the dialog's `save` to `SaveChainLooperTake`. On success the name
 /// is cleared; on a refusal it is kept so it can be fixed, not retyped.
-pub(crate) fn wire_looper_take_callbacks(window: &AppWindow, session: &Session) {
+/// #1022: the main window and the compact view each have their own dialog.
+pub(crate) fn wire_looper_take_callbacks<W>(window: &W, session: &Session)
+where
+    W: ComponentHandle + 'static,
+    for<'a> LooperTake<'a>: slint::Global<'a, W>,
+{
     let session = session.clone();
     let window_weak = window.as_weak();
     window
-        .global::<LooperEditor>()
-        .on_save_take(move |index, uid, name| {
+        .global::<LooperTake>()
+        .on_save(move |index, uid, name| {
             let Some(window) = window_weak.upgrade() else {
                 return;
             };
@@ -68,11 +73,11 @@ pub(crate) fn wire_looper_take_callbacks(window: &AppWindow, session: &Session) 
                 log::warn!("saving the take was refused: {err}");
             }
             let status = take_status_code(&result);
-            let editor = window.global::<LooperEditor>();
+            let take = window.global::<LooperTake>();
             if status == TAKE_SAVED {
-                editor.set_take_name(Default::default());
+                take.set_name(Default::default());
             }
-            editor.set_take_status(status);
+            take.set_status(status);
         });
 }
 

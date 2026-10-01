@@ -84,6 +84,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_looper_wiring;
 mod compact_mixer_wiring;
 mod compact_routing_pick;
 mod compact_row_address;
@@ -106,10 +107,12 @@ pub mod di_meter;
 pub mod di_output_options;
 /// #771: window wiring for the DI panel's output select.
 mod di_output_select_wiring;
+mod di_panel_take_removal;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
 mod di_source_rows;
+mod di_take_delete_wiring;
 mod insert_wiring;
 mod live_sync_plan;
 mod looper_commands;
@@ -276,6 +279,7 @@ mod live_source_metronome;
 pub mod logging;
 mod looper_callbacks;
 mod looper_editor_callbacks;
+mod looper_editor_host;
 pub mod looper_items;
 mod looper_rows;
 mod looper_take_callbacks;
