@@ -84,6 +84,11 @@ pub struct ProjectRuntimeController {
     /// value plays them at the wrong speed (#669). Defaults to 48000 until the
     /// first chain is built.
     pub(crate) sample_rate: u32,
+    /// The project's per-device settings, refreshed on every `sync_project`.
+    /// Streams opened outside a chain build (an isolated loop's output) open
+    /// their device with these, as the chain's own streams do.
+    #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+    pub(crate) device_settings: Vec<project::device::DeviceSettings>,
     /// #929: the index chain → streams it owns (open streams + builds in
     /// flight). Switching a chain off kills everything listed here.
     pub(crate) streams: crate::chain_stream_registry::ChainStreamRegistry,
@@ -169,6 +174,7 @@ impl ProjectRuntimeController {
             pending_activations: Vec::new(),
             streams: Default::default(),
             sample_rate,
+            device_settings: Vec::new(),
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
@@ -217,6 +223,7 @@ impl ProjectRuntimeController {
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,
+            device_settings: project.device_settings.clone(),
             io_bindings,
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
