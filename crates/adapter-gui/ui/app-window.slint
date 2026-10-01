@@ -382,6 +382,12 @@ export component AppWindow inherits Window {
         // Inline chain editor
     }
 
+    // #328: the split / mixer knobs (root level: never clipped by the chain list).
+    // Declared before the root dialogs so its remove-path confirmation paints over it.
+    SplitEditorOverlay { width: root.width; height: root.height; }
+    // #328: the input/output node checklist (root level: never clipped).
+    EndpointChecklistOverlay { width: root.width; height: root.height; }
+
     // #328: confirm dialogs, toast and preset picker — moved so this file stays under its cap.
     RootModalOverlays { x: 0; y: 0; width: root.width; height: root.height; }
 
@@ -439,11 +445,6 @@ export component AppWindow inherits Window {
         run-diagnosis(ci) => { root.tone-doctor-run(ci); }
         apply-suggestion(ci) => { root.tone-doctor-apply(ci); }
     }
-    // #328: the split / mixer knobs (root level: never clipped by the chain list).
-    SplitEditorOverlay { width: root.width; height: root.height; }
-    // #328: the input/output node checklist (root level: never clipped).
-    EndpointChecklistOverlay { width: root.width; height: root.height; }
-
     PresetSaveOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;

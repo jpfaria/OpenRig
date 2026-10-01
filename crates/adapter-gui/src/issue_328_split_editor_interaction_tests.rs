@@ -285,3 +285,22 @@ fn opening_the_mixer_sizes_the_grid_one_row_per_path() {
         "A, B, then the master"
     );
 }
+
+/// #328: the remove-path confirmation opens from inside the split editor, so
+/// the root dialogs must paint over it. Slint paints in declaration order.
+#[test]
+fn the_root_dialogs_paint_over_the_split_editor() {
+    let window = include_str!("../ui/app-window.slint");
+    let at = |needle: &str| {
+        window
+            .find(needle)
+            .unwrap_or_else(|| panic!("{needle} not in app-window.slint"))
+    };
+    let dialogs = at("RootModalOverlays {");
+    for overlay in ["SplitEditorOverlay {", "EndpointChecklistOverlay {"] {
+        assert!(
+            at(overlay) < dialogs,
+            "{overlay} is declared after the root dialogs, so it hides them"
+        );
+    }
+}
