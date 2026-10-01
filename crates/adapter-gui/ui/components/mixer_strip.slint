@@ -1,15 +1,20 @@
 // Responsibility: renders one mixer fader strip.
-// #1007 — level readout, a vertical fader, SOLO and MUTE, and the strip's
-// label at the bottom (binding name + interface channels, like the scribble
-// strip under a console fader). The strip only reports intent: the fader
-// position it was dragged to, a double-click reset, a solo or mute press.
+// Level readout, a vertical fader, a row of small buttons under it (S, the
+// mute speaker, reset to 0 dB), and the strip's label at the bottom (binding
+// name + interface channels, like the scribble strip under a console fader).
+// The strip only reports intent: the fader position it was dragged to, a
+// reset (double-click or the reset button), a solo or mute press.
 
 import { MixerStripRow } from "mixer_globals.slint";
 import { StripLabel } from "strip_label.slint";
 
-// A console button (SOLO / MUTE): lit in its colour while its state is on.
+// A small console button (S / mute / reset): lit in its colour while its
+// state is on. Shows its icon when it has one, its text otherwise.
 component StripButton inherits Rectangle {
     in property <string> label;
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon;
     in property <bool> lit;
     in property <color> lit-color;
     in property <color> lit-hover;
@@ -18,6 +23,7 @@ component StripButton inherits Rectangle {
     in property <bool> hovered;
     callback pressed();
 
+    width: 28px;
     height: 30px;
     border-radius: 5px;
     background: root.lit
@@ -27,15 +33,23 @@ component StripButton inherits Rectangle {
     border-color: root.lit ? root.lit-border : #2c323d;
     animate background { duration: 120ms; }
 
-    Text {
+    if !root.has-icon : Text {
         width: 100%; height: 100%;
-        text: root.label;
+        text: root.text;
         color: root.lit ? #14100a : #d8e0ec;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 2.0px;
         horizontal-alignment: center;
         vertical-alignment: center;
+    }
+
+    if root.has-icon : Image {
+        x: (parent.width - 16px) / 2; y: (parent.height - 16px) / 2;
+        width: 16px; height: 16px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.lit ? #14100a : #d8e0ec;
     }
 
     accessible-role: button;
@@ -68,9 +82,9 @@ export component MixerStripView inherits Rectangle {
     private property <bool> silent: root.strip.muted || root.strip.solo-silenced;
     private property <length> cap-height: 20px;
     private property <length> fader-top: 36px;
-    // The one-line name + the channels line, then SOLO + MUTE above them.
+    // The one-line name + the channels line, then the button row above them.
     private property <length> label-height: root.has-label ? 66px : 0px;
-    private property <length> buttons-height: root.has-solo ? 66px : (root.has-mute ? 30px : 0px);
+    private property <length> buttons-height: 30px;
     private property <length> fader-bottom: root.buttons-height + root.label-height + 16px;
 
     Text {
@@ -146,35 +160,54 @@ export component MixerStripView inherits Rectangle {
         accessible-value: root.strip.gain-label;
     }
 
-    if root.has-solo : solo-btn := StripButton {
-        x: 10px; y: parent.height - root.label-height - 74px;
-        width: parent.width - 20px;
-        label: @tr("action-mixer-solo");
-        lit: root.strip.soloed;
-        lit-color: #d9b43a;
-        lit-hover: #e8c552;
-        lit-border: #f2d77e;
-        hovered: solo-ta.has-hover;
-        pressed => { root.solo-toggled(root.strip.id); }
-        solo-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.solo-toggled(root.strip.id); }
-        }
-    }
+    // ── Buttons: S, the mute speaker and reset, side by side under the fader ──
+    HorizontalLayout {
+        x: 4px; y: parent.height - root.label-height - 38px;
+        width: parent.width - 8px; height: root.buttons-height;
+        alignment: center;
+        spacing: 4px;
 
-    if root.has-mute : mute-btn := StripButton {
-        x: 10px; y: parent.height - root.label-height - 38px;
-        width: parent.width - 20px;
-        label: @tr("action-mixer-mute");
-        lit: root.strip.muted;
-        lit-color: #c8443e;
-        lit-hover: #e0625c;
-        lit-border: #f08a84;
-        hovered: mute-ta.has-hover;
-        pressed => { root.mute-toggled(root.strip.id); }
-        mute-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.mute-toggled(root.strip.id); }
+        if root.has-solo : solo-btn := StripButton {
+            text: @tr("action-mixer-solo-short");
+            label: @tr("action-mixer-solo");
+            lit: root.strip.soloed;
+            lit-color: #d9b43a;
+            lit-hover: #e8c552;
+            lit-border: #f2d77e;
+            hovered: solo-ta.has-hover;
+            pressed => { root.solo-toggled(root.strip.id); }
+            solo-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.solo-toggled(root.strip.id); }
+            }
+        }
+
+        if root.has-mute : mute-btn := StripButton {
+            label: @tr("action-mixer-mute");
+            has-icon: true;
+            icon: root.strip.muted ? @image-url("../assets/volume-off.svg") : @image-url("../assets/volume.svg");
+            lit: root.strip.muted;
+            lit-color: #c8443e;
+            lit-hover: #e0625c;
+            lit-border: #f08a84;
+            hovered: mute-ta.has-hover;
+            pressed => { root.mute-toggled(root.strip.id); }
+            mute-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.mute-toggled(root.strip.id); }
+            }
+        }
+
+        reset-btn := StripButton {
+            label: @tr("action-mixer-reset");
+            has-icon: true;
+            icon: @image-url("../assets/undo.svg");
+            hovered: reset-ta.has-hover;
+            pressed => { root.fader-reset(root.strip.id); }
+            reset-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.fader-reset(root.strip.id); }
+            }
         }
     }
 
