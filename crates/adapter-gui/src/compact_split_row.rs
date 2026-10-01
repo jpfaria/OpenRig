@@ -11,10 +11,11 @@ use slint::{ModelRc, SharedString, VecModel};
 
 use project::block::{AudioBlock, SplitBlock, SplitEnd};
 
-use crate::compact_block_layout::{assign_strip_lines, row_height_px};
+use crate::compact_block_layout::{assign_strip_lines_in_runs, row_height_px};
 use crate::compact_block_tabs::active_group_index;
 use crate::compact_block_view::param_lines;
 use crate::param_tab_grouping::{retag_all, retag_for_group, tab_groups};
+use crate::split_editor_grid::knob_runs;
 use crate::split_editor_items::{split_editor_items, SplitEditorKind};
 use crate::{BlockParameterItem, CompactBlockItem};
 
@@ -49,7 +50,8 @@ pub(crate) fn split_compact_item(
         Some(active) if groups.len() > 1 => retag_for_group(&knobs, active),
         _ => retag_all(&knobs),
     };
-    let lines = assign_strip_lines(&mut params);
+    let runs = knob_runs(&params);
+    let lines = assign_strip_lines_in_runs(&mut params, &runs);
     let has_tabs = groups.len() > 1;
     let cell_lines = param_lines(&params, lines);
 

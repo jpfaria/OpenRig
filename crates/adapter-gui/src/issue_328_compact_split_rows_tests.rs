@@ -137,3 +137,36 @@ fn a_mix_split_row_has_a_split_tab_and_a_mixer_tab() {
         "the first tab is the split"
     );
 }
+
+fn line_of(row: &CompactBlockItem, path: &str) -> i32 {
+    row.parameter_items
+        .iter()
+        .find(|p| p.path.as_str() == path)
+        .map(|p| p.strip_line)
+        .expect("the knob is on the row")
+}
+
+/// #328: with A to F the strip wrapped mid-path, so Level E sat on one line
+/// and Balance E on the next. A path's knobs stay on one line.
+#[test]
+fn a_six_path_split_row_never_breaks_a_path_across_lines() {
+    use crate::chain_graph_fixtures_tests::{chain, core, split_paths};
+    use project::block::SplitEnd;
+    let row = split_row(chain(vec![
+        core("pre"),
+        split_paths("sp", SplitEnd::Mix, vec![vec![]; 6]),
+    ]));
+    assert!(row.parameter_lines.row_count() > 1, "six paths wrap");
+    for i in 0..6 {
+        assert_eq!(
+            line_of(&row, &format!("level_to_{i}")),
+            line_of(&row, &format!("balance_{i}")),
+            "path {i} is split across two lines"
+        );
+    }
+}
+
+#[test]
+fn a_two_path_split_row_keeps_one_line() {
+    assert_eq!(split_row(mix_chain()).parameter_lines.row_count(), 1);
+}

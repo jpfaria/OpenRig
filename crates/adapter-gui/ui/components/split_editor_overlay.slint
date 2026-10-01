@@ -77,10 +77,13 @@ component PathChip inherits Rectangle {
 }
 
 export component SplitEditorOverlay inherits Rectangle {
-    private property <int> count: ChainGraphOverlayState.split-editor-items.length;
-    private property <int> cols: Math.max(1, Math.min(4, root.count));
+    // One row per path (Rust places each knob by its tab_slot); a grid taller
+    // than the window scrolls instead of leaving the screen.
+    private property <int> cols: Math.max(1, ChainGraphOverlayState.split-editor-cols);
     private property <length> cell: 96px;
-    private property <length> grid-height: Math.ceil(root.count / root.cols) * root.cell;
+    private property <length> content-height: ChainGraphOverlayState.split-editor-rows * root.cell;
+    private property <length> chrome-height: 16px + 44px + 12px + root.end-switch-height + root.paths-height + 16px;
+    private property <length> grid-height: Math.max(root.cell, Math.min(root.content-height, root.height - 48px - root.chrome-height));
     private property <bool> has-end-switch: ChainGraphOverlayState.split-editor-kind == 0;
     private property <length> end-switch-height: root.has-end-switch ? 44px + 12px : 0px;
     // The paths row: one chip per path plus "+ path" (split editor only).
@@ -101,7 +104,7 @@ export component SplitEditorOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: Math.max(root.cols * root.cell, 280px, root.has-end-switch ? root.paths-width : 0px) + 32px;
-        height: 16px + 44px + 12px + root.end-switch-height + root.paths-height + root.grid-height + 16px;
+        height: root.chrome-height + root.grid-height;
         background: #111114;
         border-radius: 10px;
         border-width: 1px;
@@ -221,14 +224,15 @@ export component SplitEditorOverlay inherits Rectangle {
                 param-items: ChainGraphOverlayState.split-editor-items;
                 show-params: true;
                 show-overlays: false;
-                has-param-tabs: false;
+                has-param-tabs: true;
                 has-eq-widget: false;
-                grid-area-x: 0px;
+                // Centred: the paths row can make the card wider than the grid.
+                grid-area-x: Math.max(0px, (self.width - root.cols * root.cell) / 2);
                 grid-cell-w: root.cell;
                 grid-cols: root.cols;
                 grid-base-y: 0px;
                 grid-row-stride: root.cell;
-                content-height: root.grid-height;
+                content-height: root.content-height;
                 panel-text: #f1f4f8;
                 update-number(path, value) => {
                     ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);

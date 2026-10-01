@@ -22,7 +22,8 @@ use crate::chain_block_lists::split_by_id;
 use crate::chain_graph_wiring::chain_at;
 use crate::graph_gesture_actions::{GestureError, RowsTarget};
 use crate::helpers::set_status_error;
-use crate::split_editor_items::{option_value, split_editor_items, SplitEditorKind};
+use crate::split_editor_grid::split_editor_grid;
+use crate::split_editor_items::{option_value, SplitEditorKind};
 use crate::split_end_switch::set_split_end;
 use crate::split_path_gestures::path_letters;
 use crate::state::ProjectSession;
@@ -67,7 +68,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
             let Some((_, split)) = split_by_id(&chain, &BlockId(split_id.to_string())) else {
                 return;
             };
-            editor.rows.set_vec(split_editor_items(split, kind));
+            let grid = split_editor_grid(split, kind);
+            editor.rows.set_vec(grid.items);
             let letters: Vec<slint::SharedString> =
                 path_letters(&chain, &BlockId(split_id.to_string()))
                     .into_iter()
@@ -76,6 +78,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: SplitEditorWiringCtx) {
             let state = ChainGraphOverlayState::get(&window);
             state.set_split_editor_chain_index(chain_index);
             state.set_split_editor_kind(kind_index);
+            state.set_split_editor_cols(grid.cols as i32);
+            state.set_split_editor_rows(grid.rows as i32);
             state.set_split_editor_split_id(split_id);
             state.set_split_editor_end_y(split.end == SplitEnd::Y);
             state.set_split_editor_paths(ModelRc::new(VecModel::from(letters)));
@@ -226,7 +230,10 @@ fn refresh_rows(window: &AppWindow, editor: &Editor, chain_index: i32) {
     let Some((_, split)) = split_by_id(&chain, &split_id) else {
         return;
     };
-    let fresh = split_editor_items(split, kind);
+    let grid = split_editor_grid(split, kind);
+    state.set_split_editor_cols(grid.cols as i32);
+    state.set_split_editor_rows(grid.rows as i32);
+    let fresh = grid.items;
     if fresh.len() != editor.rows.row_count() {
         editor.rows.set_vec(fresh);
         return;

@@ -135,8 +135,10 @@ paths row — one chip per path, a remove button on each chip while the split ha
 (`RemoveSplitPath`; a path that holds blocks asks first), and "+ Path" (`AddSplitPath`) — then mode, the level
 into each path and the balances. Clicking the mixer node opens the **mixer editor**: level, pan and polarity per
 path, master, master sum. Both are a small root-level panel drawn from `split_param_specs()` by the block editor's
-own grid; each knob is an ordinary `SetBlockParameter*` on the split block, so MIDI mapping, scenes and MCP reach
-them like any knob. Mode II needs a stereo or dual-mono signal before any mono block; with a mono source every
+own grid, one row per path (`split_editor_grid`): the mode alone on top, then A, B, C… each on its own row,
+master and master sum below; a grid taller than the window scrolls. In the compact view's split row a path's
+knobs never wrap apart. Each knob is an ordinary `SetBlockParameter*` on the split block, so MIDI mapping,
+scenes and MCP reach them like any knob. Mode II needs a stereo or dual-mono signal before any mono block; with a mono source every
 balance gives the same signal. On a one-channel output, pan has no audible effect (the route averages L and R).
 
 ### Split engine behaviour (#328)

@@ -174,6 +174,7 @@ mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
+mod split_editor_grid;
 mod split_editor_items;
 mod split_editor_wiring;
 mod split_end_switch;

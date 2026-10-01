@@ -12,7 +12,8 @@ use project::block::split_params::MIX_MASTER_SUM;
 use project::block::{AudioBlockKind, SplitBlock, SplitEnd};
 
 use crate::chain_graph_fixtures_tests::{chain_in, mix_chain, rows, session_with, y_chain};
-use crate::split_editor_items::{split_editor_items, SplitEditorKind};
+use crate::split_editor_grid::split_editor_grid;
+use crate::split_editor_items::SplitEditorKind;
 use crate::split_editor_wiring::{wire, SplitEditorWiringCtx};
 use crate::{ChainGraphOverlayState, SplitEditorHarness};
 
@@ -33,11 +34,16 @@ fn click(w: &impl ComponentHandle, el: &i_slint_backend_testing::ElementHandle) 
 }
 
 fn open(h: &SplitEditorHarness, kind: SplitEditorKind) {
-    let split = SplitBlock::with_paths(SplitEnd::Mix, vec![vec![], vec![]]);
+    open_paths(h, kind, 2);
+}
+
+fn open_paths(h: &SplitEditorHarness, kind: SplitEditorKind, path_count: usize) {
+    let split = SplitBlock::with_paths(SplitEnd::Mix, vec![vec![]; path_count]);
     let state = ChainGraphOverlayState::get(h);
-    state.set_split_editor_items(ModelRc::new(VecModel::from(split_editor_items(
-        &split, kind,
-    ))));
+    let grid = split_editor_grid(&split, kind);
+    state.set_split_editor_cols(grid.cols as i32);
+    state.set_split_editor_rows(grid.rows as i32);
+    state.set_split_editor_items(ModelRc::new(VecModel::from(grid.items)));
     state.set_split_editor_chain_index(0);
     state.set_split_editor_split_id("sp".into());
     state.set_split_editor_title("Mixer".into());
@@ -229,4 +235,53 @@ fn mix_then_y_the_y_at_the_end_switches_to_a_second_mix() {
     };
     assert_eq!(y.end, SplitEnd::Mix);
     assert!(!state.get_split_editor_end_y(), "Mix is lit");
+}
+
+fn param_cells(h: &SplitEditorHarness) -> Vec<(f32, f32)> {
+    i_slint_backend_testing::ElementHandle::find_by_element_type_name(h, "BlockPanelParameterItem")
+        .map(|el| (el.absolute_position().x, el.absolute_position().y))
+        .collect()
+}
+
+/// #328: with A, B and C the mixer is one row per path — Level B sits under
+/// Level A, not beside Pan A.
+#[test]
+fn the_mixer_draws_one_row_per_path() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = SplitEditorHarness::new().unwrap();
+    open_paths(&h, SplitEditorKind::Mixer, 3);
+    h.show().unwrap();
+    let cells = param_cells(&h);
+    assert_eq!(cells.len(), 11, "three knobs per path, master, master sum");
+    let (level_a, level_b, level_c) = (cells[0], cells[3], cells[6]);
+    assert_eq!(level_b.0, level_a.0, "Level B is under Level A");
+    assert_eq!(level_c.0, level_a.0, "Level C is under Level B");
+    assert!(level_a.1 < level_b.1 && level_b.1 < level_c.1);
+}
+
+/// #328: the mode is the whole split's knob — alone on the top row.
+#[test]
+fn the_split_draws_the_mode_alone_on_top() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = SplitEditorHarness::new().unwrap();
+    open_paths(&h, SplitEditorKind::Split, 3);
+    h.show().unwrap();
+    let cells = param_cells(&h);
+    let (mode, level_to_a, balance_a) = (cells[0], cells[1], cells[2]);
+    assert_eq!(level_to_a.0, mode.0, "path A starts a row");
+    assert!(level_to_a.1 > mode.1);
+    assert_eq!(balance_a.1, level_to_a.1, "path A on one row");
+}
+
+#[test]
+fn opening_the_mixer_sizes_the_grid_one_row_per_path() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (app, _session) = wired_app(mix_chain());
+    let state = ChainGraphOverlayState::get(&app);
+    state.invoke_open_split_editor(0, "sp".into(), 1);
+    assert_eq!(
+        (state.get_split_editor_cols(), state.get_split_editor_rows()),
+        (3, 3),
+        "A, B, then the master"
+    );
 }

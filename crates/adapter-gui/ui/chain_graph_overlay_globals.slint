@@ -32,6 +32,9 @@ export global ChainGraphOverlayState {
     in-out property <string> split-editor-split-id;
     in-out property <string> split-editor-title;
     in-out property <[BlockParameterItem]> split-editor-items;
+    // The grid the items' `tab_slot` addresses: one row per path.
+    in-out property <int> split-editor-cols: 1;
+    in-out property <int> split-editor-rows: 1;
     // Args: chain index, split block id, parameter path, value.
     callback split-editor-number(int, string, string, float);
     callback split-editor-option(int, string, string, int);
