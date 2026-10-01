@@ -38,8 +38,8 @@ component SectionHeader inherits Rectangle {
 component SectionBody inherits Rectangle {
     in property <length> content-width;
     in property <length> content-height;
-    in property <length> max-height;
-    height: min(root.content-height + 16px, root.max-height);
+    in property <length> body-max-height;
+    height: min(root.content-height + 16px, root.body-max-height);
     background: #0c0e12;
     Flickable {
         width: 100%; height: 100%;
@@ -124,7 +124,7 @@ export component CompactChainSections inherits Rectangle {
         if root.open == 1 : SectionBody {
             content-width: di.width;
             content-height: di.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             di := DiLoopPanel {
                 x: 16px; y: 8px;
                 sources: root.di-loop-sources;
@@ -150,7 +150,7 @@ export component CompactChainSections inherits Rectangle {
         if root.open == 2 : SectionBody {
             content-width: looper.width;
             content-height: looper.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             looper := LooperPanelView {
                 x: 16px; y: 8px;
                 loopers: CompactLooper.loopers;
@@ -198,7 +198,7 @@ export component CompactChainSections inherits Rectangle {
         if root.open == 3 : SectionBody {
             content-width: doctor.width;
             content-height: doctor.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             doctor := ToneDoctorPanel {
                 x: 16px; y: 8px;
                 running: ToneDoctorState.running;
