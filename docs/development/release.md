@@ -18,7 +18,7 @@ object plus a ref, and merges go through PRs. Nothing here needs a checkout.
    meant for the version is merged into it. Anything still only on `develop`
    goes in via step 1; anything on an unmerged branch is *out* of the release.
 2. **Tests are green on the code being shipped.** No CI runs on PRs into
-   `release/*` or `main` (#862), so the evidence is `test.yml` on the `develop`
+   `release/*` or `main`, so the evidence is `test.yml` on the `develop`
    tip the release branch carries:
 
    ```bash
@@ -29,7 +29,7 @@ object plus a ref, and merges go through PRs. Nothing here needs a checkout.
    The `headSha` of the green run must be the commit the release branch merged.
 3. **The milestone `vX.Y.Z` has no open issues** — `create-release` builds the
    notes from it and then closes it.
-4. **Never edit `Cargo.toml`.** The tag is the version (#820); the build jobs
+4. **Never edit `Cargo.toml`.** The tag is the version; the build jobs
    write it and `commit-version-bump` pushes it to `develop` afterwards.
 
 ## 1. Sync the release branch with `develop`
@@ -66,8 +66,8 @@ gh pr merge <PR> --repo jpfaria/OpenRig --merge --subject "Merge release/vX.Y.Z 
 ```
 
 Always `--merge` — never squash or rebase; `main` must keep the cycle's history.
-`gh pr checks` will report "no checks reported": expected until #862 is fixed,
-which is why precondition 2 exists.
+`gh pr checks` will report "no checks reported": expected, which is why
+precondition 2 exists.
 
 ## 4. Create the annotated tag on `main`
 
@@ -102,7 +102,7 @@ gh run watch <run-id> --repo jpfaria/OpenRig --exit-status
 ```
 
 **Only the macOS job runs today.** Linux x86_64, Linux aarch64 and Windows x64
-carry a hard `if: false` since #816, so a release ships a single artifact,
+carry a hard `if: false`, so a release ships a single artifact,
 `OpenRig-X.Y.Z-macos-universal.dmg`. The job list showing three "skipped" builds
 is the expected state, not a failure.
 
@@ -123,8 +123,7 @@ Expected: the release is public and not a draft, the milestone is `closed`
 **The version follows what the cycle carries, not the calendar.** A cycle
 opened for a bug is a PATCH (`vX.Y.Z+1`); it becomes a MINOR (`vX.Y+1.0`)
 only when a feature lands in it. Open it as a patch by default — a bugfix
-must never start a `vX.Y+1.0` cycle (#921 was cut as `v0.5.0` after `v0.4.1`
-and had to be re-cut as `v0.4.2`). Rename the branch and the milestone the
+must never start a `vX.Y+1.0` cycle. Rename the branch and the milestone the
 day a feature enters.
 
 ```bash
@@ -140,7 +139,5 @@ from, and PR'd into, `release/vX.Y+1.0`.
 
 ## Known gaps
 
-| Gap | Issue |
-|---|---|
-| No quality gate / tests on PRs into `release/*` and `main` | #862 |
-| Linux and Windows release builds disabled (`if: false`) | #816 |
+- No quality gate / tests on PRs into `release/*` and `main`.
+- Linux and Windows release builds disabled (`if: false`).
