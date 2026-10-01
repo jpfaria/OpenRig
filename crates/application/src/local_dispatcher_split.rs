@@ -7,8 +7,8 @@
 
 use anyhow::{anyhow, Result};
 
-use domain::ids::BlockId;
-use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
+use domain::ids::{BlockId, ChainId};
+use project::block::{walk_blocks, AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
 
 use crate::block_path::{insert_block, list_holding, split_mut};
 use crate::command::{Command, SplitCommand};
@@ -47,6 +47,10 @@ impl LocalDispatcher {
                     split_mut(blocks, &split_id)?.end = end;
                     Ok(())
                 })?;
+                if end != SplitEnd::Y {
+                    // No longer a Y: its leaves, and their checklists, are gone.
+                    self.forget_leaves(&chain, &[split_id])?;
+                }
                 Ok(vec![Event::ChainReloaded { chain }])
             }
             SplitCommand::AddSplitPath { chain, split_id } => {
@@ -65,21 +69,34 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainReloaded { chain }])
             }
             SplitCommand::RemoveSplit { chain, split_id } => {
-                self.edit_chain_blocks(&chain, |blocks| {
+                let gone = self.edit_chain_blocks(&chain, |blocks| {
                     let (list, at) = list_holding(blocks, &split_id)
                         .ok_or_else(|| anyhow!("split not found: {:?}", split_id))?;
                     let AudioBlockKind::Split(removed) = list.remove(at).kind else {
                         return Err(anyhow!("block {:?} is not a split", split_id));
                     };
                     // Path 0 takes the split's place; the other paths go with it.
+                    let mut paths = removed.paths.into_iter();
                     let tail = list.split_off(at);
-                    list.extend(removed.paths.into_iter().next().unwrap_or_default());
+                    list.extend(paths.next().unwrap_or_default());
                     list.extend(tail);
-                    Ok(())
+                    let dropped: Vec<AudioBlock> = paths.flatten().collect();
+                    Ok(std::iter::once(split_id.clone())
+                        .chain(walk_blocks(&dropped).into_iter().map(|b| b.id.clone()))
+                        .collect::<Vec<_>>())
                 })?;
+                self.forget_leaves(&chain, &gone)?;
                 Ok(vec![Event::ChainReloaded { chain }])
             }
         }
+    }
+
+    /// Forget the leaf checklists of the splits in `gone`.
+    fn forget_leaves(&self, chain: &ChainId, gone: &[BlockId]) -> Result<()> {
+        self.with_chain(chain, |c| {
+            c.disabled_endpoints.forget_splits(gone);
+            Ok(())
+        })
     }
 }
 

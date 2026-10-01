@@ -204,6 +204,10 @@ mod ld_split_path;
 mod ld_split_nested;
 
 #[cfg(test)]
+#[path = "ld_split_endpoint_cleanup_tests.rs"]
+mod ld_split_endpoint_cleanup;
+
+#[cfg(test)]
 #[path = "local_dispatcher_split_tests.rs"]
 mod local_dispatcher_split_tests;
 

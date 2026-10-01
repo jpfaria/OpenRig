@@ -129,13 +129,12 @@ impl EndpointDisables {
         self.path_outputs.retain(|entry| !entry.disabled.is_empty());
     }
 
-    /// Drop the entries of leaves `blocks` no longer has.
-    pub fn retain_leaves(&mut self, leaves: &[PathRef]) {
-        self.path_outputs.retain(|entry| {
-            leaves
-                .iter()
-                .any(|leaf| leaf.split == entry.split && leaf.path == entry.path)
-        });
+    /// Forget the leaf output nodes of the splits in `gone` (removed, or no
+    /// longer a Y). Only those: the checklists are the rig input's, so the
+    /// leaves of a Y another preset holds stay.
+    pub fn forget_splits(&mut self, gone: &[BlockId]) {
+        self.path_outputs
+            .retain(|entry| !gone.contains(&entry.split));
     }
 
     /// Forget the output node of path `removed` of `split` and shift the

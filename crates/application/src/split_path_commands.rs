@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::split_param_renumber::drop_path_keys;
 use project::block::split_params::normalize_split_params;
-use project::block::{walk_blocks, y_leaves, SplitBlock, MIN_SPLIT_PATHS};
+use project::block::{walk_blocks, SplitBlock, MIN_SPLIT_PATHS};
 
 use crate::block_path::split_mut;
 use crate::local_dispatcher::LocalDispatcher;
@@ -59,7 +59,7 @@ impl LocalDispatcher {
         self.with_chain(chain, |c| {
             c.disabled_endpoints
                 .shift_after_path_removed(split_id, path);
-            c.disabled_endpoints.retain_leaves(&y_leaves(&c.blocks));
+            c.disabled_endpoints.forget_splits(&gone);
             Ok(())
         })?;
         if let Some(midi) = self.project.borrow_mut().midi.as_mut() {
