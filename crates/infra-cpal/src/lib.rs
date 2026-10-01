@@ -102,11 +102,18 @@ mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
+mod controller_stepped_evidence;
 mod controller_stepped_restart;
 mod controller_sync;
 mod controller_taps;
 mod controller_upsert;
+#[cfg(target_os = "macos")]
+mod coreaudio_device_probe;
+#[cfg(target_os = "macos")]
+mod coreaudio_properties;
 mod device_cache;
+mod device_probe;
+pub use device_probe::{probe_input_device, DeviceClient, DeviceProbe, ProbedStream, StreamFormat};
 mod device_enum;
 mod di_playback;
 mod di_stream;
@@ -163,6 +170,14 @@ mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
+mod input_evidence;
+pub use input_evidence::{
+    CycleRecord, InputEvidenceSnapshot, InputStreamIdentity, SteppedInputEvidence, StreamEvidence,
+};
+#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+mod input_evidence_registry;
+#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+mod input_evidence_ring;
 mod memory_residency_keeper;
 mod memory_wiring;
 #[cfg(any(target_os = "macos", test))]
