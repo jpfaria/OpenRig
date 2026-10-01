@@ -61,6 +61,8 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "RedoChainLooperEdit",
     // #827 — keep a recorded loop as a named take the DI can play.
     "SaveChainLooperTake",
+    // #1021 — remove a saved take from the library.
+    "DeleteLooperTake",
     "SetChainLooperTransport",
     // ── Added by #328 (the chain split) ───────────────────────────────────
     "AddSplit",

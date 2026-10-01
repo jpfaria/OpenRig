@@ -217,6 +217,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperOutputChanged { chain, looper }])
             }
 
+            LooperCommand::DeleteLooperTake { name } => self.delete_looper_take(name),
             LooperCommand::SaveChainLooperTake {
                 chain,
                 looper,

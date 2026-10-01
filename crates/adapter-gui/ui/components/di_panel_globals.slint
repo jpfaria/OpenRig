@@ -15,4 +15,8 @@ export global DiPanel {
     // #771: the chain's bound output endpoints + the persisted pick.
     in-out property <[string]> outputs;
     in-out property <int> output-selected-index;
+    // Per entry of `sources`, true when it is a deletable saved take.
+    in-out property <[bool]> take-rows;
+    // The trash on a take row, confirmed — the host dispatches the delete.
+    callback delete-take(string);
 }

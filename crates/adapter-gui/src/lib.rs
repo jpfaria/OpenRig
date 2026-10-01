@@ -106,10 +106,12 @@ pub mod di_meter;
 pub mod di_output_options;
 /// #771: window wiring for the DI panel's output select.
 mod di_output_select_wiring;
+mod di_panel_take_removal;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
 mod di_source_rows;
+mod di_take_delete_wiring;
 mod insert_wiring;
 mod live_sync_plan;
 mod looper_commands;

@@ -189,6 +189,12 @@ msgstr "हटाएं"
 msgid "di-output-select-label"
 msgstr "DI आउटपुट"
 
+msgid "di-take-delete-label"
+msgstr "टेक हटाएँ"
+
+msgid "di-take-delete-confirm"
+msgstr "हटाएँ?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "ग्लोबल"
@@ -683,7 +689,7 @@ msgstr "विलंबता मापें (बीप करता है)"
 msgid "tooltip-chain-mixer"
 msgstr "चेन मिक्सर"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "कॉन्फ़िगर करें"
 

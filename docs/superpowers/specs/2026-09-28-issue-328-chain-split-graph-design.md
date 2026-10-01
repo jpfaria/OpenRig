@@ -236,7 +236,7 @@ input → Split → Mix (A: amp 1 ∥ B: amp 2) → shared blocks → Y → A/B
 - `crates/project/src/block/split_lookup.rs`: `splits` (every top-level split with its position, in chain order), `find_split` (the first one), `find_split_with_end` and `has_y_split`. No lookup assumes a single split.
 - Whatever asks where the chain ends (tail feed, `resolve_chain_ports`, endpoint discovery and feeds) looks up the Y, not the first split. A Mix + Y chain therefore ends at the Y's two path output nodes and has no chain output node. `EndpointDisables.path_a_outputs` / `path_b_outputs` belong to the Y; `outputs` applies only to chains without a Y.
 - Ids: path block ids carry their split's id (`<split id>::a:<i>` / `<split id>::b:<i>` on disk, `BlockId::generate_for_chain` for new blocks), so the paths of the two splits never collide. Every command names a split by its block id: `PathRef { split, side }`, `SetSplitEnd { split_id }`, `RemoveSplit { split_id }`, and the knobs are `SetBlockParameter*` on that id (MIDI, scenes and MCP included).
-- YAML: `project.yaml`, chain presets and legacy project files keep both splits with distinct path ids. The format version stays `2`.
+- YAML: `project.yaml` and chain presets keep both splits with distinct path ids. The format version stays `2`.
 
 ### 9.3 Commands
 
