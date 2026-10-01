@@ -3,12 +3,14 @@
 // The row owns the card geometry — how many block rows fit at this width, how
 // tall the card has to be for the per-stream meters — and hands each piece to
 // the file that draws it: `chain_row_header`, `chain_row_blocks`,
-// `chain_row_meters`.
+// `chain_row_meters`, `chain_row_mixer`.
 
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav } from "../models.slint";
 import { ChainRowHeader } from "chain_row_header.slint";
 import { ChainRowMeters } from "chain_row_meters.slint";
 import { ChainRowBlocks } from "chain_row_blocks.slint";
+import { ChainRowMixer } from "chain_row_mixer.slint";
+import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
@@ -113,7 +115,8 @@ export component ChainRow inherits Rectangle {
             ? (root.chain.stream_meters.length - 1) * meters.row-pitch
             : 0px)
         // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
-        + (root.meters-shown && root.chain.di_loop_playing ? meters.row-pitch : 0px);
+        + (root.meters-shown && root.chain.di_loop_playing ? meters.row-pitch : 0px)
+        + mixer.section-height;
     property <bool> meters-shown: root.chain.enabled && root.chain.meters_expanded;
 
     ChainRowHeader {
@@ -181,13 +184,23 @@ export component ChainRow inherits Rectangle {
         markers-visible: root.midi-selection-active;
     }
 
+    // The meters sit above the mixer section when it is open.
     meters := ChainRowMeters {
         x: 0px;
         y: 0px;
         width: root.width;
-        height: root.height;
+        height: root.height - mixer.section-height;
         chain: root.chain;
         visible: root.meters-shown;
+    }
+
+    mixer := ChainRowMixer {
+        x: 0px;
+        y: root.height - self.section-height;
+        width: root.width;
+        height: self.section-height;
+        open: ChainMixerPanel.open && ChainMixerPanel.chain-index == root.chain-index;
+        di-playing: root.chain.di_loop_playing;
     }
 }
 

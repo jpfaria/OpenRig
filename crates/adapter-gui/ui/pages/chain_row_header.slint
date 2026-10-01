@@ -155,7 +155,7 @@ export component ChainRowHeader inherits Rectangle {
         shown: root.chain.meters_expanded;
         toggled(shown) => { root.meters-toggled(shown); }
     }
-    // #1007: this chain's mixer, opened over the chain list.
+    // This chain's mixer, opened at the bottom of the card.
     ChainMixerButton { x: parent.width - 404px; y: 12px; chain-index: root.chain-index; }
     // #323: looper trigger — opens the looper panel (root overlay).
     ChainLooperButton {
