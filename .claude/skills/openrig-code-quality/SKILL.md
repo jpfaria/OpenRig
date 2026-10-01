@@ -465,7 +465,7 @@ When renaming effect types, models, or identifiers:
 
 ## LEI — testes que contradizem invariante pinado: PARAR, não decidir sozinho
 
-Se dois testes exigem comportamentos incompatíveis e um deles é invariante **pinado** (`volume_invariants_tests.rs`, qualquer teste marcado como pin de CLAUDE.md #10):
+Se dois testes exigem comportamentos incompatíveis e um deles é invariante **pinado** (`volume_invariants_tests.rs`, qualquer teste marcado como pin do invariante 10 do CLAUDE.md):
 
 - O invariante pinado **vence por padrão**. O outro teste está obsoleto.
 - **NUNCA** enfraquecer/editar o invariante pinado sem pedido explícito do usuário (única via sancionada).
