@@ -10,7 +10,6 @@ import { Theme } from "../theme.slint";
 import { LooperEditor } from "looper_panel_globals.slint";
 import { WaveformView } from "waveform_view.slint";
 import { EditorButton } from "editor_button.slint";
-import { LooperTakeSaveRow } from "looper_take_save_row.slint";
 
 // The action a button asks for, as the host's callback spells it.
 export enum LoopEditKind { trim, crop, cut, fit }
@@ -170,15 +169,6 @@ export component LooperEditorOverlay inherits Rectangle {
                     : Theme.palette.text-muted;
                 font-size: Theme.min-font;
             }
-
-            // #827: keep this loop as a named take any chain's DI can play.
-            // Last, so the edit buttons keep their places.
-            Rectangle {
-                height: 1px;
-                background: Theme.palette.border;
-            }
-
-            LooperTakeSaveRow { }
         }
     }
 }
