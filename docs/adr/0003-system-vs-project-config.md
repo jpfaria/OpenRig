@@ -13,13 +13,13 @@ rule between them:
   language. Treated as global/app-level.
 - `project.yaml` ([`RigProject`](../projects/project-format.md)) — chains,
   blocks, devices, scenes. Treated as project-level.
-- `midi-map.yaml` (per-OS config dir, ADR for #22) — a single global controller mapping
-  shared by every project. Per-project mapping was explicitly **out of scope for v1**
-  of #22.
+- `midi-map.yaml` (per-OS config dir) — a single global controller mapping
+  shared by every project. Per-project mapping was explicitly **out of scope for
+  its first version**.
 
 New settings have surfaced without a written rule for which surface they belong to:
 
-- #493 — MIDI mapping inside the project + in-app editor — collides with the global
+- MIDI mapping inside the project + in-app editor — collides with the global
   `midi-map.yaml`.
 - Interface preferences (theme, window state, layout) — undecided home.
 
@@ -114,14 +114,14 @@ The ADR is preserved as-is for now because:
 - Reworking this requires a parallel system-level defaults layer plus a logical→physical
   resolution step, which is its own decision.
 
-A future ADR may revisit this; #499 documents the rule so the discussion can happen with
+A future ADR may revisit this; this ADR documents the rule so the discussion can happen with
 the principle written down.
 
 ## Consequences
 
 - Future settings have a written test for where they live.
-- MIDI mapping per project becomes possible (closes #493 as superseded or reframes it as
-  the in-app editor for the project layer).
-- Migrating a `midi-map.yaml` from before #499 happens silently on first load; no user
+- MIDI mapping per project becomes possible; the in-app editor edits the project
+  layer.
+- Migrating a `midi-map.yaml` from before this ADR happens silently on first load; no user
   action.
 - Older `project.yaml` files remain valid because `midi:` defaults to `None`.
