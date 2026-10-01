@@ -196,7 +196,7 @@ O plugin Claude Code de usuário final (manifesto + `.mcp.json` + skill `openrig
 
 Em seguida, suba o OpenRig com o servidor ligado: `openrig --mcp`. Veja [`docs/mcp.md`](docs/mcp.md) para a superfície completa (tools, resources, prompts) e configuração manual do cliente.
 
-> `.claude/` neste repo guarda apenas skills de **desenvolvedor** (`openrig-code-quality`, `rust-best-practices`, `slint-best-practices`). A implementação do servidor MCP mora em [`crates/adapter-mcp/`](crates/adapter-mcp).
+> `.claude/` neste repo guarda apenas skills de **desenvolvedor** (`openrig-code-quality`, `slint-best-practices`). A implementação do servidor MCP mora em [`crates/adapter-mcp/`](crates/adapter-mcp).
 
 ## Contribuindo
 

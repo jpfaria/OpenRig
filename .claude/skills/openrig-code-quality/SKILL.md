@@ -138,7 +138,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. 
 
 **How to apply (OpenRig-specific):**
 - Renomeou modelo/parâmetro/effect_type? → grep cross-repo em `docs/**`, `*.md`, `README*`, `CLAUDE.md`, todos `.claude/skills/*/SKILL.md`.
-- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `rust-best-practices`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
+- Mudou processo de gate/build/deploy? → atualiza `openrig-code-quality`, `slint-best-practices`, **e** o `docs/development/*.md` correspondente.
 - Mudou invariante (latência, isolation, mixing)? → `CLAUDE.md` + `docs/architecture.md`.
 - README atualizado em uma língua sem as outras duas é regressão — [[feedback_readme_three_languages]].
 
