@@ -21,6 +21,7 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     for (idx, name) in bank {

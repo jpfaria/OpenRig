@@ -187,6 +187,11 @@ pub struct ChainRuntimeState {
     /// lost `try_lock` is a silent period on the routes that input feeds.
     /// Read off the audio thread.
     pub(crate) input_busy_skips: AtomicU64,
+    /// #979: set by the input path when an input this runtime reads has
+    /// arrived stepped (every buffer broken at the same position) for about a
+    /// second — see [`crate::input_seam_detector`]. Only a rebuilt runtime
+    /// clears it. Read off the audio thread.
+    pub(crate) input_stepped: AtomicBool,
     pub(crate) peak_load_ppm: AtomicU64,
     /// The sample rate (Hz) this runtime was built at — the rate its streams
     /// actually run at. Set once at construction, never mutated, so a plain
@@ -241,6 +246,13 @@ impl ChainRuntimeState {
         matches!(self.output_routes.load().get(output_index), Some(Some(_)))
     }
 
+    /// #328: how many output routes this runtime has (written or not) — the
+    /// route indices a single-client backend (Linux/JACK-direct) serves, each
+    /// on its own ports.
+    pub fn output_route_count(&self) -> usize {
+        self.output_routes.load().len()
+    }
+
     /// Does an output stream on `output_index` belong to this runtime — it
     /// writes the route now, or an insert switch can make it write it (#967)?
     pub fn owns_output(&self, output_index: usize) -> bool {
@@ -256,6 +268,11 @@ impl ChainRuntimeState {
     /// #980: input buffers lost to a held `processing` lock since build.
     pub fn input_busy_skips(&self) -> u64 {
         self.input_busy_skips.load(Ordering::Relaxed)
+    }
+
+    /// #979: an input this runtime reads arrives stepped.
+    pub fn input_stepped(&self) -> bool {
+        self.input_stepped.load(Ordering::Relaxed)
     }
 
     pub fn is_draining(&self) -> bool {
@@ -343,3 +360,7 @@ pub(crate) fn fed_inputs_mask(input_to_segments: &[Vec<usize>]) -> u64 {
         .filter(|(i, segments)| *i < 64 && !segments.is_empty())
         .fold(0, |mask, (i, _)| mask | (1 << i))
 }
+
+#[cfg(test)]
+#[path = "runtime_route_count_tests.rs"]
+mod runtime_route_count_tests;

@@ -119,5 +119,13 @@ pub(crate) fn chain_structure_signature(
             "groups|{:?}",
             engine::runtime_graph::input_group_ids(chain, registry)
         )))
+        .chain(std::iter::once(format!(
+            // #328: the Y leaves each output runs. Checking a second leaf on
+            // an output another leaf already feeds opens no new device
+            // stream, but that output's pipeline changes — a structural
+            // edit, so the chain gets new streams (#881).
+            "paths|{:?}",
+            engine::runtime_graph::segment_paths::route_paths(chain, registry)
+        )))
         .collect()
 }

@@ -42,6 +42,7 @@ fn reopened_project_restores_selected_binding_in_checklist() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
 

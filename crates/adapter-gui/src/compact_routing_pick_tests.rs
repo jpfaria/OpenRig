@@ -90,6 +90,7 @@ fn session() -> Rc<RefCell<Option<ProjectSession>>> {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let session = ProjectSession::new(
@@ -180,4 +181,46 @@ fn with_no_session_there_is_nothing_to_re_point() {
     let empty: Rc<RefCell<Option<ProjectSession>>> = Rc::new(RefCell::new(None));
 
     assert!(!dispatch_binding_pick(&empty, 0, 0, OTHER));
+}
+
+fn input_io(session: &Rc<RefCell<Option<ProjectSession>>>, index: usize) -> String {
+    match &chain_blocks(session)[index].kind {
+        AudioBlockKind::Input(input) => input.io.clone(),
+        other => panic!("block {index} is not an input port: {other:?}"),
+    }
+}
+
+/// #328: a compact row index counts the blocks inside a split's paths, so a
+/// port after the split sits on a row past its position in the chain.
+#[test]
+fn split_rows_a_port_after_a_split_is_re_pointed_on_its_own_block() {
+    use crate::chain_graph_fixtures_tests::{chain, core, port_in, session_with, split};
+    use project::block::SplitEnd;
+    let session = session_with(vec![chain(vec![
+        core("pre"),
+        split("mx", SplitEnd::Mix, vec![core("ma")], vec![core("mb")]),
+        port_in("p", "aux", ""),
+    ])]);
+
+    // Rows: pre, mx, ma, mb, p.
+    assert!(dispatch_binding_pick(&session, 0, 4, "main"));
+
+    assert_eq!(input_io(&session, 2), "main");
+}
+
+#[test]
+fn split_rows_a_port_inside_a_path_never_re_points_a_top_level_block() {
+    use crate::chain_graph_fixtures_tests::{chain, port_in, session_with, split};
+    use project::block::SplitEnd;
+    let session = session_with(vec![chain(vec![
+        port_in("p0", "aux", ""),
+        split("mx", SplitEnd::Mix, vec![port_in("pa", "aux", "")], vec![]),
+        port_in("q", "aux", ""),
+        port_in("r", "aux", ""),
+    ])]);
+
+    // Rows: p0, mx, pa, q, r — row 2 is pa, inside path A.
+    dispatch_binding_pick(&session, 0, 2, "main");
+
+    assert_eq!(input_io(&session, 2), "aux", "q is not the picked row");
 }

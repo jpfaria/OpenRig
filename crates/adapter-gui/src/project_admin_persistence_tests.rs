@@ -425,6 +425,7 @@ fn insert_prebuilt_block_persists() {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: block_position,
+            path: None,
         }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);
@@ -453,6 +454,7 @@ fn remove_block_persists() {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: block_position,
+            path: None,
         }))
         .expect("Insert");
 
@@ -490,6 +492,7 @@ fn move_block_persists_order() {
             chain: chain_id.clone(),
             block: gain_block("g1", 10.0),
             position: pos,
+            path: None,
         }))
         .expect("Insert g1");
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
@@ -499,6 +502,7 @@ fn move_block_persists_order() {
             chain: chain_id.clone(),
             block: gain_block("g2", 20.0),
             position: pos,
+            path: None,
         }))
         .expect("Insert g2");
 
@@ -514,6 +518,7 @@ fn move_block_persists_order() {
             chain: chain_id.clone(),
             block: BlockId("g2".into()),
             new_position: target_position,
+            path: None,
         }))
         .expect("MoveBlock");
     s.save(&session);
@@ -547,6 +552,7 @@ fn toggle_block_enabled_persists() {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: pos,
+            path: None,
         }))
         .expect("Insert");
 

@@ -75,6 +75,7 @@ fn validate_accepts_true_stereo_pitch_on_mono_input_chain() {
             blocks: vec![mono_input(), true_stereo_pitch_block(), stereo_output()],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }],
         midi: None,

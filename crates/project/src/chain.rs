@@ -9,6 +9,7 @@ pub use crate::chain_mix::{ChainEndpointMix, ChainMix};
 pub use crate::chain_modes::{
     processing_layout, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
 };
+use crate::endpoint_disables::EndpointDisables;
 pub use crate::endpoint_ref::{DiOutputRef, EndpointRef};
 pub use crate::looper::{LooperConfig, LooperSpeed, LOOPER_MAX_PER_CHAIN};
 
@@ -45,6 +46,12 @@ pub struct Chain {
     /// before the looper existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loopers: Vec<LooperConfig>,
+    /// #328: the endpoints of the chain's own bindings that a node of its
+    /// graph leaves out (the input/output checklists). Projected from the rig
+    /// input by `rig_to_chains` and captured back by `sync_synthetic_into_rig`;
+    /// empty keeps every endpoint.
+    #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
+    pub disabled_endpoints: EndpointDisables,
     /// #1007: the chain's own faders (per endpoint and DI). Unity when absent.
     #[serde(default, skip_serializing_if = "ChainMix::is_unity")]
     pub mix: ChainMix,

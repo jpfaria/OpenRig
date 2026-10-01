@@ -25,12 +25,13 @@ impl SelectBlock {
             if matches!(
                 option.kind,
                 AudioBlockKind::Select(_)
+                    | AudioBlockKind::Split(_)
                     | AudioBlockKind::Input(_)
                     | AudioBlockKind::Output(_)
                     | AudioBlockKind::Insert(_)
             ) {
                 return Err(
-                    "select block options cannot be select, input, output, or insert blocks"
+                    "select block options cannot be split blocks, nor select, input, output, or insert blocks"
                         .to_string(),
                 );
             }

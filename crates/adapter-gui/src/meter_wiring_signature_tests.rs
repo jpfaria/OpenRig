@@ -36,6 +36,7 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     // Initial: enabled, runtime up with 3 streams.
@@ -94,6 +95,7 @@ fn controller_offline_then_back_invalidates_every_chain() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
@@ -166,6 +168,7 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     // Two consecutive steady-state ticks: same enabled, same blocks,
@@ -380,6 +383,7 @@ fn replaced_runtime_with_same_stream_count_invalidates_the_chain() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let mut last_sig = std::collections::HashMap::new();

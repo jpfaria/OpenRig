@@ -250,7 +250,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // command that produced them mutated the store and reconciled the loop's
     // isolated stream from the dispatcher, so a Record over MCP/MIDI already
     // recorded — this drain used to be the second road to that same store.
-    // #1007: a batch of fader steps (a surface fader travelling) leaves the
+    // A batch of fader steps (a surface fader travelling) leaves the
     // cards in place — re-projecting rebuilt every card once per step and
     // the chain list / compact view jumped while the fader moved.
     let rebuild_views = crate::view_refresh_policy::batch_requires_view_rebuild(events);

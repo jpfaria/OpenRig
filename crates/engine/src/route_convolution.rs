@@ -10,7 +10,8 @@
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 
-use crate::segment_types::ChainSegment;
+use crate::runtime_graph_assemble::split_segment_view::block_for_segment;
+use crate::segment_types::{ChainSegment, SegmentPaths};
 
 /// Whether `block` is an enabled convolution (IR / cab) block.
 pub(crate) fn block_is_convolution(block: &AudioBlock) -> bool {
@@ -22,6 +23,8 @@ pub(crate) fn block_is_convolution(block: &AudioBlock) -> bool {
                     || core.model.starts_with("ir_")
             }
             AudioBlockKind::Nam(nam) => nam.model.starts_with("ir_"),
+            // #328: a split convolves when any of its paths does.
+            AudioBlockKind::Split(split) => split.paths.iter().flatten().any(block_is_convolution),
             _ => false,
         }
 }
@@ -34,22 +37,23 @@ pub(crate) fn route_has_convolution(
     segments: &[ChainSegment],
     route_idx: usize,
 ) -> bool {
-    let convolves = |indices: &[usize]| {
+    // #328: a segment hears only the split paths it runs.
+    let convolves = |indices: &[usize], paths: &SegmentPaths| {
         indices
             .iter()
             .filter_map(|&idx| chain.blocks.get(idx))
-            .any(block_is_convolution)
+            .any(|block| block_is_convolution(&block_for_segment(block, paths)))
     };
     segments.iter().any(|segment| {
-        let at_tail =
-            segment.output_route_indices.contains(&route_idx) && convolves(&segment.block_indices);
+        let at_tail = segment.output_route_indices.contains(&route_idx)
+            && convolves(&segment.block_indices, &segment.paths);
         let at_tap = segment
             .mid_output_taps
             .iter()
             .filter(|tap| tap.route_idx == route_idx)
             .any(|tap| {
                 let before = tap.blocks_before.min(segment.block_indices.len());
-                convolves(&segment.block_indices[..before])
+                convolves(&segment.block_indices[..before], &segment.paths)
             });
         at_tail || at_tap
     })

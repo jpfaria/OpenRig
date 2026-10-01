@@ -9,13 +9,15 @@
 //! - `set_parameter_option` — string option value → `ParameterValue::String`
 //! - `set_parameter_file`   — file path (as string) → `ParameterValue::String`
 //!
-//! Only `Core` and `Nam` block kinds carry a `ParameterSet`; the other kinds
-//! (`Input`, `Output`, `Insert`, `Select`) do not expose editable parameters
-//! through these commands.
+//! Only `Core`, `Nam` and `Split` (#328: the split and mixer knobs) carry a
+//! `ParameterSet` (see [`super::block_params`]); `Input`, `Output`, `Insert`
+//! and `Select` expose no editable parameters through these commands.
 
 use anyhow::{anyhow, Result};
 use domain::value_objects::ParameterValue;
 
+use super::block_params::block_params_mut;
+use super::split_params::check_split_knob;
 use super::types::{AudioBlock, AudioBlockKind};
 
 /// Write `value` (f64 → stored as `ParameterValue::Float`) to the parameter
@@ -36,8 +38,10 @@ pub fn set_parameter_number(block: &mut AudioBlock, path: &str, value: f64) -> R
     // `block_parameter_items_for_model`), so accepting an insert here
     // is safe; rejection just enforced "must have been written before"
     // which prevents introducing newly-exposed parameters.
+    let value = ParameterValue::Float(value as f32);
+    refuse_invalid_split_knob(block, path, &value)?;
     let params = params_mut(block)?;
-    params.insert(path, ParameterValue::Float(value as f32));
+    params.insert(path, value);
     Ok(())
 }
 
@@ -96,6 +100,7 @@ pub fn set_parameter_text(block: &mut AudioBlock, path: &str, value: &str) -> Re
 /// - If the block kind does not carry a `ParameterSet`.
 /// - If the path does not exist in the block's current `ParameterSet`.
 pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> Result<()> {
+    refuse_invalid_split_knob(block, path, &ParameterValue::String(value.to_string()))?;
     let params = params_mut(block)?;
     if !params.values.contains_key(path) {
         return Err(anyhow!(
@@ -108,17 +113,25 @@ pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> 
     Ok(())
 }
 
+/// #328: a split knob is checked against the split schema before it is stored.
+fn refuse_invalid_split_knob(block: &AudioBlock, path: &str, value: &ParameterValue) -> Result<()> {
+    let AudioBlockKind::Split(split) = &block.kind else {
+        return Ok(());
+    };
+    check_split_knob(path, value.clone(), split.paths.len())
+        .map_err(|e| anyhow!("invalid value for split '{}': {e}", block.id.0))
+}
+
 /// Return a mutable reference to the `ParameterSet` of `block`, or an error
 /// if the block kind does not carry one.
 fn params_mut(block: &mut AudioBlock) -> Result<&mut block_core::param::ParameterSet> {
-    match &mut block.kind {
-        AudioBlockKind::Core(core) => Ok(&mut core.params),
-        AudioBlockKind::Nam(nam) => Ok(&mut nam.params),
-        other => Err(anyhow!(
+    let label = block.kind.label();
+    block_params_mut(&mut block.kind).ok_or_else(|| {
+        anyhow!(
             "block kind '{}' does not carry an editable ParameterSet",
-            other.label()
-        )),
-    }
+            label
+        )
+    })
 }
 
 // ── unit tests ────────────────────────────────────────────────────────────────

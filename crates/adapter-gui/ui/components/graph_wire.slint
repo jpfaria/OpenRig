@@ -1,0 +1,48 @@
+// Responsibility: draws one wire of the graph view.
+// Bezier wire between two viewport-space points. Drawn behind the nodes.
+//
+// The Path fills the whole canvas and declares its viewbox in canvas
+// pixels so MoveTo/CubicTo can use absolute coordinates. Without a
+// viewbox, Slint normalises the path commands to the Path's own bbox,
+// which collapses every wire to the same screen-space rectangle — the
+// reason the earlier version drew all edges converging in one point.
+export component GraphWire inherits Path {
+    in property <length> from_x;
+    in property <length> from_y;
+    in property <length> to_x;
+    in property <length> to_y;
+    in property <length> canvas_width;
+    in property <length> canvas_height;
+    in property <color> stroke_color: #8aaac8;
+    in property <length> stroke_thickness: 2px;
+
+    x: 0px;
+    y: 0px;
+    width: root.canvas_width;
+    height: root.canvas_height;
+    viewbox-x: 0;
+    viewbox-y: 0;
+    viewbox-width: root.canvas_width / 1px;
+    viewbox-height: root.canvas_height / 1px;
+
+    stroke: root.stroke_color;
+    stroke-width: root.stroke_thickness;
+    fill: transparent;
+
+    // Horizontal-S bezier — control points offset by half the
+    // horizontal distance keeps wires readable even with vertical
+    // separation between parallel paths.
+    MoveTo {
+        x: root.from_x / 1px;
+        y: root.from_y / 1px;
+    }
+
+    CubicTo {
+        control-1-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
+        control-1-y: root.from_y / 1px;
+        control-2-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
+        control-2-y: root.to_y / 1px;
+        x: root.to_x / 1px;
+        y: root.to_y / 1px;
+    }
+}

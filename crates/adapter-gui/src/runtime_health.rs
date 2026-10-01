@@ -75,6 +75,24 @@ impl RuntimeControl for PollingRuntimeControl {
         let project = session.project.borrow();
         controller.try_reconnect(&project)
     }
+
+    /// #979: switch one chain off and on against the project open NOW. The
+    /// restart is not a fix: it leaves a mark of what the input and the
+    /// device were before the streams that saw the fault are gone.
+    fn restart_chain_streams(&self, chain_id: &str) -> Result<bool> {
+        let mut runtime = self.runtime.borrow_mut();
+        let Some(controller) = runtime.as_mut() else {
+            return Ok(false);
+        };
+        let session = self.session.borrow();
+        let Some(session) = session.as_ref() else {
+            return Ok(false);
+        };
+        let project = session.project.borrow();
+        let chain_id = domain::ids::ChainId(chain_id.to_string());
+        crate::stepped_input_mark::leave_mark(controller.stepped_input_evidence(&chain_id));
+        controller.restart_chain_streams(&project, &chain_id)
+    }
 }
 
 /// Build the poll tick's write seam over the app's shared handles. Called by

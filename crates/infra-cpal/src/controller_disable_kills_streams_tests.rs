@@ -27,6 +27,7 @@ fn chain(id: &str, enabled: bool) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -203,4 +204,58 @@ fn the_index_counts_streams_and_builds_per_chain() {
 
     assert_eq!(index.forget(&a).map(|o| o.output_streams), Some(2));
     assert!(index.owned(&a).is_none());
+}
+
+/// #328 — unchecking every output of a chain leaves it nothing to play. The
+/// controller must take it down like a switch-off (#929), not fail the edit
+/// trying to open devices for a chain with no output.
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn unchecking_every_output_takes_the_chain_down_like_a_switch_off() {
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+    let chain_id = ChainId("rig:input-5".into());
+    let (mut controller, _runtime) = controller_with_open_streams(&chain_id);
+    controller.io_bindings = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![IoEndpoint {
+            name: "in".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
+    let mut silenced = chain(&chain_id.0, true);
+    silenced.io_binding_ids = vec!["main".into()];
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(
+        &EndpointNode::Output,
+        EndpointRef {
+            io: "main".into(),
+            endpoint: "out".into(),
+        },
+        false,
+    );
+    silenced.disabled_endpoints = disabled_endpoints;
+
+    let result = controller.upsert_chain(&project(), &silenced);
+
+    assert!(
+        result.is_ok(),
+        "#328: a chain with every output unchecked is off, not an error — got {result:?}"
+    );
+    assert!(
+        !controller.active_chains.contains_key(&chain_id),
+        "#328: its streams die like a switch-off (#929)"
+    );
+    assert!(controller.streams.owned(&chain_id).is_none());
 }

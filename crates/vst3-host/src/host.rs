@@ -222,6 +222,11 @@ pub struct Vst3Inner {
     /// Internal block size.
     block_size: usize,
 
+    /// The processing latency the plugin declared (`getLatencySamples`),
+    /// read once at load so nothing asks the plugin again on the audio
+    /// thread (#328).
+    latency_samples: u32,
+
     /// The host context passed to `initialize`; kept alive so the plugin can
     /// hold a reference to it for its whole lifetime.
     _host_app: ComWrapper<HostApplication>,
@@ -372,6 +377,11 @@ impl Vst3Plugin {
     /// Get a parameter's current normalized value (0.0..=1.0).
     pub fn get_param(&self, id: u32) -> f64 {
         unsafe { self.controller.getParamNormalized(id) }
+    }
+
+    /// Processing latency the plugin declared at load, in samples (#328).
+    pub fn latency_samples(&self) -> usize {
+        self.latency_samples as usize
     }
 
     /// Get parameter metadata at the given index.
