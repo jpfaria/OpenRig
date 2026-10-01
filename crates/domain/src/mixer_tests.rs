@@ -54,6 +54,13 @@ fn strip_id_parse_rejects_garbage() {
 }
 
 #[test]
+fn strip_id_without_a_device_does_not_parse() {
+    // A strip addresses ONE device endpoint: no device, no strip.
+    assert_eq!(MixerStripId::parse("in:0@"), None);
+    assert_eq!(MixerStripId::parse("out:0,1@"), None);
+}
+
+#[test]
 fn mono_input_with_several_channels_reaches_every_split_pipeline() {
     let id = MixerStripId {
         direction: MixerDirection::Input,

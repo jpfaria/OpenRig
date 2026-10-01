@@ -35,6 +35,11 @@ pub struct ParameterSpec {
     pub default_value: Option<ParameterValue>,
     pub optional: bool,
     pub allow_empty: bool,
+    /// The text to show for each step of a stepped numeric control, from `min`
+    /// in `step` increments (e.g. a VST3 plugin's own `2.5 s`); empty when the
+    /// control shows its number (#1011).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub value_labels: Vec<String>,
 }
 
 /// The block-instance context every parameter of one model shares when it is
@@ -112,7 +117,14 @@ impl ParameterSpec {
             current_value,
             optional: self.optional,
             allow_empty: self.allow_empty,
+            value_labels: self.value_labels.clone(),
         }
+    }
+
+    /// This spec with one display label per step (see `value_labels`).
+    pub fn with_value_labels(mut self, labels: Vec<String>) -> Self {
+        self.value_labels = labels;
+        self
     }
 }
 

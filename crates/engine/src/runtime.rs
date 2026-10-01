@@ -265,6 +265,13 @@ pub fn process_input_f32_patient(
     if let Some(segments) = input_to_segments.get(input_index) {
         scratch.segment_indices.extend(segments.iter().copied());
     }
+    crate::runtime_input_seams::watch_input_seams(
+        runtime,
+        input_states,
+        &scratch.segment_indices,
+        data,
+        input_total_channels,
+    );
 
     // Process each segment, mixing into scratch.mixed_per_route.
     //

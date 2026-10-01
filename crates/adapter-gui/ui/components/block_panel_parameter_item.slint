@@ -298,6 +298,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         min-val: root.param.numeric_min;
         max-val: root.param.numeric_max;
         step: root.param.numeric_step;
+        value-labels: root.param.option_labels;
         path: root.param.path;
         changed(p, v) => { root.update-number(p, v); }
     }

@@ -27,6 +27,7 @@ mod elastic_skip_fade;
 mod endpoint_entry;
 mod endpoint_fader;
 mod input_conflicts;
+pub mod input_seam_detector;
 pub mod input_tap;
 pub mod insert_cut;
 mod insert_endpoints;
@@ -37,6 +38,9 @@ mod issue_85_stream_per_pair_tests;
 #[cfg(test)]
 #[path = "issue_928_two_bindings_one_tap_pairing_tests.rs"]
 mod issue_928_two_bindings_one_tap_pairing_tests;
+#[cfg(test)]
+#[path = "issue_979_input_seam_runtime_tests.rs"]
+mod issue_979_input_seam_runtime_tests;
 pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
@@ -73,6 +77,7 @@ mod runtime_graph_assemble;
 mod runtime_graph_impl;
 mod runtime_graph_prebuild;
 mod runtime_graph_update;
+mod runtime_input_seams;
 pub mod runtime_io;
 pub mod runtime_layout;
 pub mod runtime_load;

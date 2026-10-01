@@ -137,3 +137,7 @@ pub fn persist_recent_projects(config_path: Option<PathBuf>, from: &AppConfig) {
         }
     });
 }
+
+#[cfg(test)]
+#[path = "app_config_persist_mixer_tests.rs"]
+mod mixer_tests;

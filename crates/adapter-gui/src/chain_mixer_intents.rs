@@ -61,3 +61,7 @@ pub(crate) fn wire_chain_mixer_intents(bridge: &ChainMixerBridge, chain: ChainOf
     bridge.on_single_fader_moved(move |id, position| s(&id, db_from_position(position)));
     bridge.on_single_fader_reset(move |id| single(&id, 0.0));
 }
+
+#[cfg(test)]
+#[path = "chain_mixer_intents_tests.rs"]
+mod tests;

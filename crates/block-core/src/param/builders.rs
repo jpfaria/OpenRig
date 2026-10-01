@@ -36,6 +36,7 @@ pub fn float_parameter(
         default_value: default_value.map(ParameterValue::Float),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -55,6 +56,7 @@ pub fn bool_parameter(
         default_value: default_value.map(ParameterValue::Bool),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -82,6 +84,7 @@ pub fn file_path_parameter(
         default_value,
         optional,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -110,6 +113,7 @@ pub fn enum_parameter(
         default_value: default_value.map(|value| ParameterValue::String(value.to_string())),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -130,6 +134,7 @@ pub fn text_parameter(
         default_value: default_value.map(|value| ParameterValue::String(value.to_string())),
         optional,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -154,6 +159,7 @@ pub fn multi_slider_parameter(
         default_value: default_value.map(ParameterValue::Float),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }
 
@@ -179,5 +185,6 @@ pub fn curve_editor_parameter(
         default_value: default_value.map(ParameterValue::Float),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     }
 }

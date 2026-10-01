@@ -36,6 +36,8 @@ pub mod split_param_renumber;
 pub mod split_params;
 pub mod types;
 pub mod vst3_model_id;
+mod vst3_param_filter;
+mod vst3_param_label;
 pub mod vst3_schema;
 pub mod y_leaves;
 

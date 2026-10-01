@@ -37,3 +37,7 @@ pub(crate) fn wire_strip_intents(bridge: &MixerBridge, dispatch: Rc<dyn Fn(Mixer
         });
     });
 }
+
+#[cfg(test)]
+#[path = "mixer_strip_intents_tests.rs"]
+mod tests;
