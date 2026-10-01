@@ -151,7 +151,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. 
 1. Adicionar a `chave` ao `crates/adapter-gui/translations/adapter-gui.pot`.
 2. Adicionar `msgid "chave"` + `msgstr "..."` traduzido em **TODOS** os locales: `crates/adapter-gui/translations/<locale>/LC_MESSAGES/adapter-gui.po` (de_DE, en_US, es_ES, fr_FR, hi_IN, ja_JP, ko_KR, pt_BR, zh_CN — confirmar a lista com `ls translations/`).
 3. Recompilar os `.mo` (o `build.rs` gera de `.po`; rodar o build/`validate.sh` confirma).
-4. **Nunca** deixar `msgstr ""` numa chave nova — `.mo` vazio = a UI mostra a **tag crua** (`btn-load-preset` em vez de "Carregar preset"). Foi exatamente o bug do overlay de presets (#479): chave nova sem catálogo → tela "só com as tags".
+4. **Nunca** deixar `msgstr ""` numa chave nova — `.mo` vazio = a UI mostra a **tag crua** (`btn-load-preset` em vez de "Carregar preset"): chave nova sem catálogo → tela "só com as tags".
 
 **Por que:** sem isso a tela sai com as chaves cruas pra todo usuário não-inglês (ou todos). Não dá pra "traduzir depois" — vai pra produção quebrado. Validação: `grep -L 'msgid "chave"' translations/*/LC_MESSAGES/adapter-gui.po` deve ser vazio.
 
@@ -163,7 +163,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. 
 
 1. `every_tr_key_has_translation_in_en_pt_es` — varre todo `.slint` em `crates/adapter-gui/ui/`, extrai cada `@tr("…")` (decodificando `\u{NNNN}` e `\"`), e exige `msgstr` não-vazio em pt_BR + es_ES. RED automático se alguém adiciona `@tr` sem traduzir.
 2. `no_raw_text_literals_in_settings_slint` — varre o escopo da tela de Settings, falha se `text:` aponta pra string literal não-`@tr()`. Expandir o escopo desse teste antes de adicionar `text: "x"` em qualquer .slint.
-3. `settings_screen_tr_keys_are_translated_in_pt_br` — guarda específico da tela #513.
+3. `settings_screen_tr_keys_are_translated_in_pt_br` — guarda específico da tela de Settings.
 
 Os testes rodam em `cargo test -p adapter-gui --lib`. CI bloqueia regressão.
 
@@ -178,7 +178,7 @@ Os testes rodam em `cargo test -p adapter-gui --lib`. CI bloqueia regressão.
 3. **MCP** (`adapter-mcp`) ganha a tool **automaticamente** (schema auto-derivado de `Command` via `application::command_schema`). Não há passo manual — mas o teste de paridade (`tool count == command_variant_names().len()`) **tem** que continuar verde.
 4. **gRPC** (`adapter-server`, quando existir): mesma variante, idem.
 
-Funcionalidade que existe num frontend mas **não** é `Command` = **gap do command bus**, não "feature do frontend". Fechar o gap adicionando a variante (ex.: `SetLanguage` foi exatamente isso — idioma era derivado de env, nunca settável; #165 fechou). Consistente com #295 ("um `Command` por operação de usuário") e com `[[feedback_backend_transport_agnostic]]`.
+Funcionalidade que existe num frontend mas **não** é `Command` = **gap do command bus**, não "feature do frontend". Fechar o gap adicionando a variante (ex.: `SetLanguage` — idioma era derivado de env, nunca settável). Um `Command` por operação de usuário; consistente com `[[feedback_backend_transport_agnostic]]`.
 
 **Why:** o core vai virar gRPC + MCP + remoto. Se a operação só existe na GUI, o agente (MCP) e o cliente remoto (gRPC) ficam cegos pra ela — a "mão do agente" não alcança o que a "mão do usuário" alcança. Paridade não é opcional; é o contrato da arquitetura de adapters.
 
@@ -265,7 +265,7 @@ exceção pra "é só visual".
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
 2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
-3. **Do NOT run the full suite locally** (`cargo test --workspace`, `./scripts/patch-coverage.sh`): the PR's CI runs the tests and Codecov (owner decision, #827). Locally, cargo runs only in the two red-first rounds (all tests → one RED round → implement everything → one GREEN round, targeted tests only; `docs/testing.md`, #1018), then `cargo fmt --all -- --check` + the static `validate.sh` and ONE commit at the end. No cargo and no commit per step; CI compiles and tests the workspace.
+3. **Do NOT run the full suite locally** (`cargo test --workspace`, `./scripts/patch-coverage.sh`): the PR's CI runs the tests and Codecov. Locally, cargo runs only in the two red-first rounds (all tests → one RED round → implement everything → one GREEN round, targeted tests only; `docs/testing.md`), then `cargo fmt --all -- --check` + the static `validate.sh` and ONE commit at the end. No cargo and no commit per step; CI compiles and tests the workspace.
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
 6. **Quality gate compartilhado** — NÃO rodar localmente. Em Rust o gate compila o workspace duas vezes (base + branch) e é inviável na máquina do dev; ele roda no CI, no job `quality-gate` do `.github/workflows/pr.yml`, quando o PR abre. O veredito verde/vermelho vem de lá.
@@ -283,7 +283,7 @@ Não inverter:
 - PR antes do gate = CI falha e abre sticky comment no PR.
 - Gate antes do push = bloqueia o usuário de testar enquanto roda (gate demora ~25min).
 
-**Cobertura do patch reprova o PR mesmo com tudo verde.** O alvo é a cobertura da base (hoje ~65%), e um PR de release acumula o diff de todos os merges do ciclo — foi assim que a v0.4.0 reprovou duas vezes com build limpo e 363 suites verdes. O que puxa para baixo é sempre a mesma coisa: arquivo novo com lógica de verdade e nenhum teste. Cobrir o que é **puro** (projeções, resolvers, parsers) paga rápido; wiring de janela e construção de stream não são cobríveis hoje e viram decisão explícita (seam ou exclusão escrita), nunca dívida silenciosa — escopo em #913.
+**Cobertura do patch reprova o PR mesmo com tudo verde.** O alvo é a cobertura da base (hoje ~65%), e um PR de release acumula o diff de todos os merges do ciclo. O que puxa para baixo é sempre a mesma coisa: arquivo novo com lógica de verdade e nenhum teste. Cobrir o que é **puro** (projeções, resolvers, parsers) paga rápido; wiring de janela e construção de stream não são cobríveis hoje e viram decisão explícita (seam ou exclusão escrita), nunca dívida silenciosa.
 
 **Foco desta skill (não do gate):** invariantes de áudio, decisões de arquitetura OpenRig (Command/Query/i18n), qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns brand/model. Métrica mecânica (fmt/lint/build/test/complexity/coverage) é a skill `quality-gate`.
 
@@ -308,7 +308,7 @@ Não inverter:
 
 **Vai adicionar responsabilidade nova num arquivo existente? PARA.** O destino é arquivo novo. `lib.rs`/`mod.rs` é roteador fino (< 100 LOC, só re-export e delegação).
 
-**Why:** pedido em #194, #276 e #793 — voltou as três vezes. A única checagem era contagem de linha contra um allowlist congelado, então "só mais um handler aqui" crescia pra sempre: `controller.rs` chegou a 1051 com 5 responsabilidades, `desktop_app.rs` a 964 numa única `fn` — e cresceu 947→964 **depois** do congelamento de #793, com o gate verde. Contagem de linha nunca proibiu a segunda responsabilidade; só reclamou tarde.
+**Why:** contagem de linha contra um allowlist congelado deixa "só mais um handler aqui" crescer pra sempre, com o gate verde. Contagem de linha nunca proibiu a segunda responsabilidade; só reclamou tarde.
 
 ### Rationalizations — todas significam PARA e divide
 
@@ -316,12 +316,12 @@ Não inverter:
 |---|---|
 | "É só mais uma fn, o arquivo tá no cap" | O cap não é a regra. Responsabilidade nova = arquivo novo, mesmo com 50 linhas. |
 | "É wiring, wiring é junto por natureza" | Wiring de UMA feature por arquivo (`*_wiring.rs`). `desktop_app.rs` é exatamente essa desculpa acumulada. |
-| "Divido depois, num PR de refactor" | Foi o que #194, #276 e #793 disseram. Divida ANTES de crescer — o split é barato agora e impossível depois. |
+| "Divido depois, num PR de refactor" | O depois não chega. Divida ANTES de crescer — o split é barato agora e impossível depois. |
 | "São coisas relacionadas" | Relacionadas ≠ mesma responsabilidade. Rebuild e health check se relacionam; mudam por motivos diferentes. |
 | "O gate deixou passar" | Warning de legado não é permissão. Tocou o arquivo, declara a responsabilidade dele. |
 | "Declarar no header é burocracia" | É o único jeito da máquina checar intenção. Não consegue escrever a frase = você não sabe o que o arquivo faz. |
 
-### Ratchet do débito (#873) — `DEBT_FILES` em `scripts/validate.sh`
+### Ratchet do débito — `DEBT_FILES` em `scripts/validate.sh`
 
 Cada entrada é `<path> <LOC de referência>`. A lista **só encolhe**:
 
@@ -336,10 +336,10 @@ Nunca acrescente arquivo à lista. Vendored (`*/modules/*`) é excluído; teste 
 
 **Guard em tempo de edição:** o `line-cap-guard` do plugin dev-rules NEGA Edit/Write que cresça arquivo acima do cap (edit que encolhe passa — o split nunca se auto-bloqueia). Caps vêm do `.dev-rules.json` do repo (`line_caps`), mesma fonte do `validate.sh`.
 
-**CI (#793) — o gate PRECISA poder reprovar:**
+**CI — o gate PRECISA poder reprovar:**
 - `.github/workflows/test.yml` roda `cargo test --workspace` em PR/push pra develop **sem `|| true`** — teste vermelho reprova o job. Cobertura (llvm-cov/codecov) continua non-blocking de propósito — é relatório, não gate.
 - `scripts/validate.sh` roda no **repo inteiro** no CI (`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates` — só os checks estáticos: responsabilidade + tamanho + inline-test; fmt/clippy/slint são do gate compartilhado).
-- Inventário atual dos god files e o plano de split: issue **#873**.
+- Inventário atual dos god files e o plano de split: `docs/development/file-organization.md`.
 
 ---
 
@@ -348,8 +348,8 @@ Nunca acrescente arquivo à lista. Vendored (`*/modules/*`) é excluído; teste 
 > RED-first TDD = `dev-rules` LAW 1. "No skipped tests to go green" = `dev-rules` LAW 5. Esta seção é o **plano concreto OpenRig**:
 
 - Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`).
-- **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/` em #413). Test passa SEMPRE.
-- **Teste que precisa da árvore de captura PRIVADA do dono** (a lib real NAM/IR/LV2, grande demais pra bundlar): resolve o root por `OPENRIG_OWNER_PLUGINS` **ou** subindo do `CARGO_MANIFEST_DIR` até achar um sibling `OpenRig-plugins/plugins/source` (walk-up robusto a qualquer profundidade — main checkout ou `.solvers/`), e faz **skip alto** (`eprintln!` + `return`) quando `None`. Rig real do dono = opt-in por `OPENRIG_OWNER_PROJECT`. **PROIBIDO** path absoluto `/Users/<nome>/…` e **PROIBIDO** ler o `~/.openrig/project.yaml` ao vivo (muda de resultado quando o dono edita o rig; hard-fail em qualquer outra máquina). No CI (sem a árvore) o teste pula, nunca reprova (#793). Isto complementa a regra do fixture: fixture pra asset pequeno; env-var+skip pra árvore grande do dono.
+- **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/`). Test passa SEMPRE.
+- **Teste que precisa da árvore de captura PRIVADA do dono** (a lib real NAM/IR/LV2, grande demais pra bundlar): resolve o root por `OPENRIG_OWNER_PLUGINS` **ou** subindo do `CARGO_MANIFEST_DIR` até achar um sibling `OpenRig-plugins/plugins/source` (walk-up robusto a qualquer profundidade — main checkout ou `.solvers/`), e faz **skip alto** (`eprintln!` + `return`) quando `None`. Rig real do dono = opt-in por `OPENRIG_OWNER_PROJECT`. **PROIBIDO** path absoluto `/Users/<nome>/…` e **PROIBIDO** ler o `~/.openrig/project.yaml` ao vivo (muda de resultado quando o dono edita o rig; hard-fail em qualquer outra máquina). No CI (sem a árvore) o teste pula, nunca reprova. Isto complementa a regra do fixture: fixture pra asset pequeno; env-var+skip pra árvore grande do dono.
 - **Registry tests**: iterar sobre TODOS os modelos via registry (schema, validate, build).
 - Helpers de teste no próprio módulo — sem crate de test-utils separado. Sem `mockall` ou frameworks de mock — testar código real.
 
@@ -363,9 +363,9 @@ Razões "razoáveis" que NÃO são exceção:
 |---|---|
 | "depende de asset externo (NAM, IR, LV2)" | Bundle fixture mínimo dentro de `tests/fixtures/`. ~1 MB é aceitável. |
 | "precisa --release pra timing" | Vire benchmark (`cargo bench`) ou aumente tolerância em debug. Não ignore. |
-| "pending issue #X — comportamento atual está errado" | Test asserta o SINTOMA ATUAL ou descreve a regressão; quebra quando fixar #X. Não ignore. |
+| "pending issue — comportamento atual está errado" | Test asserta o SINTOMA ATUAL ou descreve a regressão; quebra quando a issue for corrigida. Não ignore. |
 | "depende de FFI/dylib externo" | `build.rs` copia dylib pro `target/`; ou skip por plataforma com `#[cfg(target_os = "...")]`. Cfg-skip é OK; ignore não é. |
-| "paths absolutos da máquina do dev" | Asset pequeno: COPIE pro repo (`engine/tests/fixtures/`). Árvore grande do dono: `OPENRIG_OWNER_PLUGINS`/walk-up + skip alto (#793). NUNCA `/Users/<nome>/…` nem ler `~/.openrig/project.yaml` vivo. |
+| "paths absolutos da máquina do dev" | Asset pequeno: COPIE pro repo (`engine/tests/fixtures/`). Árvore grande do dono: `OPENRIG_OWNER_PLUGINS`/walk-up + skip alto. NUNCA `/Users/<nome>/…` nem ler `~/.openrig/project.yaml` vivo. |
 | "demora demais no CI" | Cobertura unitária equivalente + um path sample no integration. Não ignore. |
 
 Validação: `cargo test --workspace 2>&1 \| grep "ignored" \| grep -v "0 ignored"` deve retornar VAZIO. Qualquer `ignored > 0` é débito a fixar antes de merge.
@@ -472,8 +472,6 @@ Se dois testes exigem comportamentos incompatíveis e um deles é invariante **p
 - **NUNCA** chutar no audio path pra "fazer os dois passarem".
 - Reportar ao usuário em **1-2 frases**: qual o conflito, qual teste está obsoleto, e seguir com o que não depende do conflito.
 
-**Caso real (2026-05-15, #350 vs #400):** testes Fase-2 do #350 (`two_channel_mono_input_must_not_saturate/cancel`) assumiam split-mono **não soma**; `g02`/`g03` (pinados, #400) exigem split-mono dual **soma** (`[0.3,0.3]→0.6`, `[0.8,0.8]→tanh(1.6)`). Decisão posterior (#355/#400) tornou a soma o invariante correto → os 2 testes Fase-2 do #350 ficaram obsoletos. Resolução: manter os obsoletos `#[ignore]` com a razão do conflito documentada, seguir com a parte não afetada (multi-device, Fase 3). Não mexer em `g02`/`g03`.
-
 ---
 
 ## LEI — GUI sem regra de negócio. Estado → Command. SIMPLES.
@@ -483,10 +481,10 @@ Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
 - **Abrir/fechar tela/janela = regra de TELA.** Pode ficar na GUI.
 - **TODA ação que ALTERA ESTADO** (modelo, rig, projeto, config, persistência, runtime) **= regra de NEGÓCIO = obrigatoriamente um `Command`** despachado pro dispatcher. A GUI só despacha e renderiza — zero lógica.
 - `Command` é **domínio-puro**: nunca importa tipo de UI/Slint/view. Pode expressar intenção por chave/enum de domínio.
-- **PROIBIDO** auditar isso com script Python (heurística regex erra e mascara o trabalho — decidido 2026-05-18). Análise é **item a item**, callback por callback, **documentada na issue** (#436) como checklist a atacar. A verdade é a lista revisada na issue, não um número de script.
+- **PROIBIDO** auditar isso com script Python (heurística regex erra e mascara o trabalho). Análise é **item a item**, callback por callback, **documentada na issue** como checklist a atacar. A verdade é a lista revisada na issue, não um número de script.
 - Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
 
-**Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
+A regra é a frase acima, literal: não recategorizar ("navegação é tela", "idioma é tela") nem reabrir o debate.
 
 ---
 
@@ -496,12 +494,12 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 
 **Como instrumentar (RT-safe — invariante #8):**
 - **NUNCA** `eprintln!`/log no audio thread (`process_input_f32`/`process_output_f32`/`pop`/`push`). I/O no callback é proibido.
-- No audio thread: incrementar **átomo `Relaxed`** (contador de underrun/xrun/load), e **drenar/imprimir fora da thread** (timer da GUI, loader, wiring). Modelo: `ChainRuntimeState::record_callback_load`/`xrun_count`/`underrun_count` (#670).
-- Em loaders/wiring (fora do audio thread) um `eprintln!` temporário tagueado (`[#670-probe]`) é OK. OpenRig loga em **stderr** via `env_logger` (sem arquivo): rodar `cargo run … 2>/tmp/openrig.log` e `grep` a tag.
+- No audio thread: incrementar **átomo `Relaxed`** (contador de underrun/xrun/load), e **drenar/imprimir fora da thread** (timer da GUI, loader, wiring). Modelo: `ChainRuntimeState::record_callback_load`/`xrun_count`/`underrun_count`.
+- Em loaders/wiring (fora do audio thread) um `eprintln!` temporário tagueado (`[probe]`) é OK. OpenRig loga em **stderr** via `env_logger` (sem arquivo): rodar `cargo run … 2>/tmp/openrig.log` e `grep` a tag.
 - `openrig://*` (MCP) **não** expõe sample rate viva nem estado de runtime — serializa projeto/devices/meters. Pra valor em execução: instrumentar ou ler o stderr. **Nunca** afirmar um valor de runtime que você não observou.
-- Tag o diagnóstico, commit como `chore:` separado, e **reverter** quando a causa for confirmada (ou promover a contador permanente surfacado, como #670).
+- Tag o diagnóstico, commit como `chore:` separado, e **reverter** quando a causa for confirmada (ou promover a contador permanente surfacado, como `xrun_count`/`underrun_count`).
 
-**Why:** #669 (DI loop em câmera lenta) — chutei a causa 2× (engine_sr preso em 48000; depois "deve ser o device stream") e entreguei fix que não resolveu, porque raciocinei sobre o estado em vez de observá-lo. Um `eprintln!` de `file_sr/engine_sr/out_frames` mostrou na hora que o loop foi construído a 48000 e **nunca reconstruído** quando o device foi pra 44.1k. Dois fixes errados vs uma linha de log. Padrão recorrente nesta própria sessão (#670): teorizei "rig pesado demais / NAM domina / chains competindo" com base na mediana, até o usuário cravar "single chain em 64 também" — ~18% de CPU não craqueia, é underrun/stall, e só instrumentando dá pra ver.
+**Why:** raciocinar sobre o estado em vez de observá-lo produz fix que não resolve; uma linha de log com os valores reais crava a causa na primeira rodada. Hipótese de custo (rig pesado, NAM domina, chains competindo) tirada da mediana engana: CPU baixa não craqueia — é underrun/stall, e só instrumentando dá pra ver.
 
 **How to apply (extra):** bug de resampling ligado a uma config (rate/buffer) → checar se o buffer **já carregado** é reconstruído na mudança, não só os loads novos. O "stall intermitente" num único stream leve aponta pro **decoupling input↔output** (elastic buffer), não pra custo de DSP.
 
@@ -513,7 +511,11 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 ```
 **Padrão:** 1 hipótese falhou → contador atômico + dump off-thread tagueado → usuário roda em 64 → observa underruns vs xruns → causa cravada → teste que reproduz → fix.
 
-**LEI dentro da LEI — PROVE com teste ANTES de anunciar a descoberta.** Ler o código e dizer "achei o bug, é X" é HIPÓTESE, não prova — e atrapalha/queima credibilidade quando está errado. Antes de afirmar que descobriu a causa: escreva um teste DETERMINÍSTICO que demonstra o defeito (ex.: #670 — em vez de "o worker LV2 roda inline", escrevi um teste que agenda trabalho do worker e checa em qual thread roda; ele FALHOU = provado). E "provei que o defeito X existe" ≠ "provei que X causa a craquejada DO USUÁRIO" — se a medição aponta pra outro bloco/sintoma, diga isso; não conflate um bug real achado de passagem com a causa que o usuário está perseguindo. Caso real #670: provei o worker LV2 inline, mas o stall medido era no NAM (off-CPU) — bugs diferentes; anunciar o worker como "a causa" teria sido errado.
+**If the symptom is happening RIGHT NOW, capture before you think.** An intermittent bug gives one chance per occurrence. When the owner says "tá acontecendo" / "continua o problema", the very first action is a capture of the broken state while it lasts — `tools/rec` on the HD 8 inputs, `openrig://routes` + `meters`, `sample <pid>` — in one parallel batch, before any analysis, issue or answer. Better: start a rolling recorder plus a 0.5 s MCP poller (one that survives MCP timeouts) as soon as an intermittent bug is first reported, so the window is already being recorded.
+
+**A symptom on the owner's machine can come from another agent session.** Several solver sessions run test suites on the same machine all day, and a test that touches per-machine state (`config.yaml`, presets) with env-based isolation can leak across an async boundary and overwrite his real files — the symptom then looks like an app bug. Before blaming a `develop` regression: read the real config (fixture-looking ids such as `new_dev`, `dev_a`, `dev_b` are the smoking gun), compare its mtime with `ps aux | grep cargo` — including hung test *binaries* that swapped `$HOME` to a FIFO and never exited — hash the file, run the suspected tests, re-hash, and restore his file from the snapshot immediately with a backup kept aside. Config writes bind the path at DISPATCH time via `application::app_config_persist::{persist_app_config, persist_app_config_snapshot}` (plus the `*_at(path)` variants in `crates/infra-filesystem/src/app_config_io.rs`), and `with_tmp_home` flushes the worker before restoring `$HOME`: any NEW config write site goes through `app_config_persist`, never `persist_worker::run(|| save_app_config(...))`.
+
+**LEI dentro da LEI — PROVE com teste ANTES de anunciar a descoberta.** Ler o código e dizer "achei o bug, é X" é HIPÓTESE, não prova — e atrapalha/queima credibilidade quando está errado. Antes de afirmar que descobriu a causa: escreva um teste DETERMINÍSTICO que demonstra o defeito (ex.: em vez de "o worker LV2 roda inline", um teste que agenda trabalho do worker e checa em qual thread roda; ele FALHAR = provado). E "provei que o defeito X existe" ≠ "provei que X causa a craquejada DO USUÁRIO" — se a medição aponta pra outro bloco/sintoma, diga isso; não conflate um bug real achado de passagem com a causa que o usuário está perseguindo.
 
 ---
 
@@ -524,13 +526,11 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 **Why:** ouvido não é teste — não é determinístico, não deixa guarda de regressão, e empurra a obrigação do engenheiro pro usuário. Bug "confirmado de ouvido" volta calado.
 
 **How to apply (áudio / real-time / scheduling):** reduza o defeito a uma propriedade que um teste assere **sem hardware e sem ouvir**:
-- **Lógica pura:** `BudgetTracker` (#698 RT budget churn), math de bloco DSP, routing, mixdown → teste de unidade na função direto.
+- **Lógica pura:** `BudgetTracker` (RT budget churn), math de bloco DSP, routing, mixdown → teste de unidade na função direto.
 - **Propriedade de sinal** no buffer renderizado: NaN/Inf, clique (salto sample-a-sample > limite de banda), run de hard-clip, DC, nível → `engine/src/audio_signal_integrity_tests.rs`.
 - **Contadores/accounting:** asserir o invariante (ex.: overload TEM que incrementar um contador surfaced), não o som.
 - **Quando o dano é timing** (worker stall, late buffer), teste a LÓGICA que o dispara (ex.: o budget re-declarando em spike transitório de wall-clock), que é determinística, em vez da magnitude wall-clock flaky.
 - A bateria de hardware (`OPENRIG_HW_TESTS=1`) é pro AGENTE rodar e observar — nunca substitui a guarda determinística, nunca é julgada de ouvido pelo usuário.
-
-**Caso real (2026-06-17, estalo single-chain):** o usuário reproduz o estalo com UMA chain / UM input (não é custo de multi-chain — eu supus isso e errei). Numa Mac M4/16GB o DSP custa microssegundos: "load" de 1.5–9× o deadline é **scheduling**, não CPU. Observado (rc=0, promoção RT OK; worker preemptado 2-3ms mid-DSP; #698 re-declara a política RT 10-13×/25s reagindo a wall-clock inflado por preempção = churn). A/B (re-budget on/off) derrubou o pico de ~9× pra <1.6× → causa = churn do #698. Provado por **teste de unidade determinístico** no `BudgetTracker` (spike transitório NÃO pode re-declarar o budget), não de ouvido.
 
 ---
 
@@ -540,12 +540,12 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 
 **A fonte de verdade da taxa viva:**
 - `ProjectRuntimeController::sample_rate()` — a taxa que os streams realmente abriram (espelhada de `resolved.sample_rate`).
-- `LocalDispatcher::engine_sr()` — a mesma taxa, sincronizada via `attach_engine_sr` (caminho do #669).
+- `LocalDispatcher::engine_sr()` — a mesma taxa, sincronizada via `attach_engine_sr`.
 - `adapter_gui::sample_rate::resolve_input_sample_rate(project, device_id, live)` — helper único: setting salvo do device (autoritativo, o stream é forçado a ele ou falha) → senão a taxa viva. **Use este nos consumidores de análise (tuner/spectrum/latency).** NUNCA reimplemente a resolução com `unwrap_or(48_000)`.
 
-**A marreta quase nunca é um literal solto — é o FALLBACK.** O erro recorrente é `…device_settings…find(device)…map(|d| d.sample_rate).unwrap_or(48_000)`: quando o device não tem setting salvo, marreta 48000 enquanto o stream roda a 44.1k → tudo lê ~1.47 semitom acima (#723: E vira F; #669: loop de DI em câmera lenta). Variante igualmente errada: `.device_settings.iter().next()` (primeiro device) em vez do device DAQUELA chain/input.
+**A marreta quase nunca é um literal solto — é o FALLBACK.** O erro recorrente é `…device_settings…find(device)…map(|d| d.sample_rate).unwrap_or(48_000)`: quando o device não tem setting salvo, marreta 48000 enquanto o stream roda a 44.1k → tudo lê ~1.47 semitom acima (tuner: E vira F; loop de DI em câmera lenta). Variante igualmente errada: `.device_settings.iter().next()` (primeiro device) em vez do device DAQUELA chain/input.
 
-**Why:** taxa hardcoded é bug silencioso e dependente de hardware — passa na máquina do dev (48k), quebra na do usuário (44.1k). "Em macOS/Windows mudou o som" = regressão (red flag do CLAUDE.md). É a mesma doença que já mordeu tuner, spectrum, latency probe (#723) e o DI loop (#669).
+**Why:** taxa hardcoded é bug silencioso e dependente de hardware — passa na máquina do dev (48k), quebra na do usuário (44.1k). "Em macOS/Windows mudou o som" = regressão (red flag do CLAUDE.md). É a mesma doença que já mordeu tuner, spectrum, latency probe e o DI loop.
 
 **How to apply:** precisa de uma taxa? Pergunte "de onde vem a taxa VIVA deste stream?" — `controller.sample_rate()` / `dispatcher.engine_sr()` / `resolve_input_sample_rate`. Uma vez que existe stream, a taxa viva SEMPRE existe; "preciso de algum valor de fallback" é falso pra caminho vivo. Exceções legítimas (não são marreta): default pré-device sobrescrito na ativação (estado inicial do controller, init de catálogo VST3), defaults de render/CLI que o usuário sobrescreve, fallback Linux/JACK de device não-configurado atrás de `cfg`, e compensação de design que USA a variável real (`scale = sample_rate / 44_100.0`).
 
@@ -567,14 +567,14 @@ Bug de áudio/real-time cuja causa não salta da leitura do código: **após a P
 
 ## Audio runtime / DSP facts (hard-won — verify before touching these areas)
 
-- **`ChainRuntimeState` locks (#580):** the audio thread takes `processing.try_lock()` in `process_input_f32` and emits a SILENT buffer on failure. Any accessor the GUI calls repeatedly (meter timer at 30 Hz, spectrum, tuner) must NEVER take `processing.lock()` — mirror the value as an atomic (`AtomicUsize` etc.) updated at the rare write sites (`build_chain_runtime_state` + the rebuild path in `runtime_graph.rs`). Symptom of a violation is buffer-size dependent (32–64 glitches, 256+ absorbs); offline single-threaded tests pass while production clicks. Pinned by `crates/engine/src/stream_count_contention_tests.rs`.
-- **Cabinet IR = `crates/ir` (#617):** the CAB block is `block_ir` uniformly-partitioned FFT convolution, NOT the NAM C++ `dsp::ImpulseResponse` path. `ir::PARTITION_SIZE` must stay ≤ the smallest supported device buffer (64) or the per-partition FFT burst lands in one callback and xruns ("clips at 64, fine at 128"). Clamp `accum[0].im` and Nyquist `.im` to 0 before the inverse FFT (`realfft` panics on round-off there). The cold-start cushion is decoupled: `engine::IR_COLD_START_CUSHION_FRAMES`.
-- **NAM CAPI surface (#612):** the linked `libNeuralAudioCAPI` dylib exposes ONLY model load/inference + input-level adjustment. There is NO gate/EQ/tone-stack entry point — the NAM block's `noise_gate.*`/`eq.*` knobs have nothing to forward to, and reimplementing that DSP in Rust is forbidden (user decision, #612; a Rust expander was reverted in #496). Before forwarding any NAM param: `nm -gU libs/nam/<platform>/libNeuralAudioCAPI.dylib` and match an exported `Set*`.
+- **`ChainRuntimeState` locks:** the audio thread takes `processing.try_lock()` in `process_input_f32` and emits a SILENT buffer on failure. Any accessor the GUI calls repeatedly (meter timer at 30 Hz, spectrum, tuner) must NEVER take `processing.lock()` — mirror the value as an atomic (`AtomicUsize` etc.) updated at the rare write sites (`build_chain_runtime_state` + the rebuild path in `runtime_graph.rs`). Symptom of a violation is buffer-size dependent (32–64 glitches, 256+ absorbs); offline single-threaded tests pass while production clicks. Pinned by `crates/engine/src/stream_count_contention_tests.rs`.
+- **Cabinet IR = `crates/ir`:** the CAB block is `block_ir` uniformly-partitioned FFT convolution, NOT the NAM C++ `dsp::ImpulseResponse` path. `ir::PARTITION_SIZE` must stay ≤ the smallest supported device buffer (64) or the per-partition FFT burst lands in one callback and xruns ("clips at 64, fine at 128"). Clamp `accum[0].im` and Nyquist `.im` to 0 before the inverse FFT (`realfft` panics on round-off there). The cold-start cushion is decoupled: `engine::IR_COLD_START_CUSHION_FRAMES`.
+- **NAM CAPI surface:** the linked `libNeuralAudioCAPI` dylib exposes ONLY model load/inference + input-level adjustment. There is NO gate/EQ/tone-stack entry point — the NAM block's `noise_gate.*`/`eq.*` knobs have nothing to forward to, and reimplementing that DSP in Rust is forbidden (user decision). Before forwarding any NAM param: `nm -gU libs/nam/<platform>/libNeuralAudioCAPI.dylib` and match an exported `Set*`.
 - **Native blocks are pure-Rust DSP:** every `native_*` block compiles into the binary; `libs/lv2/` and the `build.rs` `plugin_binary_present()` check are vestigial. An absent `libs/` does not break natives — investigate the actual symptom instead.
-- **NAM captures live in `plugins_path` (#623):** debug "NAM silent/not working" against `paths.plugins_path` from `config.yaml` (the user's OpenRig-plugins checkout), not the bundled `asset-runtime/captures` (shipped A1-only — gives a false "no A2" read). A2/SlimmableContainer captures need core ≥ `9c7b185`; pre-fix they failed SILENT.
+- **NAM captures live in `plugins_path`:** debug "NAM silent/not working" against `paths.plugins_path` from `config.yaml` (the user's OpenRig-plugins checkout), not the bundled `asset-runtime/captures` (shipped A1-only — gives a false "no A2" read). A2/SlimmableContainer captures need core ≥ `9c7b185`; pre-fix they failed SILENT.
 
 ## GUI ↔ runtime wiring traps
 
-- **Two block-creation paths (#675):** `Command::AddBlock` → `block_factory::build_default_block`, AND the GUI block editor → builds the block itself → `Command::InsertPrebuiltBlock` (never calls `build_default_block`). Param/manifest seeding must go through `block_factory::default_params_for_model`, which BOTH paths call — fixing only `build_default_block` leaves GUI-added blocks broken. Seed into the user-visible knob (visible, editable, persisted), never a silent load-time default.
-- **Dispatch alone is dead (#614):** a `Command` targeting a `ChainRuntimeState` only records intent + emits an `Event`. The GUI callback must ALSO apply the runtime effect inline right after dispatch (mirror `wire_mute_inline` in `tuner_wiring.rs`). Always add an end-to-end test driving the callback path and asserting the runtime state flipped — applier-only unit tests hide the gap.
-- **"Doesn't resize / doesn't fit / not updating" UI bugs (#622):** the logic usually exists but a code path doesn't TRIGGER it (e.g. the model-picker path rebuilt params without calling `apply_panel_dimensions`). Reproduce in the running app first; when told "do the same as X", mirror X's trigger, don't reinvent the calculation. NAM amps use the PANEL editor, generic/VST3 the FORM editor (`use_panel_editor` in `catalog.rs`) — don't assume which. Pin GUI-wiring fixes with source-presence tests (`no_native_dialogs.rs` convention).
+- **Two block-creation paths:** `Command::AddBlock` → `block_factory::build_default_block`, AND the GUI block editor → builds the block itself → `Command::InsertPrebuiltBlock` (never calls `build_default_block`). Param/manifest seeding must go through `block_factory::default_params_for_model`, which BOTH paths call — fixing only `build_default_block` leaves GUI-added blocks broken. Seed into the user-visible knob (visible, editable, persisted), never a silent load-time default.
+- **Dispatch alone is dead:** a `Command` targeting a `ChainRuntimeState` only records intent + emits an `Event`. The GUI callback must ALSO apply the runtime effect inline right after dispatch (mirror `wire_mute_inline` in `tuner_wiring.rs`). Always add an end-to-end test driving the callback path and asserting the runtime state flipped — applier-only unit tests hide the gap.
+- **"Doesn't resize / doesn't fit / not updating" UI bugs:** the logic usually exists but a code path doesn't TRIGGER it (e.g. the model-picker path rebuilt params without calling `apply_panel_dimensions`). Reproduce in the running app first; when told "do the same as X", mirror X's trigger, don't reinvent the calculation. NAM amps use the PANEL editor, generic/VST3 the FORM editor (`use_panel_editor` in `catalog.rs`) — don't assume which. Pin GUI-wiring fixes with source-presence tests (`no_native_dialogs.rs` convention).
