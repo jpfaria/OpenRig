@@ -5,8 +5,10 @@
 //! is the mean |3rd difference| of the signal per position inside the buffer,
 //! folded over a 0.25 s window: a clean input reads max/median ≈ 1.0–1.3, the
 //! recorded broken In 1 reads 107–186. Four consecutive stepped windows (1 s)
-//! with signal present trip the detector; a window without signal holds the
-//! count, a clean window clears it, a buffer size change restarts it.
+//! with signal present trip the detector and four consecutive clean ones (1 s)
+//! clear the trip, so the verdict is what the input is now, never a stale
+//! latch; a window without signal holds both counts, a buffer size change
+//! restarts them.
 //!
 //! Real-time safe: `push` never allocates, locks or blocks.
 
@@ -27,6 +29,7 @@ pub struct InputSeamDetector {
     window_fed: usize,
     energy: f64,
     stepped_windows: u32,
+    clean_windows: u32,
     tripped: bool,
 }
 
@@ -42,29 +45,27 @@ impl InputSeamDetector {
             window_fed: 0,
             energy: 0.0,
             stepped_windows: 0,
+            clean_windows: 0,
             tripped: false,
         }
     }
 
     /// Feeds one received interleaved buffer and reads `channel` from it.
-    /// Returns true once the channel has been stepped long enough; the trip
-    /// stays latched until [`Self::reset`].
+    /// Returns true while the channel is stepped: from one second of stepped
+    /// input until one second of clean input.
     pub fn push(&mut self, data: &[f32], channels: usize, channel: usize) -> bool {
-        if self.tripped {
-            return true;
-        }
         if channels == 0 || channel >= channels {
-            return false;
+            return self.tripped;
         }
         let frames = data.len() / channels;
         if frames == 0 {
-            return false;
+            return self.tripped;
         }
         if frames != self.period {
             self.restart(frames);
         }
         if self.period > MAX_PERIOD {
-            return false;
+            return self.tripped;
         }
         for (phase, frame) in data.chunks_exact(channels).enumerate() {
             let x = frame[channel];
@@ -81,6 +82,10 @@ impl InputSeamDetector {
         if self.window_fed >= self.window_frames {
             self.close_window();
         }
+        self.tripped
+    }
+
+    pub fn is_tripped(&self) -> bool {
         self.tripped
     }
 
@@ -101,6 +106,7 @@ impl InputSeamDetector {
         self.window_fed = 0;
         self.energy = 0.0;
         self.stepped_windows = 0;
+        self.clean_windows = 0;
     }
 
     fn close_window(&mut self) {
@@ -108,11 +114,15 @@ impl InputSeamDetector {
         if mean_square >= SIGNAL_GATE {
             if self.window_is_stepped() {
                 self.stepped_windows += 1;
+                self.clean_windows = 0;
             } else {
                 self.stepped_windows = 0;
+                self.clean_windows += 1;
             }
             if self.stepped_windows >= TRIP_WINDOWS {
                 self.tripped = true;
+            } else if self.clean_windows >= TRIP_WINDOWS {
+                self.tripped = false;
             }
         }
         self.phase_sums[..self.period].fill(0.0);

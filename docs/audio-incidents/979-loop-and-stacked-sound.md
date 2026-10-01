@@ -206,11 +206,13 @@ device sits in the HD 8 path (the fractional jump).
   107–186; the clean takes read 1.1–1.3.
 - Detector (`engine/src/input_seam_detector.rs`): 0.25 s windows, a window
   counts only with signal above 1e-9, stepped when the ratio is above 5; four
-  stepped windows in a row (1 s) trip it, and it stays tripped. A buffer lost
-  to a busy lock is a `discontinuity()`, not a seam.
+  stepped windows in a row (1 s) trip it, four clean windows in a row clear
+  it (it does not latch: see the app test below). A window without signal
+  holds both counts. A buffer lost to a busy lock is a `discontinuity()`, not
+  a seam.
 - Engine (`runtime_input_seams.rs`): one detector per input channel of each
-  input runtime; a trip sets `ChainRuntimeState::input_stepped`. Only a
-  rebuilt runtime starts clear. No allocation on the audio thread.
+  input runtime; every callback stores into `ChainRuntimeState::input_stepped`
+  whether any of them is tripped now. No allocation on the audio thread.
 - Controller (`infra-cpal/src/controller_stepped_restart.rs`):
   `stepped_input_chains` lists the chains whose runtime tripped;
   `restart_chain_streams` does the toggle — `kill_chain_streams`, then the
@@ -223,6 +225,33 @@ device sits in the HD 8 path (the fractional jump).
 - Pinned by: `input_seam_detector` tests, `issue_979_input_seam_runtime_tests`,
   infra-cpal `issue_979_stepped_restart_tests` (×5), adapter-gui
   `stepped_input_tick` tests (×6).
+
+**Fix 2 in the app (2026-10-01, BlackHole 2ch, no HD 8).** Debug build of
+`bug/issue-979`, isolated config and project (recipe:
+`.claude/skills/openrig-tooling/SKILL.md` → "Opening the app yourself"), two
+chains on one BlackHole device at 48 kHz / 64 frames: `rig:in-a` reads ch 0,
+`rig:in-b` reads ch 1, preset volume 0 (BlackHole loops output to input). A
+Python feeder plays a 220 Hz sine on ch 0 (plus a 64-frame step pattern of
+0.05 when switched to "stepped") and a clean 330 Hz sine on ch 1.
+
+- Clean input: no restart; meters −20 dBFS on both chains.
+- Stepped on ch 0: `rig:in-a` restarted ~2 s after the switch
+  (`controller_stepped_restart: chain 'rig:in-a': input arrives stepped,
+  restarting its streams`), then every 30 s while it stayed stepped. The
+  meters kept reading after each restart (−16.5 dBFS). `rig:in-b` was never
+  restarted; its callbacks kept counting with 0 underruns.
+- **Defect found:** with the trip latched, a restart came 24 s after the input
+  was clean again — the flag still held the stepped verdict from before the
+  previous restart's wait. Fixed red-first: the trip clears after 1 s of clean
+  input (`a_trip_clears_after_one_second_of_clean_input`,
+  `the_mark_clears_once_the_input_is_clean_again`).
+- On the first enable, `rig:in-a` logged 64 underruns and one "audio
+  overload" warning, at startup only (debug build); not seen afterwards.
+- OPEN: during this test (03:33–03:37 local) the owner reported trouble on the
+  HD 8 in another OpenRig. Not measured. A second OpenRig process opens
+  CoreAudio and enumerates every device even when its chains use only
+  BlackHole; whether that disturbs an HD 8 session is unknown. Rule since then
+  (CLAUDE.md): an agent never opens OpenRig while another one is running.
 
 
 ## Shipped

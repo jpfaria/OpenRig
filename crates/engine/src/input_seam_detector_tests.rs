@@ -59,14 +59,43 @@ fn the_recorded_clean_input_never_trips() {
     assert_eq!(feed(&mut detector, &samples(CLEAN)), None);
 }
 
+/// Feeds `signal` in `BUFFER`-frame buffers and returns the last verdict.
+fn verdict_after(detector: &mut InputSeamDetector, signal: &[f32]) -> bool {
+    signal
+        .chunks_exact(BUFFER)
+        .fold(false, |_, chunk| detector.push(chunk, 1, 0))
+}
+
 #[test]
-fn a_trip_stays_latched_until_reset() {
+fn a_trip_holds_through_less_than_one_second_of_clean_input() {
     let mut detector = InputSeamDetector::new(RATE);
     feed(&mut detector, &samples(STEPPED)).expect("stepped input must trip");
-    let clean = samples(CLEAN);
-    assert!(detector.push(&clean[..BUFFER], 1, 0));
+    let part = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
+    assert!(
+        verdict_after(&mut detector, &samples(CLEAN)[..part]),
+        "0.75 s of clean input cleared the trip"
+    );
+}
+
+/// The app test of #979 (two chains on BlackHole): with the trip latched, a
+/// chain whose steps had already stopped was restarted 24 s later anyway. The
+/// verdict must say what the input is NOW.
+#[test]
+fn a_trip_clears_after_one_second_of_clean_input() {
+    let mut detector = InputSeamDetector::new(RATE);
+    feed(&mut detector, &samples(STEPPED)).expect("stepped input must trip");
+    assert!(
+        !verdict_after(&mut detector, &samples(CLEAN)),
+        "1.5 s of clean input left the trip standing"
+    );
+}
+
+#[test]
+fn reset_clears_a_trip() {
+    let mut detector = InputSeamDetector::new(RATE);
+    feed(&mut detector, &samples(STEPPED)).expect("stepped input must trip");
     detector.reset();
-    assert_eq!(feed(&mut detector, &clean), None);
+    assert_eq!(feed(&mut detector, &samples(CLEAN)), None);
 }
 
 #[test]

@@ -26,10 +26,16 @@ impl InputSeamWatch {
             skips_seen: 0,
         }
     }
+
+    fn is_stepped(&self) -> bool {
+        self.detectors.iter().any(InputSeamDetector::is_tripped)
+    }
 }
 
-/// Feeds one received device buffer to the pipelines it reaches and marks the
-/// runtime once any of them has been stepped long enough. Real-time safe.
+/// Feeds one received device buffer to the pipelines it reaches, then marks the
+/// runtime while any of its pipelines reads a stepped input — and unmarks it
+/// once none does, so a restart never acts on a seam that is gone. Real-time
+/// safe.
 pub(crate) fn watch_input_seams(
     runtime: &ChainRuntimeState,
     input_states: &mut [InputProcessingState],
@@ -37,9 +43,6 @@ pub(crate) fn watch_input_seams(
     data: &[f32],
     input_total_channels: usize,
 ) {
-    if runtime.input_stepped.load(Ordering::Relaxed) {
-        return;
-    }
     let skips = runtime.input_busy_skips.load(Ordering::Relaxed);
     for &seg_idx in segment_indices {
         let Some(InputProcessingState {
@@ -56,9 +59,11 @@ pub(crate) fn watch_input_seams(
             if lost_buffer {
                 detector.discontinuity();
             }
-            if detector.push(data, input_total_channels, channel) {
-                runtime.input_stepped.store(true, Ordering::Relaxed);
-            }
+            detector.push(data, input_total_channels, channel);
         }
     }
+    let stepped = input_states
+        .iter()
+        .any(|state| state.seam_watch.is_stepped());
+    runtime.input_stepped.store(stepped, Ordering::Relaxed);
 }

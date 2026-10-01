@@ -84,6 +84,18 @@ fn the_recorded_broken_input_marks_the_chain_that_reads_it() {
 }
 
 #[test]
+fn the_mark_clears_once_the_input_is_clean_again() {
+    let rt = runtime("rig:guitar", 0);
+    play(&rt, &samples(STEPPED), &samples(CLEAN));
+    assert!(rt.input_stepped(), "the broken In 1 did not mark its chain");
+    play(&rt, &samples(CLEAN), &samples(CLEAN));
+    assert!(
+        !rt.input_stepped(),
+        "a chain whose input is clean again stays marked and gets restarted on stale evidence"
+    );
+}
+
+#[test]
 fn a_clean_input_leaves_the_chain_unmarked() {
     let rt = runtime("rig:guitar", 0);
     play(&rt, &samples(CLEAN), &samples(CLEAN));
