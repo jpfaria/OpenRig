@@ -14,7 +14,9 @@ impl RigProject {
     /// 2. each input's `active_preset` must be a key in its own `bank`;
     /// 3. each input's `active_scene` ∈ `1..=8`;
     /// 4. no preset may contain an `Input`/`Output` block;
-    /// 5. every `routing` target must name an `outputs` entry.
+    /// 5. every `routing` target must name an `outputs` entry;
+    /// 6. a preset breaking the split rules of #328 (a Y ends its own list,
+    ///    processing-only paths, at every depth) is rejected.
     ///
     /// Device endpoints no longer live in the model (model A, #716), so any
     /// capture/output exclusivity is enforced by the engine at runtime
@@ -70,7 +72,8 @@ impl RigProject {
                     AudioBlockKind::Nam(_)
                     | AudioBlockKind::Core(_)
                     | AudioBlockKind::Select(_)
-                    | AudioBlockKind::Insert(_) => continue,
+                    | AudioBlockKind::Insert(_)
+                    | AudioBlockKind::Split(_) => continue,
                 };
                 if carriers
                     .iter()
@@ -84,6 +87,10 @@ impl RigProject {
                     ));
                 }
             }
+            // #328 (spec §10.1): a Y ends its own list and every path holds
+            // processing blocks only, checked at every depth.
+            crate::block::validate_split_layout(&preset.blocks)
+                .map_err(|e| format!("preset '{name}': {e}"))?;
             for (idx, scene) in &preset.scenes {
                 if !(1..=8).contains(idx) {
                     return Err(format!("preset '{name}' scene {idx} out of range 1..=8"));

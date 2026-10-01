@@ -1,5 +1,7 @@
 //! Responsibility: describes one segment of a chain.
 
+use project::block::PathRef;
+
 use crate::runtime_endpoints::InputEntry;
 
 /// An `Output` block sitting BETWEEN effect blocks (issue #85): it emits the
@@ -45,4 +47,19 @@ pub(crate) struct ChainSegment {
     /// physical device, while split-mono siblings (same raw entry) stay
     /// together so the pinned g02/g03 sum-before-limiter math holds.
     pub(crate) entry_group: usize,
+    /// #328: the Y leaves this segment runs — `SegmentPaths::None` unless
+    /// the chain holds a Y split and this segment reaches it.
+    pub(crate) paths: SegmentPaths,
+}
+
+/// Which Y leaves one segment runs (#328, spec §11.3). A segment writes one
+/// output, and that output's checklist decides the set; the builder shapes
+/// every Y into exactly the paths leading to those leaves.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SegmentPaths {
+    /// The chain has no Y split, or this segment ends before it: every path
+    /// plays.
+    None,
+    /// Only these Y leaves feed this segment's output — never empty.
+    Only(Vec<PathRef>),
 }

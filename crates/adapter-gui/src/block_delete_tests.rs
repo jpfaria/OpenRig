@@ -39,6 +39,7 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -67,6 +68,7 @@ fn draft(chain_index: usize, block_index: Option<usize>) -> BlockEditorDraft {
         model_id: "volume".into(),
         enabled: true,
         is_select: false,
+        path: None,
     }
 }
 

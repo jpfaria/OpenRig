@@ -46,6 +46,7 @@ fn registry() -> Vec<IoBinding> {
 
 fn chain(bindings: &[&str]) -> Chain {
     Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId("rig:input-1".into()),
         description: None,
         instrument: "electric_guitar".into(),

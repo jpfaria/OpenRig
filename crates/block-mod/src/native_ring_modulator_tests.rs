@@ -50,3 +50,29 @@ fn dry_mix_passes_input_through() {
         assert!((out - input).abs() < 1e-6, "mix=0 should be dry");
     }
 }
+
+/// #328: the ring modulator runs through the 2× oversampler, so its wet
+/// signal comes out one oversampler round trip late — and says so.
+#[test]
+fn reports_the_oversampler_round_trip_as_its_latency() {
+    let expected = Oversampler2x::new().round_trip_latency_samples();
+    let mono = RingModulator::new(220.0, 1.0, 48_000.0);
+    assert_eq!(mono.latency_samples(), expected, "mono ring modulator");
+
+    let mut params = ParameterSet::default();
+    params.insert(
+        "carrier_hz",
+        domain::value_objects::ParameterValue::Float(220.0),
+    );
+    params.insert("mix", domain::value_objects::ParameterValue::Float(100.0));
+    match build(&params, 48_000.0, block_core::AudioChannelLayout::Stereo)
+        .expect("stereo ring modulator builds")
+    {
+        block_core::BlockProcessor::Stereo(stereo) => {
+            assert_eq!(stereo.latency_samples(), expected, "stereo ring modulator")
+        }
+        block_core::BlockProcessor::Mono(_) => {
+            panic!("a stereo layout builds a stereo processor")
+        }
+    }
+}

@@ -64,12 +64,22 @@ use application::command_schema::command_variant_names;
 /// #827 bumped to 100 with `SaveChainLooperTake` — keeping a recorded loop as
 /// a named take in the app-wide library, so a headless client can save one
 /// and hand it to the DI exactly as the editor's Save button does.
+/// #328 bumped to 103 with `AddSplit`, `SetSplitEnd` and `RemoveSplit` —
+/// the chain split (Split → Mix, Y → A/B) created, switched and removed
+/// from any transport.
+/// #328 bumped to 104 with `SetChainEndpointEnabled` — the endpoint
+/// checklist of the chain graph's input/output nodes.
 /// #1007 bumped to 103 with `SetMixerFader`/`SetMixerMute`/`ToggleMixerMute`
 /// — the global mixer's per-endpoint fader and mute — then to 105 with
 /// `SetMixerSolo`/`ToggleMixerSolo`, the strip SOLO, then to 109 with a
 /// chain's own faders (`SetChainMixerFader`/`SetChainMixerMute`/
 /// `ToggleChainMixerMute`/`SetChainDiFader`).
-const COMMAND_VARIANT_COUNT: usize = 109;
+/// Both merged (#328 + #1007): 100 + 4 + 9.
+/// #328 §11 bumped to 115 with `AddSplitPath`/`RemoveSplitPath` — a split
+/// with any number of paths.
+/// #1021 bumped to 116 with `DeleteLooperTake` — removing a saved take from
+/// the library, so a headless client can prune it as the DI panel's trash does.
+const COMMAND_VARIANT_COUNT: usize = 116;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
@@ -167,4 +177,70 @@ fn build_command_is_command_from_variant_single_source() {
             "tool {tool}: MCP build_command diverged from the shared builder"
         );
     }
+}
+
+#[test]
+fn add_block_tool_keeps_the_split_path_and_defaults_to_the_top_level() {
+    let with_path = build_command(
+        "add_block",
+        serde_json::json!({
+            "chain": "rig:in", "kind": "gain", "model_id": "fuzz_ge", "position": 0,
+            "path": { "split": "s1", "side": "b" }
+        }),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&with_path).unwrap()["AddBlock"]["path"],
+        serde_json::json!({ "split": "s1", "side": "b" }),
+        "#328: the split path an MCP client sends must reach the command"
+    );
+
+    let without = build_command(
+        "add_block",
+        serde_json::json!({ "chain": "rig:in", "kind": "gain", "model_id": "fuzz_ge", "position": 0 }),
+    )
+    .unwrap();
+    assert!(
+        serde_json::to_value(&without).unwrap()["AddBlock"]
+            .get("path")
+            .is_none(),
+        "a path-less add_block stays a top-level add"
+    );
+}
+
+#[test]
+fn split_tools_build_their_commands() {
+    for (tool, args, wire) in [
+        (
+            "add_split",
+            serde_json::json!({ "chain": "rig:in", "position": 1, "end": "mix" }),
+            serde_json::json!({ "AddSplit": { "chain": "rig:in", "position": 1, "end": "mix" } }),
+        ),
+        (
+            "set_split_end",
+            serde_json::json!({ "chain": "rig:in", "split_id": "s1", "end": "y" }),
+            serde_json::json!({ "SetSplitEnd": { "chain": "rig:in", "split_id": "s1", "end": "y" } }),
+        ),
+        (
+            "remove_split",
+            serde_json::json!({ "chain": "rig:in", "split_id": "s1" }),
+            serde_json::json!({ "RemoveSplit": { "chain": "rig:in", "split_id": "s1" } }),
+        ),
+    ] {
+        let cmd = build_command(tool, args).unwrap_or_else(|e| panic!("{tool}: {e}"));
+        assert_eq!(serde_json::to_value(&cmd).unwrap(), wire, "{tool}");
+    }
+}
+
+#[test]
+fn set_chain_endpoint_enabled_tool_builds_its_command() {
+    let args = serde_json::json!({
+        "chain": "rig:in", "node": "path_a_output", "io": "io-main",
+        "endpoint": "Out 1", "enabled": false
+    });
+    let cmd = build_command("set_chain_endpoint_enabled", args.clone()).unwrap();
+    assert_eq!(
+        serde_json::to_value(&cmd).unwrap(),
+        serde_json::json!({ "SetChainEndpointEnabled": args })
+    );
 }

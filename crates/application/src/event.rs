@@ -489,6 +489,12 @@ pub enum Event {
         path: PathBuf,
     },
 
+    /// A saved take was deleted from the app-wide library; `path` is
+    /// where it was. App-wide: every chain's DI picker lists the library.
+    LooperTakeDeleted {
+        path: PathBuf,
+    },
+
     /// #323: a looper parameter changed and was persisted on the chain.
     ChainLooperParamChanged {
         chain: ChainId,

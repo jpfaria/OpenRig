@@ -19,7 +19,9 @@ fn input(preset: &str, instrument: &str, io_binding_ids: Vec<String>) -> RigInpu
         endpoint: String::new(),
         io_binding_ids,
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
+        disabled_endpoints: Default::default(),
     }
 }
 

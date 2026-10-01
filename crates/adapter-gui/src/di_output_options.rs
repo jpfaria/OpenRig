@@ -165,6 +165,7 @@ mod di_output_select_before_enable_808_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }
     }
@@ -237,6 +238,7 @@ mod duplicate_label_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         };
         let registry = vec![
@@ -279,6 +281,7 @@ mod duplicate_label_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         };
         let registry = vec![IoBinding {

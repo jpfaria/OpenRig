@@ -23,6 +23,7 @@ fn make_chain(id: &str, description: &str) -> Chain {
         blocks: Vec::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -194,7 +195,7 @@ mod wired {
 
     use super::super::{wire, ChainRowCtx};
     use crate::state::ProjectSession;
-    use crate::{AppWindow, LooperEditor};
+    use crate::{AppWindow, LooperTake};
 
     #[derive(Default)]
     struct SpyDispatcher {
@@ -215,9 +216,9 @@ mod wired {
         }
     }
 
-    /// #827: the chain rows wire the waveform editor's Save take button too.
+    /// #827: the chain rows wire the looper row's Save take dialog too.
     #[test]
-    fn the_editor_save_take_button_is_wired() {
+    fn the_save_take_dialog_is_wired() {
         i_slint_backend_testing::init_no_event_loop();
         let window = AppWindow::new().expect("window");
         let spy = Rc::new(SpyDispatcher::default());
@@ -235,6 +236,7 @@ mod wired {
                     blocks: vec![],
                     di_output: None,
                     loopers: vec![LooperConfig::new(1)],
+                    disabled_endpoints: Default::default(),
                     mix: Default::default(),
                 }],
                 midi: None,
@@ -260,8 +262,8 @@ mod wired {
         );
 
         window
-            .global::<LooperEditor>()
-            .invoke_save_take(0, 1, "verse".into());
+            .global::<LooperTake>()
+            .invoke_save(0, 1, "verse".into());
 
         assert!(matches!(
             spy.seen.borrow().as_slice(),

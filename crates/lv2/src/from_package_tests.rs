@@ -19,6 +19,7 @@ fn port(index: usize, symbol: &str, role: Lv2PortRole) -> Lv2Port {
         is_enumeration: false,
         scale_points: Vec::new(),
         range_steps: None,
+        reports_latency: false,
     }
 }
 
@@ -102,6 +103,7 @@ fn dropped_control_out_is_refused_instead_of_crashing() {
         control: vec![],
         atom: vec![],
         extra_out: vec![], // regression: port 4 dropped
+        latency: None,
     };
 
     let err = assert_all_ports_connected(&ports, &buggy_plan, "tap_deesser")
@@ -144,4 +146,28 @@ fn every_role_lands_in_exactly_one_bucket() {
     );
     assert_eq!(plan.atom, vec![5, 6]);
     assert_eq!(plan.extra_out, vec![7, 8]);
+}
+
+/// #328: the latency port is planned for the processor to read, and stays in
+/// `extra_out` so it is connected before `run()` (#457).
+#[test]
+fn the_latency_port_is_planned_and_stays_connected() {
+    let mut latency = port(7, "latency", Lv2PortRole::ControlOut);
+    latency.reports_latency = true;
+    let ports = vec![
+        port(0, "in", Lv2PortRole::AudioIn),
+        port(1, "out", Lv2PortRole::AudioOut),
+        port(6, "meter", Lv2PortRole::ControlOut),
+        latency,
+    ];
+    let plan = plan_ports(&ports, &ParameterSet::default());
+    assert_eq!(
+        plan.latency,
+        Some(7),
+        "the processor reads the plugin's latency from port 7"
+    );
+    assert!(
+        plan.extra_out.contains(&7),
+        "the latency port stays connected until the processor re-points it"
+    );
 }

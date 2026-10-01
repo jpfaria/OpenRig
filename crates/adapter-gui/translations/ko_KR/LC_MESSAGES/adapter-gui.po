@@ -15,6 +15,10 @@ msgstr ""
 msgid "OpenRig"
 msgstr "OpenRig"
 
+#: crates/adapter-gui/ui/components/block_insert_slot.slint:80
+msgid "accessible-add-block-here"
+msgstr "여기에 블록 추가"
+
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:276
 msgid "btn-load-file"
 msgstr "Load"
@@ -35,11 +39,19 @@ msgstr "+"
 msgid "di-loop-button-label"
 msgstr "DI 루프"
 
+#: crates/adapter-gui/ui/components/chain_latency_badge.slint:26
+msgid "label-lat"
+msgstr "LAT"
+
 # I/O Bindings UI strings (added #716)
 # Looper UI strings (added #323)
 #: crates/adapter-gui/ui/components/chain_looper_button.slint:53
 msgid "looper-button-label"
 msgstr "루퍼"
+
+#: crates/adapter-gui/ui/components/chain_meters_button.slint:38
+msgid "label-meters"
+msgstr "입력 / 출력"
 
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:78
 msgid "Scene {}"
@@ -89,43 +101,40 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/channel_picker.slint:126
-msgid "label-channels-selected"
-msgstr "선택됨:"
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:160
+#. channels. Default is the channel wording every existing picker shows.
+#: crates/adapter-gui/ui/components/channel_picker.slint:96
 msgid "label-channels-total"
 msgstr "채널 {}개"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:46
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:55
 msgid "label-mixer-no-inputs"
 msgstr "입력 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-outputs"
 msgstr "출력 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:47
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:56
 msgid "label-mixer-no-loopers"
 msgstr "루퍼 없음"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:60
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
 msgid "label-mixer"
 msgstr "믹서"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:69
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-in"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:70
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-out"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:71
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-di"
 msgstr "DI"
 
-#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:72
+#: crates/adapter-gui/ui/components/compact_chain_mixer.slint:78
 msgid "tab-mixer-looper"
 msgstr "루퍼"
 
@@ -180,9 +189,60 @@ msgstr "제거"
 msgid "di-output-select-label"
 msgstr "DI 출력"
 
+msgid "di-take-delete-label"
+msgstr "테이크 삭제"
+
+msgid "di-take-delete-confirm"
+msgstr "삭제?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "글로벌"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:62
+msgid "btn-close"
+msgstr "닫기"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
+msgid "hint-endpoint-checklist"
+msgstr "선택 해제한 엔드포인트는 목록에 남지만 이 노드에서 제외됩니다."
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
+msgid "hint-endpoints-empty"
+msgstr "이 체인의 E/S에는 이 노드용 엔드포인트가 없습니다."
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
+msgid "label-endpoints-total"
+msgstr "엔드포인트 {}개"
+
+#. The split and the mixer carry no host label; their name is translated.
+#: crates/adapter-gui/ui/components/graph_node_card.slint:55
+msgid "graph-node-split"
+msgstr "스플릿"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-input"
+msgstr "In"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:57
+msgid "graph-node-output"
+msgstr "Out"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:56
+msgid "graph-node-mixer"
+msgstr "믹서"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:145
+msgid "accessible-graph-node-bypass"
+msgstr "블록 켜기/끄기"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:162
+msgid "accessible-graph-node-remove"
+msgstr "블록 제거"
+
+#: crates/adapter-gui/ui/components/graph_view.slint:119
+msgid "accessible-graph-view"
+msgstr "신호 체인 그래프"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -387,6 +447,14 @@ msgstr "솔로"
 msgid "action-mixer-mute"
 msgstr "음소거"
 
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-solo-short"
+msgstr "S"
+
+#: crates/adapter-gui/ui/components/mixer_strip.slint
+msgid "action-mixer-reset"
+msgstr "0 dB로 초기화"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:114
 msgid "▼"
 msgstr "▼"
@@ -426,6 +494,14 @@ msgstr ""
 #: crates/adapter-gui/ui/components/preset_select.slint:171
 msgid "status-no-presets-found"
 msgstr "프리셋을 찾을 수 없음"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:62
+msgid "label-remove-path"
+msgstr "경로 {} 제거"
+
+#: crates/adapter-gui/ui/components/split_editor_overlay.slint:187
+msgid "btn-add-path"
+msgstr "경로"
 
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:113
 msgid "tone-doctor-title"
@@ -595,31 +671,26 @@ msgstr "엔드포인트"
 msgid "msg-pick-io-endpoint"
 msgstr "I/O와 엔드포인트를 선택하세요"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:167
-msgid "label-meters"
-msgstr "입력 / 출력"
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
-msgid "label-lat"
-msgstr "LAT"
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:419
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:380
 msgid "label-output"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:170
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:181
 msgid "tooltip-expand-blocks"
 msgstr "블록 확장"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:178
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:189
 msgid "tooltip-measure-latency"
 msgstr "지연시간 측정 (삑 소리가 납니다)"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+msgid "tooltip-chain-mixer"
+msgstr "체인 믹서"
+
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "구성"
 
@@ -807,10 +878,6 @@ msgstr "메타데이터"
 #: crates/adapter-gui/ui/pages/settings.slint:291
 msgid "btn-save-audio-settings"
 msgstr "적용"
-
-#: crates/adapter-gui/ui/pages/settings.slint:295
-msgid "btn-close"
-msgstr "닫기"
 
 #: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:97
 msgid "label-endpoint-device"

@@ -5,8 +5,7 @@ import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
-import { CompactStreamMeters } from "../components/compact_stream_meters.slint";
-import { CompactChainMixer } from "../components/compact_chain_mixer.slint";
+import { CompactChainSections } from "../components/compact_chain_sections.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -39,6 +38,7 @@ export component CompactChainViewPage inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    in property <[bool]> di-loop-take-rows: []; // deletable takes
     in property <[string]> di-loop-outputs: [];
     in property <int> di-output-selected-index: -1;
     // #717: the DI stream's own INPUT/OUTPUT meter, shown while the DI plays.
@@ -53,6 +53,10 @@ export component CompactChainViewPage inherits Rectangle {
     callback di-loop-choose-file();
     callback di-loop-play();
     callback di-loop-stop();
+    callback di-loop-output-selected(int);
+    // #1022: the Doctor section runs and applies on this chain.
+    callback tone-doctor-run(int);
+    callback tone-doctor-apply(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback update-block-parameter-bool(int, int, string, bool);
@@ -127,14 +131,7 @@ export component CompactChainViewPage inherits Rectangle {
         chain-title: root.chain-title;
         rig-nav: root.rig-nav;
         volume: root.volume;
-        di-loop-playing: root.di-loop-playing;
-        di-loop-sources: root.di-loop-sources;
-        di-loop-selected-index: root.di-loop-selected-index;
-        di-loop-outputs: root.di-loop-outputs;
-        di-output-selected-index: root.di-output-selected-index;
         latency-ms: root.latency-ms;
-        meters-shown: root.meters-expanded;
-        meters-toggled(shown) => { root.meters-expanded = shown; }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
         switch-chain-scene(s) => { root.switch-chain-scene(s); }
@@ -147,26 +144,12 @@ export component CompactChainViewPage inherits Rectangle {
         remove-chain(ci) => { root.remove-chain(ci); }
     }
 
-    // Footer reservation: one meter row pitch per stream meter (multi-input
-    // chains stack), minimum one row so the IN/OUT pair always fits.
-    property <int> meter-row-count:
-        (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
-        + (root.di-loop-playing ? 1 : 0);
-    // #1007: the header's meters icon shows the rows, hidden on open and on
-    // a stopped chain.
-    property <bool> meters-expanded: false;
-    property <bool> meters-shown: root.chain-enabled && root.meters-expanded;
-    property <length> meter-footer-height:
-        root.meters-shown ? root.meter-row-count * meters.row-pitch + 6px : 0px;
-    // #1007: the chain's own mixer strips sit between the rows and the meters.
-    property <length> mixer-height: chain-mixer.has-strips ? chain-mixer.preferred-area-height : 0px;
-
     // Block rows with insert slots between them
     Flickable {
         x: 0; y: 66px;
         width: parent.width;
-        // Leave room at the bottom for the per-stream IN/OUT meter rows.
-        height: parent.height - 66px - root.mixer-height - root.meter-footer-height;
+        // #1022: leave room at the bottom for the section accordion.
+        height: parent.height - 66px - sections.total-height;
         // #787: rows have their own heights now — the viewport is exactly the
         // trailing insert slot (the same geometry the drop indicator uses).
         viewport-height: root.slot-y(root.compact-blocks.length);
@@ -213,8 +196,10 @@ export component CompactChainViewPage inherits Rectangle {
             // Dim the row being dragged
             opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
 
+            // #328: a row inside a split's path is indented by how deep it sits.
             CompactBlockRow {
-                width: parent.width;
+                x: block-item.path-depth * 16px;
+                width: parent.width - self.x;
                 height: block-item.row-height;
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
@@ -342,6 +327,34 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
+    // ── #1022: Mixer, DI, Looper, Doctor and Meters as accordion sections ──
+    // Anchored at the bottom; an open section grows upwards over the block
+    // list, which always keeps at least 120px.
+    sections := CompactChainSections {
+        x: 0; y: parent.height - self.total-height;
+        width: parent.width; height: self.total-height;
+        chain-index: root.chain-index;
+        chain-enabled: root.chain-enabled;
+        max-body-height: max(120px, parent.height - 66px - 120px - 5 * 36px);
+        di-loop-playing: root.di-loop-playing;
+        di-loop-sources: root.di-loop-sources;
+        di-loop-selected-index: root.di-loop-selected-index;
+        di-loop-take-rows: root.di-loop-take-rows;
+        di-loop-outputs: root.di-loop-outputs;
+        di-output-selected-index: root.di-output-selected-index;
+        stream-meters: root.stream-meters;
+        meter-in-dbfs: root.meter-in-dbfs;
+        meter-out-dbfs: root.meter-out-dbfs;
+        di-graph-meter: root.di-graph-meter;
+        di-loop-source-selected(s) => { root.di-loop-source-selected(s); }
+        di-loop-choose-file => { root.di-loop-choose-file(); }
+        di-loop-play => { root.di-loop-play(); }
+        di-loop-stop => { root.di-loop-stop(); }
+        di-loop-output-selected(i) => { root.di-loop-output-selected(i); }
+        tone-doctor-run(ci) => { root.tone-doctor-run(ci); }
+        tone-doctor-apply(ci) => { root.tone-doctor-apply(ci); }
+    }
+
     // ── Type picker modal overlay ──
     if root.show-type-picker : Rectangle {
         x: 0; y: 0; width: parent.width; height: parent.height;
@@ -420,26 +433,5 @@ export component CompactChainViewPage inherits Rectangle {
                 root.search-block-model(root.model-select-chain-index, root.model-select-block-index, text);
             }
         }
-    }
-
-    // ── #1007: this chain's mixer strips, above the meter footer ──────
-    chain-mixer := CompactChainMixer {
-        di-playing: root.di-loop-playing;
-        x: 0; y: parent.height - root.meter-footer-height - root.mixer-height;
-        width: parent.width; height: root.mixer-height;
-        visible: self.has-strips;
-    }
-
-    // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
-    // Extracted to `compact_stream_meters.slint` (file-size cap).
-    meters := CompactStreamMeters {
-        x: 0; y: 0; width: 100%; height: 100%;
-        visible: root.meters-shown;
-        stream-meters: root.stream-meters;
-        meter-in-dbfs: root.meter-in-dbfs;
-        meter-out-dbfs: root.meter-out-dbfs;
-        // #717: the DI's own IN/OUT meter shows as one more row here while it plays.
-        di-playing: root.di-loop-playing;
-        di-meter: root.di-graph-meter;
     }
 }

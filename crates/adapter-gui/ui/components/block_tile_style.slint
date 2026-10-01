@@ -1,0 +1,47 @@
+// Responsibility: holds the colours a block tile paints its states with.
+// Single source of truth for the chain row's BlockChip and the graph view's
+// block card (#328 §5.1 parity): a bypassed, unavailable, dragged or
+// MIDI-marked block must read the same on both.
+
+export global BlockTileStyle {
+    // #606: a block whose model is not installed — amber, distinct from the
+    // grey of a block the user switched off — and dimmed as a whole.
+    out property <color> unavailable-tint: #b07a3c;
+    out property <float> unavailable-opacity: 0.5;
+    out property <color> disabled-tint: #5c6678;
+    out property <color> dragging-tint: #8b95a5;
+
+    // Type-label colour.
+    public pure function label-color(unavailable: bool, enabled: bool, accent: color) -> color {
+        return unavailable ? self.unavailable-tint : enabled ? accent : self.disabled-tint;
+    }
+
+    // Icon tint.
+    public pure function art-color(unavailable: bool, dragging: bool, enabled: bool, accent: color) -> color {
+        return unavailable ? self.unavailable-tint
+            : dragging ? self.dragging-tint
+            : enabled ? accent
+            : self.disabled-tint;
+    }
+
+    // #591: the active block (strong) and the block the footswitch's
+    // neighbor toggle would act on (light) are outlined only while a MIDI
+    // command is recent; dimmer when the block is off.
+    public pure function marker-background(visible: bool, selected: bool) -> color {
+        return (visible && selected) ? #f0a02014 : transparent;
+    }
+
+    public pure function marker-border-width(visible: bool, selected: bool, neighbor: bool) -> length {
+        return visible ? (selected ? 2px : neighbor ? 1px : 0px) : 0px;
+    }
+
+    public pure function marker-border-color(visible: bool, selected: bool, neighbor: bool, enabled: bool) -> color {
+        return visible
+            ? (selected
+                ? (enabled ? #f0a020 : #f0a02066)
+                : neighbor
+                    ? (enabled ? #f0a0207a : #f0a02040)
+                    : transparent)
+            : transparent;
+    }
+}

@@ -1,4 +1,7 @@
 // Responsibility: declares the data shapes the UI binds to.
+import { BlockParamSummaryEntry, ChainBlockItem } from "chain_block_item.slint";
+import { GraphNode, GraphEdgeGeometry, GraphAnchor } from "components/graph_view_types.slint";
+export { BlockParamSummaryEntry, ChainBlockItem }
 export struct DeviceSelectionItem {
     device_id: string,
     name: string,
@@ -29,12 +32,6 @@ export struct MidiBindingRow {
     learning: bool,
 }
 
-export struct BlockParamSummaryEntry {
-    label: string,    // parameter name in uppercase (e.g. "GAIN")
-    value: string,    // formatted current value (e.g. "65")
-    unit: string,     // optional unit suffix (e.g. "%", "ms", "dB")
-}
-
 export struct StreamMeter {
     in_dbfs: float,
     out_dbfs: float,
@@ -48,39 +45,6 @@ export struct StreamMeter {
     // #1006: this row's input was already listed on an earlier row — the
     // left column shows each input once, the right column every output.
     in_repeated: bool,
-}
-
-export struct ChainBlockItem {
-    kind: string,
-    icon_kind: string,
-    type_label: string,
-    label: string,
-    family: string,
-    enabled: bool,
-    // #606: the model is not installed/loadable (uninstalled NAM/IR/LV2
-    // pack, or unsupported on this platform). The tile renders it as
-    // deactivated and its enable toggle is inert — the user cannot turn on
-    // a pedal that cannot build.
-    unavailable: bool,
-    real_index: int,
-    thumbnail: image,
-    has_thumbnail: bool,
-    thumb_width: float,
-    thumb_height: float,
-    accent_color: color,
-    icon_source: image,
-    // Hover-tooltip metadata. `display_name` is the human model name;
-    // `backend_label` is the DSP backend in uppercase
-    // ("NATIVE"/"NAM"/"IR"/"LV2"); `brand` is the manufacturer slug used
-    // by `BrandLogo` (e.g. "marshall", "fender", "boss") to optionally
-    // render the logo; `param_entries` is the list of currently-set
-    // parameters split into label/value/unit so the tooltip can render
-    // each part with distinct typography. All four are empty for I/O and
-    // Insert blocks where the tooltip would add no signal.
-    display_name: string,
-    backend_label: string,
-    brand: string,
-    param_entries: [BlockParamSummaryEntry],
 }
 
 /// #323: one looper row in the chain's looper panel. Everything is
@@ -173,6 +137,9 @@ export struct ProjectChainItem {
     /// loop source, or -1 when none. Refreshed by the meter timer from the
     /// dispatcher so the popup ComboBox highlights the active source on reopen.
     di_loop_selected_index: int,
+    /// Per entry of `di_loop_sources`, true when it is a saved take —
+    /// the only entries the DI panel offers to delete.
+    di_loop_take_rows: [bool],
     /// #323: this chain's loopers, refreshed by the meter timer.
     loopers: [LooperItem],
     /// #323: true while any of them is recording, overdubbing or playing.
@@ -198,6 +165,17 @@ export struct ProjectChainItem {
     /// (0 = main output when none persisted; -1 when the chain has no bound
     /// outputs).
     di_output_selected_index: int,
+    /// #328: the chain drawn as a graph on desktop rows (spec §5.2). Built once
+    /// per row rebuild by `chain_graph_models.rs`; the meter tick keeps them.
+    /// Each block node carries its strip tile in `GraphNode.block`.
+    graph_nodes: [GraphNode],
+    graph_edges: [GraphEdgeGeometry],
+    /// The "+" on every wire (`graph_view_model::insert_anchors`).
+    graph_anchors: [GraphAnchor],
+    /// 1 for a linear chain, 2 with a split: the row height follows it.
+    graph_lanes: int,
+    /// Columns the graph spans: the row fits the whole chain on first paint.
+    graph_columns: int,
     /// #1007: the card's IN/OUT meter section is expanded. Starts collapsed.
     meters_expanded: bool,
 }
@@ -413,6 +391,10 @@ export struct CompactBlockItem {
     // Rust because the page positions rows — and hit-tests drags — by absolute y.
     row_height: length,
     row_y: length,
+    // #328: the letter of the path a block sits in ("A", "B", …), "" on the
+    // chain itself, and how many splits deep it sits (0 on the chain).
+    path_label: string,
+    path_depth: int,
 }
 
 export struct RecentProjectItem {

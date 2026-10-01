@@ -14,3 +14,6 @@ mod main;
 
 #[path = "validate_tests_unit.rs"]
 mod unit;
+
+#[path = "validate_tests_split.rs"]
+mod split_paths;

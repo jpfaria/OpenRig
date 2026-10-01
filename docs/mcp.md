@@ -85,10 +85,62 @@ follow-up.
   record / play / clear, and `save_project` writes the recorded loops' wav
   sidecars. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
+
+  Split chains (#328): a split runs N paths (at least two) side by side,
+  numbered from 0 (the GUI shows A, B, C, …). A split may sit inside a
+  path, at any depth, and a chain may hold any number of them. Every tool
+  that names a split takes its block id (`split`, `split_id`), so splits
+  are never ambiguous. Every tool that finds a block by id
+  (`set_block_parameter_*`, `toggle_block_enabled`,
+  `replace_block_model`, …) also reaches the blocks inside a path, at any
+  depth. Each split's own knobs (`split_mode`, `level_to_<i>`,
+  `balance_<i>`, `mix_level_<i>`, `mix_pan_<i>`, `mix_polarity_<i>`,
+  `mix_master`, `mix_master_sum`) are ordinary parameters of that split's
+  block id; `<i>` is the 0-based path index.
+
+  An edit that would break a split rule — a split with fewer than two
+  paths; an input, output or insert block inside a path; a block after a
+  Y in the same list (at the top level only the chain's own ports may
+  follow it) — is refused and leaves the chain exactly as it was.
+  `remove_block` refuses the split itself, because removing it that way
+  would drop its paths. `add_chain`, `configure_chain`, `save_chain` and
+  `load_chain_preset` refuse a block list that breaks the same rules.
+
+  `add_block` and `insert_prebuilt_block` take an optional
+  `path: { "split": "<split block id>", "path": <index> }` (not to be
+  confused with the parameter `path` of `set_block_parameter_*`).
+  Without it the block goes to the chain's top level, exactly as
+  before. `add_block` names new blocks `<chain>:block:<uuid>`.
+
+  `move_block` takes the same optional `path` as its destination, so a
+  block moves within a path, between paths and depths, or between a path
+  and the top level (no `path`).
+
+  `add_split` (`{ chain, position, path?, end: "mix" | "y" }`) inserts an
+  empty two-path split with the default knobs, at the top level or inside
+  a path, and answers `BlockAdded` with its id. `set_split_end`
+  (`{ chain, split_id, end }`) switches it between Split → Mix and
+  Split → Y, refused when a Y would then have a block after it.
+  `add_split_path` (`{ chain, split_id }`) appends an empty path with its
+  knobs at their defaults; `remove_split_path` (`{ chain, split_id,
+  path }`) removes one path and its blocks, refused below two paths; the
+  knob keys above it are renumbered, and the MIDI mappings and scene
+  values that name them move with them. `remove_split`
+  (`{ chain, split_id }`) puts that split's path 0 blocks in its place and
+  drops the other paths'.
+
+  `set_chain_endpoint_enabled` (`{ chain, node: "input" | "output" |
+  { "path_output": { "split", "path" } }, io, endpoint, enabled }`)
+  checks or unchecks one endpoint of the chain's E/S on one node of the
+  chain graph (`path_output` is the output node of one Y leaf). The E/S
+  itself is not edited: the unchecked endpoint stays listed, is saved
+  with the chain's input in `project.yaml`, and survives preset/scene
+  switches, `configure_chain` and the chain editor's Save.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
-  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`).
+  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`). The blocks
+    inside a split (#328) are listed under it as `path A`, `path B`, … rows, at any depth.
   - `openrig://meters` — per-chain peak meters (dBFS).
   - `openrig://tuner` — live tuner readings: `running`,
     `reference_hz`, and one row per (chain, input, channel) tap with
@@ -163,7 +215,8 @@ follow-up.
     Unknown id → `{"params": null}`.
   - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
     parameter snapshot: schema **plus** `current_value` per parameter
-    (JSON, wrapped under a `params` envelope). Unknown chain / block
+    (JSON, wrapped under a `params` envelope). A block inside a split
+    path is addressed by its id like any other. Unknown chain / block
     → error from the bridge.
   - `openrig://chains/{chain}/quality` — objective quality
     report for one chain (THD+N, noise floor, peak/RMS level, dynamic
@@ -196,6 +249,10 @@ follow-up.
     take saved with `save_chain_looper_take` lands there as
     `<name>.wav`, and handing that path to `set_chain_di_loop_source`
     as `{"File": "<path>"}` plays it on any chain's DI.
+    `delete_looper_take` removes a take from that library by
+    file name (`riff` or `riff.wav`); any chain playing it as its DI
+    stops and unloads it. A name that is not a plain file of the
+    library is refused.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.

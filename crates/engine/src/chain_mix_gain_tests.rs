@@ -46,6 +46,7 @@ fn registry_on(device: &str) -> Vec<IoBinding> {
 
 fn chain_named(id: &str) -> Chain {
     Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),

@@ -225,6 +225,8 @@ pub(crate) fn start_header_poll(
                     // #614: mirror DI loop playing state and source list.
                     cw.set_di_loop_playing(row.di_loop_playing);
                     cw.set_di_loop_sources(row.di_loop_sources.clone());
+                    // Which entries carry the panel's trash.
+                    cw.set_di_loop_take_rows(row.di_loop_take_rows.clone());
                     // #717: mirror the selected source too — without it the
                     // compact panel opens with nothing picked and hides the
                     // play/stop button.
@@ -236,6 +238,8 @@ pub(crate) fn start_header_poll(
                     // OWN levels (row.di_meter, fed from di_playback_peaks)
                     // — never a mirror of the chain meters.
                     cw.set_di_graph_meter(row.di_meter);
+                    // #1022: the Looper section shows the row's live loopers.
+                    crate::compact_looper_wiring::mirror_looper_row(&cw, &row);
                 }
                 if let Some(nav) = nav_model.row_data(ci) {
                     cw.set_rig_nav(nav);

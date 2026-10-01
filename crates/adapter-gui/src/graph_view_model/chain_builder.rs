@@ -1,139 +1,225 @@
 //! Responsibility: builds a positioned graph from a chain's stages
 //!
-//! Layout strategy:
+//! Layout strategy (#328, recursive):
 //!
-//! - [`super::types::ChainStage::Single`] blocks sit on the central lane and
-//!   advance the column cursor by one.
-//! - `Parallel` places each inner path on its own lane (above/below the
-//!   centre, distributed symmetrically) and reserves columns equal to the
-//!   longest path. Split/merge utility nodes are inserted automatically so
-//!   the result is a connected DAG.
+//! - [`super::types::ChainStage::Single`] blocks sit on the centre of the
+//!   row band they are placed in and advance the column cursor by one.
+//! - `Parallel` starts with an auto-generated split node on its band's
+//!   centre. Its lanes stack top to bottom, each taking as many rows as its
+//!   own stages need ([`stage_extent`]), the stack centred on the band. With
+//!   [`ParallelEnd::Merge`] the lanes meet again at an auto-generated merge
+//!   node on the column after the widest lane, and the next stage continues
+//!   from it. With [`ParallelEnd::Fan`] there is no merge node: each lane's
+//!   last single blueprint is its terminal, and the terminals line up on the
+//!   widest lane's last column.
 
-use super::types::{BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory};
+use super::routing_ids::{merge_node_id, split_node_id};
+use super::types::{
+    BlockBlueprint, ChainStage, EdgeVia, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
+    ParallelEnd,
+};
+
+/// Columns and rows a stage list takes: a single is 1×1; a parallel stage
+/// is its split (and merge) column plus its widest lane, by the sum of its
+/// lanes' rows (at least one per lane); a list is its stages side by side.
+pub fn stage_extent(stages: &[ChainStage]) -> (usize, usize) {
+    stages.iter().fold((0, 1), |(cols, rows), stage| {
+        let (c, r) = single_extent(stage);
+        (cols + c, rows.max(r))
+    })
+}
+
+fn single_extent(stage: &ChainStage) -> (usize, usize) {
+    match stage {
+        ChainStage::Single(_) => (1, 1),
+        ChainStage::Parallel { lanes, .. } if lanes.is_empty() => (0, 1),
+        ChainStage::Parallel { lanes, end, .. } => {
+            let widest = lanes.iter().map(|l| stage_extent(l).0).max().unwrap_or(0);
+            let rows = lanes.iter().map(|l| stage_extent(l).1).sum();
+            let routing = match end {
+                ParallelEnd::Merge => 2,
+                ParallelEnd::Fan => 1,
+            };
+            (routing + widest, rows)
+        }
+    }
+}
 
 /// Build a positioned graph from a sequence of [`ChainStage`]s.
 ///
 /// Returns the (nodes, edges) pair ready to push to the Slint side. IDs
 /// must be unique across the whole input — duplicates produce undefined
 /// behaviour at the UI level (the panic-free contract is kept here, but
-/// the UI may render only one of the duplicates).
+/// the UI may render only one of the duplicates). A stage after a
+/// [`ParallelEnd::Fan`] has nothing to connect from and is left
+/// unconnected; `validate_stages` reports it.
 pub fn linear_chain_layout(
     stages: &[ChainStage],
     metrics: GridMetrics,
 ) -> (Vec<GraphNode>, Vec<GraphEdge>) {
-    let mut nodes = Vec::new();
-    let mut edges = Vec::new();
-    let mut col: usize = 0;
-    let mut prev_tail: Option<String> = None;
-    let mut split_counter: usize = 0;
+    let mut out = Placed {
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        metrics,
+    };
+    out.place(stages, 0, 0.0, None, None);
+    (out.nodes, out.edges)
+}
 
-    for stage in stages {
-        match stage {
-            ChainStage::Single(block) => {
-                let node = position_block(block, col, 0, &metrics);
-                if let Some(prev) = prev_tail.take() {
-                    edges.push(GraphEdge {
-                        from_id: prev,
-                        to_id: node.id.clone(),
-                    });
+struct Placed {
+    nodes: Vec<GraphNode>,
+    edges: Vec<GraphEdge>,
+    metrics: GridMetrics,
+}
+
+impl Placed {
+    /// Place `stages` from column `col` on the band centred `centre` lanes
+    /// from the origin row, wiring the first one from `tail`. With
+    /// `terminal_col`, a trailing single blueprint is a Fan terminal and
+    /// sits on that column. Returns the next free column and the tail.
+    fn place(
+        &mut self,
+        stages: &[ChainStage],
+        mut col: usize,
+        centre: f32,
+        mut tail: Option<String>,
+        terminal_col: Option<usize>,
+    ) -> (usize, Option<String>) {
+        for (at, stage) in stages.iter().enumerate() {
+            match stage {
+                ChainStage::Single(block) => {
+                    let is_terminal = at + 1 == stages.len();
+                    let column = match terminal_col {
+                        Some(terminal) if is_terminal => terminal,
+                        _ => col,
+                    };
+                    let node = self.block_node(block, column, centre);
+                    self.wire(tail.take(), &node.id);
+                    tail = Some(node.id.clone());
+                    self.nodes.push(node);
+                    col += 1;
                 }
-                prev_tail = Some(node.id.clone());
-                nodes.push(node);
-                col += 1;
+                ChainStage::Parallel { lanes, .. } if lanes.is_empty() => {}
+                ChainStage::Parallel {
+                    split_id,
+                    lanes,
+                    end,
+                } => {
+                    let (next, next_tail) =
+                        self.place_parallel(split_id, lanes, *end, col, centre, tail.take());
+                    col = next;
+                    tail = next_tail;
+                }
             }
-            ChainStage::Parallel(paths) if paths.is_empty() => {
-                // No-op — nothing to render, no column consumed.
-            }
-            ChainStage::Parallel(paths) => {
-                split_counter += 1;
-                let split_id = format!("__split_{split_counter}");
-                let merge_id = format!("__merge_{split_counter}");
+        }
+        (col, tail)
+    }
 
-                let longest = paths.iter().map(Vec::len).max().unwrap_or(0);
-                let split_col = col;
-                let merge_col = col + longest + 1;
+    fn place_parallel(
+        &mut self,
+        split_id: &str,
+        lanes: &[Vec<ChainStage>],
+        end: ParallelEnd,
+        col: usize,
+        centre: f32,
+        tail: Option<String>,
+    ) -> (usize, Option<String>) {
+        let split_node = split_node_id(split_id);
+        let merge_node = merge_node_id(split_id);
+        let extents: Vec<(usize, usize)> = lanes.iter().map(|l| stage_extent(l)).collect();
+        let widest = extents.iter().map(|e| e.0).max().unwrap_or(0);
+        let total_rows: usize = extents.iter().map(|e| e.1).sum();
 
-                // Split node sits at split_col on the centre lane.
-                nodes.push(GraphNode {
-                    id: split_id.clone(),
-                    label: String::new(),
-                    category: NodeCategory::Util,
-                    x: metrics.origin_x + split_col as f32 * metrics.column_spacing,
-                    y: metrics.origin_y,
-                    bypass: false,
+        let split = self.routing_node(&split_node, NodeKind::Split, col, centre);
+        self.nodes.push(split);
+        self.wire(tail, &split_node);
+
+        let terminal_col = (end == ParallelEnd::Fan).then_some(col + widest);
+        let merge_col = col + widest + 1;
+        let mut row_top = centre - (total_rows as f32 - 1.0) / 2.0;
+        for (path, (lane, (_, rows))) in lanes.iter().zip(&extents).enumerate() {
+            let lane_centre = row_top + (*rows as f32 - 1.0) / 2.0;
+            row_top += *rows as f32;
+            if end == ParallelEnd::Merge && lane.is_empty() {
+                // No node of its own: the wire bends through the lane's row.
+                let via = EdgeVia {
+                    path,
+                    x: (self.x(col) + self.x(merge_col)) / 2.0,
+                    y: self.y(lane_centre),
+                };
+                self.edges.push(GraphEdge {
+                    from_id: split_node.clone(),
+                    to_id: merge_node.clone(),
+                    via: Some(via),
                 });
-                if let Some(prev) = prev_tail.take() {
-                    edges.push(GraphEdge {
-                        from_id: prev,
-                        to_id: split_id.clone(),
-                    });
-                }
-
-                // Each path occupies its own lane. With N paths, lanes
-                // are -N/2..N/2 around the centre; 2 paths → -0.5 / +0.5.
-                let n_paths = paths.len() as f32;
-                for (lane_idx, path) in paths.iter().enumerate() {
-                    let lane_offset = lane_idx as f32 - (n_paths - 1.0) / 2.0;
-                    let mut last_in_lane = split_id.clone();
-                    for (block_idx, block) in path.iter().enumerate() {
-                        let node = position_block_lane(
-                            block,
-                            split_col + 1 + block_idx,
-                            lane_offset,
-                            &metrics,
-                        );
-                        edges.push(GraphEdge {
-                            from_id: last_in_lane,
-                            to_id: node.id.clone(),
-                        });
-                        last_in_lane = node.id.clone();
-                        nodes.push(node);
-                    }
-                    edges.push(GraphEdge {
-                        from_id: last_in_lane,
-                        to_id: merge_id.clone(),
-                    });
-                }
-
-                // Merge node sits at merge_col on the centre lane.
-                nodes.push(GraphNode {
-                    id: merge_id.clone(),
-                    label: String::new(),
-                    category: NodeCategory::Util,
-                    x: metrics.origin_x + merge_col as f32 * metrics.column_spacing,
-                    y: metrics.origin_y,
-                    bypass: false,
-                });
-                prev_tail = Some(merge_id);
-                col = merge_col + 1;
+                continue;
             }
+            let (_, lane_tail) = self.place(
+                lane,
+                col + 1,
+                lane_centre,
+                Some(split_node.clone()),
+                terminal_col,
+            );
+            if end == ParallelEnd::Merge {
+                if let Some(from) = lane_tail {
+                    self.wire(Some(from), &merge_node);
+                }
+            }
+        }
+
+        match end {
+            ParallelEnd::Merge => {
+                let merge = self.routing_node(&merge_node, NodeKind::Mixer, merge_col, centre);
+                self.nodes.push(merge);
+                (merge_col + 1, Some(merge_node))
+            }
+            ParallelEnd::Fan => (col + widest + 1, None),
         }
     }
 
-    (nodes, edges)
-}
+    fn wire(&mut self, from: Option<String>, to: &str) {
+        if let Some(from_id) = from {
+            self.edges.push(GraphEdge {
+                from_id,
+                to_id: to.to_string(),
+                via: None,
+            });
+        }
+    }
 
-fn position_block(
-    block: &BlockBlueprint,
-    col: usize,
-    lane: i32,
-    metrics: &GridMetrics,
-) -> GraphNode {
-    position_block_lane(block, col, lane as f32, metrics)
-}
+    /// An auto-generated split or merge node: no label, `Util` category.
+    /// Its card is picked by `kind`; the label stays empty — the Slint card
+    /// translates the name.
+    fn routing_node(&self, id: &str, kind: NodeKind, col: usize, centre: f32) -> GraphNode {
+        GraphNode {
+            id: id.to_string(),
+            label: String::new(),
+            category: NodeCategory::Util,
+            kind,
+            x: self.x(col),
+            y: self.y(centre),
+            bypass: false,
+        }
+    }
 
-fn position_block_lane(
-    block: &BlockBlueprint,
-    col: usize,
-    lane: f32,
-    metrics: &GridMetrics,
-) -> GraphNode {
-    GraphNode {
-        id: block.id.clone(),
-        label: block.label.clone(),
-        category: block.category,
-        x: metrics.origin_x + col as f32 * metrics.column_spacing,
-        y: metrics.origin_y + lane * metrics.lane_spacing,
-        bypass: block.bypass,
+    fn block_node(&self, block: &BlockBlueprint, col: usize, centre: f32) -> GraphNode {
+        GraphNode {
+            id: block.id.clone(),
+            label: block.label.clone(),
+            category: block.category,
+            kind: block.kind,
+            x: self.x(col),
+            y: self.y(centre),
+            bypass: block.bypass,
+        }
+    }
+
+    fn x(&self, col: usize) -> f32 {
+        self.metrics.origin_x + col as f32 * self.metrics.column_spacing
+    }
+
+    fn y(&self, centre: f32) -> f32 {
+        self.metrics.origin_y + centre * self.metrics.lane_spacing
     }
 }

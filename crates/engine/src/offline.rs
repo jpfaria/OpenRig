@@ -21,7 +21,9 @@ use project::chain::Chain;
 
 use crate::runtime_audio_frame::AudioFrame;
 use crate::runtime_block_builders::build_runtime_block_nodes;
+use crate::runtime_graph_assemble::split_segment_view::chain_for_segment;
 use crate::runtime_state::{BlockRuntimeNode, RuntimeProcessor};
+use crate::segment_types::SegmentPaths;
 
 /// One block that could not be built into a runtime processor.
 ///
@@ -78,7 +80,9 @@ pub fn render_chain(
     // differ; do not assume mono content (issue #588), so build the full
     // per-channel processors — byte-identical to the historical behaviour.
     let (mut nodes, _output_layout) = build_runtime_block_nodes(
-        chain,
+        // #328: an offline render has no per-output routing — a Y split plays
+        // both paths, as an output with both checked would.
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,
@@ -134,7 +138,9 @@ pub(crate) fn build_offline_nodes(
     sample_rate: f32,
 ) -> Result<Vec<BlockRuntimeNode>> {
     let (nodes, _layout) = build_runtime_block_nodes(
-        chain,
+        // #328: an offline render has no per-output routing — a Y split plays
+        // both paths, as an output with both checked would.
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,
@@ -158,7 +164,9 @@ pub(crate) fn render_reusing(
     base: Option<Vec<BlockRuntimeNode>>,
 ) -> Result<(Vec<[f32; 2]>, Vec<BlockRuntimeNode>)> {
     let (mut nodes, _layout) = build_runtime_block_nodes(
-        chain,
+        // #328: an offline render has no per-output routing — a Y split plays
+        // both paths, as an output with both checked would.
+        &chain_for_segment(chain, &SegmentPaths::None),
         AudioChannelLayout::Stereo,
         false,
         sample_rate,
@@ -222,22 +230,23 @@ pub(crate) fn render_nodes_masked(
 }
 
 fn collect_faulted_blocks(nodes: &[BlockRuntimeNode]) -> Vec<FaultedBlock> {
-    nodes
-        .iter()
-        .filter_map(|node| {
-            let reason = node.fault_reason.as_ref()?;
-            let (effect_type, model) = match node.block_snapshot.model_ref() {
-                Some(m) => (m.effect_type.to_string(), m.model.to_string()),
-                None => (node.block_snapshot.kind.label().to_string(), String::new()),
-            };
-            Some(FaultedBlock {
-                block_id: node.block_id.0.clone(),
-                effect_type,
-                model,
-                error: reason.clone(),
-            })
-        })
-        .collect()
+    let mut faulted = Vec::new();
+    crate::runtime_split::walk::for_each_node(nodes, &mut |node| {
+        let Some(reason) = node.fault_reason.as_ref() else {
+            return;
+        };
+        let (effect_type, model) = match node.block_snapshot.model_ref() {
+            Some(m) => (m.effect_type.to_string(), m.model.to_string()),
+            None => (node.block_snapshot.kind.label().to_string(), String::new()),
+        };
+        faulted.push(FaultedBlock {
+            block_id: node.block_id.0.clone(),
+            effect_type,
+            model,
+            error: reason.clone(),
+        });
+    });
+    faulted
 }
 
 fn apply_block_offline(node: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
@@ -252,6 +261,13 @@ fn apply_block_offline(node: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
             if let Some(selected) = select.selected_node_mut() {
                 apply_block_offline(selected, frames);
             }
+        }
+        RuntimeProcessor::Split(split) => {
+            crate::runtime_split::process::process_split(split, frames, |node, path| {
+                if node.block_snapshot.enabled {
+                    apply_block_offline(node, path);
+                }
+            });
         }
         RuntimeProcessor::Bypass => {}
     }

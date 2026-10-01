@@ -1,7 +1,7 @@
 // Responsibility: renders a node canvas.
-// GraphView — generic node-and-edge canvas with pan, zoom and per-node
-// drag. Knows nothing about signal-chain semantics; the host computes
-// positions and visual categories, this component just renders them.
+// GraphView — node-and-edge canvas with pan, zoom and per-node drag
+// (#435), grown into the chain editor's canvas (#328). The host computes
+// positions and node kinds; this component renders them.
 //
 // Coordinate system:
 //
@@ -10,155 +10,21 @@
 //
 // All callbacks emit ids and coords in *layout* space.
 
-export struct GraphNode {
-    // Stable identifier — unique within the graph. Must match what the
-    // host gave when computing the layout.
-    id: string,
-    label: string,
-    // Stable category slug ("drive", "amp", "reverb", "util", …). Kept
-    // for accessibility / debugging; the component does NOT derive
-    // colour from it (Slint can't search an array). The host resolves
-    // colour from its palette and passes fill/border below — the single
-    // source of truth is default_palette() in graph_view_model.rs.
-    category: string,
-    // Resolved colours, host-supplied. Component is fully colour-agnostic.
-    fill: color,
-    border: color,
-    // Layout-space position (centre of the node).
-    layout_x: length,
-    layout_y: length,
-    // Visual state.
-    bypass: bool,
-    selected: bool,
-}
+import { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor } from "graph_view_types.slint";
+import { GraphNodeCard } from "graph_node_card.slint";
+import { GraphWire } from "graph_wire.slint";
+import { BlockHoverTooltip } from "block_hover_tooltip.slint";
+import { BlockInsertSlot } from "block_insert_slot.slint";
 
-export struct GraphEdge {
-    from_id: string,
-    to_id: string,
-}
-
-// Internal: GraphEdge resolved to actual coordinates, ready to render
-// as a Bézier curve. Host computes this from the node list; we keep the
-// shape simple so the resolved set can be derived in Slint via a
-// helper component or pre-computed in Rust.
-export struct GraphEdgeGeometry {
-    from_id: string,
-    to_id: string,
-    from_x: length,
-    from_y: length,
-    to_x: length,
-    to_y: length,
-}
-
-// Host-supplied category → colour map. The component owns NO colours;
-// the single source of truth is default_palette() in graph_view_model.rs.
-// The host resolves each node's fill/border from this and writes them
-// onto the GraphNode (Slint cannot search an array in a binding).
-export struct CategoryColor {
-    category: string,
-    fill: color,
-    border: color,
-}
-
-// Single node card. Pure visual; drag/click are owned by the parent
-// GraphView TouchArea so we keep one input source per gesture.
-component GraphNodeCard inherits Rectangle {
-    in property <GraphNode> node;
-    in property <bool> hovered;
-    in property <bool> dragging;
-    in property <length> card_width;
-    in property <length> card_height;
-
-    width: root.card_width;
-    height: root.card_height;
-    border-radius: 8px;
-    border-width: root.node.selected ? 2px : 1px;
-    border-color: root.node.selected
-        ? #f5f7fb
-        : root.node.border;
-    background: root.node.bypass
-        ? root.node.fill.with-alpha(0.35)
-        : root.dragging
-        ? root.node.fill.brighter(0.20)
-        : root.hovered
-        ? root.node.fill.brighter(0.10)
-        : root.node.fill;
-    opacity: root.node.bypass ? 0.7 : 1.0;
-    drop-shadow-blur: root.dragging ? 12px : (root.hovered ? 6px : 2px);
-    drop-shadow-color: #00000080;
-    drop-shadow-offset-y: 2px;
-
-    Text {
-        x: 8px;
-        y: 0px;
-        width: parent.width - 16px;
-        height: parent.height;
-        text: root.node.label;
-        color: #f5f7fb;
-        font-size: 18px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-
-    accessible-role: button;
-    accessible-label: root.node.label;
-}
-
-// Bezier wire between two viewport-space points. Drawn behind the nodes.
-//
-// The Path fills the whole canvas and declares its viewbox in canvas
-// pixels so MoveTo/CubicTo can use absolute coordinates. Without a
-// viewbox, Slint normalises the path commands to the Path's own bbox,
-// which collapses every wire to the same screen-space rectangle — the
-// reason the earlier version drew all edges converging in one point.
-component GraphWire inherits Path {
-    in property <length> from_x;
-    in property <length> from_y;
-    in property <length> to_x;
-    in property <length> to_y;
-    in property <length> canvas_width;
-    in property <length> canvas_height;
-    in property <color> stroke_color: #8aaac8;
-    in property <length> stroke_thickness: 2px;
-
-    x: 0px;
-    y: 0px;
-    width: root.canvas_width;
-    height: root.canvas_height;
-    viewbox-x: 0;
-    viewbox-y: 0;
-    viewbox-width: root.canvas_width / 1px;
-    viewbox-height: root.canvas_height / 1px;
-
-    stroke: root.stroke_color;
-    stroke-width: root.stroke_thickness;
-    fill: transparent;
-
-    // Horizontal-S bezier — control points offset by half the
-    // horizontal distance keeps wires readable even with vertical
-    // separation between parallel paths.
-    MoveTo {
-        x: root.from_x / 1px;
-        y: root.from_y / 1px;
-    }
-
-    CubicTo {
-        control-1-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
-        control-1-y: root.from_y / 1px;
-        control-2-x: (root.from_x + (root.to_x - root.from_x) / 2) / 1px;
-        control-2-y: root.to_y / 1px;
-        x: root.to_x / 1px;
-        y: root.to_y / 1px;
-    }
-}
+export { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor }
 
 // The actual GraphView. Hosts nodes + edges. Pan/zoom owned here.
 export component GraphView inherits Rectangle {
     // ── Inputs ──────────────────────────────────────────────────────
     in property <[GraphNode]> nodes;
     in property <[GraphEdgeGeometry]> edges;
+    // #328: the "+" anchors on the wires (graph_view_model::insert_anchors).
+    in property <[GraphAnchor]> anchors;
 
     // Viewport state. Two-way so the host can persist or programmatically
     // reset the view (e.g. "fit to content").
@@ -166,12 +32,21 @@ export component GraphView inherits Rectangle {
     in-out property <length> pan_x: 0px;
     in-out property <length> pan_y: 0px;
 
-    // Visual constants — overridable by the host.
-    in property <length> node_width: 96px;
-    in property <length> node_height: 56px;
+    // Visual constants — overridable by the host. 100×100 is the chain
+    // row's BlockChip, the tile a block card keeps parity with (#328).
+    in property <length> node_width: 100px;
+    in property <length> node_height: 100px;
     in property <color> background_color: #11141a;
     in property <color> grid_color: #1a1f2a;
     in property <bool> show_grid: true;
+    // #591 parity with BlockChip: MIDI markers show only while a MIDI
+    // command is recent.
+    in property <bool> markers_visible: false;
+    // #328 part 6: the #591 selection by block id ("" = none). A per-node
+    // `selected` flag would be wiped by every row rebuild; these follow
+    // `SelectionState` through `ChainGraphBridge`.
+    in property <string> selected-node-id;
+    in property <string> neighbor-node-id;
 
     // When true the host computes positions via topological_layout and
     // re-tidies on drag end via reorder_for_drop. Documentational on the
@@ -193,10 +68,28 @@ export component GraphView inherits Rectangle {
     // Fired once when the drag gesture ends (mouse up).
     callback node_drag_ended(string, length, length);
     callback viewport_changed(float, length, length);
+    // #328: a block card's LED was clicked — the host toggles its bypass.
+    callback bypass-toggled(string);
+    // #328: a block card's × was clicked — the host removes the block.
+    callback remove-requested(string);
+    // #328: a "+" anchor was clicked — the host opens the add-block picker
+    // for that anchor's slot.
+    callback add-requested(string);
+    // #328: a dragged block was released on an anchor (node id, anchor id).
+    callback node-dropped(string, string);
+    // #328: the host resolves which anchor a block dragged to layout (x, y)
+    // lands on — "" for none (graph_view_model::resolve_drop_anchor; the
+    // #787 `slot-at` pattern). Asked on every drag move to light the target
+    // up, so the geometry lives in Rust exactly once.
+    pure callback resolve-drop-anchor(string, length, length) -> string;
 
     // ── Internal state ──────────────────────────────────────────────
     private property <string> hover_id: "";
     private property <string> drag_id: "";
+    // Index of the hovered node, for the block tooltip (-1 = none).
+    private property <int> hover_index: -1;
+    // #328: the anchor the current drag would land on ("" = none).
+    private property <string> drop_anchor: "";
     // Local mouse position (TouchArea space) captured at press. The drag
     // math is delta-based: new_layout = node.layout + (mouse - press)/zoom.
     // The node's own layout cancels out of that expression, so it tracks
@@ -223,7 +116,7 @@ export component GraphView inherits Rectangle {
     clip: true;
 
     accessible-role: list;
-    accessible-label: "Signal chain graph";
+    accessible-label: @tr("accessible-graph-view");
 
     // ── Pan / zoom on empty area ───────────────────────────────────
     // Declared FIRST so that node TouchAreas (later siblings) sit on
@@ -256,6 +149,13 @@ export component GraphView inherits Rectangle {
             }
         }
         scroll-event(event) => {
+            // #328: the graph sits inside the chains list (spec §5.4), so a
+            // plain wheel must reach the list and scroll it. Zoom needs the
+            // platform shortcut modifier — Slint reports ⌘ on macOS and Ctrl
+            // on Windows and Linux as `modifiers.control`.
+            if (!event.modifiers.control) {
+                return reject;
+            }
             // Zoom around cursor.
             let old_zoom = root.zoom;
             let dz = event.delta-y > 0 ? 0.1 : -0.1;
@@ -319,53 +219,24 @@ export component GraphView inherits Rectangle {
         stroke_thickness: 2px * root.zoom;
     }
 
-    // ── Routing dots for util nodes with no label ─────────────────
-    //
-    // Split/merge are real graph nodes (wires connect through them),
-    // but visually they are just routing points — a small dot, not a
-    // full card. Drawn here so they sit between wires and full cards.
+    // ── Nodes ──────────────────────────────────────────────────────
+    // Every node is a card, whatever its kind (#328 §5.2). Position is
+    // the card centre at (layout * zoom + pan), shifted by half the card
+    // size so it lands geometrically centred.
     for node[idx] in root.nodes : Rectangle {
-        x: root.pan_x + node.layout_x * root.zoom - self.width / 2;
-        y: root.pan_y + node.layout_y * root.zoom - self.height / 2;
-        width: node.label == "" && node.category == "util"
-            ? 8px * root.zoom
-            : 0px;
-        height: self.width;
-        border-radius: self.width / 2;
-        background: node.label == "" && node.category == "util"
-            ? #8aaac8
-            : transparent;
-    }
-
-    // ── Nodes (full cards for labeled blocks) ─────────────────────
-    //
-    // Position is the card centre at (layout * zoom + pan), shifted
-    // by half the card size so it lands geometrically centred. The
-    // routing dots above skip rendering for util-with-empty-label;
-    // here we skip those entirely so the card doesn't draw on top of
-    // a routing dot.
-    for node[idx] in root.nodes : Rectangle {
-        property <bool> is-routing: node.label == "" && node.category == "util";
         property <length> w: root.node_width * root.zoom;
         property <length> h: root.node_height * root.zoom;
 
         x: root.pan_x + node.layout_x * root.zoom - self.w / 2;
         y: root.pan_y + node.layout_y * root.zoom - self.h / 2;
-        width: self.is-routing ? 0px : self.w;
-        height: self.is-routing ? 0px : self.h;
-        visible: !self.is-routing;
+        width: self.w;
+        height: self.h;
 
-        GraphNodeCard {
-            x: 0px;
-            y: 0px;
-            node: node;
-            card_width: parent.width;
-            card_height: parent.height;
-            hovered: root.hover_id == node.id && root.drag_id == "";
-            dragging: root.drag_id == node.id;
-        }
-
-        TouchArea {
+        // Declared BEFORE the card (#328): the card's own TouchAreas — a
+        // block's LED and × — sit on top of this one and win on those two
+        // spots. The rest of the card is plain visuals, so every other
+        // pointer event falls through to here for click and drag.
+        node-ta := TouchArea {
             x: 0px;
             y: 0px;
             width: parent.width;
@@ -377,15 +248,22 @@ export component GraphView inherits Rectangle {
                     root.press_x = self.mouse-x;
                     root.press_y = self.mouse-y;
                     root.did_drag = false;
+                    root.drop_anchor = "";
                 } else if (event.kind == PointerEventKind.up) {
                     if (root.drag_id == node.id) {
                         if (root.did_drag) {
                             root.node_drag_ended(node.id, node.layout_x, node.layout_y);
+                            // #328: released on an anchor → the host moves
+                            // the block to that anchor's slot.
+                            if (root.drop_anchor != "") {
+                                root.node-dropped(node.id, root.drop_anchor);
+                            }
                         } else {
                             root.node_clicked(node.id);
                         }
                     }
                     root.drag_id = "";
+                    root.drop_anchor = "";
                 }
             }
             moved => {
@@ -398,23 +276,85 @@ export component GraphView inherits Rectangle {
                     // (see press_x note), so this tracks the cursor
                     // without drift even though the TouchArea moves with
                     // the node.
-                    root.node_dragged(
-                        node.id,
-                        node.layout_x + (self.mouse-x - root.press_x) / root.zoom,
-                        node.layout_y + (self.mouse-y - root.press_y) / root.zoom);
+                    let drag_x = node.layout_x + (self.mouse-x - root.press_x) / root.zoom;
+                    let drag_y = node.layout_y + (self.mouse-y - root.press_y) / root.zoom;
+                    if (root.did_drag) {
+                        // #328: the host names the anchor under the drag
+                        // so it lights up before release.
+                        root.drop_anchor = root.resolve-drop-anchor(node.id, drag_x, drag_y);
+                        // A click's jitter stays under the threshold and
+                        // must not nudge the card off the grid.
+                        root.node_dragged(node.id, drag_x, drag_y);
+                    }
                 }
             }
             changed has-hover => {
                 if (self.has-hover) {
                     root.hover_id = node.id;
+                    root.hover_index = idx;
                 } else if (root.hover_id == node.id) {
                     root.hover_id = "";
+                    root.hover_index = -1;
                 }
             }
             double-clicked => {
                 root.node_double_clicked(node.id);
             }
         }
+
+        GraphNodeCard {
+            x: 0px;
+            y: 0px;
+            node: node;
+            zoom: root.zoom;
+            backdrop: root.background_color;
+            markers-visible: root.markers_visible;
+            selected-node-id: root.selected-node-id;
+            neighbor-node-id: root.neighbor-node-id;
+            card_width: parent.width;
+            card_height: parent.height;
+            hovered: root.hover_id == node.id && root.drag_id == "";
+            dragging: root.drag_id == node.id;
+            bypass-toggled => { root.bypass-toggled(node.id); }
+            remove-requested => { root.remove-requested(node.id); }
+        }
+    }
+
+    // ── Insert anchors (#328 §5.1) ─────────────────────────────────
+    // One "+" per wire, at the wire's midpoint (host-computed by
+    // graph_view_model::insert_anchors). It is the chain row's
+    // BlockInsertSlot without its straight track — the wire is the track.
+    // Drawn OVER the nodes: the host keeps a dragged card under the cursor
+    // (node_dragged), and that card would otherwise hide the lit "+" it is
+    // about to land on. At zoom 1 an anchor sits inside the 60px gap
+    // between two cards; it reaches a card's edge only below zoom ~0.53.
+    // The tooltip, declared after, still paints on top.
+    for anchor in root.anchors : BlockInsertSlot {
+        x: root.pan_x + anchor.layout_x * root.zoom - self.width / 2;
+        y: root.pan_y + anchor.layout_y * root.zoom - self.height / 2;
+        show-track: false;
+        empty-slot: anchor.always_visible;
+        move-target: root.drag_id != "";
+        active-drop-target: root.drop_anchor != "" && root.drop_anchor == anchor.id;
+        clicked => { root.add-requested(anchor.id); }
+    }
+
+    // ── Block tooltip (#328 parity with BlockChip) ─────────────────
+    // The chain row's hover card, declared after every node so it paints
+    // on top. Only for a block with a model (display_name), never while a
+    // drag is in flight.
+    if root.hover_index >= 0
+        && root.hover_index < root.nodes.length
+        && root.nodes[root.hover_index].kind == "block"
+        && root.nodes[root.hover_index].block.display_name != ""
+        && root.drag_id == ""
+        : BlockHoverTooltip {
+        block: root.nodes[root.hover_index].block;
+        anchor-x: root.pan_x + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
+        anchor-y: root.pan_y + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
+        chip-width: root.node_width * root.zoom;
+        chip-height: root.node_height * root.zoom;
+        container-width: root.width;
     }
 
 }

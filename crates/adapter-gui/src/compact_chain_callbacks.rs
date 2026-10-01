@@ -29,7 +29,7 @@ use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
-use crate::project_view::{block_type_picker_items, real_block_index_to_ui};
+use crate::project_view::block_type_picker_items;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,
@@ -67,6 +67,8 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     /// #127: the blocks' diagnostic streams, through the read seam.
     pub block_stream_reads: Rc<dyn LiveSource>,
+    /// #1022: the loopers' live read seam, for the waveform editor.
+    pub looper_live: Rc<dyn LiveSource>,
     /// #127: the subscription seam the Tone Doctor records through.
     pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -84,6 +86,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
     let CompactChainCallbacksCtx {
         project_session,
         block_stream_reads,
+        looper_live,
         audio_taps,
         project_chains,
         input_chain_devices,
@@ -328,6 +331,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // Wire choose-block-type — when user picks a type from the compact view picker
         {
             let weak_main = window.as_weak();
+            let session = project_session.clone();
             compact_win.on_choose_block_type(move |ci, before, type_index| {
                 log::debug!(
                     "[compact] choose-block-type: chain={}, before={}, type_index={}",
@@ -338,8 +342,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 let Some(main_win) = weak_main.upgrade() else {
                     return;
                 };
-                // Trigger the full insert flow on the main window (sets up draft + opens editor)
-                main_win.invoke_start_block_insert(ci, before);
+                crate::compact_block_insert::start_insert_above_row(
+                    &main_win, &session, ci, before,
+                );
                 // Select the type that was chosen
                 crate::BlockEditorBridge::get(&main_win).invoke_choose_block_type(type_index);
             });
@@ -348,27 +353,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // Wire open-block-detail (click on model select opens full editor)
         {
             let weak_main = window.as_weak();
-            let project_session_detail = project_session.clone();
+            let session = project_session.clone();
             compact_win.on_open_block_detail(move |ci, bi| {
                 let Some(main_win) = weak_main.upgrade() else {
                     return;
                 };
-                // bi is a real block index from CompactBlockItem — convert to UI index
-                // because on_select_chain_block now expects UI indices
-                let session_borrow = project_session_detail.borrow();
-                let ui_bi = if let Some(session) = session_borrow.as_ref() {
-                    let proj = session.project.borrow();
-                    if let Some(chain) = proj.chains.get(ci as usize) {
-                        real_block_index_to_ui(chain, bi as usize)
-                            .map(|i| i as i32)
-                            .unwrap_or(bi)
-                    } else {
-                        bi
-                    }
-                } else {
-                    bi
-                };
-                main_win.invoke_select_chain_block(ci, ui_bi);
+                crate::compact_block_detail::open_row_detail(&main_win, &session, ci, bi);
                 let _ = main_win.window().show();
             });
         }
@@ -488,6 +478,21 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             window.as_weak(),
             toast_timer.clone(),
         );
+
+        // #1022: the Looper section drives the main window's looper wiring;
+        // its waveform editor and Save take dialog live in this window.
+        crate::compact_looper_wiring::wire(&window, &compact_win);
+        crate::looper_editor_callbacks::wire_looper_editor_callbacks(
+            &compact_win,
+            &project_session,
+            &looper_live,
+            &crate::looper_editor_callbacks::EditorDirtyCtx {
+                window: window.as_weak(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+            },
+        );
+        crate::looper_take_callbacks::wire_looper_take_callbacks(&compact_win, &project_session);
 
         show_child_window(window.window(), compact_win.window());
     });

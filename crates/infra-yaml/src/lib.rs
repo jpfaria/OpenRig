@@ -13,6 +13,7 @@
 mod block_yaml;
 mod block_yaml_load;
 mod block_yaml_save;
+mod block_yaml_split;
 mod default_models;
 mod param_flatten;
 mod preset_yaml;

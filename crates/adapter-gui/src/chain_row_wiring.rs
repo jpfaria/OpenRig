@@ -159,6 +159,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     // #771 on_di_loop_output_selected
     crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone());
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
+    // The DI panel's trash on a saved take.
+    crate::di_take_delete_wiring::wire_main(window, &ctx.project_session, &ctx.toast_timer);
     // #323: the looper panel's actions. It dispatches and redraws; the runtime
     // half of every looper command belongs to the dispatcher (#127), and the
     // rows are re-read through the same seam MCP reads.
@@ -182,7 +184,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             project_dirty: ctx.project_dirty.clone(),
         },
     );
-    // #827: the editor's Save take row.
+    // #827: the looper row's Save take dialog.
     crate::looper_take_callbacks::wire_looper_take_callbacks(window, &ctx.project_session);
 }
 

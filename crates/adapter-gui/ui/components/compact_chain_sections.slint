@@ -1,0 +1,246 @@
+// Responsibility: renders the compact view's accordion of chain sections.
+// #1022 — Mixer, DI, Looper, Doctor and Meters stack at the bottom of the
+// compact chain view, each behind a `SectionToggle` header (the mixer's shape,
+// #1007). One section is open at a time; opening another closes it, and a
+// second click on the open one closes it. Every section opens collapsed. The
+// bodies are `if`-built, so a closed section leaves nothing in the tree.
+
+import { StreamMeter } from "../models.slint";
+import { SectionToggle } from "section_toggle.slint";
+import { CompactChainMixer } from "compact_chain_mixer.slint";
+import { CompactStreamMeters } from "compact_stream_meters.slint";
+import { DiLoopPanel } from "di_loop_panel.slint";
+import { DiPanel } from "di_panel_globals.slint";
+import { ToneDoctorPanel } from "tone_doctor_panel.slint";
+import { ToneDoctorState } from "tone_doctor_globals.slint";
+import { LooperPanelView } from "looper_panel.slint";
+import { LooperPanel, LooperTake } from "looper_panel_globals.slint";
+import { CompactLooper } from "compact_looper_globals.slint";
+
+// The header strip every non-mixer section shares: a 1px rule, then the toggle.
+component SectionHeader inherits Rectangle {
+    in property <string> title;
+    in property <bool> expanded;
+    callback toggled(bool);
+    height: 36px;
+    background: #0c0e12;
+    Rectangle { x: 0; y: 0; width: parent.width; height: 1px; background: #1c2028; }
+    toggle := SectionToggle {
+        x: 0; y: 1px;
+        width: parent.width; height: parent.height - 1px;
+        title: root.title;
+        expanded: root.expanded;
+        toggled(e) => { root.toggled(e); }
+    }
+}
+
+// A section body: the panel scrolls inside the room the view can spare.
+component SectionBody inherits Rectangle {
+    in property <length> content-width;
+    in property <length> content-height;
+    in property <length> max-height;
+    height: min(root.content-height + 16px, root.max-height);
+    background: #0c0e12;
+    Flickable {
+        width: 100%; height: 100%;
+        viewport-width: max(parent.width, root.content-width + 32px);
+        viewport-height: root.content-height + 16px;
+        @children
+    }
+}
+
+export component CompactChainSections inherits Rectangle {
+    in property <int> chain-index;
+    in property <bool> chain-enabled;
+    // The most a section body may take before it scrolls.
+    in property <length> max-body-height: 400px;
+
+    in property <bool> di-loop-playing;
+    in property <[string]> di-loop-sources;
+    in property <int> di-loop-selected-index: -1;
+    in property <[bool]> di-loop-take-rows;
+    in property <[string]> di-loop-outputs;
+    in property <int> di-output-selected-index: -1;
+
+    in property <[StreamMeter]> stream-meters;
+    in property <float> meter-in-dbfs: -120.0;
+    in property <float> meter-out-dbfs: -120.0;
+    in property <StreamMeter> di-graph-meter;
+
+    callback di-loop-source-selected(string);
+    callback di-loop-choose-file();
+    callback di-loop-play();
+    callback di-loop-stop();
+    callback di-loop-output-selected(int);
+    callback tone-doctor-run(int);
+    callback tone-doctor-apply(int);
+
+    // Which section is open: 0 mixer, 1 DI, 2 looper, 3 doctor, 4 meters.
+    in-out property <int> open: -1;
+    // What the host reserves at the bottom of the view.
+    out property <length> total-height: layout.preferred-height;
+
+    property <int> meter-row-count:
+        (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
+        + (root.di-loop-playing ? 1 : 0);
+
+    function pick(section: int, expanded: bool) {
+        root.open = expanded ? section : -1;
+        if expanded && section == 2 {
+            LooperPanel.chain-index = root.chain-index;
+        }
+        if expanded && section == 3 {
+            ToneDoctorState.chain-index = root.chain-index;
+            ToneDoctorState.running = false;
+            ToneDoctorState.has-result = false;
+            ToneDoctorState.symptom-level = 0;
+            ToneDoctorState.symptom-text = "";
+            ToneDoctorState.culprit-label = "";
+            ToneDoctorState.suggestion-text = "";
+            ToneDoctorState.has-suggestion = false;
+            ToneDoctorState.can-diagnose = true;
+        }
+    }
+
+    background: #0c0e12;
+
+    layout := VerticalLayout {
+        x: 0; y: 0;
+        width: parent.width;
+        height: self.preferred-height;
+
+        mixer := CompactChainMixer {
+            height: self.preferred-area-height;
+            di-playing: root.di-loop-playing;
+            expanded: root.open == 0;
+            toggled(e) => { root.pick(0, e); }
+        }
+
+        di-toggle := SectionHeader {
+            title: @tr("di-loop-button-label");
+            expanded: root.open == 1;
+            toggled(e) => { root.pick(1, e); }
+        }
+        if root.open == 1 : SectionBody {
+            content-width: di.width;
+            content-height: di.height;
+            max-height: root.max-body-height;
+            di := DiLoopPanel {
+                x: 16px; y: 8px;
+                sources: root.di-loop-sources;
+                selected-index: root.di-loop-selected-index;
+                playing: root.di-loop-playing;
+                outputs: root.di-loop-outputs;
+                output-selected-index: root.di-output-selected-index;
+                take-rows: root.di-loop-take-rows;
+                delete-take(i, s) => { DiPanel.delete-take(s); }
+                source-picked(i, s) => { root.di-loop-source-selected(s); }
+                choose-file => { root.di-loop-choose-file(); }
+                play => { root.di-loop-play(); }
+                stop => { root.di-loop-stop(); }
+                output-picked(i, s) => { root.di-loop-output-selected(i); }
+            }
+        }
+
+        looper-toggle := SectionHeader {
+            title: @tr("looper-button-label");
+            expanded: root.open == 2;
+            toggled(e) => { root.pick(2, e); }
+        }
+        if root.open == 2 : SectionBody {
+            content-width: looper.width;
+            content-height: looper.height;
+            max-height: root.max-body-height;
+            looper := LooperPanelView {
+                x: 16px; y: 8px;
+                loopers: CompactLooper.loopers;
+                expanded-uid: LooperPanel.expanded-uid;
+                input-options: CompactLooper.input-options;
+                output-options: CompactLooper.output-options;
+                preset-options: CompactLooper.preset-options;
+                add => { CompactLooper.add(root.chain-index); }
+                record(uid) => { CompactLooper.record(root.chain-index, uid); }
+                play-stop(uid) => { CompactLooper.play-stop(root.chain-index, uid); }
+                play-all => { CompactLooper.play-all(root.chain-index); }
+                stop-all => { CompactLooper.stop-all(root.chain-index); }
+                undo(uid) => { CompactLooper.undo(root.chain-index, uid); }
+                redo(uid) => { CompactLooper.redo(root.chain-index, uid); }
+                clear(uid) => { CompactLooper.clear(root.chain-index, uid); }
+                remove(uid) => { CompactLooper.remove(root.chain-index, uid); }
+                toggle-drawer(uid) => {
+                    LooperPanel.expanded-uid = LooperPanel.expanded-uid == uid ? -1 : uid;
+                }
+                mix-changed(uid, v) => { CompactLooper.mix-changed(root.chain-index, uid, v); }
+                decay-changed(uid, v) => { CompactLooper.decay-changed(root.chain-index, uid, v); }
+                speed-picked(uid, v) => { CompactLooper.speed-picked(root.chain-index, uid, v); }
+                reverse-toggled(uid, v) => { CompactLooper.reverse-toggled(root.chain-index, uid, v); }
+                input-picked(uid, v) => { CompactLooper.input-picked(root.chain-index, uid, v); }
+                output-picked(uid, v) => { CompactLooper.output-picked(root.chain-index, uid, v); }
+                edit(uid) => { CompactLooper.edit(root.chain-index, uid); }
+                // #827: a new dialog starts clean.
+                save-take(uid) => {
+                    LooperTake.name = "";
+                    LooperTake.status = 0;
+                    LooperTake.dialog-uid = uid;
+                }
+                preset-open(uid, sel) => {
+                    LooperPanel.preset-picker-uid = uid;
+                    LooperPanel.preset-picker-selected = sel;
+                }
+            }
+        }
+
+        doctor-toggle := SectionHeader {
+            title: @tr("tone-doctor-button-label");
+            expanded: root.open == 3;
+            toggled(e) => { root.pick(3, e); }
+        }
+        if root.open == 3 : SectionBody {
+            content-width: doctor.width;
+            content-height: doctor.height;
+            max-height: root.max-body-height;
+            doctor := ToneDoctorPanel {
+                x: 16px; y: 8px;
+                running: ToneDoctorState.running;
+                has-result: ToneDoctorState.has-result;
+                symptom-level: ToneDoctorState.symptom-level;
+                symptom-text: ToneDoctorState.symptom-text;
+                culprit-label: ToneDoctorState.culprit-label;
+                suggestion-text: ToneDoctorState.suggestion-text;
+                has-suggestion: ToneDoctorState.has-suggestion;
+                fizz-value: ToneDoctorState.fizz-value;
+                fizz-limit: ToneDoctorState.fizz-limit;
+                mud-value: ToneDoctorState.mud-value;
+                mud-limit: ToneDoctorState.mud-limit;
+                boom-value: ToneDoctorState.boom-value;
+                boom-limit: ToneDoctorState.boom-limit;
+                clip-value: ToneDoctorState.clip-value;
+                clip-limit: ToneDoctorState.clip-limit;
+                analyze-seconds: ToneDoctorState.analyze-seconds;
+                can-diagnose: ToneDoctorState.can-diagnose;
+                seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
+                run-diagnosis => { root.tone-doctor-run(root.chain-index); }
+                apply-suggestion => { root.tone-doctor-apply(root.chain-index); }
+            }
+        }
+
+        // Only a running chain has live levels.
+        if root.chain-enabled : meters-toggle := SectionHeader {
+            title: @tr("label-meters");
+            expanded: root.open == 4;
+            toggled(e) => { root.pick(4, e); }
+        }
+        if root.chain-enabled && root.open == 4 : Rectangle {
+            height: root.meter-row-count * meters.row-pitch + 6px;
+            meters := CompactStreamMeters {
+                x: 0; y: 0; width: 100%; height: 100%;
+                stream-meters: root.stream-meters;
+                meter-in-dbfs: root.meter-in-dbfs;
+                meter-out-dbfs: root.meter-out-dbfs;
+                // #717: the DI's own IN/OUT meter shows as one more row while it plays.
+                di-playing: root.di-loop-playing;
+                di-meter: root.di-graph-meter;
+            }
+        }
+    }
+}

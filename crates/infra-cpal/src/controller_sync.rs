@@ -38,7 +38,10 @@ impl ProjectRuntimeController {
         // editing chain settings with everything bypassed.
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
-            let needs_audio = project.chains.iter().any(|c| c.enabled);
+            let needs_audio = project
+                .chains
+                .iter()
+                .any(|chain| engine::runtime_graph::chain_plays(chain, &self.io_bindings));
             if !needs_audio {
                 log::debug!("sync_project: no enabled chains, idling supervisor");
                 if !self.active_chains.is_empty() {
@@ -99,7 +102,7 @@ impl ProjectRuntimeController {
             );
 
             for chain in &project.chains {
-                if !chain.enabled {
+                if !engine::runtime_graph::chain_plays(chain, &self.io_bindings) {
                     continue;
                 }
                 if input_conflicts.contains(&chain.id) {
@@ -152,7 +155,9 @@ impl ProjectRuntimeController {
         // Remove chains that are no longer in the project
         let active_ids: Vec<ChainId> = self.active_chains.keys().cloned().collect();
         for chain_id in active_ids {
-            let still_exists = project.chains.iter().any(|c| c.enabled && c.id == chain_id);
+            let still_exists = project.chains.iter().any(|chain| {
+                engine::runtime_graph::chain_plays(chain, &self.io_bindings) && chain.id == chain_id
+            });
             if !still_exists {
                 log::info!("removing chain '{}' from runtime", chain_id.0);
                 // Signal the audio callback to stop processing blocks BEFORE
@@ -169,7 +174,7 @@ impl ProjectRuntimeController {
         }
 
         for chain in &project.chains {
-            if !chain.enabled {
+            if !engine::runtime_graph::chain_plays(chain, &self.io_bindings) {
                 continue;
             }
             let resolved =

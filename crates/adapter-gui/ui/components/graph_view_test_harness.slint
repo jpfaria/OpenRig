@@ -1,0 +1,71 @@
+// Responsibility: hosts the graph view in test windows.
+// #328 TEST-ONLY harness: hosts GraphView in real Windows so the headless
+// interaction tests (i-slint-backend-testing) can dispatch real pointer,
+// wheel and key events at it. Imported by app-window.slint purely so
+// slint-build emits the Rust types; never shown in the running app.
+
+import { GraphView, GraphNode, GraphEdgeGeometry, GraphAnchor } from "graph_view.slint";
+
+// The canvas alone, every callback forwarded.
+export component GraphViewHarness inherits Window {
+    width: 900px;
+    height: 420px;
+    in property <[GraphNode]> nodes;
+    in property <[GraphEdgeGeometry]> edges;
+    in property <[GraphAnchor]> anchors;
+    in property <bool> markers-visible: false;
+    in-out property <float> zoom: 1.0;
+    callback node-clicked(string);
+    callback node-drag-ended(string, length, length);
+    callback bypass-toggled(string);
+    callback remove-requested(string);
+    callback add-requested(string);
+    callback node-dropped(string, string);
+    pure callback resolve-drop-anchor(string, length, length) -> string;
+
+    GraphView {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        nodes: root.nodes;
+        edges: root.edges;
+        anchors: root.anchors;
+        markers_visible: root.markers-visible;
+        zoom <=> root.zoom;
+        node_clicked(id) => { root.node-clicked(id); }
+        node_drag_ended(id, x, y) => { root.node-drag-ended(id, x, y); }
+        bypass-toggled(id) => { root.bypass-toggled(id); }
+        remove-requested(id) => { root.remove-requested(id); }
+        add-requested(id) => { root.add-requested(id); }
+        node-dropped(id, anchor) => { root.node-dropped(id, anchor); }
+        resolve-drop-anchor(id, x, y) => { root.resolve-drop-anchor(id, x, y) }
+    }
+}
+
+// The canvas inside a scroll area, the way the chains list hosts it
+// (#328 §5.4): proves a plain wheel scrolls the list, not the graph.
+export component GraphViewScrollHarness inherits Window {
+    width: 900px;
+    height: 400px;
+    in property <[GraphNode]> nodes;
+    in-out property <float> zoom: 1.0;
+    out property <length> list-scroll-y: list.viewport-y;
+
+    list := Flickable {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        viewport-height: 1200px;
+
+        GraphView {
+            x: 0px;
+            y: 100px;
+            width: 900px;
+            height: 300px;
+            nodes: root.nodes;
+            zoom <=> root.zoom;
+        }
+    }
+}
