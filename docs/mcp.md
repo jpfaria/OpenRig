@@ -7,6 +7,36 @@ that attaches to the live instance (GUI or console). You use the GUI; an agent
 share one `ProjectSession` — a change made in the GUI is seen by the agent, and
 a change made by the agent is reflected in the GUI in real time.
 
+## Reads are free, writes land on the instrument
+
+Reading the live instance (`openrig://project`, `//routes`, `//meters`,
+`//tuner`, `//ids`) costs nothing and is the right first move when diagnosing.
+**Writing is not.** Every `set_*` / `toggle_*` lands on the rig the owner is
+playing through, right now.
+
+On 2026-08-25 the whole #873 MCP battery was run against the live rig — chains
+enabled, params changed, a chain added and removed — and the tuner and spectrum
+toggles were left in a state they had not been found in. Then `set_tuner_enabled`
+was called to win an argument and never turned off; the tuner's analyzer taps
+the audio and runs pitch detection, and minutes later: "o som está uma bosta",
+with the project closed and reopened to recover. The writes also contaminated
+the evidence — leftovers became indistinguishable from the real defect.
+
+**Apply:** diagnose with reads. Before any write to the running app, say what is
+about to change and why, and wait. If a write is authorized, snapshot the exact
+prior value and restore it, including the "small" toggles (tuner, spectrum,
+compact view) — those are the ones that get skipped. Never write to prove a
+point; prove it with a read, a test, or the source. A failing test in
+`.solvers/issue-N/` beats touching his session at all.
+
+Two ways the restore silently fails (#938, 2026-09-14): (1) a write that returned
+an error ("session expired" after a restart) had still landed — after ANY error
+on a write, re-read the state before retrying, or the retry duplicates the edit;
+(2) restarting the app drops unsaved edits, so a block he had disabled comes back
+enabled — after a restart, diff `openrig://ids` / `project` against the
+pre-restart snapshot and ask before putting anything back. "Restored" is claimed
+only after a re-read that matches the snapshot.
+
 ## Enable the server
 
 Two ways (#712). Persistent enablement is the per-machine `mcp_enabled`

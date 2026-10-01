@@ -158,6 +158,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 | `docs/hardware/orange-pi-deploy.md` | Alterar SO da placa via `platform/orange-pi/` |
 | `docs/blocks-catalog.md` | Tipos de bloco, modelos, parâmetros, backends |
 | `docs/screens.md` | Telas (Launcher, Chains, Tuner, Spectrum, Block Editor) |
+| `docs/development/ui-rules.md` | ANTES de qualquer trabalho de UI: PopupWindow, teste de interação, select único, mockup, label de I/O, grafo |
 | `docs/cli.md` | Args e env vars do `openrig` |
 | `docs/scripts.md` | Build/deploy, fluxo .deb→Orange Pi |
 | `docs/audio-config.md` | I/O como blocos, JACK lifecycle |
