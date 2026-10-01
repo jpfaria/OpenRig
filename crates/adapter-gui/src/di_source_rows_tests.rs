@@ -142,3 +142,54 @@ fn an_unchanged_row_is_not_rewritten() {
          re-renders every picker"
     );
 }
+
+fn take_rows(model: &VecModel<ProjectChainItem>, idx: usize) -> Vec<bool> {
+    model
+        .row_data(idx)
+        .unwrap()
+        .di_loop_take_rows
+        .iter()
+        .collect()
+}
+
+#[test]
+fn every_row_knows_which_entries_are_deletable_takes() {
+    // The DI panel shows a trash only on a saved take.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain("rig:a")],
+        midi: None,
+    };
+    let model = rows(1);
+    let takes = vec![PathBuf::from("/lib/looper-takes/riff.wav")];
+
+    apply_di_sources_to_rows(&model, &project, |_| None, &["strat".to_string()], &takes);
+
+    assert_eq!(take_rows(&model, 0), vec![false, true, false]);
+}
+
+#[test]
+fn a_deleted_take_loses_its_row_and_its_trash() {
+    // The next tick after a delete lists the library as it now is.
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain("rig:a")],
+        midi: None,
+    };
+    let model = rows(1);
+    let takes = vec![
+        PathBuf::from("/lib/looper-takes/riff.wav"),
+        PathBuf::from("/lib/looper-takes/verse.wav"),
+    ];
+    apply_di_sources_to_rows(&model, &project, |_| None, &[], &takes);
+
+    apply_di_sources_to_rows(&model, &project, |_| None, &[], &takes[1..]);
+
+    assert_eq!(
+        sources(&model, 0),
+        vec!["verse.wav", crate::di_loop_ui_sources::CHOOSE_FILE_SENTINEL]
+    );
+    assert_eq!(take_rows(&model, 0), vec![true, false]);
+}

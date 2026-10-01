@@ -216,8 +216,8 @@ follow-up.
   - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
     parameter snapshot: schema **plus** `current_value` per parameter
     (JSON, wrapped under a `params` envelope). A block inside a split
-    path is addressed by its id like any other. Unknown chain /
-    block → error from the bridge.
+    path is addressed by its id like any other. Unknown chain / block
+    → error from the bridge.
   - `openrig://chains/{chain}/quality` — objective quality
     report for one chain (THD+N, noise floor, peak/RMS level, dynamic
     range, clipping) under a `quality` envelope (JSON).
@@ -249,6 +249,10 @@ follow-up.
     take saved with `save_chain_looper_take` lands there as
     `<name>.wav`, and handing that path to `set_chain_di_loop_source`
     as `{"File": "<path>"}` plays it on any chain's DI.
+    `delete_looper_take` removes a take from that library by
+    file name (`riff` or `riff.wav`); any chain playing it as its DI
+    stops and unloads it. A name that is not a plain file of the
+    library is refused.
 
   All reads return JSON unless the type is documented as YAML or
   newline-delimited text.
@@ -332,11 +336,6 @@ audio-thread code is touched; invariants 1–10 hold by construction.
 The events a drained command produces redraw every open surface that shows
 the project — the chains list and the compact chain view alike — so a knob
 set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen.
-A batch made only of fader steps (`set_mixer_fader`,
-`set_chain_mixer_fader`, `set_chain_di_fader`, `set_chain_volume` — what a
-control surface such as the SMC-Mixer sends while a fader travels) is the
-exception: it changes nothing those views draw, so the cards stay in place
-and only the chain volume is written onto its card.
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`

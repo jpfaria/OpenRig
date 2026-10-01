@@ -192,6 +192,12 @@ msgstr "Remove"
 msgid "di-output-select-label"
 msgstr "DI output"
 
+msgid "di-take-delete-label"
+msgstr "Delete take"
+
+msgid "di-take-delete-confirm"
+msgstr "Delete?"
+
 #: crates/adapter-gui/ui/components/dual_mixer_strip.slint:43
 msgid "label-mixer-global"
 msgstr "GLOBAL"
@@ -689,7 +695,7 @@ msgstr "Measure latency (emits a beep)"
 msgid "tooltip-chain-mixer"
 msgstr "Chain mixer"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:207
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Configure"
 

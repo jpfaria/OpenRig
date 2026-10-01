@@ -148,6 +148,7 @@ export component CompactChainViewWindow inherits Window {
     // #717: which source is selected — without it the compact panel opens with
     // no selection, so it shows nothing picked and hides the play/stop button.
     in property <int> di-loop-selected-index: -1;
+    in property <[bool]> di-loop-take-rows: []; // deletable takes
     // #771: the chain's bound output endpoints + the persisted pick.
     in property <[string]> di-loop-outputs: [];
     in property <int> di-output-selected-index: -1;
@@ -220,6 +221,7 @@ export component CompactChainViewWindow inherits Window {
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
         di-loop-selected-index: root.di-loop-selected-index;
+        di-loop-take-rows: root.di-loop-take-rows;
         di-loop-outputs: root.di-loop-outputs;
         di-output-selected-index: root.di-output-selected-index;
         di-graph-meter: root.di-graph-meter;
@@ -293,6 +295,8 @@ export component CompactChainViewWindow inherits Window {
             playing: DiPanel.playing;
             outputs: DiPanel.outputs;
             output-selected-index: DiPanel.output-selected-index;
+            take-rows: DiPanel.take-rows;
+            delete-take(i, s) => { DiPanel.delete-take(s); }
             source-picked(i, s) => {
                 DiPanel.selected-index = i;
                 root.di-loop-source-selected(s);

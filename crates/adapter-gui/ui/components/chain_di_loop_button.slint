@@ -16,6 +16,8 @@ export component ChainDiLoopButton inherits Rectangle {
     // #771: the chain's bound output endpoints + the persisted pick.
     in property <[string]> outputs: [];
     in property <int> output-selected-index: -1;
+    // Which `sources` entries are deletable saved takes.
+    in property <[bool]> take-rows: [];
 
     width: 28px;
     height: 28px;
@@ -44,6 +46,7 @@ export component ChainDiLoopButton inherits Rectangle {
             DiPanel.chain-index = root.chain-index;
             DiPanel.sources = root.sources;
             DiPanel.selected-index = root.selected-index;
+            DiPanel.take-rows = root.take-rows;
             DiPanel.playing = root.playing;
             DiPanel.outputs = root.outputs;
             DiPanel.output-selected-index = root.output-selected-index;

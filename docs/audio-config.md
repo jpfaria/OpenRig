@@ -424,7 +424,7 @@ the leaves whose output node has `O` checked — its `ChainSegment.paths`
 (`segment_paths::route_paths`, `SegmentPaths::Only(leaves)`). Every leaf on one
 output is **one** segment; they are summed inside it, time-aligned, never by
 two segments on one route. An output no leaf checks is no port, so it has no
-route and no segment. The pairing is unchanged: a head input still pairs
+route and no segment. The input/output pairing is unchanged: a head input still pairs
 only with its own E/S's outputs, so a leaf can only reach outputs of the E/S
 whose input feeds it.
 
