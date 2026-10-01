@@ -16,8 +16,8 @@ Render every chain with the existing `GraphView` component (#435), which replace
 ## Non-goals
 
 - The Ampero's other chain types. Parallel = two chains. Serial = one longer chain. A/B → Y = two chains feeding the same output (the backend mixes).
-- More than one Split → Mix or more than one Y → A/B per chain, a Y before a Mix, or a split inside a path. The one combination a chain may hold is a Mix, then a Y (§9).
-- Input, Output or Insert blocks inside a path.
+- ~~More than one Split → Mix or more than one Y → A/B per chain, a Y before a Mix, or a split inside a path.~~ Amended 2026-10-01: a chain holds any number of splits, nested to any depth (§10). The only remaining rule is that a Y ends the list it sits in.
+- Input, Output or Insert blocks inside a path, and `Select` inside a path.
 - Adding endpoints from the graph. The chain's E/S config still defines which inputs and outputs exist.
 - The node-graph patchbay of #784.
 
@@ -271,3 +271,87 @@ Pre-existing gaps, also true with a single split and not changed by this amendme
 - Commands: `crates/application/src/local_dispatcher_split_tests.rs` and `crates/application/src/ld_split_path_tests.rs`.
 - Engine: `crates/engine/src/issue_328_y_segments_tests.rs`, `crates/engine/src/issue_328_y_audio_tests.rs` (each Y output hears the Mix, then only its own path; a Mix knob edit and a Mix toggle reach every output), `audio_alloc_invariant_tests.rs` (`audio_callback_does_not_allocate_with_a_mix_then_a_y`), and `crates/infra-cpal/src/io_topology_tests.rs` (`a_y_path_set_change_behind_a_mix_is_a_structural_change`).
 - GUI: the `mix_then_y_*` tests of `crates/adapter-gui/src/` (graph ids, anchors, clicks, gestures, picker, split chip, compact rows, split editor) on the fixture `[pre, Mix(ma | mb), mid, Y(ya | yb)]`.
+
+## 10. No limit: a chain is a tree (amendment, owner-approved 2026-10-01)
+
+Owner: "eu nao quero ter esse limite nao. eu quero poder criar o que quiser. o limite é a maquina" and
+"sinal de + é igual adicionar qualquer coisa". This amendment replaces §9's counting rules and the
+non-goal that forbade more than one split, a Y before a Mix, or a split inside a path.
+
+### 10.1 Rule
+
+- A chain holds **any number of splits**, of either end, at any position, **nested to any depth**: a
+  split's path A or B may itself hold splits.
+- Every "+" of the graph offers the full picker — every block type **and** both split ends — at every
+  position, including inside a path, at any depth.
+- Only two rules survive, and both are local to the list that holds the split:
+  1. A `Y` is the last block of **its own list**: nothing may follow it in the list it sits in (the
+     chain's own `Input`/`Output` ports excepted at the top level). A Y inside path A of a Mix ends
+     path A; the Mix after it still sums.
+  2. `Input`, `Output` and `Insert` blocks stay out of paths (unchanged), as does `Select` inside a
+     path (nesting a selector of lists inside a list is a separate feature).
+- Nothing counts splits any more. `validate_split_layout`'s "at most one split of each end" error is
+  deleted; `validate_structure` accepts `Split` inside a path.
+- The limit is the machine: every Y leaf is its own segment (§10.4), so CPU grows with the number of
+  leaves. The app does not cap it.
+
+### 10.2 Model and addressing
+
+- `SplitBlock` is unchanged. Nesting is already expressible: `a`/`b` are `Vec<AudioBlock>` and
+  `AudioBlock` may be a `Split`.
+- Every address is depth-free and names a split by its **block id**: `PathRef { split, side }`
+  already is. So are `SetSplitEnd`, `RemoveSplit` and the parameter commands.
+- `AddSplit` gains `path: Option<PathRef>`, exactly like `AddBlock`, so a split can be created inside
+  a path.
+- Lookups that assumed the top level become recursive: `split_by_id`, `find_split`,
+  `find_split_with_end`, `has_y_split`, `splits`, the GUI's `split_by_id` and `resolve_node`.
+- `is_routing()` for a `Split` becomes a **subtree query**: true when the split is a `Y` or when any
+  split in its paths is a `Y`. A Mix that holds a Y in a path does change which streams exist.
+- Path block ids keep carrying their split's id, so a nested path's ids are unique by construction.
+  The YAML format version stays `2`: a nested split is just a `Split` inside `a`/`b`.
+
+### 10.3 GUI
+
+- Node ids stop being ordinals. A split's nodes are `__split_<block id>` and `__merge_<block id>`,
+  so a node id is stable under nesting and reordering (the `__split_n` / `__merge_n` form of §9.5 is
+  replaced).
+- The layout model becomes a tree. `ChainStage::Parallel { lanes: Vec<Vec<BlockBlueprint>> }` cannot
+  express a split inside a lane, so a lane becomes a list of **stages** (`Vec<ChainStage>`) and
+  `linear_chain_layout`, `insert_anchors` and `validate_stages` recurse over it.
+- `AnchorSlot` names a place by `PathRef` + index instead of `{stage, lane, index}`, which removes
+  the depth assumption from every anchor id, drop target and drag target.
+- `split_picker_entries` loses its `path.is_some()` refusal and its uniqueness rules; what is left is
+  rule 1 of §10.1, judged against the list the "+" sits in (`list_at(chain, path)`).
+- `graph_lanes` stops being the literal 2: a row's height comes from the laid-out tree.
+- `.slint` needs no change: `GraphView` already takes flat node/edge/anchor models.
+
+### 10.4 Engine
+
+The DSP already recurses (`block_walk`, `runtime_split_walk::for_each_node`, the latency walk, the
+block builders, `process_segment`). What assumed one level:
+
+- `runtime_block_reuse`'s pool drains one level of paths; it must drain the whole subtree.
+- `apply_block_toggle`'s two-level loop must find a block at any depth and refresh the alignment of
+  every ancestor split, not only the one it touched.
+- `plan_alignment` composes by induction: a nested Mix is aligned inside its path before its parent
+  aligns its paths. `MAX_ALIGN_SAMPLES` stays per split. Ys never align across leaves.
+- `split_segment_view` prunes the tree to one **leaf**: the segment of leaf `L` keeps, at every Y on
+  the way down, only the side that leads to `L`, and keeps every Mix whole.
+- `SegmentPaths { None, A, B, AB }` is replaced by the set of leaves a segment serves, and
+  `TailFeed::Paths { a, b }` by a leaf list. `EndpointNode`'s `PathAOutput`/`PathBOutput` become a
+  leaf-addressed variant, which is a persisted-schema change in `disabled_endpoints` (the old
+  `path_a_outputs`/`path_b_outputs` keys load as the first and second leaf).
+- Each Y leaf is its own segment, which re-runs everything before it — the stream-isolation law. CPU
+  is therefore proportional to the number of leaves, and that is the machine limit of §10.1.
+
+### 10.5 Delivery
+
+**Part A — N splits, nesting, picker everywhere (no change to the Y's output model).** §10.1 rules,
+§10.2 model and commands, §10.3 GUI tree, and the engine items of §10.4 except the leaf-set types.
+A Y still ends its own list, so a chain with one top-level Y keeps exactly two output nodes.
+
+**Part B — N leaves.** The leaf-set types: `SegmentPaths`, `TailFeed`, `EndpointNode` and its schema
+migration, `is_routing` as a subtree query, and one output node per leaf. Only after Part B does a Y
+nested behind another Y produce more than two outputs.
+
+Each part is gated by CI once, not per task.
