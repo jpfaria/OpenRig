@@ -272,7 +272,7 @@ Pre-existing gaps, also true with a single split and not changed by this amendme
 - Engine: `crates/engine/src/issue_328_y_segments_tests.rs`, `crates/engine/src/issue_328_y_audio_tests.rs` (each Y output hears the Mix, then only its own path; a Mix knob edit and a Mix toggle reach every output), `audio_alloc_invariant_tests.rs` (`audio_callback_does_not_allocate_with_a_mix_then_a_y`), and `crates/infra-cpal/src/io_topology_tests.rs` (`a_y_path_set_change_behind_a_mix_is_a_structural_change`).
 - GUI: the `mix_then_y_*` tests of `crates/adapter-gui/src/` (graph ids, anchors, clicks, gestures, picker, split chip, compact rows, split editor) on the fixture `[pre, Mix(ma | mb), mid, Y(ya | yb)]`.
 
-## 10. No limit: a chain is a tree (amendment, owner-approved 2026-10-01)
+## 10. No limit: a chain is a tree (SUPERSEDED by §11 — the tree of 2-path splits was the agent's inference, not the owner's request)
 
 Owner: "eu nao quero ter esse limite nao. eu quero poder criar o que quiser. o limite é a maquina" and
 "sinal de + é igual adicionar qualquer coisa". This amendment replaces §9's counting rules and the
@@ -355,3 +355,18 @@ migration, `is_routing` as a subtree query, and one output node per leaf. Only a
 nested behind another Y produce more than two outputs.
 
 Each part is gated by CI once, not per task.
+
+## 11. A chain is a free graph (owner decision, 2026-10-01)
+
+Supersedes §10. The owner asked for a graph from the start; the "two paths per split" shape was
+an inference of the agent, never a requirement.
+
+Confirmed by the owner:
+- Any block can open into **N** paths (fan-out of any width).
+- **N** paths can join into a mix.
+- A chain can have **N** outputs.
+- Everything is wired by edges drawn in the graph itself.
+- No count limit on any of the above: the limit is the machine.
+
+Open (asked, not yet answered): how paths join — an explicit Mix node, or any block accepting
+several incoming edges.
