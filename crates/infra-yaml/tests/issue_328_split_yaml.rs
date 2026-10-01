@@ -1,6 +1,6 @@
 //! #328 — persistence of a chain split (spec §2).
 //!
-//! The project `.yaml` carries the split through the derive (`kind: !Split`).
+//! `project.yaml` carries the split through the derive (`kind: !Split`).
 //! Chain presets carry it as `type: split` with
 //! positional path blocks, loaded as `<split>::p0:<i>` / `<split>::p1:<i>`. A
 //! document that holds a split is `version: 2`; a split-free one stays at

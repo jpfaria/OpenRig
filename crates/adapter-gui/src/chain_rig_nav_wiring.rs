@@ -250,14 +250,26 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // command that produced them mutated the store and reconciled the loop's
     // isolated stream from the dispatcher, so a Record over MCP/MIDI already
     // recorded — this drain used to be the second road to that same store.
-    replace_project_chains(
-        &ctx.project_chains,
-        &session.project.borrow(),
-        &ctx.input_chain_devices.borrow(),
-        &ctx.output_chain_devices.borrow(),
-        &[],
-    );
-    refresh_chain_rig_nav(window, session);
+    // A batch of fader steps (a surface fader travelling) leaves the
+    // cards in place — re-projecting rebuilt every card once per step and
+    // the chain list / compact view jumped while the fader moved.
+    let rebuild_views = crate::view_refresh_policy::batch_requires_view_rebuild(events);
+    if rebuild_views {
+        replace_project_chains(
+            &ctx.project_chains,
+            &session.project.borrow(),
+            &ctx.input_chain_devices.borrow(),
+            &ctx.output_chain_devices.borrow(),
+            &[],
+        );
+        refresh_chain_rig_nav(window, session);
+    } else {
+        crate::chain_volume_row_patch::patch_chain_volumes(
+            &ctx.project_chains,
+            &session.project.borrow(),
+            events,
+        );
+    }
     // #591: keep the on-screen chain/block markers in lock-step with the
     // dispatcher-owned selection. This is the path a footswitch press
     // drains through, so moving the active chain/block via MIDI now shows
@@ -286,10 +298,12 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // borrow — the callback re-borrows `project_session`, so invoking it
     // while still borrowed would panic.
     drop(session_borrow);
-    crate::compact_view_refresh::refresh_open_compact_view(
-        &ctx.open_compact_window,
-        &ctx.project_session,
-    );
+    if rebuild_views {
+        crate::compact_view_refresh::refresh_open_compact_view(
+            &ctx.open_compact_window,
+            &ctx.project_session,
+        );
+    }
     if let Some(idx) = compact_open_idx {
         window.invoke_open_compact_chain_view(idx);
     }

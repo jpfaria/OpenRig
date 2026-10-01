@@ -686,7 +686,7 @@ msgstr "Latenz messen (ein Piepton)"
 msgid "tooltip-chain-mixer"
 msgstr "Chain-Mixer"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "Konfigurieren"
 

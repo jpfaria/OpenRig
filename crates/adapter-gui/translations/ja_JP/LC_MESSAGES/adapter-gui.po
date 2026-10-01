@@ -684,7 +684,7 @@ msgstr "レイテンシ計測（ビープ音が鳴ります）"
 msgid "tooltip-chain-mixer"
 msgstr "チェーンミキサー"
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr "設定"
 

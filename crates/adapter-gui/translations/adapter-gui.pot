@@ -680,7 +680,7 @@ msgstr ""
 msgid "tooltip-chain-mixer"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_row_header.slint:218
+#: crates/adapter-gui/ui/pages/chain_row_header.slint:223
 msgid "tooltip-configure"
 msgstr ""
 

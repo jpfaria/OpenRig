@@ -27,7 +27,7 @@ const NEW_MODEL: &str = "chime";
 fn rig_with_the_amp_in_path_b() -> RigProject {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/issue_986_scened_preset.yaml");
-    let mut rig = infra_yaml::load_rig_project_file(&path).expect("load the #986 fixture rig");
+    let mut rig = infra_yaml::load_project_file(&path).expect("load the #986 fixture rig");
     let preset = rig.presets.get_mut(PRESET).expect("fixture preset");
     let at = preset
         .blocks
