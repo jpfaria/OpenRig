@@ -24,6 +24,10 @@ export component DiLoopPanel inherits Rectangle {
     // Per entry of `sources`, true when it is a deletable saved take.
     in property <[bool]> take-rows;
 
+    // Inside a compact-view section the section is the panel: no box of its
+    // own, no title (the section header names it), no inset gutter.
+    in property <bool> embedded: false;
+
     callback source-picked(int, string);
     callback choose-file();
     callback play();
@@ -50,6 +54,7 @@ export component DiLoopPanel inherits Rectangle {
         (root.output-selected-index >= 0 && root.output-selected-index < root.outputs.length)
             ? root.outputs[root.output-selected-index] : "";
     private property <length> row-h: 34px;
+    private property <length> inset: root.embedded ? 0px : 8px;
     // Collapsed height: one row (source+play), plus the output row when bound.
     private property <length> base-h: root.has-outputs ? 90px : 52px;
 
@@ -60,9 +65,9 @@ export component DiLoopPanel inherits Rectangle {
         : root.out-expanded
         ? min(root.base-h + root.outputs.length * root.row-h + 6px, 420px)
         : root.base-h;
-    border-radius: 8px;
-    background: #11141af2;
-    border-width: 1px;
+    border-radius: root.embedded ? 0px : 8px;
+    background: root.embedded ? transparent : #11141af2;
+    border-width: root.embedded ? 0px : 1px;
     border-color: #3b4250;
     clip: true;
 
@@ -76,9 +81,9 @@ export component DiLoopPanel inherits Rectangle {
 
     // ── the SELECT field (closed box) ─────────────────────────────────────
     select-field := Rectangle {
-        x: 8px;
+        x: root.inset;
         y: 8px;
-        width: root.has-selection ? 308px : 344px;
+        width: root.width - 2 * root.inset - (root.has-selection ? 36px : 0px);
         height: 30px;
         border-radius: 6px;
         background: #0a0d12;
@@ -128,9 +133,9 @@ export component DiLoopPanel inherits Rectangle {
 
     // ── #771: the OUTPUT select (chain's bound output endpoints) ──────────
     if root.has-outputs : Rectangle {
-        x: 8px;
+        x: root.inset;
         y: 46px;
-        width: 344px;
+        width: root.width - 2 * root.inset;
         height: 30px;
         border-radius: 6px;
         background: #0a0d12;
@@ -180,7 +185,7 @@ export component DiLoopPanel inherits Rectangle {
 
     // ── PLAY / STOP (right of the select, once a source is selected) ───────
     if root.has-selection : Rectangle {
-        x: 324px;
+        x: root.width - root.inset - 28px;
         y: 9px;
         width: 28px;
         height: 28px;
@@ -212,9 +217,9 @@ export component DiLoopPanel inherits Rectangle {
 
     // ── the SELECT's options (inline, only when expanded) ─────────────────
     if root.expanded : Flickable {
-        x: 8px;
+        x: root.inset;
         y: root.base-h - 6px;
-        width: parent.width - 16px;
+        width: parent.width - 2 * root.inset;
         height: parent.height - root.base-h;
         viewport-width: self.width;
         viewport-height: root.sources.length * root.row-h + 4px;
@@ -304,9 +309,9 @@ export component DiLoopPanel inherits Rectangle {
 
     // ── #771: the OUTPUT select's options (inline, only when expanded) ────
     if root.out-expanded : Flickable {
-        x: 8px;
+        x: root.inset;
         y: root.base-h - 6px;
-        width: parent.width - 16px;
+        width: parent.width - 2 * root.inset;
         height: parent.height - root.base-h;
         viewport-width: self.width;
         viewport-height: root.outputs.length * root.row-h + 4px;

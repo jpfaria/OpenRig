@@ -34,16 +34,16 @@ component SectionHeader inherits Rectangle {
     }
 }
 
-// A section body: the panel scrolls inside the room the view can spare.
+// A section body: the panel spans the view and scrolls vertically inside the
+// room the view can spare.
 component SectionBody inherits Rectangle {
-    in property <length> content-width;
     in property <length> content-height;
     in property <length> body-max-height;
     height: min(root.content-height + 16px, root.body-max-height);
     background: #0c0e12;
     Flickable {
         width: 100%; height: 100%;
-        viewport-width: max(parent.width, root.content-width + 32px);
+        viewport-width: self.width;
         viewport-height: root.content-height + 16px;
         @children
     }
@@ -122,11 +122,12 @@ export component CompactChainSections inherits Rectangle {
             toggled(e) => { root.pick(1, e); }
         }
         if root.open == 1 : SectionBody {
-            content-width: di.width;
             content-height: di.height;
             body-max-height: root.max-body-height;
             di := DiLoopPanel {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 sources: root.di-loop-sources;
                 selected-index: root.di-loop-selected-index;
                 playing: root.di-loop-playing;
@@ -148,11 +149,12 @@ export component CompactChainSections inherits Rectangle {
             toggled(e) => { root.pick(2, e); }
         }
         if root.open == 2 : SectionBody {
-            content-width: looper.width;
             content-height: looper.height;
             body-max-height: root.max-body-height;
             looper := LooperPanelView {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 loopers: CompactLooper.loopers;
                 expanded-uid: LooperPanel.expanded-uid;
                 input-options: CompactLooper.input-options;
@@ -196,11 +198,12 @@ export component CompactChainSections inherits Rectangle {
             toggled(e) => { root.pick(3, e); }
         }
         if root.open == 3 : SectionBody {
-            content-width: doctor.width;
             content-height: doctor.height;
             body-max-height: root.max-body-height;
             doctor := ToneDoctorPanel {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 running: ToneDoctorState.running;
                 has-result: ToneDoctorState.has-result;
                 symptom-level: ToneDoctorState.symptom-level;

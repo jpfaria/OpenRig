@@ -176,3 +176,39 @@ fn an_open_section_pushes_the_headers_above_it_up() {
     click(&w, METERS);
     assert_eq!(top(&w), closed);
 }
+
+/// An open section body is the section itself, not the floating panel boxed
+/// inside it: the panel spans the view (16px gutter each side) and drops its
+/// own title, since the section header already names it.
+#[test]
+fn every_open_section_spans_the_view_without_its_own_box_title() {
+    let w = window(true);
+    for (toggle, panel, title) in [
+        (DI, "CompactChainSections::di", "DiLoopPanel::title"),
+        (
+            LOOPER,
+            "CompactChainSections::looper",
+            "LooperPanelView::title",
+        ),
+        (
+            DOCTOR,
+            "CompactChainSections::doctor",
+            "ToneDoctorPanel::title",
+        ),
+    ] {
+        click(&w, toggle);
+        let el = ElementHandle::find_by_element_id(&w, panel)
+            .next()
+            .unwrap_or_else(|| panic!("{panel} not found"));
+        assert!(
+            (el.size().width - (1100.0 - 32.0)).abs() < 1.0,
+            "{panel} is {}px wide, not the view's width",
+            el.size().width
+        );
+        assert_eq!(
+            count(&w, title),
+            0,
+            "{title} still drawn inside the section"
+        );
+    }
+}
