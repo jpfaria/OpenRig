@@ -201,7 +201,9 @@ device sits in the HD 8 path (the fractional jump).
 **Owner verdict on fix 2 (2026-10-01): not a fix.** A restart cuts the sound;
 on stage that is a dropout in the middle of a song, so automating the toggle
 only moves the failure. The deliverable of #979 is still the root cause: why
-the HD 8 input arrives stepped while a chain runs.
+the HD 8 input arrives stepped while a chain runs. The automatic restart stays
+as recovery, but every restart must leave a mark: the evidence of that
+moment, kept so the cause can be found. Investigation continues.
 
 **Fix 2 as built.**
 
