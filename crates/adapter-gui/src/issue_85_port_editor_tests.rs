@@ -69,6 +69,7 @@ fn session_with_port() -> Rc<RefCell<Option<ProjectSession>>> {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }];
     *session.io_bindings.borrow_mut() = registry();

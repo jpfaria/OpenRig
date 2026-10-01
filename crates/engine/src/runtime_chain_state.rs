@@ -246,6 +246,13 @@ impl ChainRuntimeState {
         matches!(self.output_routes.load().get(output_index), Some(Some(_)))
     }
 
+    /// #328: how many output routes this runtime has (written or not) — the
+    /// route indices a single-client backend (Linux/JACK-direct) serves, each
+    /// on its own ports.
+    pub fn output_route_count(&self) -> usize {
+        self.output_routes.load().len()
+    }
+
     /// Does an output stream on `output_index` belong to this runtime — it
     /// writes the route now, or an insert switch can make it write it (#967)?
     pub fn owns_output(&self, output_index: usize) -> bool {
@@ -353,3 +360,7 @@ pub(crate) fn fed_inputs_mask(input_to_segments: &[Vec<usize>]) -> u64 {
         .filter(|(i, segments)| *i < 64 && !segments.is_empty())
         .fold(0, |mask, (i, _)| mask | (1 << i))
 }
+
+#[cfg(test)]
+#[path = "runtime_route_count_tests.rs"]
+mod runtime_route_count_tests;

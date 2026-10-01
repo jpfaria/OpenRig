@@ -97,6 +97,15 @@ pub(crate) fn chain_has_insert_cut(chain: &Chain, registry: &[IoBinding]) -> boo
         .any(|b| crate::insert_cut::insert_cuts_chain(b, registry))
 }
 
+/// #328: whether a chain gets a runtime and streams — switched on, and its
+/// endpoint checklist leaves it an input and an output
+/// (`endpoint_feeds::checklist_silences`). The graph, the input-tap claims
+/// and every stream gate in infra-cpal read this ONE rule, so a chain whose
+/// every output is unchecked is off, never an activation error.
+pub fn chain_plays(chain: &Chain, registry: &[IoBinding]) -> bool {
+    chain.enabled && !project::endpoint_feeds::checklist_silences(chain, registry)
+}
+
 /// #967: the routes a runtime owns beyond the ones it writes right now. When
 /// the chain owns an insert's streams and is ONE runtime whether or not the
 /// insert cuts it, switching the insert is a DSP rebuild into that runtime's
@@ -198,7 +207,7 @@ pub fn build_runtime_graph(
 ) -> Result<RuntimeGraph> {
     let mut chains = HashMap::new();
     for chain in &project.chains {
-        if !chain.enabled {
+        if !chain_plays(chain, registry) {
             continue;
         }
         let sample_rate = *chain_sample_rates
@@ -498,3 +507,10 @@ mod issue_592_elastic_prime_tests;
 #[cfg(test)]
 #[path = "issue_947_routes_owned_by_their_stream_tests.rs"]
 mod issue_947_routes_owned_by_their_stream_tests;
+
+#[path = "segment_paths.rs"]
+pub mod segment_paths;
+
+#[cfg(test)]
+#[path = "issue_328_silenced_chain_tests.rs"]
+mod issue_328_silenced_chain_tests;

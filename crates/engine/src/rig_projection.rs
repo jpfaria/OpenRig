@@ -82,6 +82,10 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             blocks.retain(|b| !duplicates_chain_binding(b, &input.io_binding_ids));
         }
 
+        // #328: a rig saved before §11 names the paths of its single Y.
+        let mut disabled_endpoints = input.disabled_endpoints.clone();
+        disabled_endpoints.adopt_legacy_paths(&blocks);
+
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
             // The chain title is the *input* label (the chain's own
@@ -108,6 +112,8 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             blocks,
             di_output: None,
             loopers: input.loopers.clone(),
+            // #328: the input's checklists ride on the chain its graph edits.
+            disabled_endpoints,
             mix: input.mix.clone(),
         });
     }

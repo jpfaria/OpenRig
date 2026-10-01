@@ -67,7 +67,9 @@ pub fn conflicting_input_channel<'a>(
     }
     chains
         .into_iter()
-        .filter(|other| other.enabled && other.id != candidate.id)
+        .filter(|other| {
+            crate::runtime_graph::chain_plays(other, registry) && other.id != candidate.id
+        })
         .find_map(|other| {
             input_taps(&resolve_chain_io(other, registry).0)
                 .into_iter()
@@ -118,7 +120,7 @@ pub fn input_conflicting_chains<'a>(
     let mut claimed: Vec<(String, usize)> = Vec::new();
     let mut skipped = Vec::new();
     for chain in chains {
-        if !chain.enabled {
+        if !crate::runtime_graph::chain_plays(chain, registry) {
             continue;
         }
         let (inputs, _) = resolve_chain_io(chain, registry);

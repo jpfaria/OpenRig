@@ -117,6 +117,7 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

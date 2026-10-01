@@ -73,6 +73,42 @@ pub(crate) fn assign_strip_lines(items: &mut [BlockParameterItem]) -> i32 {
     }
 }
 
+/// The same wrap, but cells that share a run (`runs[i]`, e.g. the knobs of one
+/// split path) move to the next line together instead of breaking apart.
+pub(crate) fn assign_strip_lines_in_runs(items: &mut [BlockParameterItem], runs: &[usize]) -> i32 {
+    let mut line = 0i32;
+    let mut used = 0.0f32;
+    let mut any = false;
+    let mut start = 0;
+    while start < items.len() {
+        let end = (start..items.len())
+            .find(|&i| runs[i] != runs[start])
+            .unwrap_or(items.len());
+        let width: f32 = items[start..end]
+            .iter()
+            .filter(|it| it.tab_slot >= 0)
+            .map(|it| cell_width_px(it) + CELL_SPACING_PX)
+            .sum();
+        if width > 0.0 && any && used + width > STRIP_BUDGET_PX {
+            line += 1;
+            used = 0.0;
+        }
+        for it in &mut items[start..end] {
+            it.strip_line = if it.tab_slot >= 0 { line } else { -1 };
+        }
+        if width > 0.0 {
+            used += width;
+            any = true;
+        }
+        start = end;
+    }
+    if any {
+        line + 1
+    } else {
+        0
+    }
+}
+
 /// Same wrap for the curated knob overlays a model's `knob_layout` declares:
 /// they replace the generic strip, and every overlay is a knob cell.
 pub(crate) fn assign_overlay_lines(overlays: &mut [BlockKnobOverlay]) -> i32 {

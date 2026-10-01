@@ -59,9 +59,11 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             // #826: the editor edits name / instrument / bindings. Everything
             // it does NOT edit comes back untouched — dropping these deleted
             // the chain's recorded loops (wavs left orphaned beside the
-            // project) and its chosen DI output on every rename.
+            // project) and its chosen DI output on every rename. #328: the
+            // graph's endpoint checklists are one of those things.
             di_output: existing.di_output.clone(),
             loopers: existing.loopers.clone(),
+            disabled_endpoints: existing.disabled_endpoints.clone(),
             mix: existing.mix.clone(),
         }
     } else {
@@ -79,6 +81,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             blocks: Vec::new(),
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }
     }

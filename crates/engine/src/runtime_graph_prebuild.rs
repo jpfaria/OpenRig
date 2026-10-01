@@ -54,7 +54,9 @@ impl Emits {
     fn of(node: &BlockRuntimeNode) -> Self {
         match &node.processor {
             RuntimeProcessor::Audio(AudioProcessor::Mono(_)) => Emits::Mono,
-            RuntimeProcessor::Audio(_) | RuntimeProcessor::Select(_) => Emits::Decorrelated,
+            RuntimeProcessor::Audio(_)
+            | RuntimeProcessor::Select(_)
+            | RuntimeProcessor::Split(_) => Emits::Decorrelated,
             RuntimeProcessor::Bypass => Emits::Passthrough,
         }
     }

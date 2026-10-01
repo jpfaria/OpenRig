@@ -7,6 +7,7 @@ import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../mod
 import { EffectTypeIcon } from "./effect_type_icon.slint";
 import { BrandLogo } from "./brand_logo.slint";
 import { PowerSwitch } from "./power_switch.slint";
+import { BlockTileStyle } from "./block_tile_style.slint";
 
 export component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
@@ -29,7 +30,6 @@ export component BlockChip inherits Rectangle {
     // the user can tell the pedal is unavailable, not just switched off.
     // The enable toggle is already inert at the command layer.
     property <bool> unavailable: root.block.unavailable;
-    property <color> unavailable-tint: #b07a3c;
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
@@ -54,21 +54,14 @@ export component BlockChip inherits Rectangle {
     height: 100px;
     // #591: the active-block (strong) and neighbor (light) markers only
     // show while a MIDI command is recent (`markers-visible`), then fade
-    // out after 10s. Lit when the block is enabled, dimmer when disabled.
-    background: (root.markers-visible && root.selected) ? #f0a02014 : transparent;
-    border-width: root.markers-visible
-        ? (root.selected ? 2px : root.neighbor ? 1px : 0px)
-        : 0px;
-    border-color: root.markers-visible
-        ? (root.selected
-            ? (root.block.enabled ? #f0a020 : #f0a02066)
-            : root.neighbor
-                ? (root.block.enabled ? #f0a0207a : #f0a02040)
-                : transparent)
-        : transparent;
+    // out after 10s. Colours live in BlockTileStyle (#328), shared with the
+    // graph view's block card.
+    background: BlockTileStyle.marker-background(root.markers-visible, root.selected);
+    border-width: BlockTileStyle.marker-border-width(root.markers-visible, root.selected, root.neighbor);
+    border-color: BlockTileStyle.marker-border-color(root.markers-visible, root.selected, root.neighbor, root.block.enabled);
     border-radius: 6px;
     // #606: dim the whole tile when its model is unavailable.
-    opacity: root.unavailable ? 0.5 : 1.0;
+    opacity: root.unavailable ? BlockTileStyle.unavailable-opacity : 1.0;
     animate border-width { duration: 350ms; easing: ease-out; }
     animate border-color { duration: 350ms; easing: ease-out; }
     animate opacity { duration: 200ms; easing: ease-out; }
@@ -82,7 +75,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: root.type-label-height;
         text: root.block-type-label;
-        color: root.unavailable ? root.unavailable-tint : root.block.enabled ? root.accent-color : #5c6678;
+        color: BlockTileStyle.label-color(root.unavailable, root.block.enabled, root.accent-color);
         font-size: 18px;
         font-weight: 700;
         letter-spacing: 1px;
@@ -114,7 +107,7 @@ export component BlockChip inherits Rectangle {
         width: parent.width;
         height: hover-area.has-hover ? 90px : root.art-rest-height;
         icon-kind: root.block.icon-kind;
-        tint: root.unavailable ? root.unavailable-tint : root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
+        tint: BlockTileStyle.art-color(root.unavailable, root.dragging, root.block.enabled, root.accent-color);
         animate y { duration: 120ms; easing: ease-out; }
         animate height { duration: 120ms; easing: ease-out; }
     }

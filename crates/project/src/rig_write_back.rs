@@ -2,10 +2,48 @@
 //!
 //! Split out of `rig_methods.rs` (#873).
 
-use crate::block::{AudioBlock, AudioBlockKind};
+use crate::block::{block_params, block_params_mut, find_block_mut, walk_blocks};
+use crate::block::{AudioBlock, AudioBlockKind, SplitBlock};
 use crate::rig::RigProject;
 use domain::value_objects::ParameterValue;
 use std::collections::BTreeMap;
+
+/// #986: the preset's own copy of `live` when it already has that block (same
+/// id, same model) — the scene-applied live copy would bake the active scene
+/// into every scene. #328: a path block is looked up through the paths, and a
+/// split whose paths changed shape keeps its own base (knobs, `enabled`) with
+/// each path rebuilt the same way.
+fn owned_block(preset_blocks: &[AudioBlock], live: &AudioBlock) -> AudioBlock {
+    let base = walk_blocks(preset_blocks)
+        .into_iter()
+        .find(|b| b.id == live.id);
+    match (base, &live.kind) {
+        (Some(base), _) if base.kind.model_identity() == live.kind.model_identity() => base.clone(),
+        (Some(base), AudioBlockKind::Split(live_split)) => match &base.kind {
+            AudioBlockKind::Split(base_split) => AudioBlock {
+                id: live.id.clone(),
+                enabled: base.enabled,
+                kind: AudioBlockKind::Split(SplitBlock {
+                    end: live_split.end,
+                    params: base_split.params.clone(),
+                    paths: live_split
+                        .paths
+                        .iter()
+                        .map(|path| owned_path(preset_blocks, path))
+                        .collect(),
+                }),
+            },
+            _ => live.clone(),
+        },
+        _ => live.clone(),
+    }
+}
+
+fn owned_path(preset_blocks: &[AudioBlock], path: &[AudioBlock]) -> Vec<AudioBlock> {
+    path.iter()
+        .map(|live| owned_block(preset_blocks, live))
+        .collect()
+}
 
 impl RigProject {
     /// Persist a block/param edit made on the projected synthetic chain
@@ -36,10 +74,11 @@ impl RigProject {
             return;
         };
 
-        // Factory template, indexed by block id (immutable diff base).
-        let base: BTreeMap<String, AudioBlock> = preset
-            .blocks
-            .iter()
+        // Factory template, indexed by block id (immutable diff base). #328:
+        // the blocks inside a split's paths are keyed the same way, so a knob
+        // or bypass edited inside a path diffs exactly like a top-level one.
+        let base: BTreeMap<String, AudioBlock> = walk_blocks(&preset.blocks)
+            .into_iter()
             .map(|b| (b.id.0.clone(), b.clone()))
             .collect();
 
@@ -50,7 +89,7 @@ impl RigProject {
         let mut set_bypass: Vec<(String, bool)> = Vec::new();
         let mut clear_bypass: Vec<String> = Vec::new();
 
-        for edited in &blocks {
+        for edited in walk_blocks(&blocks) {
             let bid = edited.id.0.clone();
             let Some(base_blk) = base.get(&bid) else {
                 continue;
@@ -75,6 +114,10 @@ impl RigProject {
             let pair = match (&edited.kind, &base_blk.kind) {
                 (AudioBlockKind::Core(e), AudioBlockKind::Core(b)) => Some((&e.params, &b.params)),
                 (AudioBlockKind::Nam(e), AudioBlockKind::Nam(b)) => Some((&e.params, &b.params)),
+                // #328: the split and mixer knobs diff like a model's params.
+                (AudioBlockKind::Split(e), AudioBlockKind::Split(b)) => {
+                    Some((&e.params, &b.params))
+                }
                 _ => None,
             };
             if let Some((ep, bp)) = pair {
@@ -111,16 +154,8 @@ impl RigProject {
         }
 
         for (bid, pid, val) in set_base_param {
-            let params =
-                preset
-                    .blocks
-                    .iter_mut()
-                    .find(|b| b.id.0 == bid)
-                    .and_then(|b| match &mut b.kind {
-                        AudioBlockKind::Core(c) => Some(&mut c.params),
-                        AudioBlockKind::Nam(n) => Some(&mut n.params),
-                        _ => None,
-                    });
+            let params = find_block_mut(&mut preset.blocks, &bid)
+                .and_then(|b| block_params_mut(&mut b.kind));
             if let Some(params) = params {
                 params.insert(pid, val);
             }
@@ -191,38 +226,31 @@ impl RigProject {
         if same_structure {
             return false;
         }
-        let owned = |live: &AudioBlock| {
-            preset
-                .blocks
-                .iter()
-                .find(|b| b.id == live.id && b.kind.model_identity() == live.kind.model_identity())
-                .cloned()
-        };
         let next: Vec<AudioBlock> = blocks
             .iter()
-            .map(|live| owned(live).unwrap_or_else(|| live.clone()))
+            .map(|live| owned_block(&preset.blocks, live))
             .collect();
-        let swapped: BTreeMap<&str, &AudioBlock> = next
-            .iter()
+        // #328: the blocks inside a split's paths are owned the same way, so
+        // every lookup below walks the paths.
+        let old_blocks = walk_blocks(&preset.blocks);
+        let swapped: BTreeMap<&str, &AudioBlock> = walk_blocks(&next)
+            .into_iter()
             .filter(|b| {
-                preset.blocks.iter().any(|old| {
+                old_blocks.iter().any(|old| {
                     old.id == b.id && old.kind.model_identity() != b.kind.model_identity()
                 })
             })
             .map(|b| (b.id.0.as_str(), b))
             .collect();
-        let has_block = |id: &str| next.iter().any(|b| b.id.0 == id);
+        let next_blocks = walk_blocks(&next);
+        let has_block = |id: &str| next_blocks.iter().any(|b| b.id.0 == id);
         let keeps_param = |key: &str| {
-            next.iter().any(|b| {
+            next_blocks.iter().any(|b| {
                 let Some(param) = key.strip_prefix(&format!("{}.", b.id.0)) else {
                     return false;
                 };
                 match swapped.get(b.id.0.as_str()) {
-                    Some(new) => match &new.kind {
-                        AudioBlockKind::Core(c) => c.params.get(param).is_some(),
-                        AudioBlockKind::Nam(n) => n.params.get(param).is_some(),
-                        _ => false,
-                    },
+                    Some(new) => block_params(&new.kind).is_some_and(|p| p.get(param).is_some()),
                     None => true,
                 }
             })

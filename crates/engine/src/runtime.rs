@@ -560,3 +560,11 @@ mod issue_965_insert_latency;
 #[cfg(test)]
 #[path = "issue_987_in_place_edit_paths_tests.rs"]
 mod issue_987_in_place_edit_paths;
+
+#[cfg(test)]
+#[path = "issue_328_split_mix_tests.rs"]
+mod issue_328_split_mix;
+
+#[cfg(test)]
+#[path = "issue_328_split_seam_tests.rs"]
+mod issue_328_split_seam;

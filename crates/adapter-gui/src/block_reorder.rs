@@ -81,6 +81,7 @@ pub(crate) fn reorder_block(
             chain: chain_id.clone(),
             block: block_id,
             new_position: insert_at,
+            path: None,
         }))
         .map_err(|e| ReorderBlockError::Failed(e.to_string()))?;
     request_chain_sync(session, &chain_id).map_err(|e| ReorderBlockError::Failed(e.to_string()))?;

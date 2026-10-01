@@ -182,6 +182,10 @@ pub(crate) struct OutputRoutingState {
 pub(crate) enum RuntimeProcessor {
     Audio(AudioProcessor),
     Select(SelectRuntimeState),
+    /// #328: a chain split — both paths and their mixer run inside this node.
+    // Task 14 builds split nodes from the model and removes this allow.
+    #[cfg_attr(not(test), allow(dead_code))]
+    Split(crate::runtime_split::state::SplitRuntimeState),
     Bypass,
 }
 
@@ -194,6 +198,7 @@ impl RuntimeProcessor {
         match self {
             RuntimeProcessor::Audio(_) => "audio",
             RuntimeProcessor::Select(_) => "select",
+            RuntimeProcessor::Split(_) => "split",
             RuntimeProcessor::Bypass => "bypass",
         }
     }
@@ -278,6 +283,10 @@ impl SelectRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 /// Lives next to `FadeState` because it parameterises that state machine.
 pub(crate) const FADE_IN_FRAMES: usize = 128;
+
+/// Frames a segment preallocates for one callback — its frame buffer and a
+/// split's path-B buffer (#328). A larger callback grows them once.
+pub(crate) const SEGMENT_FRAME_CAPACITY: usize = 1024;
 
 /// #454-T5 spillover window: after a preset/scene switch the previous
 /// pipeline keeps processing **silence** (so its delay/reverb tail rings

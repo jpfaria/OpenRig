@@ -70,6 +70,7 @@ fn session_with_two_scenes() -> (Rc<RefCell<Option<ProjectSession>>>, BlockId) {
             kind: "dynamics".into(),
             model_id: "gate_basic".into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     let gate = session

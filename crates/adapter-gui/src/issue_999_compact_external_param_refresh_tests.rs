@@ -68,6 +68,7 @@ fn session_with_an_amp() -> (Rc<RefCell<Option<ProjectSession>>>, ChainId, Block
             kind: "amp".into(),
             model_id: AMP_MODEL.into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     let amp = session

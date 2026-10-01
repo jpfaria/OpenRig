@@ -404,6 +404,37 @@ MCP/MIDI reach the audio by the same road. All
 three assertions run against the source with `//` comments stripped, so no prose
 can satisfy them or trip them.
 
+## Chain split runs inside one segment (#328)
+
+`RuntimeProcessor::Split` is a node of the segment like any block. It holds
+both paths of a Split → Mix, path B's buffer (preallocated to
+`SEGMENT_FRAME_CAPACITY`; a larger callback is processed in chunks of that
+size, so it never grows), one alignment delay line per path and the knobs as
+atomics loaded once per callback. The mix is DSP inside that node — never a sum
+of two segments or two runtimes — so each segment of a chain runs its own split
+and stream isolation holds by construction.
+
+A Y → A/B is not a node of its own: the builder shapes it, per output segment,
+into the Split → Mix that segment runs (`split_segment_view`, see
+`docs/audio-config.md` → "Y → A/B outputs"). A chain may hold one Mix and,
+after it, one Y as its last processing block. Then the segment of each Y output
+runs the Mix node unchanged, the shared blocks, and the Y shaped to the paths
+that output checks: two split nodes in one segment. Every Y output therefore
+runs its own copy of the Mix and of everything before the Y, one pipeline per
+output, never a shared pre-Y runtime. The project-side lookups
+(`project::block::split_lookup`) find the Y by its end, never by "the first
+split".
+
+Files: `runtime_split.rs` routes `runtime_split_builder.rs` (model → node),
+`runtime_split_state.rs` (what a split keeps), `runtime_split_process.rs` (one
+callback), `runtime_split_mix.rs` (pure per-sample math),
+`runtime_split_align.rs` (delay line), `runtime_split_knobs.rs` (atomics),
+`runtime_split_latency.rs` (path latency, from each processor's
+`latency_samples()`) and `runtime_split_walk.rs`, which the read-only node
+walkers (bypass mirror, offline faulted list, probe summary) use to see inside
+both paths; the block toggle descends into the paths itself because it
+mutates them.
+
 ## Registry auto-gerado
 
 `crates/block-preamp/build.rs` (e equivalentes nos outros block-*) escaneia `src/*.rs` procurando `MODEL_DEFINITION` e gera `generated_registry.rs`. Novo modelo = criar `.rs` com `pub const MODEL_DEFINITION: PreampModelDefinition = ...`.

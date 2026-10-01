@@ -59,6 +59,7 @@ The foundation that makes the bigger vision possible already runs on every deskt
 
 - **Standalone desktop app** for macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64), and Windows (x86_64). Releases ship for macOS today; Linux and Windows build from source.
 - **Truly parallel chains.** Each input is an isolated audio runtime — no shared buffers, no contended locks, no cross-stream CPU spikes. Two guitars on the same interface? Two completely independent rigs in the same project, processed in parallel. Two interfaces at different sample rates (44.1 kHz and 48 kHz) work in the same project, each stream at its own rate.
+- **As many amps as you want, one chain.** Split any chain into as many parallel paths as you need, anywhere, even inside another path — **Split → Mix** sums them in a mixer (level, pan and polarity per path), **Split → Y** sends each path to its own outputs. Every chain is drawn as a graph you edit in place.
 - **[700+ registered models](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** across 16 block types — preamps, amps, cabs, overdrive/distortion/fuzz/boost pedals, delays, reverbs, modulation, dynamics, filters, wah, pitch correction, and 114 acoustic body IRs for piezo/magnetic acoustic pickups. ([full catalog with canonical IDs](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md))
 - **Five audio backends in the same graph.** Native Rust DSP for utility, EQ, dynamics, modulation, and reverb. NAM (Neural Amp Modeler) neural captures of real hardware — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff, and hundreds more. IR convolution for cabinets and acoustic bodies. 100+ bundled LV2 plugins (Guitarix, MDA, TAP, ZAM, Dragonfly, and others). VST3 plugins — the ones installed on the machine and the catalog bundles — run with the plugin's own editor window. Every block in a chain can come from any backend.
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
@@ -245,7 +246,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Global mixer — one fader and mute per input/output endpoint, over GUI, MCP and MIDI control surfaces ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
-- [ ] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
+- [x] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer per stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
 

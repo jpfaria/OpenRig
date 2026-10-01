@@ -487,6 +487,11 @@ pub(crate) fn apply_block_processor(
                 process_audio_block(selected, frames, error_queue);
             }
         }
+        RuntimeProcessor::Split(split) => {
+            crate::runtime_split::process::process_split(split, frames, |node, path| {
+                process_audio_block(node, path, error_queue)
+            });
+        }
         RuntimeProcessor::Bypass => {}
     }
 }

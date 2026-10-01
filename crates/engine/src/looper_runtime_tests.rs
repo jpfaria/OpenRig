@@ -43,6 +43,7 @@ fn passthrough_runtime(id: &str) -> Arc<super::ChainRuntimeState> {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     Arc::new(

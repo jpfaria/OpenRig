@@ -30,6 +30,8 @@ use domain::ids::{BlockId, ChainId};
 const EXPECTED_VARIANTS: &[&str] = &[
     // ── Added by #14 (the metronome) ──────────────────────────────────────
     "MetronomeTap",
+    "AddSplitPath",
+    "RemoveSplitPath",
     "SetMetronomeBpm",
     "SetMetronomeCountIn",
     "SetMetronomeEnabled",
@@ -60,6 +62,11 @@ const EXPECTED_VARIANTS: &[&str] = &[
     // #827 — keep a recorded loop as a named take the DI can play.
     "SaveChainLooperTake",
     "SetChainLooperTransport",
+    // ── Added by #328 (the chain split) ───────────────────────────────────
+    "AddSplit",
+    "RemoveSplit",
+    "SetSplitEnd",
+    "SetChainEndpointEnabled",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",

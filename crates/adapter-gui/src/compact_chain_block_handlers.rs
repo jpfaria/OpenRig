@@ -19,6 +19,7 @@ use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::block_editor_data;
 use crate::compact_block_view::build_compact_blocks;
+use crate::compact_row_address::row_block;
 use crate::helpers::set_status_error;
 #[cfg(target_os = "linux")]
 use crate::helpers::set_status_info;
@@ -93,7 +94,7 @@ fn wire_block_toggle_and_model(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())
@@ -114,7 +115,7 @@ fn wire_block_toggle_and_model(
                 let proj = session.project.borrow();
                 proj.chains
                     .get(chain_idx)
-                    .and_then(|c| c.blocks.get(block_idx))
+                    .and_then(|c| row_block(c, block_idx))
                     .map(|b| b.enabled)
                     .unwrap_or(false)
             };
@@ -189,7 +190,7 @@ fn wire_block_toggle_and_model(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 let Some(data) = block_editor_data(block) else {
@@ -214,7 +215,7 @@ fn wire_block_toggle_and_model(
                 let Some(chain) = proj.chains.get(chain_idx) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_idx) else {
+                let Some(block) = row_block(chain, block_idx) else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

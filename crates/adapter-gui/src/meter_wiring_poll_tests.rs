@@ -83,6 +83,7 @@ fn chain(id: &str, volume: f32) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -362,5 +363,40 @@ fn a_tick_lists_the_saved_takes_on_a_stopped_chain() {
     assert!(
         sources.iter().any(|s| s == "riff.wav"),
         "the saved take must be offered, got {sources:?}"
+    );
+}
+
+/// #328 (spec §5.2): the meter tick writes the row back ~15 times a second;
+/// the graph models must ride along untouched. Rebuilding them each tick would
+/// drop a hover or a drag in progress and allocate on every tick (#715).
+#[test]
+fn a_meter_tick_keeps_the_graph_models() {
+    let cid = ChainId("chain:0".into());
+    let session = session(vec![chain("chain:0", 100.0)]);
+    let model = rows(1);
+    let nodes = Rc::new(VecModel::from(vec![crate::GraphNode::default()]));
+    let mut row = model.row_data(0).unwrap();
+    row.graph_nodes = slint::ModelRc::from(nodes.clone());
+    model.set_row_data(0, row);
+
+    refresh(
+        &session,
+        &model,
+        &cid,
+        -20.0,
+        -12.0,
+        &FakeReads::default(),
+        &Counters::new(),
+    );
+
+    let after = model.row_data(0).unwrap();
+    let kept = after
+        .graph_nodes
+        .as_any()
+        .downcast_ref::<VecModel<crate::GraphNode>>()
+        .expect("still a VecModel");
+    assert!(
+        std::ptr::eq(kept, nodes.as_ref()),
+        "the tick replaced the graph model"
     );
 }

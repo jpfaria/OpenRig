@@ -53,6 +53,7 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -68,6 +69,7 @@ fn chain_empty() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

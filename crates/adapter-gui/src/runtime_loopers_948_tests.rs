@@ -47,6 +47,7 @@ fn chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![LooperConfig::new(UID)],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

@@ -1,9 +1,9 @@
 // Responsibility: renders one endpoint's global fader beside a chain's own fader.
-// #1007 — the compact view's IN / OUT strip: one frame, a console dual-fader
-// width, one shared label at the bottom. The LEFT fader is the endpoint's
-// GLOBAL strip (tinted, captioned, the same one the Mixer window moves); the
-// RIGHT fader is this chain's own gain on that endpoint. Each fader keeps its
-// own readout and MUTE; there is no SOLO here.
+// The compact view's IN / OUT strip: one frame, a console dual-fader width,
+// one shared label at the bottom. The LEFT fader is the endpoint's GLOBAL
+// strip (tinted, captioned, the same one the Mixer window moves); the RIGHT
+// fader is this chain's own gain on that endpoint. Each fader keeps its own
+// readout, mute and reset; there is no SOLO here.
 
 import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
 import { ChainMixerBridge } from "chain_mixer_globals.slint";

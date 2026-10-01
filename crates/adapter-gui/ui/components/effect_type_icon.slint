@@ -52,6 +52,8 @@ export component EffectTypeIcon inherits Rectangle {
             : root.icon-kind == "utility"        ? @image-url("../assets/util.svg")
             : root.icon-kind == "nam"            ? @image-url("../assets/nam.svg")
             : root.icon-kind == "pitch"          ? @image-url("../assets/pitch.svg")
+            : root.icon-kind == "split"          ? @image-url("../assets/graph-split.svg")
+            : root.icon-kind == "mixer"          ? @image-url("../assets/graph-mix.svg")
             : @image-url("../assets/gear.svg");
         image-fit: contain;
         colorize: root.tint;
