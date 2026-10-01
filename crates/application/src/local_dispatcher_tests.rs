@@ -111,6 +111,7 @@ pub(super) fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Proj
             blocks: vec![block],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         }],
         midi: None,

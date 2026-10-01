@@ -87,7 +87,7 @@ pub fn resolve_project_chain_sample_rates(
         let sr = meta.sample_rate as f32;
         let mut sample_rates = HashMap::new();
         for chain in &project.chains {
-            if chain.enabled {
+            if engine::runtime_graph::chain_plays(chain, registry) {
                 sample_rates.insert(chain.id.clone(), sr);
             }
         }
@@ -100,7 +100,7 @@ pub fn resolve_project_chain_sample_rates(
         let mut sample_rates = HashMap::new();
 
         for chain in &project.chains {
-            if !chain.enabled {
+            if !engine::runtime_graph::chain_plays(chain, registry) {
                 continue;
             }
             let inputs = resolve_chain_inputs(host, project, chain, registry)?;
@@ -391,7 +391,7 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
     let mut resolved = HashMap::new();
 
     for chain in &project.chains {
-        if !chain.enabled {
+        if !engine::runtime_graph::chain_plays(chain, registry) {
             continue;
         }
 

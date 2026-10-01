@@ -434,6 +434,7 @@ export component BlockTypeCard inherits Rectangle {
             : root.item.icon-kind == "utility"        ? @image-url("../assets/util.svg")
             : root.item.icon-kind == "nam"            ? @image-url("../assets/nam.svg")
             : root.item.icon-kind == "pitch"          ? @image-url("../assets/pitch.svg")
+            : root.item.icon-kind == "split"          ? @image-url("../assets/graph-split.svg")
             : @image-url("../assets/gear.svg");
         image-fit: contain;
         colorize: root.accent-color;

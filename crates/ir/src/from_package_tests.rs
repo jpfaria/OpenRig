@@ -62,3 +62,15 @@ fn legacy_preset_falls_back_to_manifest_audit_when_capture_lacks_value() {
 fn no_param_and_no_audit_anywhere_returns_none() {
     assert_eq!(resolve_output_db(None, None, None), None);
 }
+
+/// #328: a mono IR in a stereo layout runs as a dual-mono pair; the pair must
+/// report its channels' convolution latency.
+#[test]
+fn dual_mono_ir_reports_its_channels_latency() {
+    use block_core::StereoProcessor;
+    let pair = super::DualMonoIr {
+        left: Box::new(crate::MonoIrProcessor::new(vec![1.0]).expect("unit IR")),
+        right: Box::new(crate::MonoIrProcessor::new(vec![1.0]).expect("unit IR")),
+    };
+    assert_eq!(pair.latency_samples(), crate::PARTITION_SIZE);
+}

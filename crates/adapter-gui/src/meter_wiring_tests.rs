@@ -247,6 +247,7 @@ fn chain_signature_changes_when_enabled_flag_flips() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let s1 = chain_meter_signature(&c);
@@ -278,6 +279,7 @@ fn chain_signature_changes_when_block_enabled_bit_flips() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let s1 = chain_meter_signature(&c);
@@ -317,6 +319,7 @@ fn chain_signature_stable_when_only_param_value_changes() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let s1 = chain_meter_signature(&c);

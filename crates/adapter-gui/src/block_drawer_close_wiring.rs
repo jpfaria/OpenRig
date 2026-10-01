@@ -67,7 +67,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerCloseCtx) {
         crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
-        set_selected_block(&window, None, None);
+        set_selected_block(&window, None);
         crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
         crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
         crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());

@@ -73,6 +73,7 @@ fn session_with_a_chain() -> (Rc<RefCell<Option<ProjectSession>>>, ChainId) {
             kind: "amp".into(),
             model_id: "blackface_clean".into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     (Rc::new(RefCell::new(Some(session))), chain_id)
@@ -346,6 +347,7 @@ fn a_non_fader_edit_in_the_same_batch_still_redraws_the_views() {
                     kind: "gain".into(),
                     model_id: "volume".into(),
                     position: 1,
+                    path: None,
                 }))
                 .expect("add block"),
         );

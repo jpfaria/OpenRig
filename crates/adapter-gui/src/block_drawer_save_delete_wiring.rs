@@ -95,7 +95,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 return;
             }
             *selected_block.borrow_mut() = None;
-            set_selected_block(&window, None, None);
+            set_selected_block(&window, None);
             *block_editor_draft_save.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
             filtered_block_model_options.set_vec(Vec::new());

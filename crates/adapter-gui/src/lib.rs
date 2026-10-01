@@ -30,6 +30,7 @@ mod block_editor_window_setup;
 mod block_error_tick;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
+mod block_option_value;
 pub mod block_panel_dimensions;
 mod block_param_apply;
 mod block_parameter_extras;
@@ -70,6 +71,8 @@ mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
 mod chain_volume_row_patch;
 mod cli;
+mod compact_block_detail;
+mod compact_block_insert;
 mod compact_block_layout;
 mod compact_block_tabs;
 mod compact_block_view;
@@ -83,6 +86,8 @@ mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod compact_mixer_wiring;
 mod compact_routing_pick;
+mod compact_row_address;
+mod compact_split_row;
 mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
@@ -172,6 +177,17 @@ mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
+mod split_editor_grid;
+mod split_editor_items;
+mod split_editor_wiring;
+mod split_end_switch;
+mod split_insert;
+mod split_path_dispatch;
+mod split_path_gestures;
+mod split_path_wiring;
+mod split_picker_entries;
+mod stepped_input_mark;
+mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
@@ -203,7 +219,17 @@ mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
+mod chain_block_lists;
 mod chain_editor;
+mod chain_graph_adapter;
+mod chain_graph_drag;
+mod chain_graph_drop;
+#[cfg(test)]
+mod chain_graph_fixtures_tests;
+mod chain_graph_ids;
+mod chain_graph_models;
+mod chain_graph_split_group;
+mod chain_graph_wiring;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
@@ -211,7 +237,13 @@ mod device_refresh_list;
 mod device_rows;
 mod device_selection_items;
 mod device_settings_resolve;
+mod endpoint_checklist_items;
+mod endpoint_checklist_wiring;
+mod endpoint_toggle;
 mod eq;
+mod graph_anchor;
+mod graph_click;
+mod graph_gesture_actions;
 pub mod graph_view_model;
 mod gui_live_source;
 mod helpers;
@@ -408,6 +440,25 @@ mod project_view_stream_meters_tests;
 
 #[cfg(test)]
 mod touch_window_io_parity_tests;
+
+#[cfg(test)]
+mod compact_row_address_tests;
+#[cfg(test)]
+mod issue_328_compact_path_row_actions_tests;
+#[cfg(test)]
+mod issue_328_compact_split_rows_tests;
+#[cfg(test)]
+mod issue_328_endpoint_checklist_interaction_tests;
+#[cfg(test)]
+mod issue_328_graph_row_interaction_tests;
+#[cfg(test)]
+mod issue_328_path_block_editor_tests;
+#[cfg(test)]
+mod issue_328_split_chip_tests;
+#[cfg(test)]
+mod issue_328_split_editor_interaction_tests;
+#[cfg(test)]
+mod issue_328_split_picker_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

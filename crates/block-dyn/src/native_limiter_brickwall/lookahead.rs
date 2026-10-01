@@ -30,6 +30,12 @@ impl LookaheadBuffer {
         }
     }
 
+    /// Samples between a sample going in and the same sample coming out: the
+    /// look-ahead the limiter reports as its processing latency (#328).
+    pub fn delay_samples(&self) -> usize {
+        self.len
+    }
+
     #[cfg(test)]
     pub fn len(&self) -> usize {
         self.len

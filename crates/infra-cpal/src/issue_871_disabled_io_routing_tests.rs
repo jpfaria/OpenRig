@@ -101,6 +101,7 @@ fn owners_chain() -> Chain {
         blocks: vec![disabled_mid_input(), disabled_mid_output()],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

@@ -26,11 +26,12 @@ use project::param::ParameterSet;
 use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, schedule_block_editor_persist,
 };
+use crate::block_picker_items::insert_type_picker_items;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::helpers::use_inline_block_editor;
-use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
+use crate::project_view::{block_model_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
 use crate::{
@@ -95,57 +96,114 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         let curve_editor_points = curve_editor_points.clone();
         let eq_band_curves = eq_band_curves.clone();
         let project_session = project_session.clone();
-        window.on_start_block_insert(move |chain_index, before_index| {
-            log::debug!("on_start_block_insert: chain_index={}, before_index={}", chain_index, before_index);
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let (instrument, real_before_index) = {
-                let session_borrow = project_session.borrow();
-                if let Some(s) = session_borrow.as_ref() {
-                    let proj = s.project.borrow();
-                    if let Some(chain) = proj.chains.get(chain_index as usize) {
-                        log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
+        let begin_insert = Rc::new(
+            move |chain_index: i32, before: usize, path: Option<project::block::PathRef>| {
+                log::debug!(
+                    "on_start_block_insert: chain_index={}, before={}, path={:?}",
+                    chain_index,
+                    before,
+                    path
+                );
+                let Some(window) = weak_window.upgrade() else {
+                    return;
+                };
+                let (instrument, real_before_index) = {
+                    let session_borrow = project_session.borrow();
+                    if let Some(s) = session_borrow.as_ref() {
+                        let proj = s.project.borrow();
+                        if let Some(chain) = proj.chains.get(chain_index as usize) {
+                            log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
                             chain_index, chain.instrument, chain.description);
-                        let real_idx = ui_index_to_real_block_index(chain, before_index as usize);
-                        (chain.instrument.clone(), real_idx)
+                            let real_idx = match &path {
+                                None => ui_index_to_real_block_index(chain, before),
+                                Some(_) => crate::chain_block_lists::insert_index(
+                                    chain,
+                                    before,
+                                    path.as_ref(),
+                                )
+                                .unwrap_or(before),
+                            };
+                            (chain.instrument.clone(), real_idx)
+                        } else {
+                            log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
+                            (block_core::DEFAULT_INSTRUMENT.to_string(), before)
+                        }
                     } else {
                         log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
-                        (block_core::DEFAULT_INSTRUMENT.to_string(), before_index as usize)
+                        (block_core::DEFAULT_INSTRUMENT.to_string(), before)
                     }
-                } else {
-                    log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
-                    (block_core::DEFAULT_INSTRUMENT.to_string(), before_index as usize)
-                }
-            };
-            *selected_block.borrow_mut() = None;
-            *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
-                chain_index: chain_index as usize,
-                block_index: None,
-                before_index: real_before_index,
-                instrument: instrument.clone(),
-                effect_type: String::new(),
-                model_id: String::new(),
-                enabled: true,
-                is_select: false,
+                };
+                *selected_block.borrow_mut() = None;
+                *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
+                    chain_index: chain_index as usize,
+                    block_index: None,
+                    before_index: real_before_index,
+                    instrument: instrument.clone(),
+                    effect_type: String::new(),
+                    model_id: String::new(),
+                    enabled: true,
+                    is_select: false,
+                    path: path.clone(),
+                });
+                // #328: "Split → Mix" / "Y → A/B" follow the block types (spec §5.1).
+                let split_ends = {
+                    let borrowed = project_session.borrow();
+                    borrowed
+                        .as_ref()
+                        .and_then(|s| {
+                            s.project
+                                .borrow()
+                                .chains
+                                .get(chain_index as usize)
+                                .map(|chain| {
+                                    crate::split_picker_entries::split_picker_ends(
+                                        chain,
+                                        real_before_index,
+                                        path.as_ref(),
+                                    )
+                                })
+                        })
+                        .unwrap_or_default()
+                };
+                let mut types = insert_type_picker_items(&instrument, path.as_ref());
+                types.extend(crate::split_picker_entries::split_picker_items(&split_ends));
+                block_type_options.set_vec(types);
+                block_model_options.set_vec(Vec::new());
+                filtered_block_model_options.set_vec(Vec::new());
+                block_model_option_labels.set_vec(Vec::new());
+                block_parameter_items.set_vec(Vec::new());
+                multi_slider_points.set_vec(Vec::new());
+                curve_editor_points.set_vec(Vec::new());
+                eq_band_curves.set_vec(Vec::new());
+                crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
+                set_selected_block(&window, None);
+                crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
+                crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
+                crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
+                crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+                crate::BlockEditorBridge::get(&window).set_show_block_type_picker(true);
+            },
+        );
+        {
+            let begin_insert = begin_insert.clone();
+            window.on_start_block_insert(move |chain_index, before_index| {
+                begin_insert(chain_index, before_index as usize, None);
             });
-            block_type_options.set_vec(block_type_picker_items(&instrument));
-            block_model_options.set_vec(Vec::new());
-            filtered_block_model_options.set_vec(Vec::new());
-            block_model_option_labels.set_vec(Vec::new());
-            block_parameter_items.set_vec(Vec::new());
-            multi_slider_points.set_vec(Vec::new());
-            curve_editor_points.set_vec(Vec::new());
-            eq_band_curves.set_vec(Vec::new());
-            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
-            set_selected_block(&window, None, None);
-            crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
-            crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
-            crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
-            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
-            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
-            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(true);
-        });
+        }
+        // #328: a "+" inside a split path of the chain graph.
+        crate::ChainGraphBridge::get(window).on_start_path_insert(
+            move |chain_index, split, path, position| {
+                let Some(path) = crate::chain_block_lists::path_from_index(path) else {
+                    return;
+                };
+                let path = project::block::PathRef {
+                    split: domain::ids::BlockId(split.to_string()),
+                    path,
+                };
+                begin_insert(chain_index, position as usize, Some(path));
+            },
+        );
     }
 
     // on_choose_block_model

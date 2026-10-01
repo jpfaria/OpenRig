@@ -153,4 +153,10 @@ impl StereoProcessor for DualMonoIr {
             self.right.process_sample(input[1]),
         ]
     }
+
+    fn latency_samples(&self) -> usize {
+        self.left
+            .latency_samples()
+            .max(self.right.latency_samples())
+    }
 }

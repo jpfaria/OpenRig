@@ -190,5 +190,8 @@ pub(crate) fn extract_core_block_fields(
         AudioBlockYaml::Insert { .. } => {
             unreachable!("Insert handled before extract_core_block_fields")
         }
+        AudioBlockYaml::Split { .. } => {
+            unreachable!("Split handled before extract_core_block_fields")
+        }
     }
 }

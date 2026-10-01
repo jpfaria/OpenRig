@@ -30,6 +30,10 @@ impl MonoProcessor for GainScaledMono {
     ) -> bool {
         self.inner.try_in_place_update(params, sample_rate)
     }
+
+    fn latency_samples(&self) -> usize {
+        self.inner.latency_samples()
+    }
 }
 
 /// Wraps a [`StereoProcessor`] with a static linear gain applied post-process.
@@ -50,6 +54,10 @@ impl StereoProcessor for GainScaledStereo {
             frame[0] *= self.gain;
             frame[1] *= self.gain;
         }
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.inner.latency_samples()
     }
 }
 

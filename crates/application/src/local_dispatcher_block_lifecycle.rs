@@ -1,12 +1,14 @@
 //! Responsibility: handles the block lifecycle commands.
-//! Block-lifecycle handler (file-per-feature; #436 dispatcher split).
-//! Behaviour byte-identical to the original inline arm — pure move.
+//! Block-lifecycle handler (file-per-feature; #436 dispatcher split). #328:
+//! additions land at the top level or inside a split path, through the
+//! rule-checked `edit_chain_blocks`.
 
 use anyhow::Result;
 
 use domain::ids::BlockId;
 
 use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
+use crate::block_path::insert_block;
 use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -99,21 +101,16 @@ impl LocalDispatcher {
                 kind,
                 model_id,
                 position,
+                path,
             }) => {
-                // Build the new block with default params before mutating the project.
-                // A unique id is generated from the chain id + current timestamp-ish counter.
-                let block_id = {
-                    let proj = self.project.borrow();
-                    let chain_ref = proj.chains.iter().find(|c| c.id == chain);
-                    let n = chain_ref.map(|c| c.blocks.len()).unwrap_or(0);
-                    BlockId(format!("{}:{}:{}", chain.0, kind, n))
-                };
-                let new_block = build_default_block(block_id, &kind, &model_id)?;
+                // #328: a fresh id every time. The old `{chain}:{kind}:{len}`
+                // came back after a removal, and a block inside a split path
+                // does not count toward the chain's top-level length at all.
+                let new_block =
+                    build_default_block(BlockId::generate_for_chain(&chain), &kind, &model_id)?;
                 let new_block_id = new_block.id.clone();
-                self.with_chain(&chain, |c| {
-                    let insert_at = position.min(c.blocks.len());
-                    c.blocks.insert(insert_at, new_block);
-                    Ok(())
+                self.edit_chain_blocks(&chain, |blocks| {
+                    insert_block(blocks, path.as_ref(), position, new_block)
                 })?;
                 Ok(vec![Event::BlockAdded {
                     chain,
@@ -124,12 +121,11 @@ impl LocalDispatcher {
                 chain,
                 block,
                 position,
+                path,
             }) => {
                 let block_id = block.id.clone();
-                self.with_chain(&chain, |c| {
-                    let insert_at = position.min(c.blocks.len());
-                    c.blocks.insert(insert_at, block);
-                    Ok(())
+                self.edit_chain_blocks(&chain, |blocks| {
+                    insert_block(blocks, path.as_ref(), position, block)
                 })?;
                 Ok(vec![Event::BlockAdded {
                     chain,

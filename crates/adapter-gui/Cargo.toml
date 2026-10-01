@@ -17,6 +17,7 @@ feature-dsp = { path = "../feature-dsp" }
 infra-cpal = { path = "../infra-cpal" }
 plugin-loader = { path = "../plugin-loader" }
 infra-filesystem = { path = "../infra-filesystem" }
+hound = "3.5"
 infra-yaml = { path = "../infra-yaml" }
 dirs = "6"
 serde.workspace = true
@@ -54,7 +55,6 @@ slint-build.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
-hound = "3.5"
 # Slint interaction-test backend: instantiates real windows headlessly and
 # dispatches real pointer events, so tests catch .slint structural bugs
 # (TouchArea placement, focus recursion, callback wiring) that pure WireCtx

@@ -1,0 +1,16 @@
+// Responsibility: hosts the endpoint checklist overlay for a test.
+// #328 TEST-ONLY: EndpointChecklistOverlay in a real Window so the headless
+// tests can click its rows. Imported by app-window.slint only so slint-build
+// emits the Rust type; never shown in the running app.
+import { EndpointChecklistOverlay } from "endpoint_checklist_overlay.slint";
+import "../fonts/BebasNeue.ttf";
+
+export component EndpointChecklistHarness inherits Window {
+    width: 600px;
+    height: 600px;
+    background: #040708;
+    EndpointChecklistOverlay {
+        width: root.width;
+        height: root.height;
+    }
+}

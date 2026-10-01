@@ -17,7 +17,7 @@ use crate::output_meter::SILENT_DBFS;
 use crate::runtime_state::{ChainRuntimeState, OutputRoutingState};
 
 /// One output route as its device stream saw it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct OutputRouteStats {
     /// Position among the runtime's routes — the `output_index` the stream
     /// pops with.

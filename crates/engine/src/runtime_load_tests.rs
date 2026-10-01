@@ -47,6 +47,7 @@ fn pipe_runtime() -> Arc<ChainRuntimeState> {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     Arc::new(

@@ -1,0 +1,79 @@
+// Responsibility: declares the data the graph view renders.
+// Split out of graph_view.slint (#328 §5.2) so the node card can import the
+// node type without importing the canvas that imports the card — Slint
+// rejects cyclic imports.
+
+import { ChainBlockItem } from "../chain_block_item.slint";
+
+export struct GraphNode {
+    // Stable identifier — unique within the graph. Must match what the
+    // host gave when computing the layout.
+    id: string,
+    label: string,
+    // Stable category slug ("drive", "amp", "reverb", "util", …). Kept
+    // for accessibility / debugging; the component does NOT derive
+    // colour from it (Slint can't search an array). The host resolves
+    // colour from its palette and passes fill/border below — the single
+    // source of truth is default_palette() in graph_view_model.rs.
+    category: string,
+    // Resolved colours, host-supplied. Component is fully colour-agnostic.
+    fill: color,
+    border: color,
+    // Layout-space position (centre of the node).
+    layout_x: length,
+    layout_y: length,
+    // Visual state.
+    bypass: bool,
+    selected: bool,
+    // #328 §5.2: what the node IS — "block" | "io_input" | "io_output" |
+    // "split" | "mixer" (graph_view_model::NodeKind::as_str). The kind picks
+    // the card face; it replaced the `label == "" && category == "util"`
+    // routing-dot convention.
+    kind: string,
+    // #591 parity with BlockChip: the block the footswitch's neighbor toggle
+    // would act on (outlined lightly while MIDI markers show).
+    neighbor: bool,
+    // #328 parity with BlockChip: the block's own row item — type label,
+    // icon or thumbnail, accent, unavailable flag and the tooltip data. The
+    // host passes the same ChainBlockItem the chain row renders; empty for
+    // the other kinds. The LED follows `bypass`, never `block.enabled`.
+    block: ChainBlockItem,
+}
+
+export struct GraphEdge {
+    from_id: string,
+    to_id: string,
+}
+
+// Internal: GraphEdge resolved to actual coordinates, ready to render
+// as a Bézier curve. Host computes this from the node list; we keep the
+// shape simple so the resolved set can be derived in Slint via a
+// helper component or pre-computed in Rust.
+export struct GraphEdgeGeometry {
+    from_id: string,
+    to_id: string,
+    from_x: length,
+    from_y: length,
+    to_x: length,
+    to_y: length,
+}
+
+// Host-supplied category → colour map. The component owns NO colours;
+// the single source of truth is default_palette() in graph_view_model.rs.
+// The host resolves each node's fill/border from this and writes them
+// onto the GraphNode (Slint cannot search an array in a binding).
+export struct CategoryColor {
+    category: string,
+    fill: color,
+    border: color,
+}
+
+// #328 §5.1: one insert anchor — the "+" on a wire. Host-computed by
+// graph_view_model::insert_anchors (wire midpoint, slot id).
+export struct GraphAnchor {
+    id: string,
+    layout_x: length,
+    layout_y: length,
+    // An empty segment (no block at either end) always shows its "+".
+    always_visible: bool,
+}
