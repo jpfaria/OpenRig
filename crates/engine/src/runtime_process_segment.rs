@@ -129,6 +129,7 @@ pub(crate) fn process_single_segment(
         mixer_current,
         di_gain,
         di_current,
+        seam_watch: _,
     } = input_state;
 
     frame_buffer.clear();
@@ -485,6 +486,11 @@ pub(crate) fn apply_block_processor(
             if let Some(selected) = select.selected_node_mut() {
                 process_audio_block(selected, frames, error_queue);
             }
+        }
+        RuntimeProcessor::Split(split) => {
+            crate::runtime_split::process::process_split(split, frames, |node, path| {
+                process_audio_block(node, path, error_queue)
+            });
         }
         RuntimeProcessor::Bypass => {}
     }

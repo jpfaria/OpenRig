@@ -64,6 +64,7 @@ fn chain(id: &str, loopers: Vec<LooperConfig>) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers,
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }

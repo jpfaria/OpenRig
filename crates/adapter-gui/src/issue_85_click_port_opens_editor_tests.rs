@@ -100,6 +100,7 @@ fn session_with_insert() -> ProjectSession {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }];
     *session.io_bindings.borrow_mut() = registry();
@@ -121,6 +122,7 @@ fn session() -> ProjectSession {
         blocks: vec![core("A"), mid_output(), core("B")],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }];
     *session.io_bindings.borrow_mut() = registry();

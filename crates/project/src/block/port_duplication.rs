@@ -24,7 +24,8 @@ pub fn duplicates_chain_binding(block: &AudioBlock, io_binding_ids: &[String]) -
         AudioBlockKind::Nam(_)
         | AudioBlockKind::Core(_)
         | AudioBlockKind::Select(_)
-        | AudioBlockKind::Insert(_) => return false,
+        | AudioBlockKind::Insert(_)
+        | AudioBlockKind::Split(_) => return false,
     };
     !io.is_empty() && io_binding_ids.iter().any(|id| id == io)
 }

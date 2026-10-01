@@ -1,0 +1,37 @@
+// Responsibility: carries the chain graph row's gestures to Rust.
+//
+// #328. Every chain row's graph reports a gesture here, tagged with the row's
+// chain index, so no callback is drilled through ProjectChainsPage →
+// DesktopMain/TouchMain → AppWindow (app-window.slint lives at its line cap).
+// Mirrors `OverlayBridge` (#873).
+
+export global ChainGraphBridge {
+    // Desktop draws every chain as a graph; touch keeps the pedal strip with a
+    // single Split chip (spec §5.4). Set once at startup from the capabilities.
+    in-out property <bool> graph-enabled: true;
+
+    callback node-clicked(int, string);
+    callback add-requested(int, string);
+    callback remove-requested(int, string);
+    callback bypass-toggled(int, string);
+    // GraphView asks its host to move the dragged card (Part 5: the card
+    // follows the pointer only through the host's model).
+    callback node-dragged(int, string, length, length);
+    callback node-dropped(int, string, string);
+    // A released drag: the host puts every card back on the laid-out grid.
+    callback node-drag-ended(int, string);
+    // Part 5's `resolve-drop-anchor`, answered in Rust by
+    // `graph_view_model::resolve_drop_anchor` ("" = no anchor in reach).
+    // Args: chain index, dragged node id, layout x, layout y.
+    pure callback resolve-drop-anchor(int, string, length, length) -> string;
+
+    // Rust → the block flows: open, or insert into, a split path.
+    // Args: chain index, split block id, path index (0 = A, 1 = B, …), index in the path.
+    callback open-path-block(int, string, int, int);
+    callback start-path-insert(int, string, int, int);
+
+    // #591 selection markers for the graph cards, set with the strip's.
+    in-out property <int> selected-chain-index: -1;
+    in-out property <string> selected-block-id;
+    in-out property <string> neighbor-block-id;
+}

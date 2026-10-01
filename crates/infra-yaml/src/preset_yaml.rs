@@ -31,13 +31,13 @@ pub fn load_chain_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
         .with_context(|| format!("failed to parse preset yaml {:?}", path))?;
-    if dto.version > project::rig::PRESET_FORMAT_VERSION {
+    if dto.version > project::format_version::MAX_READABLE_FORMAT_VERSION {
         anyhow::bail!(
             "preset {:?} version {} is newer than this build supports (max {}); \
              please upgrade OpenRig",
             path,
             dto.version,
-            project::rig::PRESET_FORMAT_VERSION
+            project::format_version::MAX_READABLE_FORMAT_VERSION
         );
     }
     dto.into_preset()
@@ -119,7 +119,7 @@ impl PresetYaml {
 
     fn from_chain_preset(preset: &ChainBlocksPreset) -> Result<Self> {
         Ok(Self {
-            version: project::rig::PRESET_FORMAT_VERSION,
+            version: project::format_version::preset_format_version(&preset.blocks),
             id: preset.id.clone(),
             name: preset.name.clone(),
             volume: preset.volume,

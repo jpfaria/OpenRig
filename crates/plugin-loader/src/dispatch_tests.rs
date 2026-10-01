@@ -492,3 +492,53 @@ fn parses_range_steps() {
     assert_eq!(port.range_steps, Some(401));
     let _ = fs::remove_dir_all(&tmp);
 }
+
+// ── #328: the port that carries the plugin's processing latency ─────────
+
+#[test]
+fn parses_the_latency_port() {
+    use std::fs;
+    let tmp = std::env::temp_dir().join(format!("openrig-lv2-latency-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(
+        tmp.join("plug.ttl"),
+        "@prefix lv2: <http://lv2plug.in/ns/lv2core#> .\n\
+<urn:test:plug>\n\
+    a lv2:Plugin ;\n\
+    lv2:port [\n\
+        a lv2:OutputPort, lv2:ControlPort ;\n\
+        lv2:index 0 ;\n\
+        lv2:symbol \"latency\" ;\n\
+        lv2:portProperty lv2:reportsLatency, lv2:integer ;\n\
+    ] , [\n\
+        a lv2:OutputPort, lv2:ControlPort ;\n\
+        lv2:index 1 ;\n\
+        lv2:symbol \"delay_report\" ;\n\
+        lv2:designation lv2:latency ;\n\
+    ] , [\n\
+        a lv2:OutputPort, lv2:ControlPort ;\n\
+        lv2:index 2 ;\n\
+        lv2:symbol \"meter\" ;\n\
+    ] .\n",
+    )
+    .unwrap();
+    let ports = scan_lv2_ports(&tmp, "urn:test:plug").expect("scan ok");
+    let reports = |symbol: &str| {
+        ports
+            .iter()
+            .find(|p| p.symbol == symbol)
+            .expect("port present")
+            .reports_latency
+    };
+    assert!(
+        reports("latency"),
+        "lv2:reportsLatency marks the latency port"
+    );
+    assert!(
+        reports("delay_report"),
+        "lv2:designation lv2:latency marks it too"
+    );
+    assert!(!reports("meter"), "a plain meter is not a latency port");
+    let _ = fs::remove_dir_all(&tmp);
+}

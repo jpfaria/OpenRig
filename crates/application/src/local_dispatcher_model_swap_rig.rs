@@ -6,6 +6,7 @@
 //! scene resolves it (its surviving overrides applied), not like bare defaults.
 
 use domain::ids::{BlockId, ChainId};
+use project::block::find_block_mut;
 use project::rig_sync::sync_synthetic_into_rig;
 
 use crate::local_dispatcher::LocalDispatcher;
@@ -24,14 +25,13 @@ impl LocalDispatcher {
         };
         sync_synthetic_into_rig(&mut rig.borrow_mut(), &self.project.borrow());
 
+        // #328: the swapped block may sit inside a split path, on both sides.
         let resolved = {
             let rig = rig.borrow();
             rig.inputs.get(input).and_then(|ri| {
                 let preset = rig.presets.get(ri.bank.get(&ri.active_preset)?)?;
-                preset
-                    .apply_scene(ri.active_scene)
-                    .into_iter()
-                    .find(|b| b.id == *block)
+                let mut scene_blocks = preset.apply_scene(ri.active_scene);
+                find_block_mut(&mut scene_blocks, &block.0).cloned()
             })
         };
         let Some(resolved) = resolved else {
@@ -42,7 +42,7 @@ impl LocalDispatcher {
             .chains
             .iter_mut()
             .find(|c| c.id == *chain)
-            .and_then(|c| c.blocks.iter_mut().find(|b| b.id == *block))
+            .and_then(|c| find_block_mut(&mut c.blocks, &block.0))
         {
             live.kind = resolved.kind;
         }

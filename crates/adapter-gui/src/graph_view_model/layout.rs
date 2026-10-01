@@ -32,7 +32,9 @@ fn build_adjacency(
 }
 
 /// Longest-path rank per node index (column). `None` if the graph has a
-/// cycle — caller falls back to input order.
+/// cycle — caller falls back to input order. A terminal (a node with
+/// inputs and no outputs) moves to the last rank, so the terminals of a
+/// fan-out — a Y chain's output nodes — line up on one column (#328).
 fn longest_path_ranks(node_ids: &[&str], edges: &[GraphEdge]) -> Option<Vec<usize>> {
     let n = node_ids.len();
     let node_idx: HashMap<&str, usize> =
@@ -57,7 +59,16 @@ fn longest_path_ranks(node_ids: &[&str], edges: &[GraphEdge]) -> Option<Vec<usiz
             }
         }
     }
-    (processed == n).then_some(rank)
+    if processed != n {
+        return None;
+    }
+    let last = rank.iter().copied().max().unwrap_or(0);
+    for (i, r) in rank.iter_mut().enumerate() {
+        if outs[i].is_empty() && indeg[i] > 0 {
+            *r = last;
+        }
+    }
+    Some(rank)
 }
 
 /// Lane offset per node index. Nodes sharing a rank are ordered by the

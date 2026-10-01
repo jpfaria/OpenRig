@@ -51,6 +51,7 @@ fn chain_with(uids: &[u64], audio_file: Option<&str>) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
         loopers: uids
             .iter()
             .map(|uid| LooperConfig {

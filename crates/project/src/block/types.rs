@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use block_core::ModelAudioMode;
 
+use super::split_block::{SplitBlock, SplitEnd};
+
 use crate::param::ParameterSet;
 
 /// Maximum number of options a single `SelectBlock` may carry.
@@ -58,6 +60,7 @@ pub enum AudioBlockKind {
     Input(InputBlock),
     Output(OutputBlock),
     Insert(InsertBlock),
+    Split(SplitBlock),
 }
 
 impl AudioBlockKind {
@@ -72,16 +75,29 @@ impl AudioBlockKind {
             Self::Input(_) => "input",
             Self::Output(_) => "output",
             Self::Insert(_) => "insert",
+            Self::Split(_) => "split",
         }
     }
 
-    /// Whether this block is ROUTING metadata rather than a processor: a mid
-    /// `Input`/`Output` port or an `Insert`. The runtime builds no node for
-    /// them — `runtime_segments` splits the chain on the enabled ones — so
-    /// enabling or disabling one is a topology change that only a rebuild can
-    /// apply, never the in-place block fade (#85/#881).
+    /// Whether this block is ROUTING rather than an in-place processor: a mid
+    /// `Input`/`Output` port or an `Insert` (the runtime builds no node for
+    /// them — `runtime_segments` splits the chain on the enabled ones), or a
+    /// `Split` whose subtree holds a Y (#328: each Y leaf decides which
+    /// streams exist). Enabling or disabling one is a topology change that
+    /// only a rebuild can apply, never the in-place block fade (#85/#881). A
+    /// `Split → Mix` is DSP inside one segment, so it is not routing.
     pub fn is_routing(&self) -> bool {
-        matches!(self, Self::Input(_) | Self::Output(_) | Self::Insert(_))
+        match self {
+            Self::Input(_) | Self::Output(_) | Self::Insert(_) => true,
+            Self::Split(split) => {
+                split.end == SplitEnd::Y
+                    || split
+                        .paths
+                        .iter()
+                        .any(|path| super::split_lookup::has_y_split(path))
+            }
+            Self::Nam(_) | Self::Core(_) | Self::Select(_) => false,
+        }
     }
 
     /// A params-free signature of the block's MODEL identity (variant + model
@@ -98,8 +114,29 @@ impl AudioBlockKind {
             Self::Input(b) => format!("input:{}", b.model),
             Self::Output(b) => format!("output:{}", b.model),
             Self::Insert(b) => format!("insert:{}", b.model),
+            // #328: a split's structure is its end plus, per path, each block's
+            // id and model identity — so adding, removing, moving or swapping a
+            // block inside a path is structural, while a knob or bypass is not.
+            Self::Split(b) => format!(
+                "split:{}|{}",
+                b.end.as_str(),
+                b.paths
+                    .iter()
+                    .map(|path| format!("[{}]", path_identity(path)))
+                    .collect::<Vec<_>>()
+                    .join("|")
+            ),
         }
     }
+}
+
+/// #328: one split path's structure — each block's id and model identity, in order.
+fn path_identity(blocks: &[AudioBlock]) -> String {
+    blocks
+        .iter()
+        .map(|b| format!("{}={}", b.id.0, b.kind.model_identity()))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]

@@ -227,14 +227,17 @@ cargo test --workspace
 
 `crates/infra-cpal/tests/issue_670_cab_swap.rs`,
 `crates/infra-cpal/tests/issue_670_real_streams_no_xruns.rs`,
-`crates/infra-cpal/tests/issue_698_pitch_shifter_live.rs` and
-`crates/infra-cpal/tests/issue_698_owner_64_dual_chain.rs` open the REAL
+`crates/infra-cpal/tests/issue_698_pitch_shifter_live.rs`,
+`crates/infra-cpal/tests/issue_698_owner_64_dual_chain.rs` and
+`crates/infra-cpal/tests/issue_328_dual_amp_split.rs` open the REAL
 audio interface (CoreAudio streams, the owner's presets and DI takes) and
 assert real-time deadlines through the engine's own xrun/underrun counters.
 They are the full-fidelity reproduction harness for the #670 crackle and
 the #698 multi-chain RT-budget overcommit (shared helpers live in
 `tests/hw_harness/`). The #698 owner-recipe tests additionally need the
 real capture library via `OPENRIG_OWNER_PLUGINS=<plugins/source>`.
+The #328 test plays a Split → Mix dual-amp chain (amp A hard left, amp B
+hard right) and prints its peak load next to a single amp's.
 
 They are only meaningful on an otherwise idle machine, so they are gated by
 an environment variable and return immediately (with a loud notice on
@@ -246,7 +249,8 @@ changes:**
 ```sh
 OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
     --test issue_670_cab_swap --test issue_670_real_streams_no_xruns \
-    --test issue_698_pitch_shifter_live --test issue_698_owner_64_dual_chain
+    --test issue_698_pitch_shifter_live --test issue_698_owner_64_dual_chain \
+    --test issue_328_dual_amp_split
 ```
 
 Requirements: macOS, a real input/output interface connected (the suite

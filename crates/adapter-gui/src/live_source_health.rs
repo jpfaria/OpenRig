@@ -52,6 +52,19 @@ impl LiveSource for HealthLiveSource {
             healthy: controller.is_healthy(),
         })
     }
+
+    /// #979: the chains the engine marked as reading a stepped input.
+    fn stepped_input_chains(&self) -> Vec<String> {
+        let borrow = self.runtime.borrow();
+        let Some(controller) = borrow.as_ref() else {
+            return Vec::new();
+        };
+        controller
+            .stepped_input_chains()
+            .into_iter()
+            .map(|chain| chain.0)
+            .collect()
+    }
 }
 
 /// Build the poll tick's read seam over the app's shared runtime handle.

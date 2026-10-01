@@ -3258,6 +3258,7 @@ dependencies = [
  "nam",
  "plugin-loader",
  "project",
+ "serde",
  "vst3-host",
 ]
 

@@ -59,6 +59,14 @@ impl FftBlockConvolver {
         Ok(convolver)
     }
 
+    /// Samples between an input and its convolved output: a sample waits
+    /// for its partition to fill before the FFT runs, so every output is
+    /// exactly one partition late (#617, ~1.3 ms at 48 kHz). Reported so a
+    /// chain split can line its paths up (#328).
+    pub(crate) const fn latency_samples(&self) -> usize {
+        PARTITION_SIZE
+    }
+
     pub(crate) fn process_block_in_place(&mut self, buffer: &mut [f32]) {
         if buffer.is_empty() {
             return;

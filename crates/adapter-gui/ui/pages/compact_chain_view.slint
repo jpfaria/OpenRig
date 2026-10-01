@@ -215,8 +215,10 @@ export component CompactChainViewPage inherits Rectangle {
             // Dim the row being dragged
             opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
 
+            // #328: a row inside a split's path is indented by how deep it sits.
             CompactBlockRow {
-                width: parent.width;
+                x: block-item.path-depth * 16px;
+                width: parent.width - self.x;
                 height: block-item.row-height;
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }

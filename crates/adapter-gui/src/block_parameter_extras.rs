@@ -242,7 +242,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
             crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block.
-            let (chain_index, block_index) = {
+            let (chain_index, block_index, block_path) = {
                 let draft_borrow = block_editor_draft.borrow();
                 let Some(draft) = draft_borrow.as_ref() else {
                     return;
@@ -250,7 +250,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                 let Some(bi) = draft.block_index else {
                     return;
                 };
-                (draft.chain_index, bi)
+                (draft.chain_index, bi, draft.path.clone())
             };
 
             // Resolve chain_id / block_id from project indices.
@@ -263,7 +263,10 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                 let Some(chain) = proj.chains.get(chain_index) else {
                     return;
                 };
-                let Some(block) = chain.blocks.get(block_index) else {
+                // #328: an index inside a split path counts in that path.
+                let Some(block) =
+                    crate::chain_block_lists::block_at(chain, block_index, block_path.as_ref())
+                else {
                     return;
                 };
                 (chain.id.clone(), block.id.clone())

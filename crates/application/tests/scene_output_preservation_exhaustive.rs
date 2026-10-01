@@ -99,6 +99,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
             mix: Default::default(),
         },
     );
@@ -238,6 +239,7 @@ fn add_block_preserves_io() {
         kind: "gain".into(),
         model_id: "volume".into(),
         position: 2,
+        path: None,
     }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);
@@ -330,6 +332,7 @@ fn replacement_chain_without_output() -> Chain {
         io_binding_ids: vec![],
         blocks: vec![user_input_block(), core_block("only-effect:1")],
         di_output: None,
+        disabled_endpoints: Default::default(),
         loopers: vec![],
         mix: Default::default(),
     }

@@ -64,6 +64,7 @@ fn chain_with_mid_output() -> Chain {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     }
 }
@@ -176,6 +177,7 @@ fn the_insert_send_device_is_mapped_to_the_chains_input_stream() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         mix: Default::default(),
     };
     let (logical_inputs, _) = engine::runtime_endpoints::resolve_chain_io(&chain, &registry);

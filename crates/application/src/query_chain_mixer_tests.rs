@@ -30,6 +30,7 @@ fn registry() -> Vec<IoBinding> {
 
 fn project() -> Project {
     let mut chain = Chain {
+        disabled_endpoints: Default::default(),
         id: ChainId("rig:guitar".into()),
         description: None,
         instrument: "electric_guitar".into(),

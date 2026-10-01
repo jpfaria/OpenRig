@@ -7,13 +7,16 @@ export component BlockInsertSlot inherits Rectangle {
     in property <bool> active-drop-target: false;
     in property <bool> move-target: false;
     in property <bool> suppress-hover-affordance: false;
+    // #328: the chain row draws a straight track through the slot; on a
+    // graph wire the wire itself is the track, so the graph turns it off.
+    in property <bool> show-track: true;
     callback clicked();
 
     width: 32px;
     height: 24px;
     background: transparent;
 
-    if !root.empty-slot : Rectangle {
+    if !root.empty-slot && root.show-track : Rectangle {
         x: 0px;
         y: 11px;
         width: parent.width;
@@ -72,6 +75,9 @@ export component BlockInsertSlot inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
+
+    accessible-role: button;
+    accessible-label: @tr("accessible-add-block-here");
 }
 
 // Hover tooltip card for a chain block. Lives in ChainRow, declared after

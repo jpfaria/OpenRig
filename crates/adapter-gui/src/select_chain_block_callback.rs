@@ -83,6 +83,16 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
 }
 
+/// Which block a click names: a strip row (top level) or a card inside a
+/// split path of the chain graph (#328).
+enum BlockPick {
+    Row(usize),
+    Path {
+        path: project::block::PathRef,
+        index: usize,
+    },
+}
+
 pub(crate) fn wire(
     window: &AppWindow,
     chain_insert_window: &ChainInsertWindow,
@@ -130,13 +140,17 @@ pub(crate) fn wire(
         output_chain_devices: output_chain_devices.clone(),
     };
 
-    window.on_select_chain_block(move |chain_index, ui_block_index| {
+    let open_block = Rc::new(move |chain_index: i32, pick: BlockPick| {
         let Some(window) = weak_main_window.upgrade() else {
             return;
         };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+            set_status_error(
+                &window,
+                &toast_timer,
+                &rust_i18n::t!("error-no-project-loaded"),
+            );
             return;
         };
         let chain = {
@@ -151,24 +165,48 @@ pub(crate) fn wire(
         };
         // Convert UI index (position in filtered array without first Input/last Output)
         // to real index in chain.blocks — always computed from current chain state
-        let block_index = ui_index_to_real_block_index(&chain, ui_block_index as usize) as i32;
-        log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
-        let Some(block) = chain.blocks.get(block_index as usize) else {
-            log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
+        let (block_index, path) = match pick {
+            BlockPick::Row(ui) => (ui_index_to_real_block_index(&chain, ui) as i32, None),
+            BlockPick::Path { path, index } => (index as i32, Some(path)),
+        };
+        log::info!("[select_chain_block] index={} path={:?}", block_index, path);
+        let Some(block) =
+            crate::chain_block_lists::block_at(&chain, block_index as usize, path.as_ref())
+        else {
+            log::warn!(
+                "[select_chain_block] block_index={} out of bounds, chain has {} blocks",
+                block_index,
+                chain.blocks.len()
+            );
             set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
             return;
         };
         // #436: selection is dispatcher-owned now (MIDI/MCP can move the
         // cursor). The GUI dispatches; the editor-window plumbing below
         // is screen concern and stays for now (separate decrements).
-        let _ = session
-            .dispatcher
-            .dispatch(application::command::Command::Selection(
-                application::command::SelectionCommand::SelectChainBlock {
-                    chain: chain.id.clone(),
-                    block_index: block_index as usize,
-                },
-            ));
+        // #328: the dispatcher's block cursor addresses top-level blocks by
+        // index; a path card opens its editor without moving it.
+        if path.is_none() {
+            let _ = session
+                .dispatcher
+                .dispatch(application::command::Command::Selection(
+                    application::command::SelectionCommand::SelectChainBlock {
+                        chain: chain.id.clone(),
+                        block_index: block_index as usize,
+                    },
+                ));
+        }
+        // #328 (spec §5.4): the Split chip opens the split editor; the split
+        // has no model for the block editor below.
+        if matches!(block.kind, AudioBlockKind::Split(_)) {
+            drop(session_borrow);
+            crate::ChainGraphOverlayState::get(&window).invoke_open_split_editor(
+                chain_index,
+                block.id.0.as_str().into(),
+                0,
+            );
+            return;
+        }
         // #85: a mid I/O port opens the port editor it was created with, seeded
         // with the E/S it currently points at — otherwise the port is added and
         // then uneditable ("this block cannot be edited from the GUI yet"), so
@@ -181,7 +219,8 @@ pub(crate) fn wire(
             AudioBlockKind::Nam(_)
             | AudioBlockKind::Core(_)
             | AudioBlockKind::Select(_)
-            | AudioBlockKind::Insert(_) => None,
+            | AudioBlockKind::Insert(_)
+            | AudioBlockKind::Split(_) => None,
         };
         if let Some((is_input, io, endpoint)) = port {
             let registry = session.io_bindings.borrow().clone();
@@ -206,7 +245,11 @@ pub(crate) fn wire(
         }
         // Handle Insert blocks — open the insert configuration window.
         if let AudioBlockKind::Insert(ib) = &block.kind {
-            log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+            log::info!(
+                "[select_chain_block] insert block at index {}: id='{}'",
+                block_index,
+                block.id.0
+            );
             // #716 (model A): an insert points at ONE E/S binding — send on its
             // output, return on its input — so that is the only pick the editor
             // offers.
@@ -230,22 +273,48 @@ pub(crate) fn wire(
             }
             return;
         }
-        log::info!("[select_chain_block] block at real_index={}: id='{}', kind={}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
-        log::info!("[select_chain_block] chain has {} blocks:", chain.blocks.len());
+        log::info!(
+            "[select_chain_block] block at real_index={}: id='{}', kind={}",
+            block_index,
+            block.id.0,
+            block
+                .model_ref()
+                .map(|m| format!("{}/{}", m.effect_type, m.model))
+                .unwrap_or_else(|| "io/insert".to_string())
+        );
+        log::info!(
+            "[select_chain_block] chain has {} blocks:",
+            chain.blocks.len()
+        );
         for (i, b) in chain.blocks.iter().enumerate() {
-            log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            log::info!(
+                "[select_chain_block]   [{}] id='{}' kind={}",
+                i,
+                b.id.0,
+                b.model_ref()
+                    .map(|m| format!("{}/{}", m.effect_type, m.model))
+                    .unwrap_or_else(|| "io/insert".to_string())
+            );
         }
         let Some(editor_data) = block_editor_data(block) else {
-            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-block-not-editable"));
+            set_status_error(
+                &window,
+                &toast_timer,
+                &rust_i18n::t!("error-block-not-editable"),
+            );
             return;
         };
         let effect_type = editor_data.effect_type.clone();
         let model_id = editor_data.model_id.clone();
         let enabled = editor_data.enabled;
-        *selected_block.borrow_mut() = Some(SelectedBlock {
-            chain_index: chain_index as usize,
-            block_index: block_index as usize,
-        });
+        *selected_block.borrow_mut() = if path.is_none() {
+            Some(SelectedBlock {
+                chain_index: chain_index as usize,
+                block_index: block_index as usize,
+            })
+        } else {
+            None
+        };
         let instrument = chain.instrument.clone();
         log::info!("[select_chain_block] chain_index={}, block_index={}, effect_type='{}', model_id='{}', enabled={}", chain_index, block_index, effect_type, model_id, enabled);
         *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
@@ -257,6 +326,7 @@ pub(crate) fn wire(
             model_id: model_id.clone(),
             enabled,
             is_select: editor_data.is_select,
+            path: path.clone(),
         });
         let items = block_model_picker_items(&effect_type, &instrument);
         log::debug!("[select_chain_block] filtered models count={}", items.len());
@@ -272,19 +342,39 @@ pub(crate) fn wire(
             &inline_tab_state,
             block_parameter_items_for_editor(&editor_data),
         );
-        multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-        curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_session));
-        eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+        multi_slider_points.set_vec(build_multi_slider_points(
+            &editor_data.effect_type,
+            &editor_data.model_id,
+            &editor_data.params,
+        ));
+        curve_editor_points.set_vec(build_curve_editor_points(
+            &editor_data.effect_type,
+            &editor_data.model_id,
+            &editor_data.params,
+        ));
+        let (eq_total, eq_bands) = compute_eq_curves(
+            &editor_data.effect_type,
+            &editor_data.model_id,
+            &editor_data.params,
+            eq_viz_sample_rate(&project_session),
+        );
+        eq_band_curves.set_vec(
+            eq_bands
+                .into_iter()
+                .map(SharedString::from)
+                .collect::<Vec<_>>(),
+        );
         crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
-        set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));
+        set_selected_block(&window, selected_block.borrow().as_ref());
         let drawer_state =
             block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
         crate::BlockEditorBridge::get(&window).set_block_drawer_title(drawer_state.title.into());
-        crate::BlockEditorBridge::get(&window).set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+        crate::BlockEditorBridge::get(&window)
+            .set_block_drawer_confirm_label(drawer_state.confirm_label.into());
         crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(true);
         block_type_options.set_vec(block_type_picker_items(&instrument));
-        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
+        crate::BlockEditorBridge::get(&window)
+            .set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(
             block_model_index(&effect_type, &model_id, &instrument),
         );
@@ -300,8 +390,12 @@ pub(crate) fn wire(
         // from the plugin's own parameters (`catalog_params`).
         if use_inline_block_editor(&window) {
             let param_items_vec = block_parameter_items_for_editor(&editor_data);
-            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
-            crate::BlockEditorBridge::get(&window).set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            let overlays = build_knob_overlays(
+                project::catalog::model_knob_layout(&effect_type, &model_id),
+                &param_items_vec,
+            );
+            crate::BlockEditorBridge::get(&window)
+                .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             // #819: knob count changed -> re-publish the #500 panel height.
             crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
@@ -318,31 +412,44 @@ pub(crate) fn wire(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
-                            let Some(win) = weak_win.upgrade() else { return; };
+                            let Some(win) = weak_win.upgrade() else {
+                                return;
+                            };
 
                             // No utility block currently produces a "spectrum" stream
                             // (the spectrum_analyzer block was promoted to a top-bar
                             // feature in #320). Kept generic for future stream blocks.
                             let kind: slint::SharedString = "stream".into();
-                            let Some(entries) = block_stream_reads.block_stream(&bid) else { return; };
+                            let Some(entries) = block_stream_reads.block_stream(&bid) else {
+                                return;
+                            };
                             if !entries.is_empty() {
-                                let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                    key: e.key.clone().into(),
-                                    value: e.value,
-                                    text: e.text.clone().into(),
-                                    peak: e.peak,
-                                }).collect();
-                                crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
-                                    active: true,
-                                    stream_kind: kind,
-                                    entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
-                                });
+                                let slint_entries: Vec<BlockStreamEntry> = entries
+                                    .iter()
+                                    .map(|e| BlockStreamEntry {
+                                        key: e.key.clone().into(),
+                                        value: e.value,
+                                        text: e.text.clone().into(),
+                                        peak: e.peak,
+                                    })
+                                    .collect();
+                                crate::BlockEditorBridge::get(&win).set_block_stream_data(
+                                    BlockStreamData {
+                                        active: true,
+                                        stream_kind: kind,
+                                        entries: ModelRc::from(Rc::new(VecModel::from(
+                                            slint_entries,
+                                        ))),
+                                    },
+                                );
                             } else {
-                                crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
-                                    active: false,
-                                    stream_kind: kind,
-                                    entries: ModelRc::default(),
-                                });
+                                crate::BlockEditorBridge::get(&win).set_block_stream_data(
+                                    BlockStreamData {
+                                        active: false,
+                                        stream_kind: kind,
+                                        entries: ModelRc::default(),
+                                    },
+                                );
                             }
                         },
                     );
@@ -357,7 +464,10 @@ pub(crate) fn wire(
             // If this block already has an open editor, bring it to front.
             {
                 let borrow = open_block_windows.borrow();
-                if let Some(bw) = borrow.iter().find(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                if let Some(bw) = borrow
+                    .iter()
+                    .find(|bw| bw.chain_index == ci && bw.block_index == bi && bw.path == path)
+                {
                     show_child_window(window.window(), bw.window.window());
                     return;
                 }
@@ -366,13 +476,16 @@ pub(crate) fn wire(
             // After add/remove operations the block at a given index may have changed.
             {
                 let borrow = open_block_windows.borrow();
-                for bw in borrow.iter().filter(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                for bw in borrow
+                    .iter()
+                    .filter(|bw| bw.chain_index == ci && bw.block_index == bi && bw.path == path)
+                {
                     let _ = bw.window.hide();
                 }
             }
-            open_block_windows.borrow_mut().retain(|bw| {
-                !(bw.chain_index == ci && bw.block_index == bi)
-            });
+            open_block_windows
+                .borrow_mut()
+                .retain(|bw| !(bw.chain_index == ci && bw.block_index == bi && bw.path == path));
             // Build + wire a fresh BlockEditorWindow for this block
             let setup_ctx = block_editor_window_setup::BlockEditorWindowSetupCtx {
                 chain_index: ci,
@@ -384,6 +497,7 @@ pub(crate) fn wire(
                 enabled,
                 editor_data,
                 block_id: Some(block_id_for_editor),
+                path: path.clone(),
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
                 block_stream_reads: Rc::clone(&block_stream_reads),
@@ -402,12 +516,47 @@ pub(crate) fn wire(
             ) {
                 Ok(pair) => pair,
                 Err(e) => {
-                    set_status_error(&window, &toast_timer, rust_i18n::t!("error-editor-open", err = e).as_ref());
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        rust_i18n::t!("error-editor-open", err = e).as_ref(),
+                    );
                     return;
                 }
             };
             show_child_window(window.window(), win.window());
-            open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win, stream_timer: block_stream_timer });
+            open_block_windows.borrow_mut().push(BlockWindow {
+                chain_index: ci,
+                block_index: bi,
+                path: path.clone(),
+                window: win,
+                stream_timer: block_stream_timer,
+            });
         }
     });
+    {
+        let open_block = open_block.clone();
+        window.on_select_chain_block(move |chain_index, ui_block_index| {
+            open_block(chain_index, BlockPick::Row(ui_block_index as usize));
+        });
+    }
+    // #328: a card inside a split path of the chain graph.
+    crate::ChainGraphBridge::get(window).on_open_path_block(
+        move |chain_index, split, path, index| {
+            let Some(path) = crate::chain_block_lists::path_from_index(path) else {
+                return;
+            };
+            let path = project::block::PathRef {
+                split: domain::ids::BlockId(split.to_string()),
+                path,
+            };
+            open_block(
+                chain_index,
+                BlockPick::Path {
+                    path,
+                    index: index as usize,
+                },
+            );
+        },
+    );
 }

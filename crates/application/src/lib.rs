@@ -12,6 +12,7 @@
 pub mod app_config_persist;
 pub mod audio_taps;
 pub mod block_factory;
+mod block_path;
 pub mod bridge;
 mod bridge_off_frontend;
 pub mod chain_factory;
@@ -32,10 +33,12 @@ pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
 mod local_dispatcher_attach;
+mod local_dispatcher_block_draft;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
+mod local_dispatcher_chain_endpoints;
 mod local_dispatcher_chain_io;
 mod local_dispatcher_chain_mixer;
 mod local_dispatcher_chain_order;
@@ -65,6 +68,7 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
+mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
@@ -111,6 +115,9 @@ pub mod session;
 /// #693: published immutable state snapshot — transports serve reads
 /// concurrently on their own thread (API-style), never via the GUI tick.
 pub mod snapshot;
+mod split_path_commands;
+mod split_path_references;
+mod split_rules;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;
@@ -184,3 +191,31 @@ mod local_dispatcher_parity_829_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]
 mod local_dispatcher_rig_tests;
+
+#[cfg(test)]
+#[path = "split_tests_fixtures.rs"]
+mod split_tests_fixtures;
+
+#[cfg(test)]
+#[path = "ld_split_path_tests.rs"]
+mod ld_split_path;
+
+#[cfg(test)]
+#[path = "ld_split_nested_tests.rs"]
+mod ld_split_nested;
+
+#[cfg(test)]
+#[path = "ld_split_endpoint_cleanup_tests.rs"]
+mod ld_split_endpoint_cleanup;
+
+#[cfg(test)]
+#[path = "local_dispatcher_split_tests.rs"]
+mod local_dispatcher_split_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_endpoints_tests.rs"]
+mod local_dispatcher_chain_endpoints_tests;
+
+#[cfg(test)]
+#[path = "ld_split_chain_doors_tests.rs"]
+mod ld_split_chain_doors;

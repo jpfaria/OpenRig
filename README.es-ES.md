@@ -59,6 +59,7 @@ La base que hace posible la visión más grande ya corre en todas las plataforma
 
 - **App standalone** para macOS (Apple Silicon + Intel), Linux (x86_64 + aarch64) y Windows (x86_64).
 - **Cadenas verdaderamente paralelas.** Cada input es un runtime de audio aislado — sin búferes compartidos, sin locks contendidos, sin picos de CPU entre streams. ¿Dos guitarras en la misma interfaz? Dos rigs completamente independientes en el mismo proyecto, procesados en paralelo.
+- **Tantos amplis como quieras, una cadena.** Divide cualquier cadena en tantos caminos paralelos como necesites, en cualquier punto, incluso dentro de otro camino — **Split → Mix** los suma en un mezclador (nivel, paneo y polaridad por camino), **Split → Y** envía cada camino a sus propias salidas. Cada cadena se dibuja como un grafo que editas ahí mismo.
 - **[560+ modelos registrados](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference)** repartidos en 16 tipos de bloque — preamps, amps, cabs, pedales de overdrive/distorsión/fuzz/boost, delays, reverbs, modulation, dynamics, filtros, wah, corrección de pitch y 114 IRs de cuerpo acústico para pastillas piezo y magnéticas. ([catálogo completo con IDs canónicos](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md))
 - **Cuatro backends de audio en el mismo grafo.** DSP nativo en Rust para utility, EQ, dynamics, modulation y reverb. NAM (Neural Amp Modeler) con capturas neuronales de hardware real — Marshall Plexi, Mesa Rectifier, EVH 5150, Vox AC30, Klon Centaur, Boss DS-1, Big Muff y 540+ más. Convolución por IR para cabinets y cuerpos acústicos. 100+ plugins LV2 ya incluidos (Guitarix, MDA, TAP, ZAM, Dragonfly y otros). Cualquier bloque en una cadena puede venir de cualquier backend.
 - **Visualización en tiempo real integrada.** Un afinador cromático y un analizador de espectro en vivo entran en la cadena como cualquier otro bloque — ve lo que oyes.
@@ -235,7 +236,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — un fader y un mute por entrada/salida, desde la GUI, MCP y superficies de control MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
-- [ ] Routing paralelo / splits de cadena ([#328](https://github.com/jpfaria/OpenRig/issues/328))
+- [x] Routing paralelo / splits de cadena ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer por stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
 

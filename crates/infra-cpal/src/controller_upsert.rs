@@ -45,7 +45,8 @@ impl ProjectRuntimeController {
             chain.id.0,
             chain.enabled
         );
-        if !chain.enabled {
+        // #328: a chain the checklist leaves with no input or no output is off.
+        if !engine::runtime_graph::chain_plays(chain, &self.io_bindings) {
             // #929 (owner's rule): off = every stream the chain owns dies, open
             // or still building — nothing may land later and play a chain the
             // screen shows as off. The #522 pause (streams kept alive, drained

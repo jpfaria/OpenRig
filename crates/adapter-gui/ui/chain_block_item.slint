@@ -1,0 +1,45 @@
+// Responsibility: declares the tile data one chain block shows.
+//
+// #328: moved verbatim out of models.slint so the graph types
+// (components/graph_view_types.slint), which embed a ChainBlockItem in every
+// GraphNode, can be imported by models.slint without an import cycle.
+// models.slint re-exports both structs; every existing import keeps working.
+
+export struct BlockParamSummaryEntry {
+    label: string,    // parameter name in uppercase (e.g. "GAIN")
+    value: string,    // formatted current value (e.g. "65")
+    unit: string,     // optional unit suffix (e.g. "%", "ms", "dB")
+}
+
+export struct ChainBlockItem {
+    kind: string,
+    icon_kind: string,
+    type_label: string,
+    label: string,
+    family: string,
+    enabled: bool,
+    // #606: the model is not installed/loadable (uninstalled NAM/IR/LV2
+    // pack, or unsupported on this platform). The tile renders it as
+    // deactivated and its enable toggle is inert — the user cannot turn on
+    // a pedal that cannot build.
+    unavailable: bool,
+    real_index: int,
+    thumbnail: image,
+    has_thumbnail: bool,
+    thumb_width: float,
+    thumb_height: float,
+    accent_color: color,
+    icon_source: image,
+    // Hover-tooltip metadata. `display_name` is the human model name;
+    // `backend_label` is the DSP backend in uppercase
+    // ("NATIVE"/"NAM"/"IR"/"LV2"); `brand` is the manufacturer slug used
+    // by `BrandLogo` (e.g. "marshall", "fender", "boss") to optionally
+    // render the logo; `param_entries` is the list of currently-set
+    // parameters split into label/value/unit so the tooltip can render
+    // each part with distinct typography. All four are empty for I/O and
+    // Insert blocks where the tooltip would add no signal.
+    display_name: string,
+    backend_label: string,
+    brand: string,
+    param_entries: [BlockParamSummaryEntry],
+}

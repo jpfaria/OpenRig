@@ -71,6 +71,12 @@ impl RigRuntime {
             }
             let id = ChainId(format!("rig:{name}"));
             if let Some(chain) = rig_to_chains(&project).into_iter().find(|c| c.id == id) {
+                // #328: an input whose checklist leaves it nothing to play is
+                // off — no runtime, and it holds no tap another input wants
+                // (the chain side's rule, `chain_plays`; #924).
+                if !crate::runtime_graph::chain_plays(&chain, &registry) {
+                    continue;
+                }
                 graph.upsert_chain(
                     &chain,
                     sample_rate,
@@ -121,6 +127,10 @@ impl RigRuntime {
             .into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
+        // #328: nothing to play → it stays off and holds no tap.
+        if !crate::runtime_graph::chain_plays(&chain, &self.registry) {
+            return Ok(());
+        }
         self.graph.upsert_chain(
             &chain,
             self.sample_rate,
