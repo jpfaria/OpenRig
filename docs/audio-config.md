@@ -143,6 +143,14 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
   separate buffers. The fix is separating priority/class, never "make the
   other one spend less CPU" — that hides the coupling until N streams bring
   it back.
+- Isolation includes the device's own properties. The buffer size is a
+  device-level property on CoreAudio: a stream that opens a device with a
+  buffer size other than the project's re-sizes it under every stream already
+  running there (underrun bursts on the live chain, and a HAL deadlock when a
+  stream starts while an input callback is reallocating for the new size).
+  So a chain's streams and an isolated loop/DI playback resolve their device
+  through the same resolver, with the project's `device_settings` for that
+  device.
 
 ### Por que essas regras (invariantes 4 / 5 / 10)
 

@@ -30,6 +30,7 @@ impl ProjectRuntimeController {
             "syncing project runtime with {} chains",
             project.chains.len()
         );
+        self.device_settings = project.device_settings.clone();
 
         // On Linux with JACK feature, only start jackd when the project has
         // at least one enabled chain that actually needs audio. Launching

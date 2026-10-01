@@ -189,19 +189,21 @@ impl ProjectRuntimeController {
         output_index: usize,
         cell: &DiPlaybackCell,
     ) -> Option<(cpal::Stream, u32)> {
-        use cpal::traits::{DeviceTrait, StreamTrait};
+        use cpal::traits::StreamTrait;
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
         let out = outputs.get(output_index)?;
         let host = crate::host::get_host();
-        let device = crate::find_output_device_by_id(host, &out.device_id.0).ok()??;
-        let supported = device.default_output_config().ok()?;
-        let rate = supported.sample_rate();
-        let resolved = crate::resolved::ResolvedOutputDevice {
-            device_id: out.device_id.0.clone(),
-            settings: None,
-            device,
-            supported,
-        };
+        // The project's settings for this device, exactly as the chain's own
+        // streams resolve them: any other buffer size would re-size the device
+        // under the live chain (underruns, and a HAL deadlock on CoreAudio).
+        let resolved = crate::chain_resolve::resolve_output_device_for_chain_output(
+            host,
+            &self.device_settings,
+            out,
+            crate::host::is_asio_host(host),
+        )
+        .ok()?;
+        let rate = crate::stream_rates::resolved_output_sample_rate(&resolved);
         let stream = crate::stream_builder::build_output_stream_for_output(
             &chain.id,
             output_index,
