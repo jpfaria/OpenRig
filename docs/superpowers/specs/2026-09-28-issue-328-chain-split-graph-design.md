@@ -272,7 +272,7 @@ Pre-existing gaps, also true with a single split and not changed by this amendme
 - Engine: `crates/engine/src/issue_328_y_segments_tests.rs`, `crates/engine/src/issue_328_y_audio_tests.rs` (each Y output hears the Mix, then only its own path; a Mix knob edit and a Mix toggle reach every output), `audio_alloc_invariant_tests.rs` (`audio_callback_does_not_allocate_with_a_mix_then_a_y`), and `crates/infra-cpal/src/io_topology_tests.rs` (`a_y_path_set_change_behind_a_mix_is_a_structural_change`).
 - GUI: the `mix_then_y_*` tests of `crates/adapter-gui/src/` (graph ids, anchors, clicks, gestures, picker, split chip, compact rows, split editor) on the fixture `[pre, Mix(ma | mb), mid, Y(ya | yb)]`.
 
-## 10. No limit: a chain is a tree (SUPERSEDED by §11 — the tree of 2-path splits was the agent's inference, not the owner's request)
+## 10. No limit: a chain is a tree (amendment, owner-approved 2026-10-01; revised by §11)
 
 Owner: "eu nao quero ter esse limite nao. eu quero poder criar o que quiser. o limite é a maquina" and
 "sinal de + é igual adicionar qualquer coisa". This amendment replaces §9's counting rules and the
@@ -358,8 +358,8 @@ Each part is gated by CI once, not per task.
 
 ## 11. A chain is a free graph (owner decision, 2026-10-01)
 
-Supersedes §10. The owner asked for a graph from the start; the "two paths per split" shape was
-an inference of the agent, never a requirement.
+Revises §10. The owner asked for an unlimited graph from the start. §11 records each decision he
+made on its shape, one question at a time.
 
 Confirmed by the owner:
 - Any block can open into **N** paths (fan-out of any width).
@@ -369,9 +369,8 @@ Confirmed by the owner:
 - No count limit on any of the above: the limit is the machine.
 
 Decided:
-- **Paths join only in a Mix node.** It takes N incoming edges and sets the level, pan and polarity
-  of each input, plus a master level, before it sums them (the Ampero mixer, widened to N inputs).
-  A processing block accepts a single incoming edge.
+- **Paths join only in a Split Mix's mixer node.** It sets the level, pan and polarity of each of
+  its paths, plus a master level, before it sums them. A processing block has a single input.
 - **The signal divides only through a split, chosen from the "+" picker, as today.** The line
   keeps its "+" buttons. "Split Y" divides, and each path ends at its own outputs. "Split Mix"
   divides, then joins again in its Mix node. There are no free-drawn cables. There is no grid and
@@ -393,3 +392,6 @@ Decided:
   output. Owner decision 5 now covers any point where edges meet.
 - **Any block kind may sit anywhere.** This includes Insert and Select. The path restrictions of
   §1.1 and §10 are gone.
+- **A split always opens two paths.** For more paths, the user puts a split inside a path. The
+  model and addressing of §10.2 (`SplitBlock{end, a, b}`, `PathRef`) stand. A Y still ends the
+  list it sits in, because its paths end at outputs.
