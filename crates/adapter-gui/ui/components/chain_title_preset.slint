@@ -152,9 +152,14 @@ export component ChainTitlePreset inherits Rectangle {
         spacing: Theme.spaces.small;
         alignment: start;
 
-        // Title — still clickable to open the compact view.
+        // Title — still clickable to open the compact view. It gives up
+        // width (eliding) before the row runs under the header's action
+        // cluster in a narrow window (#1007).
         Rectangle {
-            width: 220px;
+            min-width: 120px;
+            preferred-width: 220px;
+            max-width: 220px;
+            horizontal-stretch: 1;
             Text {
                 width: parent.width;
                 height: parent.height;

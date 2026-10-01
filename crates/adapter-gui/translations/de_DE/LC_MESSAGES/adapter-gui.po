@@ -683,6 +683,9 @@ msgstr "Blöcke erweitern"
 msgid "tooltip-measure-latency"
 msgstr "Latenz messen (ein Piepton)"
 
+msgid "tooltip-chain-mixer"
+msgstr "Chain-Mixer"
+
 #: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "Konfigurieren"

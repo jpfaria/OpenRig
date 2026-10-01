@@ -679,6 +679,9 @@ msgstr "블록 확장"
 msgid "tooltip-measure-latency"
 msgstr "지연시간 측정 (삑 소리가 납니다)"
 
+msgid "tooltip-chain-mixer"
+msgstr "체인 믹서"
+
 #: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "구성"

@@ -681,6 +681,9 @@ msgstr "Développer les blocs"
 msgid "tooltip-measure-latency"
 msgstr "Mesurer la latence (émet un bip)"
 
+msgid "tooltip-chain-mixer"
+msgstr "Mixeur de la chaîne"
+
 #: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "Configurer"

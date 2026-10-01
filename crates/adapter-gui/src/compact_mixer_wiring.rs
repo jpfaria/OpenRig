@@ -10,28 +10,19 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::chain_fader_view::chain_fader_views;
-use application::chain_mixer_strips::chain_mixer_strip_ids;
 use application::command::{Command, MixerCommand};
-use application::mixer_view::MixerStripView;
-use project::chain::Chain;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::chain_fader_intent::ChainFaderIntent;
 use crate::chain_mixer_intents::wire_chain_mixer_intents;
-use crate::chain_mixer_rows::chain_mixer_rows;
 use crate::chain_mixer_rows_sync::set_chain_mixer_rows;
-use crate::mixer_rows::mixer_rows_of;
+use crate::chain_mixer_source::{chain_id_at, chain_mixer_state, chain_mixer_view, Drawn};
 use crate::mixer_rows_sync::set_mixer_rows;
 use crate::mixer_strip_intents::wire_strip_intents;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainMixerBridge, CompactChainViewWindow, MixerBridge};
 
 const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
-
-/// What is on screen: every strip (a solo elsewhere dims ours), the chain's
-/// strip ids and the chain (its own faders, loopers and volume).
-type Drawn = (Vec<MixerStripView>, Vec<String>, Option<Chain>);
 
 /// Where a chain fader edit marks the project unsaved.
 #[derive(Clone)]
@@ -52,21 +43,7 @@ struct CompactMixerCtx {
 
 impl CompactMixerCtx {
     fn current(&self) -> Drawn {
-        let borrowed = self.project_session.borrow();
-        let Some(session) = borrowed.as_ref() else {
-            return (Vec::new(), Vec::new(), None);
-        };
-        let chain = session
-            .project
-            .borrow()
-            .chains
-            .get(self.chain_index)
-            .cloned();
-        let ids = chain
-            .as_ref()
-            .map(|chain| chain_mixer_strip_ids(chain, &session.io_bindings.borrow()))
-            .unwrap_or_default();
-        (session.dispatcher.mixer_strips(), ids, chain)
+        chain_mixer_state(&self.project_session, self.chain_index)
     }
 
     fn render(&self) {
@@ -74,29 +51,16 @@ impl CompactMixerCtx {
             return;
         };
         let drawn = self.current();
-        let (inputs, outputs) = mixer_rows_of(&drawn.0, &drawn.1);
-        if let Some(chain) = drawn.2.as_ref() {
-            let views = self.fader_views(chain);
-            let rows = chain_mixer_rows(&inputs, &outputs, &views, chain);
+        let view = chain_mixer_view(&self.project_session, &drawn);
+        if let Some(rows) = view.chain {
             set_chain_mixer_rows(&ChainMixerBridge::get(&w), rows);
         }
-        set_mixer_rows(&MixerBridge::get(&w), inputs, outputs);
+        set_mixer_rows(&MixerBridge::get(&w), view.inputs, view.outputs);
         *self.rendered.borrow_mut() = Some(drawn);
     }
 
-    fn fader_views(&self, chain: &Chain) -> Vec<application::chain_fader_view::ChainFaderView> {
-        let borrowed = self.project_session.borrow();
-        borrowed
-            .as_ref()
-            .map(|session| chain_fader_views(chain, &session.io_bindings.borrow()))
-            .unwrap_or_default()
-    }
-
     fn chain_id(&self) -> Option<domain::ids::ChainId> {
-        let borrowed = self.project_session.borrow();
-        let session = borrowed.as_ref()?;
-        let project = session.project.borrow();
-        project.chains.get(self.chain_index).map(|c| c.id.clone())
+        chain_id_at(&self.project_session, self.chain_index)
     }
 
     fn dispatch(&self, command: Command) -> bool {

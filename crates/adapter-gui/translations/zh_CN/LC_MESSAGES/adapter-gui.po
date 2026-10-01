@@ -678,6 +678,9 @@ msgstr "展开块"
 msgid "tooltip-measure-latency"
 msgstr "测量延迟（发出哔声）"
 
+msgid "tooltip-chain-mixer"
+msgstr "链路混音器"
+
 #: crates/adapter-gui/ui/pages/chain_row_header.slint:218
 msgid "tooltip-configure"
 msgstr "配置"
