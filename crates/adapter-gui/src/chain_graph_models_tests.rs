@@ -3,12 +3,14 @@
 
 use super::*;
 use crate::chain_graph_adapter::chain_graph;
+use crate::chain_graph_adapter::LANE_SPACING;
 use crate::chain_graph_fixtures_tests::{
-    chain, core, mix_chain, registry, rows, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
+    chain, core, mix_chain, registry, rows, split_paths, FIRST_MIXER_NODE_ID, FIRST_SPLIT_NODE_ID,
 };
 use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::endpoint_checklist_items::IoLabels;
 use crate::project_view::replace_project_chains;
+use project::block::SplitEnd;
 use project::project::Project;
 use slint::Model;
 
@@ -90,6 +92,49 @@ fn every_wire_joins_its_two_node_centres() {
     for edge in models.edges.iter() {
         assert_eq!((edge.from_x, edge.from_y), centre(edge.from_id.as_str()));
         assert_eq!((edge.to_x, edge.to_y), centre(edge.to_id.as_str()));
+    }
+}
+
+/// An empty path draws its own lane: its "+" sits on its own row, below the
+/// lanes before it, and its wire bends through that "+" instead of running
+/// straight over another lane.
+#[test]
+fn an_empty_path_draws_its_own_lane() {
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a1")], vec![], vec![]],
+    )]);
+    let models = models_of(&c);
+    let nodes: Vec<GraphNode> = models.nodes.iter().collect();
+    let a1_y = nodes
+        .iter()
+        .find(|n| n.id.as_str() == "a1")
+        .unwrap()
+        .layout_y;
+    let anchors: Vec<crate::GraphAnchor> = models.anchors.iter().collect();
+    let plus = |lane: usize| {
+        let id = format!("path:sp:{lane}:0");
+        anchors
+            .iter()
+            .find(|a| a.id.as_str() == id)
+            .unwrap_or_else(|| panic!("no + {id}"))
+            .clone()
+    };
+    let (b, c_lane) = (plus(1), plus(2));
+    assert_eq!(
+        (b.layout_y - a1_y, c_lane.layout_y - b.layout_y),
+        (LANE_SPACING, LANE_SPACING),
+        "lanes A, B, C one row apart, top to bottom"
+    );
+    for (lane, p) in [(1, &b), (2, &c_lane)] {
+        assert!(
+            models
+                .edges
+                .iter()
+                .any(|e| (e.to_x, e.to_y) == (p.layout_x, p.layout_y)),
+            "a wire runs through lane {lane}'s +"
+        );
     }
 }
 

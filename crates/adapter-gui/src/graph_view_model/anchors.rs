@@ -8,7 +8,7 @@ use domain::ids::BlockId;
 use project::block::PathRef;
 
 use super::routing_ids::{merge_node_id, split_node_id};
-use super::types::{ChainStage, GraphNode, NodeKind, ParallelEnd};
+use super::types::{ChainStage, GraphEdge, GraphNode, NodeKind, ParallelEnd};
 
 /// Where a block added or dropped on an anchor lands: "insert before stage
 /// `index`" of the list `path` names (`None` = the top-level stage list),
@@ -48,14 +48,20 @@ pub struct GraphAnchor {
 }
 
 /// Anchors for the graph `linear_chain_layout(stages, ..)` returned as
-/// `nodes`. The walk mirrors the chain builder's; `every_wire_gets_exactly_
-/// one_anchor` pins that they agree. A wire whose ends are missing from
-/// `nodes` gets no anchor (panic-free).
-pub fn insert_anchors(stages: &[ChainStage], nodes: &[GraphNode]) -> Vec<GraphAnchor> {
+/// `nodes` and `edges`. The walk mirrors the chain builder's;
+/// `every_wire_gets_exactly_one_anchor` pins that they agree. A wire whose
+/// ends are missing from `nodes` gets no anchor (panic-free).
+pub fn insert_anchors(
+    stages: &[ChainStage],
+    nodes: &[GraphNode],
+    edges: &[GraphEdge],
+) -> Vec<GraphAnchor> {
     let mut anchors = Vec::new();
-    walk(stages, None, None, nodes, &mut anchors);
+    walk(stages, None, None, (nodes, edges), &mut anchors);
     anchors
 }
+
+type Laid<'a> = (&'a [GraphNode], &'a [GraphEdge]);
 
 /// Anchors of the stage list `path` names, fed from `tail`; returns the
 /// list's tail, `None` once it fanned out.
@@ -63,9 +69,10 @@ fn walk(
     stages: &[ChainStage],
     path: Option<&PathRef>,
     mut tail: Option<String>,
-    nodes: &[GraphNode],
+    laid: Laid<'_>,
     anchors: &mut Vec<GraphAnchor>,
 ) -> Option<String> {
+    let nodes = laid.0;
     for (index, stage) in stages.iter().enumerate() {
         let slot = AnchorSlot {
             path: path.cloned(),
@@ -98,7 +105,7 @@ fn walk(
                         lane_stages,
                         Some(&lane_path),
                         Some(split_node.clone()),
-                        nodes,
+                        laid,
                         anchors,
                     );
                     if let (ParallelEnd::Merge, Some(from)) = (end, lane_tail) {
@@ -107,6 +114,9 @@ fn walk(
                             index: lane_stages.len(),
                         };
                         push_anchor(anchors, nodes, &from, &merge_node, slot);
+                        if lane_stages.is_empty() {
+                            bend_through_via(anchors, laid.1, lane);
+                        }
                     }
                 }
                 tail = match end {
@@ -117,6 +127,21 @@ fn walk(
         }
     }
     tail
+}
+
+/// An empty lane's wire bends through its own row (`EdgeVia`): its "+"
+/// sits there, on the lane, not halfway between the split and the mixer.
+fn bend_through_via(anchors: &mut [GraphAnchor], edges: &[GraphEdge], lane: usize) {
+    let Some(anchor) = anchors.last_mut() else {
+        return;
+    };
+    let via = edges.iter().find_map(|e| {
+        e.via
+            .filter(|v| v.path == lane && e.from_id == anchor.from_id && e.to_id == anchor.to_id)
+    });
+    if let Some(via) = via {
+        (anchor.x, anchor.y) = (via.x, via.y);
+    }
 }
 
 fn push_anchor(

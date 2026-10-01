@@ -37,8 +37,8 @@ fn io_out(id: &str) -> BlockBlueprint {
 }
 
 fn anchors_of(stages: &[ChainStage]) -> Vec<GraphAnchor> {
-    let (nodes, _) = linear_chain_layout(stages, GridMetrics::default());
-    insert_anchors(stages, &nodes)
+    let (nodes, edges) = linear_chain_layout(stages, GridMetrics::default());
+    insert_anchors(stages, &nodes, &edges)
 }
 
 fn slots(anchors: &[GraphAnchor]) -> Vec<(&str, &str, AnchorSlot)> {
@@ -89,7 +89,7 @@ fn split_y() -> Vec<ChainStage> {
 fn every_wire_gets_exactly_one_anchor() {
     for stages in [split_mix(), split_y()] {
         let (nodes, edges) = linear_chain_layout(&stages, GridMetrics::default());
-        let anchors = insert_anchors(&stages, &nodes);
+        let anchors = insert_anchors(&stages, &nodes, &edges);
         let mut wires: Vec<(String, String)> = edges
             .iter()
             .map(|e| (e.from_id.clone(), e.to_id.clone()))

@@ -116,6 +116,19 @@ pub struct GraphEdge {
     pub from_id: String,
     /// Target node id.
     pub to_id: String,
+    /// The point the wire bends through, when it is not a straight run
+    /// between its two nodes.
+    pub via: Option<EdgeVia>,
+}
+
+/// An empty path of a mixing split has no node of its own: its split → mixer
+/// wire bends through this point, on the path's own row (#328).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EdgeVia {
+    /// Index of the path within its split.
+    pub path: usize,
+    pub x: f32,
+    pub y: f32,
 }
 
 /// Logical stage of a signal chain. The layout helpers consume a

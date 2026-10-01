@@ -15,7 +15,7 @@
 
 use super::routing_ids::{merge_node_id, split_node_id};
 use super::types::{
-    BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
+    BlockBlueprint, ChainStage, EdgeVia, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
     ParallelEnd,
 };
 
@@ -135,10 +135,25 @@ impl Placed {
         self.wire(tail, &split_node);
 
         let terminal_col = (end == ParallelEnd::Fan).then_some(col + widest);
+        let merge_col = col + widest + 1;
         let mut row_top = centre - (total_rows as f32 - 1.0) / 2.0;
-        for (lane, (_, rows)) in lanes.iter().zip(&extents) {
+        for (path, (lane, (_, rows))) in lanes.iter().zip(&extents).enumerate() {
             let lane_centre = row_top + (*rows as f32 - 1.0) / 2.0;
             row_top += *rows as f32;
+            if end == ParallelEnd::Merge && lane.is_empty() {
+                // No node of its own: the wire bends through the lane's row.
+                let via = EdgeVia {
+                    path,
+                    x: (self.x(col) + self.x(merge_col)) / 2.0,
+                    y: self.y(lane_centre),
+                };
+                self.edges.push(GraphEdge {
+                    from_id: split_node.clone(),
+                    to_id: merge_node.clone(),
+                    via: Some(via),
+                });
+                continue;
+            }
             let (_, lane_tail) = self.place(
                 lane,
                 col + 1,
@@ -155,7 +170,6 @@ impl Placed {
 
         match end {
             ParallelEnd::Merge => {
-                let merge_col = col + widest + 1;
                 let merge = self.routing_node(&merge_node, NodeKind::Mixer, merge_col, centre);
                 self.nodes.push(merge);
                 (merge_col + 1, Some(merge_node))
@@ -169,6 +183,7 @@ impl Placed {
             self.edges.push(GraphEdge {
                 from_id,
                 to_id: to.to_string(),
+                via: None,
             });
         }
     }

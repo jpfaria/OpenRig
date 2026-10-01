@@ -112,7 +112,7 @@ pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
     let lanes = stage_extent(&stages).1;
     let metrics = grid_metrics(lanes);
     let (nodes, edges) = linear_chain_layout(&stages, metrics);
-    let anchors = insert_anchors(&stages, &nodes);
+    let anchors = insert_anchors(&stages, &nodes, &edges);
     let columns = nodes
         .iter()
         .map(|n| ((n.x - metrics.origin_x) / metrics.column_spacing).round() as usize + 1)

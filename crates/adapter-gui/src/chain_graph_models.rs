@@ -94,24 +94,37 @@ fn rgb(value: u32) -> Color {
     Color::from_rgb_u8((value >> 16) as u8, (value >> 8) as u8, value as u8)
 }
 
+/// One wire per edge; an edge that bends through a point (an empty lane)
+/// draws as two wires meeting there, each still moving with its own node.
 fn edge_geometry(graph: &ChainGraph) -> Vec<GraphEdgeGeometry> {
     let centre = |id: &str| graph.nodes.iter().find(|n| n.id == id).map(|n| (n.x, n.y));
     graph
         .edges
         .iter()
         .filter_map(|edge| {
-            let (from_x, from_y) = centre(&edge.from_id)?;
-            let (to_x, to_y) = centre(&edge.to_id)?;
-            Some(GraphEdgeGeometry {
-                from_id: edge.from_id.as_str().into(),
-                to_id: edge.to_id.as_str().into(),
-                from_x,
-                from_y,
-                to_x,
-                to_y,
+            let from = centre(&edge.from_id)?;
+            let to = centre(&edge.to_id)?;
+            Some(match edge.via {
+                None => vec![wire(&edge.from_id, from, &edge.to_id, to)],
+                Some(via) => vec![
+                    wire(&edge.from_id, from, "", (via.x, via.y)),
+                    wire("", (via.x, via.y), &edge.to_id, to),
+                ],
             })
         })
+        .flatten()
         .collect()
+}
+
+fn wire(from_id: &str, from: (f32, f32), to_id: &str, to: (f32, f32)) -> GraphEdgeGeometry {
+    GraphEdgeGeometry {
+        from_id: from_id.into(),
+        to_id: to_id.into(),
+        from_x: from.0,
+        from_y: from.1,
+        to_x: to.0,
+        to_y: to.1,
+    }
 }
 
 #[cfg(test)]

@@ -89,6 +89,7 @@ mod topological_rank {
         GraphEdge {
             from_id: a.into(),
             to_id: b.into(),
+            via: None,
         }
     }
 
@@ -153,6 +154,7 @@ mod topological_lane {
         GraphEdge {
             from_id: a.into(),
             to_id: b.into(),
+            via: None,
         }
     }
 
@@ -210,6 +212,7 @@ mod reorder {
         GraphEdge {
             from_id: a.into(),
             to_id: b.into(),
+            via: None,
         }
     }
 
@@ -569,6 +572,7 @@ mod validate_graph_invariants {
         let edges = vec![GraphEdge {
             from_id: "a".into(),
             to_id: "ghost".into(),
+            via: None,
         }];
         let errs = validate_graph(&nodes, &edges);
         assert!(errs.iter().any(|e| e.contains("ghost")), "got: {errs:?}");
@@ -588,6 +592,7 @@ mod validate_graph_invariants {
         let edges = vec![GraphEdge {
             from_id: "a".into(),
             to_id: "a".into(),
+            via: None,
         }];
         let errs = validate_graph(&nodes, &edges);
         assert!(

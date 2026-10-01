@@ -31,8 +31,8 @@ fn resolve(dragged: &str, x: f32, y: f32) -> Option<AnchorSlot> {
             BlockBlueprint::new("out", "Out 1", NodeCategory::Output).with_kind(NodeKind::IoOutput),
         ),
     ];
-    let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
-    let anchors = insert_anchors(&stages, &nodes);
+    let (nodes, edges) = linear_chain_layout(&stages, GridMetrics::default());
+    let anchors = insert_anchors(&stages, &nodes, &edges);
     resolve_drop_anchor(&nodes, &anchors, dragged, x, y, GridMetrics::default())
         .map(|a| a.slot.clone())
 }
