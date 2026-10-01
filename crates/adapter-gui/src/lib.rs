@@ -183,6 +183,7 @@ mod split_path_dispatch;
 mod split_path_gestures;
 mod split_path_wiring;
 mod split_picker_entries;
+mod stepped_input_mark;
 mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;

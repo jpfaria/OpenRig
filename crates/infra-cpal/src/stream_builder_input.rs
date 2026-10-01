@@ -21,6 +21,8 @@ use domain::ids::ChainId;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::callback_load_timing::record_callback_deadline;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::input_evidence::InputStreamIdentity;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::process_input_buffer;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedInputDevice;
@@ -97,12 +99,30 @@ pub(crate) fn build_input_stream_for_input(
                     )
                 })
                 .collect();
+            // The buffer as the HAL delivered it, kept for the mark a
+            // stepped-input restart leaves.
+            let evidence = crate::input_evidence_registry::open_ring(InputStreamIdentity {
+                chain_id: chain_id.0.clone(),
+                input_index,
+                device_id: workgroup_uid.clone(),
+                sample_rate,
+                buffer_frames: buffer_size_frames,
+                channels,
+                opened_at: std::time::SystemTime::now(),
+            });
+            let host_origin = cpal::StreamInstant::new(0, 0);
             device.build_input_stream(
                 &stream_config,
-                move |data: &[f32], _| {
+                move |data: &[f32], info: &cpal::InputCallbackInfo| {
                     // #670: co-schedule this callback thread with the audio I/O
                     // workgroup so its cache (NAM weights) stays warm.
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
+                    let host_ns = info
+                        .timestamp()
+                        .callback
+                        .duration_since(&host_origin)
+                        .map_or(0, |since_boot| since_boot.as_nanos() as u64);
+                    evidence.record(data, host_ns);
                     for worker in &workers {
                         worker.push(data);
                     }
