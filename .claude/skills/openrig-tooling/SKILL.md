@@ -81,6 +81,20 @@ For an app component, write a standalone `.slint` mockup (root `inherits Window`
 fixed size, fake data) and render that. **`docs/render.md` is a different tool**
 (`openrig-render`, the offline audio renderer) — not for screens.
 
+## Running an isolated app instance (agent testing)
+
+`--config <PATH>` does NOT isolate the app from the owner's machine: other
+code paths still load and SAVE the app config at the platform path
+(`~/Library/Application Support/OpenRig/config.yaml`) — opening a project
+registers it in the owner's `recent_projects`, and MIDI follows the owner's
+`midi_enabled` and listens on his ports. Isolate with a throwaway `HOME`
+holding its own `Library/Application Support/OpenRig/config.yaml` (no
+`io_bindings`, `midi_enabled: false`), plus `--project <scratch>.yaml` and
+`--mcp=127.0.0.1:<port other than 4123>`. Running the binary outside
+`cargo run` needs `DYLD_LIBRARY_PATH=target/debug/build/nam-*/out/lib`.
+To click the window with computer-use, wrap the binary in a scratch `.app`
+bundle (Info.plist with its own `CFBundleIdentifier`) and `open` it.
+
 ## Tests
 
 - `cargo test --workspace` — normal suite; `#[ignore]` audio/NAM/LV2/IR tests
