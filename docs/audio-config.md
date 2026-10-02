@@ -1,39 +1,38 @@
-# Configuração de áudio
+# Audio configuration
 
-## Stream model (CLAUDE.md invariantes 4 / 5 / 10)
+## Stream model (CLAUDE.md invariants 4 / 5 / 10)
 
-### Regras do stream
+### Stream rules
 
-1. **Bus interno é SEMPRE estéreo.** Mono input vira `Stereo([s, s])`
-   logo no começo via `to_stereo` (broadcast). Não há momento dentro
-   do chain em que o sinal trafega como mono no bus.
-2. **Cada bloco declara um `ModelAudioMode`** que indica o layout que
-   sabe processar (`MonoOnly` / `DualMono` / `TrueStereo` /
-   `MonoToStereo`).
-3. **O wrapper do bloco só insere conversão se o bloco exige outro
-   layout.** Bus já em estéreo + bloco que aceita estéreo → sem
-   conversão.
-4. **Output mode `mono`** é o único caso que volta a colapsar pra
-   1 canal, via `mixdown(L, R)`. Stereo output passa direto.
+1. **The internal bus is ALWAYS stereo.** A mono input becomes `Stereo([s, s])`
+   right at the start through `to_stereo` (broadcast). There is no point
+   inside the chain where the signal travels as mono on the bus.
+2. **Each block declares a `ModelAudioMode`**, the layout it can process
+   (`MonoOnly` / `DualMono` / `TrueStereo` / `MonoToStereo`).
+3. **The block's wrapper inserts a conversion only when the block needs
+   another layout.** A stereo bus + a block that takes stereo → no
+   conversion.
+4. **Output mode `mono`** is the only case that collapses back to one
+   channel, through `mixdown(L, R)`. A stereo output passes straight through.
 
-### Tabela de wrappers
+### Wrapper table
 
-Bus interno é SEMPRE estéreo. Input `dual_mono` ou `stereo` já entram como
-estéreo (sem conversão). Input `mono` faz `to_stereo` (broadcast L=R=s)
-no início e o bus segue estéreo daí pra frente. Cada bloco pede o
-layout que sabe processar, e o wrapper só insere conversão se o bus
-estéreo não bate com o que o bloco aceita.
+`dual_mono` and `stereo` inputs enter as stereo (no conversion). A `mono`
+input does `to_stereo` (broadcast L=R=s) at the start and the bus stays
+stereo from there on. Each block asks for the layout it can process, and
+the wrapper inserts a conversion only when the stereo bus does not match
+what the block accepts.
 
-| `ModelAudioMode` | Wrapper antes | Wrapper depois | Comportamento do bloco |
+| `ModelAudioMode` | Wrapper before | Wrapper after | Block behaviour |
 |---|---|---|---|
-| `MonoOnly` | `to_mono` (mixdown L+R) | `to_stereo` (broadcast) | 1 instância processa o sample colapsado |
-| `DualMono` | `to_dual_mono` (marca 2 mono indep) | `to_stereo` (marca par estéreo) | 2 instâncias paralelas, uma por canal — `[L,R]` indep entram, `[L_p, R_p]` saem |
-| `TrueStereo` | passa direto (bus já estéreo) | passa direto | 1 instância vê `[L, R]` correlacionados, processa stereo |
-| `MonoToStereo` | (recebe estéreo, talvez `to_mono` se a impl exige source mono) | passa direto | bloco devolve estéreo |
+| `MonoOnly` | `to_mono` (mixdown L+R) | `to_stereo` (broadcast) | one instance processes the collapsed sample |
+| `DualMono` | `to_dual_mono` (two independent monos) | `to_stereo` (a stereo pair) | two parallel instances, one per channel — independent `[L,R]` in, `[L_p, R_p]` out |
+| `TrueStereo` | straight through (the bus is already stereo) | straight through | one instance sees a correlated `[L, R]` and processes stereo |
+| `MonoToStereo` | (gets stereo; `to_mono` if the implementation needs a mono source) | straight through | the block returns stereo |
 
-Pinned em `crates/engine/src/runtime_block_builders.rs` ~L444-497.
+The wrapper per `ModelAudioMode` is chosen in `crates/engine/src/runtime_processor_model.rs`.
 
-### Pipeline canônico
+### Canonical pipeline
 
 > **Model A:** an `InputBlock`/`OutputBlock` is a `{ model, io, endpoint }`
 > reference to an I/O binding — it carries **no** device/channels. At activation
@@ -45,20 +44,20 @@ Pinned em `crates/engine/src/runtime_block_builders.rs` ~L444-497.
 ```
 Hardware → [InputBlock io/endpoint] --resolve_chain_io--> { device_id, mode, channels }
         ↓
-  bus inicial:
-    mode mono     → Mono → to_stereo (broadcast L=R=s) → Stereo
-    mode dual_mono → Stereo (semântica: 2 mono indep)
-    mode stereo    → Stereo (semântica: par estéreo)
+  initial bus:
+    mode mono      → Mono → to_stereo (broadcast L=R=s) → Stereo
+    mode dual_mono → Stereo (meaning: two independent monos)
+    mode stereo    → Stereo (meaning: a stereo pair)
         ↓
-  pra cada bloco no chain:
-    [wrapper antes]   → adapta bus pro layout que o bloco aceita
-    bloco processa
-    [wrapper depois]  → devolve pro bus estéreo
+  for each block in the chain:
+    [wrapper before] → adapts the bus to the layout the block accepts
+    the block processes
+    [wrapper after]  → back to the stereo bus
         ↓
   OutputBlock { device_id, mode, channels }
     mode stereo, ch [a, b]  → ch_a = L, ch_b = R
     mode mono,   ch [a]     → mixdown(L, R) → s, escreve ch_a
-    mode mono,   ch [a, b…] → mixdown(L, R) → s, replicado em TODOS
+    mode mono,   ch [a, b…] → mixdown(L, R) → s, copied to ALL of them
 
   Mixdown:
     Average → (L + R) * 0.5  (default)
@@ -75,21 +74,21 @@ Hardware → [InputBlock io/endpoint] --resolve_chain_io--> { device_id, mode, c
 > engine's job (`write_output_frame` writes the mixdown into `ch_a` of the
 > interleaved buffer; other channels stay at zero).
 
-### Exemplos
+### Examples
 
-**1. Mono in + bloco MonoOnly + stereo out**
+**1. Mono in + MonoOnly block + stereo out**
 ```
 HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono(s)→m → to_stereo
             → [m,m] → HW(ch0=m, ch1=m)
 ```
 
-**2. Stereo in + bloco DualMono + stereo out**
+**2. Stereo in + DualMono block + stereo out**
 ```
-HW Stereo(ch0,ch1) → [L,R] → to_dual_mono → block_dm(2 instâncias):
+HW Stereo(ch0,ch1) → [L,R] → to_dual_mono → block_dm(2 instances):
        L→L_p, R→R_p → to_stereo → [L_p,R_p] → HW(ch0=L_p, ch1=R_p)
 ```
 
-**3. Mono in + bloco TrueStereo (chorus) + stereo out**
+**3. Mono in + TrueStereo block (chorus) + stereo out**
 ```
 HW Mono(ch0) → to_stereo → [s,s] → block_ts(L=R=s)→[L',R']
             → HW(ch0=L', ch1=R')
@@ -101,7 +100,7 @@ HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stere
             → [m,m] → block_ts→[L',R'] → HW(ch0=L', ch1=R')
 ```
 
-**5. Mono in + bloco MonoOnly + mono out**
+**5. Mono in + MonoOnly block + mono out**
 ```
 HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stereo
             → [m,m] → mixdown=m → HW(ch0=m)
@@ -120,14 +119,14 @@ lives in `project::chain::bus_layout_after`, shared by the engine and
 HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
 ```
 
-### Streams paralelos
+### Parallel streams
 
-- Cada InputBlock = um stream paralelo TOTALMENTE isolado (próprio
-  runtime, sem buffer / lock / route / tap compartilhado).
-- Múltiplos InputBlocks / OutputBlocks → soma é responsabilidade do
-  backend (cpal / JACK). O engine NUNCA mistura streams entre si.
-- Solo input passa unity em qualquer combinação (Input mode × Output
-  mode), pinned em `crates/engine/src/volume_invariants_tests.rs`.
+- Each InputBlock = one FULLY isolated parallel stream (its own runtime,
+  no shared buffer / lock / route / tap).
+- Several InputBlocks / OutputBlocks → summing is the backend's job
+  (cpal / JACK). The engine NEVER mixes streams together.
+- A solo input passes at unity in any combination (input mode × output
+  mode), pinned in `crates/engine/src/volume_invariants_tests.rs`.
 
 ### Isolation is by stream identity
 
@@ -152,41 +151,42 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
   through the same resolver, with the project's `device_settings` for that
   device.
 
-### Por que essas regras (invariantes 4 / 5 / 10)
+### Why these rules (invariants 4 / 5 / 10)
 
-- **4 — Isolation entre streams.** Cada InputBlock tem o próprio
-  runtime, próprio buffer, próprio estado. Mexer num não afeta outro.
-  Mistura final é trabalho do driver de áudio.
-- **5 — Bus estéreo internamente.** Mono input vira Stereo([s, s])
-  desde o primeiro bloco. Blocos sempre veem `[L, R]`. Decisão de
-  como sair (mono / stereo) é só do OutputBlock.
-- **10 — Volume por stream IMUTÁVEL.** Nada no engine atenua o
-  signal preemptivamente "pra evitar clip". Output limiter (`tanh`
-  no fim) cuida disso. Solo input passa unity em qualquer combinação
-  de Input mode × Output mode (pinned por `volume_invariants_tests.rs`).
+- **4 — Isolation between streams.** Each InputBlock has its own
+  runtime, buffer and state. Touching one does not affect another. The
+  final mix is the audio driver's job.
+- **5 — Stereo bus inside.** A mono input becomes `Stereo([s, s])` from
+  the first block on. Blocks always see `[L, R]`. How to leave (mono /
+  stereo) is the OutputBlock's decision alone.
+- **10 — Per-stream volume is IMMUTABLE.** Nothing in the engine
+  attenuates the signal pre-emptively "to avoid clipping". The output
+  limiter (`tanh` at the end) handles that. A solo input passes at unity
+  in any input mode × output mode combination (pinned by
+  `volume_invariants_tests.rs`).
 
 ### Split-mono fan-out
 
-Caso especial: `mode: mono` com **mais de um canal** em `channels`
-(`channels: [0, 1]`). O engine cria **um sibling stream por canal** —
-cada um roda a chain inteira em paralelo, lendo um canal físico
-diferente. Útil pra duas guitarras na mesma interface usando o mesmo
-preset, sem precisar duplicar a chain.
+A special case: `mode: mono` with **more than one channel** in `channels`
+(`channels: [0, 1]`). The engine creates **one sibling stream per
+channel** — each runs the whole chain in parallel, reading a different
+physical channel. Useful for two guitars on the same interface with the
+same preset, without duplicating the chain.
 
-Pra **uma única fonte mono** (1 guitarra), use `channels: [N]` apenas
-(N = canal físico onde a fonte entra). Múltiplos canais ativam o
-fan-out e provavelmente não é o que você quer.
+For **a single mono source** (one guitar), use `channels: [N]` only (N =
+the physical channel the source comes in on). Several channels turn the
+fan-out on, which is probably not what you want.
 
-Acceptance pinned (`volume_invariants_tests` g01..g04):
+Pinned acceptance (`volume_splitmono_preset_tests.rs`, g01..g04):
 
-- `solo` (signal só em ch0, ch1 silencioso) → output peak = signal peak (UNITY).
-- `dual` abaixo do limiter knee (ch0 + ch1 com signal) → soma direta.
-- `dual` acima do knee → `tanh(soma)`.
-- `mono → stereo bus broadcast` é simétrico (L = R).
+- `solo` (signal only on ch0, ch1 silent) → output peak = signal peak (UNITY).
+- `dual` below the limiter knee (signal on ch0 + ch1) → a plain sum.
+- `dual` above the knee → `tanh(sum)`.
+- the mono → stereo bus broadcast is symmetric (L = R).
 
-`split_mono_sibling_count` é metadata estrutural; o multiplier de scale
-**MUST stay at 1.0** até feature opt-in de auto-mix existir com aprovação
-explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
+`split_mono_sibling_count` is structural metadata; its scale multiplier
+**MUST stay at 1.0** until an opt-in auto-mix feature exists with the
+owner's explicit approval.
 
 ### Virtual DI loop (per-chain, ephemeral)
 
@@ -828,22 +828,23 @@ changes. Linux and Windows: not done (not measured there).
 Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
 owner's interface.
 
-### Chain enabled é runtime, não persistência
+### Chain enabled is runtime state, not persisted
 
-`Chain.enabled` é estado de memória — o usuário liga / desliga uma
-chain enquanto o app roda. **NÃO É serializado no `project.yaml`** —
-chains carregam sempre como desabilitadas e o usuário decide quais
-ativar. `ChainYaml.enabled` tem `skip_serializing` por isso.
+`Chain.enabled` is in-memory state — the user switches a chain on and off
+while the app runs. **It is NOT serialized to `project.yaml`**: chains always
+load disabled and the user picks which to activate. That is why
+`ChainYaml.enabled` has `skip_serializing`.
 
-**Desligar uma chain mata TODOS os streams dela.** O controller mantém
-um índice em memória chain → streams (`ChainStreamRegistry`: streams abertos +
-ativações e rebuilds ainda em construção). `upsert_chain` com `enabled: false`
-chama `kill_chain_streams`, que lê o índice e derruba tudo — streams, runtimes,
-slots e os receivers das builds em voo — em vez de pausar: uma ativação em voo
-que pousasse depois abriria streams novos pra uma chain que a tela mostra
-desligada. Uma build que ainda assim chegue pra uma chain fora do índice é
-descartada. Religar é sempre uma ativação fria. O DI e os loopers são pipelines
-próprios e só vão embora com `remove_chain`.
+**Switching a chain off kills ALL of its streams.** The controller keeps an
+in-memory chain → streams index (`ChainStreamRegistry`: open streams +
+activations and rebuilds still being built). `upsert_chain` with
+`enabled: false` calls `kill_chain_streams`, which reads the index and tears
+everything down — streams, runtimes, slots and the receivers of builds in
+flight — instead of pausing: an in-flight activation landing later would open
+new streams for a chain the screen shows as off. A build that still arrives for
+a chain outside the index is discarded. Switching back on is always a cold
+activation. The DI and the loopers are pipelines of their own and only go away
+with `remove_chain`.
 
 **Switching the last chain off never waits for a build in flight.**
 With nothing left running the frontend drops the controller, and with it the
@@ -864,13 +865,12 @@ builds that already landed in a pending channel) and hands the bundle to the
 worker, which drops it — the same rule the live rebuild follows for a
 superseded runtime. Pinned by `controller_drop_nonblocking_tests.rs`.
 
-Um channel de um device físico só pode estar habilitado em **uma**
-chain por vez. Habilitar a segunda **falha com erro** — o comando
-é recusado e a chain segue desabilitada; ver a "Input-conflict rule"
-acima. Um projeto que já traga o estado inválido abre com a chain
-posterior desabilitada.
+A channel of a physical device can be enabled in **one** chain at a time.
+Enabling the second **fails with an error** — the command is refused and the
+chain stays disabled; see the "Input-conflict rule" above. A project that
+already carries the invalid state opens with the later chain disabled.
 
-## I/O e bindings (model A)
+## I/O and bindings (model A)
 
 A chain's **start/end I/O comes from the binding registry**, selected via
 `Chain.io_binding_ids`, and is **never persisted as blocks**. `chain.blocks`
@@ -1061,15 +1061,21 @@ Schema:
 
 ```yaml
 recent_projects: [...]
-paths: { thumbnails, screenshots, metadata }
+paths: { ... }            # plugins_path and the other folders (Settings → Paths)
 input_devices: [{ device_id, name, sample_rate, buffer_size_frames, bit_depth, ... }]
 output_devices: [...]
-language: pt-BR  # ou en-US, ou null para seguir o OS
+language: pt-BR           # or en-US; null follows the OS
+midi_devices: [...]
+midi_enabled: false
+mcp_enabled: false
+io_bindings: [...]        # the I/O binding registry (see "I/O and bindings")
+metronome: { ... }
+mixer: { ... }
 ```
 
-`gui-settings.yaml` legado é migrado automaticamente para `config.yaml` no primeiro boot e removido — sem ação manual.
+The struct is `AppConfig` (`crates/infra-filesystem/src/app_config.rs`). A legacy `gui-settings.yaml` is migrated into `config.yaml` on first launch and deleted — nothing to do by hand.
 
-`load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
+`load_project_session()` fills `project.device_settings` in memory. The project YAML **does not persist** `device_settings` (`skip_serializing`), but an old YAML that still has the field deserializes.
 
 **Saving applies to the rig that is running.** `SettingsCommand::SaveAudioSettings` persists the values *and* re-opens the running graph, through `RuntimeControl::sync_project`: the new rate / buffer size / bit depth (and on Linux/JACK the server parameters) apply to every device the project names at once, which no per-chain sync can express. The door walks the chains the **project** names, one at a time, each against its own resolved devices — never a selection over live runtimes by sample rate (`CLAUDE.md` LAW) — and it never starts audio: a save on a stopped rig leaves it stopped.
 
@@ -1178,4 +1184,12 @@ Caveats:
 
 ## JACK lifecycle (Linux only)
 
-Com feature `jack`, OpenRig controla o ciclo de vida do JACK. `ensure_jack_running()` em infra-cpal detecta a placa USB, lê SR/buffer do `device_settings`, **põe o mixer de playback da placa em unity** (`LiveJackBackend::set_playback_mixer_unity` → `amixer -c $CARD sset <ctrl> 100% unmute` nos controles comuns; best-effort, requer `alsa-utils`) — sem PipeWire/Pulse nada inicializa o mixer e muitas interfaces USB sobem atenuadas (~−23 dB → som fraco/abafado). Depois lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3`, espera o socket aparecer em `/dev/shm/`. Timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()` e tenta reconectar quando JACK volta. Tudo atrás de `#[cfg(all(target_os = "linux", feature = "jack"))]`.
+With the `jack` feature, OpenRig owns the JACK server's lifecycle. `JackSupervisor` (`crates/infra-cpal/src/jack_supervisor/`) is the single owner of every `jackd` it launches:
+
+- **`ensure_server`** adopts a `jackd` that is already running when its config matches the desired one (sample rate, buffer, channels, periods), and restarts it on a mismatch; otherwise it spawns one.
+- **Before spawning**, the card's mixer is set to unity — playback AND capture controls to `0dB unmute` via `amixer` (`alsa_mixer.rs`; best-effort, needs `alsa-utils`). Without PipeWire/Pulse nothing initializes the mixer: many USB interfaces come up attenuated on playback or with a boosted mic input that clips.
+- **The spawn** (`live_backend.rs`) runs `jackd [--realtime -P <prio> | --no-realtime] -n <server> -d alsa -d hw:<card> -r <rate> -p <buffer> -n <periods> -i <in> -o <out>` (3 periods by default) with `JACK_NO_AUDIO_RESERVATION=1`, cleans stale files in `/dev/shm` and waits for the server socket.
+- **Drop never kills `jackd`.** Switching every chain off drops the controller; switching one back on adopts the server still running, with no respawn and no audio gap. A final shutdown (app exit, test teardown) calls `shutdown_all` explicitly.
+- The launcher's "start audio" goes through `start_jack_in_background` (`device_settings.rs`), whose server the later controller adopts.
+
+A 2 s timer in adapter-gui (`health_timer` → `audio_health_tick.rs`) checks the audio health and announces a disconnect and the reconnect. Everything sits behind `#[cfg(all(target_os = "linux", feature = "jack"))]`.
