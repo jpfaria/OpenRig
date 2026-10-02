@@ -67,10 +67,6 @@ mod imp {
         static MARKED: Cell<bool> = const { Cell::new(false) };
     }
 
-    pub(crate) fn ensure_key() -> bool {
-        true
-    }
-
     pub(crate) fn is_marked() -> bool {
         MARKED.with(Cell::get)
     }
@@ -80,6 +76,7 @@ mod imp {
     }
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) use imp::ensure_key;
 
 /// While alive, the current thread's allocations are audio memory. Dropping
