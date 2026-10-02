@@ -1,116 +1,61 @@
 # Quality Gate — OpenRig
 
-OpenRig **não tem mais gate interno**. Usa o gate **compartilhado** mantido
-centralmente em [`github.com/xgodev/claude-plugin`](https://github.com/xgodev/claude-plugin)
-(dispatcher em `tools/quality-gate/qg`; o repo standalone
-`xgodev/quality-gate` foi arquivado), igual para todos os projetos. Mesma filosofia de sempre: **comparativo**,
-falha só quando o PR **piora** uma métrica vs `develop`; dívida preexistente
-nunca bloqueia.
+OpenRig uses the **shared** quality gate from [xgodev/quality-gate](https://github.com/xgodev/quality-gate), the same for every project. It is **comparative**: it fails only when the PR makes a metric **worse** than the PR's base branch; pre-existing debt never blocks.
 
-> Canônico de uso/contrato: `~/.claude-plugin/docs/` após clonar.
+**It runs only in the PR's CI** — the `quality-gate` job of `.github/workflows/pr.yml`, on every PR into `develop`, a `release/**` branch or `main`. Never run it on a developer's machine: in Rust it compiles the workspace twice (base + PR).
 
-## TL;DR
+## How the CI job runs it
 
-```bash
-# primeira vez (clona) — depois, manter atualizado:
-git -C ~/.claude-plugin pull --ff-only \
-  || git clone --depth 1 https://github.com/xgodev/claude-plugin.git ~/.claude-plugin
+- The gate ships as the Docker image `ghcr.io/xgodev/quality-gate/rust:v1` (Rust toolchain + the gate). The job installs OpenRig's native build deps (ALSA, JACK, fontconfig, …) inside the container, then runs the gate's entrypoint `/opt/quality-gate/qg --base origin/<base branch>`.
+- The baseline is the PR's **own base branch** (`github.base_ref`), never a fixed `develop`.
+- The job blocks only on the JSON `.verdict == "regressed"`. `passed`, `improved`, `same` and `bypassed` pass; a missing verdict (a tool or setup error) does not block, because the separate `Test Suite` job builds and tests for real.
+- On failure: a sticky comment (header `openrig-quality-gate`) with the regressed metrics + a formal request-changes from `github-actions[bot]`. On success: a ✅ comment and the request-changes is dismissed. The logs are uploaded as the `qg-logs` artifact.
 
-~/.claude-plugin/tools/quality-gate/qg --base origin/develop
-```
+## Philosophy
 
-Vermelho → arrumar a **causa raiz** do que regrediu → rodar de novo → só
-então `git push`.
+The gate fails when the PR makes the project **worse**. However much pre-existing debt there is, a PR that does not add to it passes. Every PR may reduce debt; none may increase it.
 
-### Agentes (Claude Code)
+## Compared metrics (PR vs base) — Rust
 
-A skill **`claude-plugin:quality-gate`** faz isso automaticamente. Triggers:
-"rodar quality gate", "rodar QG", "verificar qualidade", "validar antes do
-PR", "qa antes do push" (e equivalentes em EN). Ela resolve o dispatcher
-direto do plugin instalado, roda e interpreta o JSON. Instalação:
-
-```
-/plugin marketplace add git@github.com:xgodev/claude-plugin.git
-/plugin install claude-plugin
-```
-
-## Filosofia (inalterada)
-
-O gate quebra quando o PR **piora** o projeto. Não importa quanta dívida
-preexistente exista — se o PR não a aumenta, passa. Cada PR pode reduzir
-dívida; nunca aumentar.
-
-## Métricas comparadas (PR vs base) — Rust
-
-| Métrica | Como conta |
+| Metric | How it counts |
 |---|---|
-| `fmt` | `cargo fmt --check` (rulesets embutidos do gate) |
-| `lint` | `cargo clippy -D warnings` sem complexity |
+| `fmt` | `cargo fmt --check` (the gate's embedded rulesets) |
+| `lint` | `cargo clippy -D warnings`, without complexity |
 | `build` | `cargo build --all-targets` |
-| `test` | `cargo test --no-fail-fast` (soma de falhas) |
-| `complexity` | clippy cognitive/lines/args/type (defaults do gate) |
-| `coverage` | `cargo llvm-cov` → `lines.percent`, margem `QG_COV_MARGIN` |
+| `test` | `cargo test --no-fail-fast` (number of failures) |
+| `complexity` | clippy cognitive / lines / args / type (the gate's defaults) |
+| `coverage` | `cargo llvm-cov` → `lines.percent`, margin `QG_COV_MARGIN` |
 
-> O gate **ignora** `clippy.toml`/`rustfmt.toml` do projeto de propósito
-> (tamper-resistance) e usa rulesets próprios (defaults da comunidade:
-> cognitive 25, lines 100, args 7, type 250). Nosso `clippy.toml` continua
-> valendo só pro `cargo clippy` local e pro `scripts/validate.sh`.
-
-## Local vs CI — mesmo dispatcher
-
-| Aspecto | Local | CI (`.github/workflows/pr.yml`) |
-|---|---|---|
-| Comando | `~/.claude-plugin/tools/quality-gate/qg --base origin/develop` | mesmo `qg`, clonado no job |
-| Baseline | `git archive origin/develop` (cache em `/tmp`) | `--baseline-dir baseline/` (checkout paralelo) + `--force-full` |
-| Falha no CI | — | sticky comment (header `openrig-quality-gate`) + `request-changes` formal do `github-actions[bot]`; sucesso → comment ✅ + dismissal |
-| Codecov | — | reusa profraw do PR → `lcov.info` → upload |
+The gate **ignores** the project's `clippy.toml`/`rustfmt.toml` on purpose (tamper resistance) and uses its own rulesets (community defaults: cognitive 25, lines 100, args 7, type 250). Our `clippy.toml` applies only to a local `cargo clippy` and to `scripts/validate.sh`.
 
 ## Exit codes
 
-| Código | Significado |
+| Code | Meaning |
 |---|---|
-| 0 | Passou / bypass / sem linguagem suportada relevante |
-| 1 | Regrediu ≥1 métrica vs base |
-| 2 | Erro de ferramenta/setup (NÃO é regressão — relatar stderr) |
-| 3 | Nenhuma linguagem suportada detectada |
-
-## Env vars (prefixo `QG_`)
-
-| Variável | Default | Uso |
-|---|---|---|
-| `QG_BASE_REF` | (vazio) | = `--base`. Vazio → modo absoluto |
-| `QG_BASELINE_DIR` | (vazio) | = `--baseline-dir` (checkout pronto, CI) |
-| `QG_COV_MARGIN` | `1.0` | Tolerância (pp) de coverage |
-| `QG_LOG_DIR` | `target/qg-logs` | Logs por etapa |
-| `QG_FORCE_FULL` | `0` | `1` = desliga fast-path |
-| `QG_FORMAT` | `text` | `text` ou `json` |
-| `QG_BYPASS_REASON` | (vazio) | **NUNCA setar por conta própria.** Força exit 0 + audit log |
-
-## Validação de negócio — testes obrigatórios
-
-Cobertura sozinha não basta. Toda lógica nova ou alterada **exige teste que
-valide comportamento esperado**, não apenas execute o caminho.
-
-- Bug fix → teste vermelho que reproduz o bug primeiro, fix depois (TDD).
-- Feature → teste cobrindo cenário esperado **e** edge cases.
-- Refactor que muda comportamento observável → teste antes do refactor.
+| 0 | Passed / bypassed / no relevant supported language |
+| 1 | At least one metric regressed vs the base |
+| 2 | Tool or setup error (NOT a regression — read the stderr) |
+| 3 | No supported language detected |
 
 ## Forbidden
 
-Pra silenciar o gate sem fix real:
+Silencing the gate without a real fix:
 
-- `QG_BYPASS_REASON` por iniciativa própria.
-- Subir thresholds em `clippy.toml` (não adianta — o gate ignora) ou editar
-  código/teste/config só pra "passar".
-- Marcar testes como `#[ignore]`.
-- `#[allow(clippy::...)]` sem causa raiz justificada.
-- `--no-verify` no commit.
+- Setting `QG_BYPASS_REASON` on your own (it forces exit 0 and writes an audit log).
+- Raising thresholds in `clippy.toml` (useless — the gate ignores it) or editing code, tests or config just to "pass".
+- Marking tests `#[ignore]`.
+- `#[allow(clippy::...)]` without a justified root cause.
+- `--no-verify` on a commit.
 
-A regra: **causa raiz ou escalar**.
+The rule: **root cause, or escalate**.
 
-## `validate.sh` — checagem estática por-arquivo (continua)
+## Before the push: `validate.sh` and `cargo fmt`
 
-`scripts/validate.sh` **não é o gate** e segue existindo: caps de LOC,
-`cargo fmt`/`clippy` por-arquivo, compile Slint, proibição de
-`#[cfg(test)] mod tests` inline. É a operacionalização das regras OpenRig
-que o gate genérico não cobre. Rodar a cada arquivo `.rs`/`.slint` tocado.
+`scripts/validate.sh` is **not** the gate. It runs OpenRig's own static rules that the generic gate does not cover: the responsibility header, the LOC caps, the minimum font size and the ban on inline `#[cfg(test)] mod tests`. Before every push, over the WHOLE repo:
+
+```bash
+cargo fmt --all -- --check
+VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
+```
+
+The same whole-repo check runs in CI as the `Static Checks (whole repo)` job.

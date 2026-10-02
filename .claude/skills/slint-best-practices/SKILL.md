@@ -14,34 +14,34 @@ Sources:
 
 # OpenRig — Slint Operational Rules
 
-## LEI — esta skill NÃO basta sozinha: invoque a skill de UI/UX antes
+## LAW — this skill is not enough on its own: invoke the UI/UX skill first
 
-**Antes de escrever/alterar qualquer `.slint`, invoque TAMBÉM `claude-plugin:ux-ui`** (design/UX). Esta skill cobre a MECÂNICA do Slint (bindings, layouts, `@tr`, globals); ela não diz nada sobre hierarquia visual, densidade, contraste, estados vazio/erro, ou se a tela funciona pro usuário. As duas são gate, não uma ou outra.
+**Before writing or changing any `.slint`, ALSO invoke `claude-plugin:ux-ui`** (design/UX). This skill covers Slint MECHANICS (bindings, layouts, `@tr`, globals); it says nothing about visual hierarchy, density, contrast, empty/error states, or whether the screen works for the user. Both are gates, not one or the other.
 
-**Why:** invocar só a de Slint produz tela que compila e renderiza, mas com decisão visual inventada por mim — exatamente o que a LEI de UI/Slint do `CLAUDE.md` proíbe ("PROIBIDO supor/inventar layout"). Já aconteceu: overlay inteiro construído com `slint-best-practices` só, sem a skill de UX.
+**Why:** invoking only the Slint skill produces a screen that compiles and renders, with visual decisions the agent invented — exactly what the UI rules forbid (never assume or invent a layout). It has happened: a whole overlay built with `slint-best-practices` alone, without the UX skill.
 
-**How to apply:** trabalho de tela → `claude-plugin:ux-ui` + esta skill, ANTES da primeira linha; depois renderize com `tools/slint-render` e confira o PNG antes de dizer "pronto".
+**How to apply:** screen work → `claude-plugin:ux-ui` + this skill, BEFORE the first line; then render with `tools/slint-render` and check the PNG before saying "done". See `docs/development/ui-rules.md`.
 
-Princípios gerais de UI (responsividade, separação business/presentation, zero coupling) vivem em `openrig-code-quality`. As regras Slint-específicas do projeto:
+General UI principles (responsiveness, business/presentation separation, zero coupling) live in `openrig-code-quality`. The project's Slint-specific rules:
 
-## File Size — 500 lines per `.slint` (hard cap)
+## File size — 500 lines per `.slint` (hard cap)
 
-`./scripts/validate.sh` enforces ≤ 500 lines for every `.slint`. Se um arquivo passa, **dividir** antes de adicionar mais qualquer coisa. Esta é a operacionalização Slint do princípio "one responsibility per file" do `openrig-code-quality`.
+`./scripts/validate.sh` enforces ≤ 500 lines for every `.slint`. If a file goes over, **split** it before adding anything else. This is the Slint form of the "one responsibility per file" law (`docs/development/file-organization.md`).
 
-## NUNCA `sed -i` em arquivos `.slint`
+## NEVER `sed -i` on `.slint` files
 
-`sed -i` em macOS/BSD pode **esvaziar** um `.slint` por causa de issues de encoding/locale (vimos isso quebrar arquivos de UI em outras issues). Use o Edit tool sempre.
+`sed -i` on macOS/BSD can **empty** a `.slint` because of encoding/locale issues (it has broken UI files before). Always use the Edit tool.
 
 ```
 ❌ sed -i '' 's/old/new/g' app.slint
-   // PERIGO: pode esvaziar o arquivo
+   // DANGER: may empty the file
 
-✅ Edit tool com old_string/new_string
+✅ Edit tool with old_string/new_string
 ```
 
-## `@image-url()` é compile-time — sem strings dinâmicas
+## `@image-url()` is compile-time — no dynamic strings
 
-`@image-url()` resolve no momento da compilação Slint. Não aceita variável runtime. Para selecionar imagem por `model_id` ou `brand`, use ternary chain:
+`@image-url()` resolves when Slint compiles. It does not take a runtime variable. To pick an image by `model_id` or `brand`, use a ternary chain:
 
 ```slint
 ✅ Image {
@@ -54,109 +54,109 @@ Princípios gerais de UI (responsividade, separação business/presentation, zer
 
 ❌ Image {
     source: @image-url("../assets/brands/" + root.brand + "/logo.svg");
-    // FALHA: @image-url precisa string literal compile-time
+    // FAILS: @image-url needs a compile-time string literal
 }
 ```
 
-A consequência prática para o catálogo OpenRig: cada novo brand exige tocar a chain de ternários nos componentes que renderizam a logo. Isso é uma **exceção autorizada** ao "zero coupling" — Slint não tem outra forma. Centralize a chain em UM componente (`BrandLogo.slint`) para minimizar pontos de toque.
+The practical consequence for the OpenRig catalog: every new brand touches the ternary chain in the component that renders the logo. That is an **authorised exception** to "zero coupling" — Slint has no other way. Keep each chain in ONE component to minimise touch points: brand logos in `ui/components/brand_logo.slint`, model images in `ui/components/block_panel_brand_strip.slint`.
 
-## Não hardcode cores/fontes por `model_id` em Slint
+## Never hardcode colours or fonts per `model_id` in Slint
 
-Princípio em `openrig-code-quality` (separation of concerns). Operacionalização Slint:
+The principle is separation of concerns (`openrig-code-quality`). In Slint:
 
 ```slint
 ❌ if root.model_id == "marshall_jcm_800": Rectangle { background: #6c2a1a; }
-   // WRONG: cor hardcoded no Slint por model_id
+   // WRONG: colour hardcoded in Slint per model_id
 
 ✅ private property <color> panel-bg:
        root.block-model-options[index].panel_bg;
-   // CORRETO: cor vem de visual_config (UI layer Rust), exposto como property Slint
+   // RIGHT: the colour comes from the block crate's model_visual.rs (Rust), exposed as a Slint property
 ```
 
-## Painel editor genérico — sem lógica por effect_type
+## Generic editor panel — no logic per effect_type
 
-O `BlockEditorPanel` deve renderizar qualquer effect_type baseado no schema, não em `if effect_type == "preamp"`. Adicionar um effect_type novo NÃO deve exigir mudança no Panel.
+The block editor panel renders any effect_type from its schema, never from `if effect_type == "preamp"`. Adding a new effect_type must NOT require a change in the panel.
 
 ---
 
-## 1. Estrutura de Projeto
+## 1. Project structure
 
-Separar código, UI e assets em diretórios distintos:
+Keep code, UI and assets in separate directories:
 
 ```
 my-project/
-├── src/        # lógica de negócio (Rust)
+├── src/        # business logic (Rust)
 ├── ui/
 │   ├── app-window.slint   # entry point
-│   └── components/        # componentes reutilizáveis
+│   └── components/        # reusable components
 └── images/                # SVGs, PNGs, assets
 ```
 
-**Regra:** Nenhuma lógica de negócio dentro de `.slint`. Slint é declarativo — computações pertencem ao Rust.
+**Rule:** no business logic inside `.slint`. Slint is declarative — computation belongs in Rust.
 
 ---
 
-## 2. Propriedades — Acesso e Direção
+## 2. Properties — access and direction
 
-Sempre declarar acesso explícito em componentes:
+Always declare access explicitly in components:
 
-| Modificador | Uso |
+| Modifier | Use |
 |---|---|
-| `in` | Dado vem de fora (pai → filho) |
-| `out` | Dado vai para fora (filho → pai) |
-| `in-out` | Bidirecional (usar com cautela) |
-| `private` | Interno ao componente (default) |
+| `in` | Data comes from outside (parent → child) |
+| `out` | Data goes outside (child → parent) |
+| `in-out` | Two-way (use with care) |
+| `private` | Internal to the component (default) |
 
 ```slint
 component MyButton {
-    in property <string> label;          // pai configura
-    out property <bool> pressed;         // pai observa
-    private property <bool> hovered;     // interno
+    in property <string> label;          // the parent sets it
+    out property <bool> pressed;         // the parent observes it
+    private property <bool> hovered;     // internal
 }
 ```
 
-**Evitar `in-out` sem necessidade** — bidirecionalidade cria acoplamento difícil de rastrear.
+**Avoid needless `in-out`** — two-way data creates coupling that is hard to trace.
 
 ---
 
-## 3. Bindings Reativos
+## 3. Reactive bindings
 
-Bindings se re-avaliam automaticamente quando dependências mudam. **Nunca atribuir manualmente** o que pode ser um binding.
+Bindings re-evaluate automatically when their dependencies change. **Never assign by hand** what can be a binding.
 
 ```slint
-// ✅ Binding reativo — atualiza automaticamente
+// ✅ Reactive binding — updates by itself
 Text { text: root.count > 0 ? "Items: \{root.count}" : "Empty"; }
 
-// ❌ Evitar — imperativo, perde reatividade
+// ❌ Avoid — imperative, loses reactivity
 Text {
     text: "Items";
-    // lógica imperativa via callback para atualizar text = ...
+    // imperative logic through a callback that sets text = ...
 }
 ```
 
-**Regra:** Prefira expressões ternárias e bindings declarativos sobre callbacks que modificam estado.
+**Rule:** prefer ternaries and declarative bindings over callbacks that mutate state.
 
 ---
 
-## 4. Callbacks — Direção e Nomenclatura
+## 4. Callbacks — direction and naming
 
 ```slint
 component SearchBar {
-    callback search-requested(string);    // filho notifica pai
+    callback search-requested(string);    // the child notifies the parent
     callback clear-requested();
 
-    // ❌ Evitar: callback que retorna dado para o filho
-    // callback fetch-data() -> [DataModel]; // acoplamento invertido
+    // ❌ Avoid: a callback that returns data to the child
+    // callback fetch-data() -> [DataModel]; // inverted coupling
 }
 ```
 
-- Callbacks fluem **de filho para pai** (eventos)
-- Dados fluem **de pai para filho** (propriedades `in`)
-- Use `<=>` para two-way binding entre propriedades de mesmo nível
+- Callbacks flow **from child to parent** (events)
+- Data flows **from parent to child** (`in` properties)
+- Use `<=>` for a two-way binding between properties at the same level
 
 ---
 
-## 5. Estados e Animações
+## 5. States and animations
 
 ```slint
 component Toggle {
@@ -171,16 +171,16 @@ component Toggle {
 }
 ```
 
-- Estados devem ser **mutuamente exclusivos** e baseados em propriedades lógicas
-- `animate` deve ser declarado **fora** do bloco `states` (aplica-se à transição)
-- Evitar estados baseados em condições negativas — prefira nomes positivos
+- States must be **mutually exclusive** and based on logical properties
+- Declare `animate` **outside** the `states` block (it applies to the transition)
+- Avoid states based on negative conditions — prefer positive names
 
 ---
 
 ## 6. Layouts
 
 ```slint
-// ✅ Use componentes de layout semânticos
+// ✅ Use semantic layout components
 VerticalBox {
     HorizontalBox {
         Button { text: "Cancel"; }
@@ -188,22 +188,22 @@ VerticalBox {
     }
 }
 
-// ❌ Evitar posicionamento manual com x/y para layouts
+// ❌ Avoid manual x/y positioning for layouts
 Rectangle {
-    Button { x: 10px; y: 200px; }  // frágil, não responsivo
+    Button { x: 10px; y: 200px; }  // fragile, not responsive
 }
 ```
 
-- `VerticalBox` / `HorizontalBox` para layout semântico
-- `GridLayout` + `Row` para grids
-- Posicionamento absoluto (`x`, `y`) apenas para overlays e elementos decorativos
-- Use `preferred-width`/`preferred-height` em vez de valores fixos quando possível
+- `VerticalBox` / `HorizontalBox` for semantic layout
+- `GridLayout` + `Row` for grids
+- Absolute positioning (`x`, `y`) only for overlays and decorative elements
+- Prefer `preferred-width`/`preferred-height` over fixed values where possible
 
 ---
 
-## 7. Acessibilidade
+## 7. Accessibility
 
-Declarar em **todo componente interativo customizado**:
+Declare it on **every custom interactive component**:
 
 ```slint
 component CustomButton {
@@ -214,32 +214,32 @@ component CustomButton {
 }
 ```
 
-- `accessible-role` é obrigatório
-- `accessible-label` deve ser texto legível por humanos
-- Ferramentas: "Accessibility Insights" (Windows), "Accessibility Inspector" (macOS)
+- `accessible-role` is required
+- `accessible-label` must be human-readable text
+- Tools: "Accessibility Insights" (Windows), "Accessibility Inspector" (macOS)
 
 ---
 
-## 8. Traduções
+## 8. Translations
 
 ```slint
-// ✅ Correto — permite reordenação pelo tradutor
+// ✅ Right — lets the translator reorder
 Text { text: @tr("Hello, {}", name); }
 
-// ❌ Errado — concatenação dificulta tradução
+// ❌ Wrong — concatenation makes translation hard
 Text { text: @tr("Hello, ") + name; }
 
-// ❌ Esqueceu o @tr
+// ❌ Forgot the @tr
 Text { text: "Save Project"; }
 ```
 
-Toda string visível ao usuário deve usar `@tr("...")`.
+Every user-visible string uses `@tr("...")`.
 
 ---
 
 ## 9. Globals
 
-Use `global` para estado compartilhado entre componentes sem prop-drilling:
+Use `global` for state shared across components without prop-drilling:
 
 ```slint
 export global AppTheme {
@@ -247,30 +247,30 @@ export global AppTheme {
     out property <length> spacing: 8px;
 }
 
-// Uso em qualquer componente
+// Use from any component
 Rectangle { background: AppTheme.accent; }
 ```
 
-- Globals são singletons — ideal para tema, configurações, estado de app
-- Expor globals via `export` para uso no Rust
+- Globals are singletons — good for theme, settings, app state
+- `export` a global to use it from Rust
 
 ---
 
-## 10. Integração com Rust
+## 10. Rust integration
 
 ```rust
-// Rust: ler propriedade
+// Rust: read a property
 let val = ui.get_my_property();
 
-// Rust: definir propriedade
+// Rust: set a property
 ui.set_my_property(42);
 
-// Rust: conectar callback
+// Rust: connect a callback
 ui.on_button_clicked(|| { /* handler */ });
 ```
 
-- Hífens em nomes Slint viram underscores no Rust (`my-prop` → `my_prop`)
-- Use **weak references** em closures para evitar ciclos de ownership:
+- Hyphens in Slint names become underscores in Rust (`my-prop` → `my_prop`)
+- Use **weak references** in closures to avoid ownership cycles:
 
 ```rust
 let ui_weak = ui.as_weak();
@@ -282,46 +282,46 @@ ui.on_clicked(move || {
 
 ---
 
-## 11. Imagens com @image-url
+## 11. Images with @image-url
 
-`@image-url()` é resolvido em **compile-time** — não aceita strings dinâmicas.
+`@image-url()` resolves at **compile time** — it does not take dynamic strings.
 
 ```slint
-// ✅ Ternário para seleção condicional
+// ✅ A ternary for conditional selection
 Image {
-    source: root.model-id == "amp_a"
-        ? @image-url("../assets/amp_a/controls.svg")
-        : @image-url("../assets/generic/controls.svg");
+    source: root.model-id == "analog_warm"
+        ? @image-url("../assets/models/analog_warm.svg")
+        : @image-url("../assets/models/digital_clean.svg");
 }
 
-// ❌ Impossível — @image-url não aceita variável
-// Image { source: @image-url(root.model-id + "/controls.svg"); }
+// ❌ Impossible — @image-url does not take a variable
+// Image { source: @image-url("../assets/models/" + root.model-id + ".svg"); }
 ```
 
-Para muitos modelos, use if/else encadeado ou componentes separados por tipo.
+For many models, chain the ternaries or split components by type.
 
 ---
 
-## 12. Nomenclatura
+## 12. Naming
 
-| Elemento | Convenção | Exemplo |
+| Element | Convention | Example |
 |---|---|---|
-| Componentes | PascalCase | `BlockEditorPanel` |
-| Propriedades | kebab-case | `block-type-index` |
+| Components | PascalCase | `BlockEditorPanel` |
+| Properties | kebab-case | `block-type-index` |
 | Callbacks | kebab-case | `block-selected` |
 | Globals | PascalCase | `AppTheme` |
-| Estados | kebab-case | `is-hovered` |
+| States | kebab-case | `is-hovered` |
 
 ---
 
-## 13. Anti-Padrões Comuns
+## 13. Common anti-patterns
 
-| Anti-padrão | Correto |
+| Anti-pattern | Right |
 |---|---|
-| Lógica de negócio em `.slint` | Computar no Rust, expor via propriedade |
-| Strings literais sem `@tr` | `@tr("string")` |
-| `x`/`y` absolutos para layout | `VerticalBox`/`HorizontalBox` |
-| `in-out` desnecessário | `in` ou `out` conforme direção |
-| String dinâmica em `@image-url` | Ternários encadeados em compile-time |
-| Callbacks que retornam dados | Propriedades `out` para dados, callbacks para eventos |
-| Closures Rust sem weak ref | `ui.as_weak()` + `upgrade()` |
+| Business logic in `.slint` | Compute in Rust, expose through a property |
+| String literals without `@tr` | `@tr("string")` |
+| Absolute `x`/`y` for layout | `VerticalBox`/`HorizontalBox` |
+| Needless `in-out` | `in` or `out` by direction |
+| A dynamic string in `@image-url` | Compile-time ternary chains |
+| Callbacks that return data | `out` properties for data, callbacks for events |
+| Rust closures without a weak ref | `ui.as_weak()` + `upgrade()` |
