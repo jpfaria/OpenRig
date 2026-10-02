@@ -37,8 +37,12 @@ forces a new RED (and a new compile) per step. Exception: while the owner is
 validating on his machine, a fix he is waiting for is committed and pushed
 right away.
 
-**Local push gate.** Never `cargo test --workspace` or `cargo build --workspace`
-locally (10+ minutes on the owner's Mac; CI runs them). Without
+**PR gate.** Before opening a PR, and before any push to a branch that already
+has an open PR, run `cargo test --workspace` locally: zero warnings, zero
+compile errors, every test green. Anything red blocks the PR or the push.
+
+**Local push gate.** Outside the PR gate, never `cargo test --workspace` or
+`cargo build --workspace` locally (10+ minutes on the owner's Mac). Without
 `cargo fmt --all -- --check` the `release → main` PR fails on the `fmt` metric.
 `./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
 the commit that diff is empty and it always passes — use
