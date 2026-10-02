@@ -178,6 +178,39 @@ fn picking_a_sync_value_retimes_the_block_at_once() {
 }
 
 #[test]
+fn picking_a_sync_value_on_a_block_saved_without_one_retimes_it() {
+    let f = fixture();
+    {
+        let mut project = f.project.borrow_mut();
+        let chain = project
+            .chains
+            .iter_mut()
+            .find(|c| c.id == chain_b())
+            .expect("chain");
+        let block = chain
+            .blocks
+            .iter_mut()
+            .find(|b| b.id.0 == "db1")
+            .expect("block");
+        let AudioBlockKind::Core(core) = &mut block.kind else {
+            panic!("core block expected");
+        };
+        core.params.values.remove(TIME_SYNC_PATH);
+    }
+    set_bpm(&f, 100.0);
+    f.dispatcher
+        .dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
+            chain: chain_b(),
+            block: BlockId("db1".into()),
+            path: TIME_SYNC_PATH.into(),
+            value: "1/4".into(),
+            index: 5,
+        }))
+        .expect("select sync on a block saved without one");
+    assert!((time_ms(&f, &chain_b(), "db1") - 600.0).abs() < 1e-3);
+}
+
+#[test]
 fn turning_the_time_knob_by_hand_turns_sync_off() {
     let f = fixture();
     f.dispatcher

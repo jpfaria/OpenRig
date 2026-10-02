@@ -17,6 +17,7 @@ use anyhow::{anyhow, Result};
 use domain::value_objects::ParameterValue;
 
 use super::block_params::block_params_mut;
+use super::dispatch::schema_for_block_model;
 use super::split_params::check_split_knob;
 use super::types::{AudioBlock, AudioBlockKind};
 
@@ -98,11 +99,15 @@ pub fn set_parameter_text(block: &mut AudioBlock, path: &str, value: &str) -> Re
 /// # Errors
 ///
 /// - If the block kind does not carry a `ParameterSet`.
-/// - If the path does not exist in the block's current `ParameterSet`.
+/// - If the path is neither in the block's current `ParameterSet` nor
+///   declared by its model's schema. A block saved before an option joined
+///   its schema (a delay's `time_sync`) has no entry for it yet, so a path
+///   the schema declares is inserted.
 pub fn set_parameter_option(block: &mut AudioBlock, path: &str, value: &str) -> Result<()> {
     refuse_invalid_split_knob(block, path, &ParameterValue::String(value.to_string()))?;
+    let declared = schema_declares(block, path);
     let params = params_mut(block)?;
-    if !params.values.contains_key(path) {
+    if !params.values.contains_key(path) && !declared {
         return Err(anyhow!(
             "parameter '{}' not found in block '{}'",
             path,
@@ -120,6 +125,15 @@ fn refuse_invalid_split_knob(block: &AudioBlock, path: &str, value: &ParameterVa
     };
     check_split_knob(path, value.clone(), split.paths.len())
         .map_err(|e| anyhow!("invalid value for split '{}': {e}", block.id.0))
+}
+
+/// Whether the schema of a core block's model declares `path`.
+fn schema_declares(block: &AudioBlock, path: &str) -> bool {
+    let AudioBlockKind::Core(core) = &block.kind else {
+        return false;
+    };
+    schema_for_block_model(&core.effect_type, &core.model)
+        .is_ok_and(|schema| schema.parameters.iter().any(|spec| spec.path == path))
 }
 
 /// Return a mutable reference to the `ParameterSet` of `block`, or an error
