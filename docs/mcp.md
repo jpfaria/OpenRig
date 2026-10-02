@@ -86,7 +86,7 @@ follow-up.
   sidecars. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
 
-  Split chains (#328): a split runs N paths (at least two) side by side,
+  Split chains: a split runs N paths (at least two) side by side,
   numbered from 0 (the GUI shows A, B, C, …). A split may sit inside a
   path, at any depth, and a chain may hold any number of them. Every tool
   that names a split takes its block id (`split`, `split_id`), so splits
@@ -140,7 +140,7 @@ follow-up.
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
   - `openrig://ids` — chain/block IDs (for `midi-map.yaml`). The blocks
-    inside a split (#328) are listed under it as `path A`, `path B`, … rows, at any depth.
+    inside a split are listed under it as `path A`, `path B`, … rows, at any depth.
   - `openrig://meters` — per-chain peak meters (dBFS).
   - `openrig://tuner` — live tuner readings: `running`,
     `reference_hz`, and one row per (chain, input, channel) tap with

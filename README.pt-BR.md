@@ -162,7 +162,7 @@ Todo `model:` ID está registrado no [Blocks Reference Quick Reference](https://
 
 ### Para desenvolvedores
 
-- [Architecture](docs/architecture.md) · [Architecture (a fundo)](docs/development/architecture.md) — mapa de crates, layers, design patterns
+- [Architecture](docs/architecture.md) — camadas, mapa de crates, barramento de comandos e de leitura
 - [Building](docs/development/building.md) — guia de build completo, incluindo o engine NAM e Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — como adicionar novos modelos de áudio
 - [Audio Backends](docs/development/audio-backends.md) — internos de Native, NAM, IR e LV2
@@ -236,6 +236,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] Metrônomo embutido — andamento, fórmula de compasso, subdivisões, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — um fader e um mute por entrada/saída, pela GUI, MCP e superfícies de controle MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [ ] Bateria integrada — bateria para tocar junto ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer por stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
@@ -246,7 +247,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [ ] Modelos manuais por componente para os amps benchmark do OpenRig ([#347](https://github.com/jpfaria/OpenRig/issues/347))
 - [ ] Geradores NAM → nativo para amps e preamps ([#282](https://github.com/jpfaria/OpenRig/issues/282), [#283](https://github.com/jpfaria/OpenRig/issues/283))
 - [ ] Geradores IR → nativo para cabinets e bodies acústicos ([#284](https://github.com/jpfaria/OpenRig/issues/284), [#285](https://github.com/jpfaria/OpenRig/issues/285))
-- [ ] Wizard de plugin do usuário para import NAM / IR ([#287](https://github.com/jpfaria/OpenRig/issues/287))
+- [ ] Wizard de plugin do usuário para import NAM / IR
 
 ### Ecossistema e remoto
 

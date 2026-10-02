@@ -1,23 +1,24 @@
-# Testes
+# Testing
 
-## ⛔ TDD obrigatório — RED-FIRST. Proibido implementar sem teste que falha antes
+## ⛔ Mandatory TDD — RED-FIRST. No implementation without a test that failed first
 
-**Lei do projeto, não recomendação.** É **proibido** escrever ou alterar código de
-produção sem um teste que **falhou primeiro**. Teste escrito depois da
-implementação (que passa de imediato) não prova nada e "vicia" a suíte — também
-proibido.
+**A project law, not a recommendation.** Writing or changing production code
+without a test that **failed first** is **forbidden**. A test written after the
+implementation (one that passes straight away) proves nothing and rigs the
+suite — also forbidden.
 
-**Para corrigir um bug, nesta ordem:**
+**To fix a bug, in this order:**
 
-1. **Entrevistar quem reportou** — cenário exato, dados, passos, resultado
-   esperado vs. obtido. Não adivinhar.
-2. **Escrever um teste que reproduz o bug** pelo caminho mais real possível —
-   **sem ler o código procurando a causa antes disso.**
-3. **Rodar e ver FALHAR** (RED real). Mostrar a falha. Se o teste passa, ele
-   não pegou o bug → refazer; ou, se não for bug de lógica (ex.: renderização
-   Slint, que unit test não exercita), **dizer isso honestamente e parar**.
-4. **Só depois do RED**, investigar a causa — guiada pelo teste que falhou —
-   e corrigir até passar (GREEN).
+1. **Interview whoever reported it** — the exact scenario, data, steps,
+   expected vs. actual result. Do not guess.
+2. **Write a test that reproduces the bug** through the most real path
+   possible — **without reading the code for the cause before that.**
+3. **Run it and watch it FAIL** (a real RED). Show the failure. If the test
+   passes, it did not catch the bug → redo it; or, if it is not a logic bug
+   (e.g. Slint rendering, which a unit test does not exercise), **say so
+   honestly and stop**.
+4. **Only after the RED**, investigate the cause — guided by the failing
+   test — and fix until it passes (GREEN).
 5. The full suite + audio invariants run in CI, not locally.
 
 **Two rounds per delivery, never per micro-step.** A delivery with
@@ -44,32 +45,32 @@ the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
 broken (unused import, needless `mut`, dead code).
 
-**Não investigue o código para achar a causa antes do teste existir e
-falhar.** Ler o código primeiro produz hipótese enviesada vendida como
-"causa". A investigação acontece no passo 4, dirigida pelo RED.
+**Do not search the code for the cause before the test exists and fails.**
+Reading the code first produces a biased hypothesis sold as "the cause". The
+investigation happens in step 4, driven by the RED.
 
-**Provar que um teste não é "viciado":** reverter SÓ a produção para o estado
-pré-fix (mantendo os testes) e rodar — tem que dar RED. Restaurar a produção
-depois (nada se perde; está commitado).
+**Proving a test is not rigged:** revert ONLY the production code to its
+pre-fix state (keeping the tests) and run — it must go RED. Restore the
+production code afterwards (nothing is lost; it is committed).
 
-**Enforcement:** o gate é o hook genérico do plugin `dev-rules` (não mais um
-hook local do OpenRig), configurado em `.dev-rules.json` na raiz (globs Rust:
-`crates/**/src/**` produção, `**/tests/**`/`*_test*.rs`/`*test*.rs` teste).
-Sentinelas em `.dev-rules/` (nunca versionado):
+**Enforcement:** the gate is the generic hook of the `dev-rules` plugin,
+configured in `.dev-rules.json` at the root (Rust globs: `crates/**/src/**`
+production, `**/tests/**`/`*_test*.rs`/`*test*.rs` tests). Sentinels in
+`.dev-rules/` (never versioned):
 
-- nenhuma sentinela → leitura E edição de produção bloqueadas (disciplina de bug).
-- `.dev-rules/.mode-feature` → leitura de produção liberada pra planejar
-  feature/melhoria; edição continua presa ao RED.
-- `.dev-rules/.red-first-unlocked` → leitura e edição liberadas (criar só
-  depois de mostrar o RED real, passo 3 acima).
+- no sentinel → reading AND editing production are blocked (bug discipline).
+- `.dev-rules/.mode-feature` → reading production is allowed to plan a
+  feature or improvement; editing stays locked to the RED.
+- `.dev-rules/.red-first-unlocked` → reading and editing allowed (create it
+  only after showing the real RED, step 3 above).
 
-Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
+Details and real cases: `.claude/skills/openrig-code-quality/SKILL.md`.
 
-## Cobertura
+## Coverage
 
-- **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
-- **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
-- **CI**: `.github/workflows/test.yml` — informativo, sem gate
+- **Tool**: `cargo-llvm-cov` (install with `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
+- **Local script**: `scripts/coverage.sh` — writes an HTML report to `coverage/`
+- **CI**: the `coverage` job of `.github/workflows/test.yml`, uploaded to Codecov — informative, no gate
 - **CI time budget**: the Test Suite runs under `timeout 1500` (25 min) and
   Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
   both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
@@ -77,11 +78,12 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
   Instrumentation is what makes long simulations expensive: they run several times
   slower under llvm-cov. A test that simulates minutes
   of audio or sweeps many seeds costs minutes of Coverage.
-- **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
-  localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
-  cruzado com `git diff --unified=0 <base>...HEAD`), respeitando o `ignore:` do
-  `codecov.yml`. O relatório é reaproveitado enquanto a árvore não muda (`--fresh`
-  força de novo); `--files` lista o que ainda falta; `PATCH_COV_OFF=1` pula.
+- **Patch coverage**: `./scripts/patch-coverage.sh [base]` — reproduces locally
+  the number `codecov/patch` reports on the PR (`cargo llvm-cov --lcov` crossed
+  with `git diff --unified=0 <base>...HEAD`), honouring `codecov.yml`'s
+  `ignore:`. The report is reused while the tree does not change (`--fresh`
+  forces a new one); `--files` lists what is still missing; `PATCH_COV_OFF=1`
+  skips it.
 
 ### CI measures the Linux + JACK build
 
@@ -113,15 +115,9 @@ shrinks.** Adding to it means writing the reason here first.
 Everything else stays in the target. A new file that "cannot be tested" is a
 design answer, not a coverage exemption — split the logic out of the wiring.
 
-**The list has already shrunk once.** `settings/paths_apply.rs` and
-`device_refresh_list.rs` were on it and came off: the first through a config-path
-seam (`apply_*_path_at`), the second because the enumeration answers on any
-machine, with or without interfaces. That is the expected direction of travel.
-
 ### Extracting logic out of a callback
 
-The sweep that emptied those files follows one shape, and it is the shape to
-reuse:
+Moving logic out of a GUI callback follows one shape:
 
 1. The closure keeps only what a WINDOW does — hide, show, set a property,
    paint a toast.
@@ -131,7 +127,7 @@ reuse:
    returning a result the callback renders.
 3. That function gets the test.
 
-Two things make this work in practice, both learned the hard way:
+Two things make this work in practice:
 
 - **`VecModel` and `ProjectSession` build fine without a window.** Most of the
   "untestable GUI layer" was never about Slint — it was about logic living
@@ -142,10 +138,8 @@ Two things make this work in practice, both learned the hard way:
   point is that same function called with the real path — so the test drives
   the SAME body against a temp file.
 
-Two functions doing the same job in two files is a duplicate to collapse, not
-two tests to write: the chain-editor save, the analyzer dispatch helper, the DI
-loop row actions, the block parameter edits and the project open each had a
-copy per call site and now have one tested body.
+Two functions doing the same job in two files is a duplicate to collapse into
+one tested body, not two tests to write.
 
 **What is left uncovered inside an extracted module** is worth naming, because
 it is not laziness and it should not be chased with contrived tests:
@@ -159,27 +153,27 @@ it is not laziness and it should not be chased with contrived tests:
   `_at` function. Exercising THEM means writing that file. The body they
   delegate to is covered.
 
-## Convenções
+## Conventions
 
-- `#[cfg(test)] mod tests`
-- Nomes: `<behavior>_<scenario>_<expected>` (ex.: `validate_project_rejects_empty_chains`)
-- Sem framework externo. Helpers no próprio módulo.
+- Tests live in a sibling file `<module>_tests.rs`, wired at the end of the module with `#[cfg(test)] #[path = "<module>_tests.rs"] mod tests;`. An inline `#[cfg(test)] mod tests { … }` in a production file fails `validate.sh`. Cross-crate tests go in the crate's `tests/`.
+- Names: `<behavior>_<scenario>_<expected>` (e.g. `validate_project_rejects_empty_chains`).
+- No external framework. Helpers live in the test module.
 
-## Categorias
+## Categories
 
-- **Integração com áudio real**: `#[ignore]` (rodar com `cargo test -- --ignored`)
-- **DSP nativos**: golden samples com tolerância `1e-4`, processar silêncio/sine, verificar non-NaN
-- **Caracterização de DSP nativos** (block-delay, `src/dsp_probe.rs`, test-only): provas determinísticas de que cada modelo cumpre a proposta dele — timing de eco (`peaks`), decaimento por feedback, brilho/escurecimento (`spectral_centroid`), saturação (`harmonic_ratio`). Não basta non-NaN: o teste mede a característica que dá nome ao modelo
-- **NAM/LV2/IR builds**: `#[ignore]` (assets externos)
-- **Registry tests** em block-* crates: iterar TODOS os modelos via registry
-- **Deadline / xrun (timing)**: `#[cfg_attr(debug_assertions, ignore)]` — só
-  fazem sentido em release. `engine/src/audio_deadline_tests.rs` (pipe chains)
-  e `engine/tests/issue_670_heavy_rig_deadline.rs` (rig pesado, breakdown
-  por-bloco) medem o custo por-buffer do audio thread. O custo é dominado
-  pela inferência NAM; empilhar vários NAM amps satura o orçamento de 64
-  frames → overrun de deadline (xrun) → crackle. O overrun é contado em
-  runtime por `ChainRuntimeState::record_callback_load`, alimentado
-  pelo callback de input via `infra-cpal::callback_load_timing`.
+- **Real-audio integration**: `#[ignore]` (run with `cargo test -- --ignored`)
+- **Native DSP**: golden samples with a `1e-4` tolerance, process silence/sine, check non-NaN
+- **Native DSP characterisation** (block-delay, `src/dsp_probe.rs`, test-only): deterministic proof that each model does what it is for — echo timing (`peaks`), feedback decay, brightening/darkening (`spectral_centroid`), saturation (`harmonic_ratio`). Non-NaN is not enough: the test measures the trait the model is named after
+- **NAM/LV2/IR builds**: `#[ignore]` (external assets)
+- **Registry tests** in the block-* crates: iterate over ALL models through the registry
+- **Deadline / xrun (timing)**: `#[cfg_attr(debug_assertions, ignore)]` — they
+  only make sense in release. `engine/src/audio_deadline_tests.rs` (pipe chains)
+  and `engine/tests/issue_670_heavy_rig_deadline.rs` (a heavy rig, per-block
+  breakdown) measure the audio thread's per-buffer cost. The cost is dominated
+  by NAM inference; stacking several NAM amps saturates the 64-frame budget →
+  deadline overrun (xrun) → crackle. The overrun is counted at runtime by
+  `ChainRuntimeState::record_callback_load`, fed by the input callback through
+  `infra-cpal`'s `callback_load_timing`.
 
 ### Looper
 
@@ -222,13 +216,11 @@ measurement. It asserts the chain is live before measuring, and drives
 `poll_pending_rebuilds` the way the app's timer does, because the cold
 activation is asynchronous.
 
-## Workspace
+## Full suite
 
-```bash
-cargo test --workspace
-```
-
-(~1100+ testes)
+The whole workspace suite runs in CI (the `Test Suite` job of
+`.github/workflows/test.yml`, on Linux). Locally, run only the targeted tests of
+your change (`cargo test -p <crate> <filter>`).
 
 ## Real-hardware battery
 
@@ -243,7 +235,7 @@ They are the full-fidelity reproduction harness for a crackle on cab swaps
 and for a multi-chain RT-budget overcommit (shared helpers live in
 `tests/hw_harness/`). The `issue_698_*` owner-recipe tests additionally need the
 real capture library via `OPENRIG_OWNER_PLUGINS=<plugins/source>`.
-The #328 test plays a Split → Mix dual-amp chain (amp A hard left, amp B
+The dual-amp split test plays a Split → Mix chain (amp A hard left, amp B
 hard right) and prints its peak load next to a single amp's.
 
 They are only meaningful on an otherwise idle machine, so they are gated by
@@ -315,7 +307,7 @@ activations** — the cpal streams are created on the polling thread, so without
 `poll_pending_rebuilds()` nothing ever opens and every measurement reads zero.
 
 **Counting underruns is not listening.** A tap can hold its last frame, alias or
-drift and still report zero underruns — a false positive. `issue_85_mid_output_other_rate` keeps every frame the
+drift and still report zero underruns — a false positive. `issue_85_mid_output_other_rate_real` keeps every frame the
 device popped and measures how much of it is NOT the tone, per short window (so
 a slow clock trim is not counted as distortion), against the chain's OWN tail
 captured in the same run — same processing, no conversion. Any new audio-path
@@ -385,9 +377,8 @@ assertions:
   runtime.
 
 It walks `src/` recursively (a flat scan would let `settings/audio.rs` past) and
-strips `//` comments before matching, in both directions: an earlier sibling
-guard searched the raw source, and the comment explaining the call it looked for
-contained the identifier — so deleting the real call still passed. The ledger in
+strips `//` comments before matching, in both directions, so a comment that
+names the identifier never counts as a call. The ledger in
 that file justifies every allowlist entry; see `docs/architecture.md` → "The
 guard: the UI may not name the backend".
 
@@ -403,17 +394,22 @@ Tests that load a real catalog VST3 (ChowCentaur) are gated on
 so CI and the parallel suite stay green. They must run single-threaded
 (`--test-threads=1`): JUCE plugins refuse *concurrent* instantiation.
 
-- `crates/vst3-host/tests/issue_776_catalog_vst3.rs` — discovery + processing.
-- `crates/vst3-host/tests/issue_780_capture_params.rs` — `capture_vst3_params`
-  reads live controller values; two same-model instances don't collide.
-- `crates/project/tests/vst3_editor_open_policy.rs` — editor open resolves by
-  block instance key, not model id.
-- `crates/application/tests/issue_780_vst3_persist.rs` — end-to-end: a
-  native-editor param change persists via `CaptureRigEdits`.
+- `crates/vst3-host/tests/issue_776_catalog_vst3.rs` — discovery, load and
+  processing.
+- `crates/vst3-host/tests/issue_780_catalog_params.rs`,
+  `issue_780_controller_reaches_dsp.rs`, `issue_780_param_affects_dsp.rs`,
+  `issue_780_live_context_params.rs` — the catalog exposes the real
+  parameters, a value set on the controller reaches the DSP and is audible,
+  and a live instance resolves its params through its own context.
+- `crates/project/tests/issue_780_vst3_knobs.rs` — a catalog VST3 produces a
+  parameter schema (knobs).
+- `crates/infra-cpal/tests/issue_779_vst3_live_param_no_reinstantiate.rs` — a
+  param change on a live chain does not re-instantiate the plugin.
+- `crates/engine/tests/issue_938_vst3_package_id_renders.rs` and
+  `crates/adapter-render/tests/issue_938_render_resolves_vst3.rs` — a VST3
+  addressed by its package id builds and renders.
 
 ```sh
 OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
-    cargo test -p vst3-host -p project -p application \
-    --test issue_780_capture_params --test vst3_editor_open_policy \
-    --test issue_780_vst3_persist -- --test-threads=1
+    cargo test -p vst3-host -p project -- --test-threads=1
 ```

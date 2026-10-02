@@ -299,12 +299,11 @@ below is bindable.
 `{ StepPreset: int }` (relative, e.g. `-1`/`1`, wraps) ·
 `{ StepScene: int }` (relative, wraps).
 
-`path?` (#328) is optional: `{ split: id, side: a }` (or `side: b`)
-puts the block into that path of the split whose block id is `split`.
-Leave it out for the chain's top level — every map written before #328
-keeps working unchanged.
+`path?` is optional: `{ split: id, path: 0 }` puts the block into path
+`path` (0-based; the GUI shows path 0 as A) of the split whose block id is
+`split`. Leave it out for the chain's top level.
 
-A split's own knobs (`level_to_a`, `mix_pan_b`, `mix_master`, …) are
+A split's own knobs (`level_to_0`, `mix_pan_1`, `mix_master`, …) are
 mapped like any block parameter: `SetBlockParameterNumber` (or `Bool` /
 `Text`) with `block` = the split's block id. A chain can hold a Mix and
 a Y, so each split's knobs are addressed by that split's own id (listed

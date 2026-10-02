@@ -94,7 +94,7 @@ fixed size, fake data) and render that. **`docs/render.md` is a different tool**
 
 Before handing the owner a checklist, the agent opens the solver's app and tests
 everything that does not need his ear (log lines, `openrig://routes`,
-`openrig://meters`, restarts, isolation between chains). Recipe proven on #979:
+`openrig://meters`, restarts, isolation between chains). Recipe:
 
 1. **Wait for any other OpenRig to close (CLAUDE.md law).** Poll, never kill:
    `while pgrep -f 'target/(debug|release)/adapter-gui|OpenRig.app/Contents/MacOS/openrig' >/dev/null; do sleep 30; done`.
