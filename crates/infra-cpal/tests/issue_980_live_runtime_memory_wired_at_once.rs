@@ -54,9 +54,12 @@ fn user_wired_count(ptr: *const u8) -> u16 {
     (info[8] as u32 & 0xFFFF) as u16
 }
 
-/// A reverb's delay line: allocated, then written through once.
+/// A reverb's delay line: allocated for the audio, then written through once.
 fn delay_line() -> Vec<f32> {
-    let mut buffer = vec![0.0_f32; 2 << 20];
+    let mut buffer = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        vec![0.0_f32; 2 << 20]
+    };
     for (i, sample) in buffer.iter_mut().enumerate().step_by(1024) {
         *sample = i as f32;
     }

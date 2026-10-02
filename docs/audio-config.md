@@ -799,7 +799,7 @@ them: 1-4 ms buffers, the output underruns (`underruns == dropped_frames`).
 When the engine starts (`ProjectRuntimeController::start*`, or
 `build_streams_for_project` for the console / headless rig) one ordinary
 thread, `memory-residency` (`infra-cpal/src/memory_residency_keeper.rs`),
-wires the process's private writable memory with `mlock`
+wires the audio's memory with `mlock`
 (`infra-cpal/src/memory_wiring.rs` talks to the kernel;
 `memory_wiring_pass.rs` decides): only regions something already touched, at
 most 256 MB each, each region once, and at most a quarter of the machine's RAM
@@ -816,14 +816,29 @@ allocated zeroed (a delay line has no pages until then), and every 5 s in
 between. The periodic pass alone would let the kernel compress a new chain's
 pages in the first seconds.
 
-Wired pages are never compressed or swapped, so OpenRig keeps its working
-set — ~1.2 GB for two guitars with NAM, a cab IR and two VST3 reverbs on two
-outputs, ~1.5 GB with the app's UI — in RAM for as long as it runs; the rest
-of the machine has that much less. Deliberate costs of wiring whole regions:
-a region with one touched page is wired whole (thread stacks, a looper's
-unused tail), and heap freed inside a wired region stays resident, so the
-wired amount follows the session's peak, not its current use. No latency
-changes. Linux and Windows: not done (not measured there).
+**Only the audio's memory is wired.** Wired pages stay resident even once
+freed, so wiring the whole process kept everything the app ever used — the
+UI, a project load, a rebuild's scratch — in RAM for good (~1.2 GB with one
+chain). The audio's allocations live in their own malloc zone instead:
+`engine::audio_zone_router` registers a router zone ahead of the system one,
+so `malloc` from Rust, C and C++ (NAM, LV2, VST3) alike lands in the **audio
+zone** when the calling thread is marked (`engine::audio_alloc_scope`), in
+the system zone otherwise, and every `free` goes back to the zone that owns
+the pointer. The wiring pass walks only the audio zone's regions
+(`engine::audio_zone_regions`). Marked:
+
+- a chain runtime being built (`assemble_chain_runtime_state`) and every
+  block processor (`build_block_runtime_node`) — delay lines, models, IRs;
+- a DI loop resampled for a runtime (`DiLoop::from_samples`), a looper's
+  recording and loaded layer (`looper_store`), the dsp-worker's ring;
+- the dsp-worker threads for life, so what a block allocates lazily while it
+  plays is audio memory too.
+
+Memory the audio touches must be allocated in one of these; anything else is
+never wired. If the router cannot be installed the pass falls back to the
+whole process. Cost: heap freed inside a wired audio-zone region stays
+resident, so the wired amount follows the audio's peak. No latency changes.
+Linux and Windows: not done (not measured there).
 
 Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
 owner's interface.

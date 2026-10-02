@@ -152,7 +152,10 @@ impl LooperStore {
             // behaviour (a REC on a playing loop used to silently pile a layer).
             match entry.slot.state() {
                 LooperState::Empty => {
-                    let buffer = vec![0.0f32; max * 2].into_boxed_slice();
+                    let buffer = {
+                        let _audio = engine::audio_alloc_scope::audio_allocations();
+                        vec![0.0f32; max * 2].into_boxed_slice()
+                    };
                     entry.slot.tap_record(Some(buffer));
                 }
                 LooperState::Recording => {
@@ -284,7 +287,10 @@ impl LooperStore {
         let max = self.max_frames();
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
             let frames = (pcm.len() / 2).min(max);
-            let mut buffer = vec![0.0f32; max * 2].into_boxed_slice();
+            let mut buffer = {
+                let _audio = engine::audio_alloc_scope::audio_allocations();
+                vec![0.0f32; max * 2].into_boxed_slice()
+            };
             buffer[..frames * 2].copy_from_slice(&pcm[..frames * 2]);
             entry.slot.load_layer(buffer, frames);
         }

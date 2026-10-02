@@ -34,6 +34,8 @@ impl DiLoop {
         engine_sr: u32,
         xfade_frames: usize,
     ) -> Self {
+        // The loop plays from the audio thread: audio memory, wired.
+        let _audio = crate::audio_alloc_scope::audio_allocations();
         let layout = if channels >= 2 {
             AudioChannelLayout::Stereo
         } else {

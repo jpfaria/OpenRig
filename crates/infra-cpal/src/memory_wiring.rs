@@ -1,13 +1,20 @@
-//! Responsibility: wires the process's private memory in use that is not wired yet.
+//! Responsibility: wires the audio's memory in use that is not wired yet.
 //!
-//! #980: on a machine out of memory the kernel compresses pages of OpenRig
-//! that the DSP touches only every few seconds (a reverb walks its delay line
-//! once per loop). The dsp-worker then stalls decompressing them — 1-4 ms
-//! buffers at a third of their normal speed — and the output underruns.
-//! Wired pages are never compressed or swapped.
+//! On a machine out of memory the kernel compresses pages of OpenRig that the
+//! DSP touches only every few seconds (a reverb walks its delay line once per
+//! loop). The dsp-worker then stalls decompressing them — 1-4 ms buffers at a
+//! third of their normal speed — and the output underruns. Wired pages are
+//! never compressed or swapped.
 //!
-//! This file is the macOS side: it reads the process's regions from the
-//! kernel and wires with `mlock`. What a pass wires — private writable
+//! Only the audio's memory is wired: the audio zone's regions
+//! (`engine::audio_zone_regions`). Wired pages stay resident even once
+//! freed, so wiring the whole process kept every byte the app ever used — the
+//! UI, a project load, a rebuild's scratch — in RAM for good. Where the audio
+//! zone cannot exist (the router refused) the pass falls back to the whole
+//! process.
+//!
+//! This file is the macOS side: it reads the regions from the kernel and
+//! wires with `mlock`. What a pass wires — private writable
 //! regions something already touched, up to 256 MB each and a quarter of the
 //! machine's RAM in total, each region once — is decided in
 //! `memory_wiring_pass`; what it left unwired is logged
@@ -100,15 +107,44 @@ mod imp {
         kr == 0 && basic_start == start && basic[8] as u32 & 0xFFFF > 0
     }
 
-    /// Every region of the process, in address order.
-    fn regions() -> Vec<Region> {
+    /// The regions of the process between `start` and `end`, in address
+    /// order, each clipped to that span.
+    fn regions_within(start: u64, end: u64) -> Vec<Region> {
         let mut regions = Vec::new();
-        let mut address = 0u64;
-        while let Some(region) = region_at(address) {
-            address = region.start + region.size;
-            regions.push(region);
+        let mut address = start;
+        while address < end {
+            let Some(region) = region_at(address) else {
+                break;
+            };
+            if region.start >= end {
+                break;
+            }
+            let from = region.start.max(start);
+            let to = (region.start + region.size).min(end);
+            regions.push(Region {
+                start: from,
+                size: to - from,
+                wired: is_wired(from),
+                ..region
+            });
+            address = to;
         }
         regions
+    }
+
+    /// The audio zone's regions, or every region of the process when the
+    /// audio's memory cannot be told apart.
+    fn regions() -> Vec<Region> {
+        if !engine::audio_zone_router::install() {
+            return regions_within(0, u64::MAX);
+        }
+        match engine::audio_zone_regions::audio_zone_ranges() {
+            Some(ranges) => ranges
+                .iter()
+                .flat_map(|&(start, size)| regions_within(start, start + size))
+                .collect(),
+            None => regions_within(0, u64::MAX),
+        }
     }
 
     /// A quarter of the machine's RAM: the most this ever wires.
@@ -133,8 +169,8 @@ mod imp {
 
     /// The previous pass's report. Its lock also runs passes one at a time:
     /// between a region's last check and its `mlock` no other pass may wire
-    /// it (#980 review: concurrent passes stacked eleven wires on one
-    /// region). Ordinary threads only, never audio.
+    /// it (concurrent passes once stacked eleven wires on one region).
+    /// Ordinary threads only, never audio.
     static LAST_PASS: std::sync::Mutex<Option<Report>> = std::sync::Mutex::new(None);
 
     /// One pass over the process's regions against the machine's budget;

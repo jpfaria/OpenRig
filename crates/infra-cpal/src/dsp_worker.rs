@@ -114,6 +114,8 @@ pub(crate) fn spawn(
     max_buffer_samples: usize,
     device_uid: Option<String>,
 ) -> DspWorkerProducer {
+    // The ring the input callback and the worker share: audio memory, wired.
+    let audio = engine::audio_alloc_scope::audio_allocations();
     let inner = Arc::new(Inner {
         slots: (0..RING_SLOTS)
             .map(|_| RingSlot {
@@ -125,6 +127,7 @@ pub(crate) fn spawn(
         read: AtomicUsize::new(0),
         stop: AtomicBool::new(false),
     });
+    drop(audio);
     let worker_inner = Arc::clone(&inner);
     let producer_slot = slot_handle.handle();
 
@@ -136,6 +139,8 @@ pub(crate) fn spawn(
                 * 1_000_000_000
                 / sample_rate.max(1) as u64;
             let rt_period_ns = period_ns.max(500_000);
+            // Whatever a block allocates while it plays is audio memory.
+            engine::audio_alloc_scope::mark_audio_thread();
             // Cold start: the chain's cost is unknown, declare the
             // validated 85% (#670); the BudgetTracker then re-declares
             // from measured cost so concurrent chains fit the RT band

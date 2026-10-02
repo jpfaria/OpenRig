@@ -73,9 +73,13 @@ pub(crate) fn user_wired_count(ptr: *const u8) -> u16 {
     (info[8] as u32 & 0xFFFF) as u16
 }
 
-/// A delay line the size of a reverb's: allocated, then written once through.
+/// A delay line the size of a reverb's: allocated for the audio, then
+/// written once through.
 pub(crate) fn touched_buffer() -> Vec<f32> {
-    let mut buffer = vec![0.0_f32; 2 << 20];
+    let mut buffer = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        vec![0.0_f32; 2 << 20]
+    };
     for (i, sample) in buffer.iter_mut().enumerate().step_by(1024) {
         *sample = i as f32;
     }
@@ -154,5 +158,22 @@ fn address_space_nobody_touched_is_never_wired() {
         wired, 0,
         "a 64 MB reservation nobody touched must not be wired — wiring faults \
          the whole range into RAM"
+    );
+}
+
+#[test]
+fn memory_allocated_outside_the_audio_is_never_wired() {
+    assert!(engine::audio_zone_router::install());
+    // The UI's, the loader's, a rebuild's scratch: touched, then left alone.
+    let mut other = vec![0.0_f32; 2 << 20];
+    for (i, sample) in other.iter_mut().enumerate().step_by(1024) {
+        *sample = i as f32;
+    }
+    wire_private_memory();
+    assert_eq!(
+        user_wired_count(other.as_ptr() as *const u8),
+        0,
+        "only the audio's memory is wired; wiring the rest keeps every byte \
+         the app ever freed resident"
     );
 }

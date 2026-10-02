@@ -74,6 +74,8 @@ pub(crate) fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
+    // Everything the chain's DSP touches is born here: audio memory, wired.
+    let _audio = crate::audio_alloc_scope::audio_allocations();
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
