@@ -95,7 +95,7 @@ time, each in its own clone under `.solvers/issue-N/`, made by
 `scripts/solver-setup.sh <N> <branch> [release-base]`. `git worktree` is
 forbidden: a worktree shares the main folder's `.git` and locks the branch. The
 main folder belongs to the owner. Rules and cleanup:
-[`docs/development/gitflow.md`](docs/development/gitflow.md) → "Workspace isolado".
+[`docs/development/gitflow.md`](docs/development/gitflow.md) → "Isolated workspace".
 
 ## Product Priorities (Non-Regression)
 

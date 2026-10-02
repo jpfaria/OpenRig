@@ -36,7 +36,14 @@ page for the working rule.
   Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
   and is machine-local per ADR 0003 — never travels with
   `project.yaml`.
-- `input_devices` / `output_devices` — per-machine audio device defaults.
+- `input_devices` / `output_devices` — per-device audio settings: `device_id`,
+  `name`, `sample_rate`, `buffer_size_frames`, `bit_depth`.
+- `io_bindings` — the I/O binding registry ([ADR 0004](adr/0004-io-binding-registry.md)):
+  each binding has an `id`, a `name` and the input / output endpoints of this
+  machine's interfaces. A project refers to a binding only by `id` and
+  endpoint name, so the physical devices never travel with `project.yaml`.
+- `midi_devices` — the MIDI ports this machine has seen: `port_key`, an
+  editable `alias`, and `enabled` (which ports the adapter listens to).
 - `midi_enabled` / `mcp_enabled` — master switches for the
   MIDI/BLE-MIDI adapter and the MCP server. Both default `false`. Whether
   a given machine drives OpenRig over MIDI or exposes the MCP server is a
@@ -62,9 +69,8 @@ page for the working rule.
 
 ### Project (`project.yaml`)
 
-- `inputs` / `outputs` / `presets` — the rig.
-- `device_settings` — see ADR 0001 (kept project-level for now; see ADR 0003 §
-  Sub-question).
+- `inputs` / `outputs` / `presets` / `chain-order` — the rig. An input names
+  its I/O binding (`io`) and endpoint from the system registry.
 - `midi.bindings` — what each binding does *for this rig*.
 
 ## MIDI: which file, when

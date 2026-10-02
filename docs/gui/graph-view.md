@@ -89,7 +89,7 @@ struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_ancho
 
 ### Node kinds
 
-`kind` picks the card face (#328): `block` — the block tile; `io_input` / `io_output` — connector artwork over the endpoint names (`label`); `split` / `mixer` — routing artwork (`ui/assets/graph-split.svg` / `graph-mix.svg`, text-free and colorized) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
+`kind` picks the card face: `block` — the block tile; `io_input` / `io_output` — connector artwork over the endpoint names (`label`); `split` / `mixer` — routing artwork (`ui/assets/graph-split.svg` / `graph-mix.svg`, text-free and colorized) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
 
 ### Block card parity
 
@@ -108,7 +108,7 @@ A `block` card draws what the chain row's `BlockChip` draws, from the same `Chai
 | `background_color` | `in` | `color` | `#11141a` | canvas background |
 | `grid_color` | `in` | `color` | `#1a1f2a` | grid hint colour |
 | `show_grid` | `in` | `bool` | `true` | render origin-cross grid hint |
-| `markers_visible` | `in` | `bool` | `false` | show the MIDI selected / neighbor markers on block cards (#591) |
+| `markers_visible` | `in` | `bool` | `false` | show the MIDI selected / neighbor markers on block cards |
 | `min_zoom`, `max_zoom` | `in` | `float` | `0.3`, `3.0` | zoom limits |
 
 ### Callbacks
@@ -120,8 +120,8 @@ A `block` card draws what the chain row's `BlockChip` draws, from the same `Chai
 | `node_dragged(string, length, length)` | id, new layout-space x, y | continuously while drag in progress |
 | `node_drag_ended(string, length, length)` | id, layout x, y | on mouse up after drag |
 | `viewport_changed(float, length, length)` | zoom, pan_x, pan_y | after pan release or wheel zoom step |
-| `bypass-toggled(string)` | node id | a block card's LED was clicked (#328) |
-| `remove-requested(string)` | node id | a block card's × was clicked; the × is live only while the card is hovered, so a touch tap never removes (#328) |
+| `bypass-toggled(string)` | node id | a block card's LED was clicked |
+| `remove-requested(string)` | node id | a block card's × was clicked; the × is live only while the card is hovered, so a touch tap never removes |
 | `add-requested(string)` | anchor id | a "+" was clicked — the host opens the add-block picker for that slot |
 | `node-dropped(string, string)` | node id, anchor id | a dragged block was released on an anchor; fired after `node_drag_ended` |
 | `resolve-drop-anchor(string, length, length) -> string` | node id, layout x, y | `pure` — the host answers which anchor a drag at (x, y) lands on (`""` = none) by calling `graph_view_model::resolve_drop_anchor`; asked on every drag move so the target lights up |
@@ -137,8 +137,8 @@ The host receives layout-space coords. To persist a moved node, write them back 
 | `NodeCategory` | enum of visual categories — `as_str()` produces the slug the Slint side expects |
 | `NodeKind` | what a node IS — `Block`, `IoInput`, `IoOutput`, `Split`, `Mixer`; `as_str()` gives the slug the Slint `GraphNode.kind` carries. The auto-generated split node is `Split`, the merge node `Mixer`; `BlockBlueprint::with_kind` marks the host's I/O nodes |
 | `BlockBlueprint` | one block in a logical chain — id, label, category, bypass |
-| `ChainStage` | `Single(...)` or `Parallel { split_id, lanes, end }` — N `lanes` top to bottom, each a stage list that may hold further `Parallel` stages (#328) |
-| `ParallelEnd` | `Merge`: the lanes meet again at an auto-generated merge node. `Fan`: no merge node; each lane's last blueprint is its terminal (a Y chain's output node), the terminals share the last column, and nothing may follow (#328) |
+| `ChainStage` | `Single(...)` or `Parallel { split_id, lanes, end }` — N `lanes` top to bottom, each a stage list that may hold further `Parallel` stages |
+| `ParallelEnd` | `Merge`: the lanes meet again at an auto-generated merge node. `Fan`: no merge node; each lane's last blueprint is its terminal (a Y chain's output node), the terminals share the last column, and nothing may follow |
 | `GridMetrics` | column/lane spacing + origin |
 | `linear_chain_layout(stages, metrics)` | builds positioned nodes + edges, inserts split/merge utility nodes for parallel stages, recursing into every lane; each lane takes as many rows as its own stages need (`stage_extent`) |
 | `validate_graph(nodes, edges)` | returns error strings (empty = valid). Catches duplicate ids, dangling edges, self-loops. |
@@ -156,7 +156,7 @@ The component owns no colours. The host resolves each node's `fill`/`border` fro
 
 - **Pan:** drag on empty canvas. Cursor turns `grab`. Released → fires `viewport_changed`.
 - **Zoom:** Cmd (macOS) or Ctrl (Windows, Linux) + scroll wheel over the canvas — Slint reports both as `modifiers.control`. Zooms around the cursor (the point under the cursor stays fixed in layout space). Clamped to `[min_zoom, max_zoom]`. Fires `viewport_changed`.
-- **Plain wheel:** not accepted. The canvas rejects it so the scroll area around the graph (the chains list, #328) scrolls instead.
+- **Plain wheel:** not accepted. The canvas rejects it so the scroll area around the graph (the chains list) scrolls instead.
 - **Drag a node:** press on a node card, move beyond 5 px. Fires `node_dragged` continuously, `node_drag_ended` on release.
 - **Drop on an anchor:** while a block is dragged the canvas asks `resolve-drop-anchor` on every move and highlights that "+"; releasing there fires `node-dropped(node, anchor)`. A drop on the block's own wire, or on nothing, fires no `node-dropped` (the drag still ends).
 - **Click vs drag:** total displacement < 5 px in viewport space → `node_clicked`. Threshold is a `private property` so it can be retuned without changing the API.
@@ -201,7 +201,7 @@ Source pins — `tests/issue_328_graph_view_sources.rs`: the file split, no empt
 
 Render — `ui/components/_harness_graph_view.slint` (not compiled into the app): `LinearChain`, `LinearChainZoomedOut`, `SplitMixChain`, `SplitYChain`, rendered with `tools/slint-render` (command in the `openrig-tooling` skill). The interpreter has no translation catalog, so `@tr` text renders as its key.
 
-## Chain row (#328)
+## Chain row
 
 Every desktop chain row hosts a `GraphView` through `ui/pages/chain_row_graph.slint`
 (`ChainRow` keeps the pedal strip for touch mode, `ChainGraphBridge.graph-enabled`).
@@ -226,7 +226,7 @@ Every desktop chain row hosts a `GraphView` through `ui/pages/chain_row_graph.sl
   row rebuild; the meter tick never rebuilds them.
 - `src/graph_anchor.rs` turns an anchor id (`top:{i}` / `path:{split}:{path}:{i}`) back
   into a position plus a `PathRef` — where a "+" inserts and where a drop moves a block, at any depth.
-- The #591 MIDI markers follow `ChainGraphBridge.selected-block-id` / `neighbor-block-id`
+- The MIDI selected / neighbor markers follow `ChainGraphBridge.selected-block-id` / `neighbor-block-id`
   (`GraphView.selected-node-id` / `neighbor-node-id`), fed from the same `SelectionState` the
   strip reads, so a row rebuild never loses them.
 - Every gesture reaches Rust through `ChainGraphBridge`, tagged with the row's chain index;
