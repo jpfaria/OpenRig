@@ -82,8 +82,9 @@ use application::command_schema::command_variant_names;
 /// The backing-track player bumped to 127 with the ten `PlayerCommand` leaves
 /// (`LoadPlayerTrack`/`SetPlayerPlaying`/`StopPlayer`/`SeekPlayer`/
 /// `SetPlayerVolume`/`Speed`/`Semitones`/`Loop`/`ClearPlayerLoop`/
-/// `SetPlayerOutput`) and `SetBackingTracksPath`.
-const COMMAND_VARIANT_COUNT: usize = 127;
+/// `SetPlayerOutput`) and `SetBackingTracksPath`, then to 128 with
+/// `DeletePlayerTrack` — the trash on the user's own tracks.
+const COMMAND_VARIANT_COUNT: usize = 128;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

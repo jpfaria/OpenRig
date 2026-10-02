@@ -1195,8 +1195,11 @@ msgstr "Otras"
 msgid "label-track-library"
 msgstr "Pistas"
 
-msgid "label-track-mine"
-msgstr "Mía"
+msgid "label-track-delete"
+msgstr "Eliminar pista"
+
+msgid "label-track-delete-confirm"
+msgstr "¿Eliminar?"
 
 msgid "label-track-pitch"
 msgstr "Tono"

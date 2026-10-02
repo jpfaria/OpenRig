@@ -60,6 +60,7 @@ mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
 mod local_dispatcher_paths;
 mod local_dispatcher_player;
+mod local_dispatcher_player_track_delete;
 mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;

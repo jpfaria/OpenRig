@@ -241,6 +241,7 @@ export component PlayerPanel inherits Rectangle {
         active-path: PlayerBridge.track-path;
         pick(path) => { PlayerBridge.pick-track(path); }
         play(path) => { PlayerBridge.play-track(path); }
+        delete(path) => { PlayerBridge.delete-track(path); }
     }
 
     Text {

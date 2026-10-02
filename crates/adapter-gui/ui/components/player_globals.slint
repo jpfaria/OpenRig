@@ -63,6 +63,8 @@ export global PlayerBridge {
     callback pick-track(string);
     // Load the track and start it at once (a double click in the library).
     callback play-track(string);
+    // Delete one of the user's own tracks from their folder.
+    callback delete-track(string);
     callback choose-file();
     callback pick-output(string);
     callback output-opened();

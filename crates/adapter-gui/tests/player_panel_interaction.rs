@@ -194,3 +194,28 @@ fn clicking_a_category_tab_picks_it() {
     press_release(&w, center(&w, "PlayerCategoryTab::ta", 1));
     assert_eq!(*got.borrow(), vec!["rhythm".to_string()]);
 }
+
+#[test]
+fn only_the_users_own_track_has_a_trash() {
+    let w = harness(false);
+    let trashes =
+        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "PlayerTrackItem::del-ta")
+            .count();
+    assert_eq!(trashes, 1);
+}
+
+#[test]
+fn the_trash_deletes_the_track_on_the_second_click() {
+    let w = harness(false);
+    let deleted = Rc::new(RefCell::new(Vec::<String>::new()));
+    let d = deleted.clone();
+    PlayerBridge::get(&w).on_delete_track(move |path| d.borrow_mut().push(path.to_string()));
+    let picked = presses(&w, |b, h| b.on_pick_track(move |_| *h.borrow_mut() += 1));
+
+    press_release(&w, center(&w, "PlayerTrackItem::del-ta", 0));
+    assert!(deleted.borrow().is_empty(), "the first click only arms");
+    press_release(&w, center(&w, "PlayerTrackItem::del-ta", 0));
+
+    assert_eq!(*deleted.borrow(), vec!["/tracks/My Jam.m4a".to_string()]);
+    assert_eq!(*picked.borrow(), 0, "the trash never loads the track");
+}

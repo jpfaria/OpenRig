@@ -1191,8 +1191,11 @@ msgstr "기타"
 msgid "label-track-library"
 msgstr "트랙"
 
-msgid "label-track-mine"
-msgstr "내 트랙"
+msgid "label-track-delete"
+msgstr "트랙 삭제"
+
+msgid "label-track-delete-confirm"
+msgstr "삭제?"
 
 msgid "label-track-pitch"
 msgstr "피치"

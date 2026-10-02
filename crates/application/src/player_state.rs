@@ -81,6 +81,13 @@ impl PlayerControlState {
         self.snapshot.settings.loop_range = None;
     }
 
+    /// Nothing loaded: the track's file is gone.
+    pub fn clear_track(&mut self) {
+        self.snapshot.track = None;
+        self.snapshot.playing = false;
+        self.snapshot.settings.loop_range = None;
+    }
+
     pub fn output_key(&self) -> Option<&str> {
         self.snapshot.output_key.as_deref()
     }

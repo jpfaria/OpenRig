@@ -1188,8 +1188,11 @@ msgstr "अन्य"
 msgid "label-track-library"
 msgstr "ट्रैक"
 
-msgid "label-track-mine"
-msgstr "मेरा"
+msgid "label-track-delete"
+msgstr "ट्रैक हटाएँ"
+
+msgid "label-track-delete-confirm"
+msgstr "हटाएँ?"
 
 msgid "label-track-pitch"
 msgstr "पिच"

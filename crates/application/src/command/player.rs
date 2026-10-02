@@ -44,6 +44,11 @@ pub enum PlayerCommand {
     /// Play the whole track again.
     ClearPlayerLoop,
 
+    /// Delete a track from the user's own backing-track folder. The tracks
+    /// that ship with the app and files anywhere else are refused. A loaded
+    /// track that is deleted is stopped and unloaded.
+    DeletePlayerTrack { path: PathBuf },
+
     /// Which output endpoint the track plays through. `None` falls back to
     /// the project's first output.
     SetPlayerOutput { device_id: Option<String> },

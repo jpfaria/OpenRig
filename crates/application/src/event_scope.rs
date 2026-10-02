@@ -85,6 +85,7 @@ impl Event {
             | Event::MetronomeTapped
             // The backing-track player is its own stream, never a chain.
             | Event::PlayerTrackLoaded { .. }
+            | Event::PlayerTrackDeleted { .. }
             | Event::PlayerTransportChanged { .. }
             | Event::PlayerSeeked { .. }
             | Event::PlayerSettingsChanged { .. }

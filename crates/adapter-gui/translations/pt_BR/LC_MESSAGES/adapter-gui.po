@@ -1201,8 +1201,11 @@ msgstr "Outras"
 msgid "label-track-library"
 msgstr "Faixas"
 
-msgid "label-track-mine"
-msgstr "Minha"
+msgid "label-track-delete"
+msgstr "Excluir faixa"
+
+msgid "label-track-delete-confirm"
+msgstr "Excluir?"
 
 msgid "label-track-pitch"
 msgstr "Tom"

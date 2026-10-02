@@ -1200,8 +1200,11 @@ msgstr "Andere"
 msgid "label-track-library"
 msgstr "Tracks"
 
-msgid "label-track-mine"
-msgstr "Eigene"
+msgid "label-track-delete"
+msgstr "Track löschen"
+
+msgid "label-track-delete-confirm"
+msgstr "Löschen?"
 
 msgid "label-track-pitch"
 msgstr "Tonhöhe"

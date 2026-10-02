@@ -1194,8 +1194,11 @@ msgstr "その他"
 msgid "label-track-library"
 msgstr "トラック"
 
-msgid "label-track-mine"
-msgstr "マイ"
+msgid "label-track-delete"
+msgstr "トラックを削除"
+
+msgid "label-track-delete-confirm"
+msgstr "削除？"
 
 msgid "label-track-pitch"
 msgstr "ピッチ"

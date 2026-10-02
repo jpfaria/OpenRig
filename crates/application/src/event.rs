@@ -277,6 +277,11 @@ pub enum Event {
         path: PathBuf,
     },
 
+    /// A track was deleted from the user's backing-track folder.
+    PlayerTrackDeleted {
+        path: PathBuf,
+    },
+
     /// The player started or paused.
     PlayerTransportChanged {
         playing: bool,

@@ -1194,8 +1194,11 @@ msgstr "Other"
 msgid "label-track-library"
 msgstr "Tracks"
 
-msgid "label-track-mine"
-msgstr "Mine"
+msgid "label-track-delete"
+msgstr "Delete track"
+
+msgid "label-track-delete-confirm"
+msgstr "Delete?"
 
 msgid "label-track-pitch"
 msgstr "Pitch"

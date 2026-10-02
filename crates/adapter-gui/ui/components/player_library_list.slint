@@ -2,13 +2,15 @@
 import { ScrollView } from "std-widgets.slint";
 import { PlayerTrackRow } from "player_globals.slint";
 
-// One track: a click loads it, a double click plays it; the loaded one is
-// highlighted and the user's own are tagged.
+// One track: a click loads it, a double click plays it, the loaded one is
+// highlighted. Only the user's own tracks carry a trash.
 component PlayerTrackItem inherits Rectangle {
     in property <PlayerTrackRow> track;
     in property <bool> active;
     callback pick();
     callback play();
+    callback delete();
+    private property <bool> armed;
 
     height: 40px;
     border-radius: 5px;
@@ -16,7 +18,7 @@ component PlayerTrackItem inherits Rectangle {
 
     Text {
         x: 12px;
-        width: parent.width - 152px;
+        width: root.track.bundled ? parent.width - 24px : parent.width - 140px;
         height: parent.height;
         text: root.track.name;
         color: #f1f4f8;
@@ -25,22 +27,53 @@ component PlayerTrackItem inherits Rectangle {
         vertical-alignment: center;
         overflow: elide;
     }
-    if !root.track.bundled : Text {
-        x: parent.width - 136px;
-        width: 124px;
-        height: parent.height;
-        text: @tr("label-track-mine");
-        color: #ccaa66;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
-        horizontal-alignment: right;
-        vertical-alignment: center;
-    }
     ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.pick(); }
         double-clicked => { root.play(); }
+    }
+
+    // The trash on the user's own tracks — first click arms, second deletes.
+    if !root.track.bundled : Rectangle {
+        x: parent.width - self.width - 6px;
+        y: 4px;
+        width: root.armed ? 120px : 32px;
+        height: parent.height - 8px;
+        border-radius: 5px;
+        background: root.armed ? #c0392b : del-ta.has-hover ? #c0392b40 : transparent;
+        animate width, background { duration: 120ms; }
+        Image {
+            x: 8px;
+            y: (parent.height - 16px) / 2;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../assets/trash.svg");
+            colorize: root.armed || del-ta.has-hover ? #ffffff : #8a94a2;
+        }
+        if root.armed : Text {
+            x: 30px;
+            width: parent.width - 34px;
+            height: parent.height;
+            text: @tr("label-track-delete-confirm");
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 800;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        del-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                if root.armed {
+                    root.armed = false;
+                    root.delete();
+                } else {
+                    root.armed = true;
+                }
+            }
+        }
+        accessible-role: button;
+        accessible-label: @tr("label-track-delete");
     }
     accessible-role: button;
     accessible-label: root.track.name;
@@ -51,6 +84,7 @@ export component PlayerLibraryList inherits Rectangle {
     in property <string> active-path;
     callback pick(string);
     callback play(string);
+    callback delete(string);
 
     border-radius: 6px;
     background: #0a0d12;
@@ -78,6 +112,7 @@ export component PlayerLibraryList inherits Rectangle {
                 active: track.path == root.active-path;
                 pick => { root.pick(track.path); }
                 play => { root.play(track.path); }
+                delete => { root.delete(track.path); }
             }
         }
     }

@@ -1187,8 +1187,11 @@ msgstr "其他"
 msgid "label-track-library"
 msgstr "音轨"
 
-msgid "label-track-mine"
-msgstr "我的"
+msgid "label-track-delete"
+msgstr "删除音轨"
+
+msgid "label-track-delete-confirm"
+msgstr "删除？"
 
 msgid "label-track-pitch"
 msgstr "音高"

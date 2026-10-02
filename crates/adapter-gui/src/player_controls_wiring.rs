@@ -73,6 +73,16 @@ pub(crate) fn wire_controls(bridge: &PlayerBridge, ctx: &PlayerCtx) {
         player(&c, PlayerCommand::SetPlayerPlaying { playing: true });
     });
     let c = ctx.clone_ctx();
+    bridge.on_delete_track(move |path| {
+        player(
+            &c,
+            PlayerCommand::DeletePlayerTrack {
+                path: PathBuf::from(path.as_str()),
+            },
+        );
+        render_library(&c);
+    });
+    let c = ctx.clone_ctx();
     bridge.on_choose_file(move || {
         if let Some(path) = choose_backing_track() {
             load(&c, path);

@@ -29,6 +29,7 @@ impl LocalDispatcher {
         };
         match cmd {
             PlayerCommand::LoadPlayerTrack { path } => self.load_player_track(path),
+            PlayerCommand::DeletePlayerTrack { path } => self.delete_player_track(path),
             PlayerCommand::SetPlayerPlaying { playing } => self.set_player_playing(playing),
             PlayerCommand::StopPlayer => {
                 if let Some(control) = self.runtime_control() {

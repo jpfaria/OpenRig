@@ -1195,8 +1195,11 @@ msgstr "Autres"
 msgid "label-track-library"
 msgstr "Pistes"
 
-msgid "label-track-mine"
-msgstr "Perso"
+msgid "label-track-delete"
+msgstr "Supprimer la piste"
+
+msgid "label-track-delete-confirm"
+msgstr "Supprimer ?"
 
 msgid "label-track-pitch"
 msgstr "Hauteur"

@@ -159,6 +159,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "UpdateProjectName",
     // The backing-track player.
     "ClearPlayerLoop",
+    "DeletePlayerTrack",
     "LoadPlayerTrack",
     "SeekPlayer",
     "SetBackingTracksPath",

@@ -186,7 +186,7 @@ follow-up.
     `bundled` and `category` — `solo`, `rhythm`, `bass`, `acoustic` or
     `other`) (JSON). Read parity for
     the player commands: a path from `library` is what `load_player_track`
-    takes.
+    takes, and one with `bundled: false` is what `delete_player_track` takes.
   - `openrig://mixer` — the global mixer: `strips`, one per input
     and output endpoint configured in the I/O bindings, inputs first, each
     with `id` (what the mixer tools address), `direction`
