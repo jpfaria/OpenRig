@@ -1138,6 +1138,39 @@ same rule keeps an insert's return from being built twice: with the loop on,
 the return writes one route per physical output, so a second E/S's route on
 that output is written by nothing and not built.
 
+## Stepped-input detector
+
+An input that arrives broken carries a step at the same position of every
+device buffer (a buzz at `rate / buffer` Hz). The underrun and trim counters do
+not move when that happens, so each pipeline watches its own input channels.
+
+- **Measure** (`crates/engine/src/input_seam_detector.rs`). Per received
+  channel, the mean |3rd difference| per position inside the buffer, folded
+  over a 0.25 s window. A clean input reads a max/median of about 1.0–1.3; a
+  window above 5 is stepped. Below -90 dBFS a window carries no signal and is
+  not judged.
+- **Trip and clear.** Four stepped windows in a row (1 s) trip the channel;
+  four clean ones (1 s) clear it. A buffer size change restarts the count, and
+  a buffer our own processing skipped is fed as a discontinuity, never as a
+  seam. Real-time safe: no allocation, lock or blocking.
+- **Per pipeline** (`runtime_input_seams.rs`). A runtime is marked stepped only
+  while one of its own pipelines reads a tripped channel; another chain's
+  input never marks it.
+- **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on the 2 s poll tick).
+  A marked chain is switched off and on, alone, like the chain toggle. After
+  an attempt that chain waits 30 s before the next one; other chains do not
+  wait.
+- **Mark on disk** (`adapter-gui/src/stepped_input_mark.rs`). Before every
+  restart the evidence is written to `<user data>/incidents/stepped-input/`:
+  `input-<k>.wav` (the last seconds of each input stream, every device
+  channel), `cycles-<k>.csv` (callback timing), `device-<k>.json` and
+  `device-after-<k>.json` (the device at the trip and 3 s after the restart)
+  and `openrig.json` (the open streams and the chain's routes). The last 10
+  marks are kept.
+
+The restart is not a fix: it cuts the sound, and the mark is there to find the
+cause.
+
 ## Multi-rate streams
 
 Two interfaces running at **different sample rates at the same time, in the
