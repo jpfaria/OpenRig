@@ -162,7 +162,7 @@ Cada `model:` ID está registrado en el [Blocks Reference Quick Reference](https
 
 ### Para desarrolladores
 
-- [Architecture](docs/architecture.md) · [Architecture (a fondo)](docs/development/architecture.md) — mapa de crates, capas, design patterns
+- [Architecture](docs/architecture.md) — capas, mapa de crates, bus de comandos y de lectura
 - [Building](docs/development/building.md) — guía de build completa, incluyendo el motor NAM y Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — cómo añadir nuevos modelos de audio
 - [Audio Backends](docs/development/audio-backends.md) — internos de Native, NAM, IR y LV2

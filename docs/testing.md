@@ -403,17 +403,22 @@ Tests that load a real catalog VST3 (ChowCentaur) are gated on
 so CI and the parallel suite stay green. They must run single-threaded
 (`--test-threads=1`): JUCE plugins refuse *concurrent* instantiation.
 
-- `crates/vst3-host/tests/issue_776_catalog_vst3.rs` — discovery + processing.
-- `crates/vst3-host/tests/issue_780_capture_params.rs` — `capture_vst3_params`
-  reads live controller values; two same-model instances don't collide.
-- `crates/project/tests/vst3_editor_open_policy.rs` — editor open resolves by
-  block instance key, not model id.
-- `crates/application/tests/issue_780_vst3_persist.rs` — end-to-end: a
-  native-editor param change persists via `CaptureRigEdits`.
+- `crates/vst3-host/tests/issue_776_catalog_vst3.rs` — discovery, load and
+  processing.
+- `crates/vst3-host/tests/issue_780_catalog_params.rs`,
+  `issue_780_controller_reaches_dsp.rs`, `issue_780_param_affects_dsp.rs`,
+  `issue_780_live_context_params.rs` — the catalog exposes the real
+  parameters, a value set on the controller reaches the DSP and is audible,
+  and a live instance resolves its params through its own context.
+- `crates/project/tests/issue_780_vst3_knobs.rs` — a catalog VST3 produces a
+  parameter schema (knobs).
+- `crates/infra-cpal/tests/issue_779_vst3_live_param_no_reinstantiate.rs` — a
+  param change on a live chain does not re-instantiate the plugin.
+- `crates/engine/tests/issue_938_vst3_package_id_renders.rs` and
+  `crates/adapter-render/tests/issue_938_render_resolves_vst3.rs` — a VST3
+  addressed by its package id builds and renders.
 
 ```sh
 OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
-    cargo test -p vst3-host -p project -p application \
-    --test issue_780_capture_params --test vst3_editor_open_policy \
-    --test issue_780_vst3_persist -- --test-threads=1
+    cargo test -p vst3-host -p project -- --test-threads=1
 ```
