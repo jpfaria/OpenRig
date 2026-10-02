@@ -231,7 +231,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 ### Features de palco
 
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [x] Backing tracks / player de áudio — faixas de rock, blues e funk em vários tons incluídas mais os seus arquivos, velocidade 0.5×–2× sem mudar o tom, transposição de ±12 semitons, loop A–B, saída própria ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [x] Backing tracks / player de áudio — faixas de rock, blues e funk em vários tons incluídas, separadas pela parte que você toca (solo, base, baixo, violão), mais os seus arquivos, velocidade 0.5×–2× sem mudar o tom, transposição de ±12 semitons, loop A–B, saída própria ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeamento de pedal de expressão via MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Metrônomo embutido — andamento, fórmula de compasso, subdivisões, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — um fader e um mute por entrada/saída, pela GUI, MCP e superfícies de controle MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))

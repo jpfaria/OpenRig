@@ -10,7 +10,7 @@ use slint::{ModelRc, SharedString, VecModel};
 
 use crate::metronome_controls_wiring::refresh_metronome_outputs;
 use crate::player_file_chooser::choose_backing_track;
-use crate::player_render::{render_reading, render_snapshot};
+use crate::player_render::{render_library, render_reading, render_snapshot};
 use crate::player_view::{loop_press, LoopPress};
 use crate::player_wiring::PlayerCtx;
 use crate::{PlayerBridge, SelectOption};
@@ -38,10 +38,7 @@ fn player(ctx: &PlayerCtx, cmd: PlayerCommand) {
 /// Connect every control on one surface's bridge.
 pub(crate) fn wire_controls(bridge: &PlayerBridge, ctx: &PlayerCtx) {
     let c = ctx.clone_ctx();
-    bridge.on_toggle_playing(move || {
-        let playing = c.live.player().is_some_and(|r| r.playing);
-        player(&c, PlayerCommand::SetPlayerPlaying { playing: !playing });
-    });
+    bridge.on_set_playing(move |playing| player(&c, PlayerCommand::SetPlayerPlaying { playing }));
     let c = ctx.clone_ctx();
     bridge.on_stop(move || player(&c, PlayerCommand::StopPlayer));
     let c = ctx.clone_ctx();
@@ -64,15 +61,17 @@ pub(crate) fn wire_controls(bridge: &PlayerBridge, ctx: &PlayerCtx) {
     let c = ctx.clone_ctx();
     bridge.on_mark_loop(move || mark_loop(&c));
     let c = ctx.clone_ctx();
-    bridge.on_clear_loop(move || {
-        if c.loop_mark.take().is_some() {
-            render_snapshot(&c);
-        } else {
-            player(&c, PlayerCommand::ClearPlayerLoop);
-        }
+    bridge.on_pick_track(move |path| load(&c, PathBuf::from(path.as_str())));
+    let c = ctx.clone_ctx();
+    bridge.on_pick_category(move |key| {
+        c.for_each_bridge(|bridge| bridge.set_category(key.clone()));
+        render_library(&c);
     });
     let c = ctx.clone_ctx();
-    bridge.on_pick_track(move |path| load(&c, PathBuf::from(path.as_str())));
+    bridge.on_play_track(move |path| {
+        load(&c, PathBuf::from(path.as_str()));
+        player(&c, PlayerCommand::SetPlayerPlaying { playing: true });
+    });
     let c = ctx.clone_ctx();
     bridge.on_choose_file(move || {
         if let Some(path) = choose_backing_track() {
@@ -100,7 +99,10 @@ fn load(ctx: &PlayerCtx, path: PathBuf) {
 
 fn mark_loop(ctx: &PlayerCtx) {
     let now = ctx.live.player().map_or(0.0, |r| r.position_seconds);
-    match loop_press(ctx.loop_mark.get(), now) {
+    let loop_set = ctx
+        .snapshot()
+        .is_some_and(|s| s.settings.loop_range.is_some());
+    match loop_press(ctx.loop_mark.get(), now, loop_set) {
         LoopPress::Mark(at) => {
             ctx.loop_mark.set(Some(at));
             render_snapshot(ctx);
@@ -115,6 +117,7 @@ fn mark_loop(ctx: &PlayerCtx) {
                 },
             );
         }
+        LoopPress::Clear => player(ctx, PlayerCommand::ClearPlayerLoop),
     }
 }
 

@@ -182,7 +182,9 @@ follow-up.
     null), `playing`, `position_seconds` and `duration_seconds` (what was
     heard), `loading`, `failed`, `volume`, `speed`, `semitones`, `loop`
     (`{start, end}` in seconds or null), `output`, and `library` (the
-    bundled tracks first, then the user's folder) (JSON). Read parity for
+    bundled tracks first, then the user's folder; each with `name`, `path`,
+    `bundled` and `category` — `solo`, `rhythm`, `bass`, `acoustic` or
+    `other`) (JSON). Read parity for
     the player commands: a path from `library` is what `load_player_track`
     takes.
   - `openrig://mixer` — the global mixer: `strips`, one per input

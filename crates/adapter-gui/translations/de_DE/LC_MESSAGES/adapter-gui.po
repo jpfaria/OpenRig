@@ -1153,7 +1153,7 @@ msgid "action-choose-file"
 msgstr "Datei wählen…"
 
 msgid "action-loop-clear"
-msgstr "Löschen"
+msgstr "Schleife aus"
 
 msgid "action-loop-end"
 msgstr "Loop B"
@@ -1182,8 +1182,20 @@ msgstr "Track-Ausgang"
 msgid "label-player-position"
 msgstr "Track-Position"
 
-msgid "label-track-bundled"
-msgstr "Mitgeliefert"
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Rhythmus"
+
+msgid "label-category-bass"
+msgstr "Bass"
+
+msgid "label-category-acoustic"
+msgstr "Akustik"
+
+msgid "label-category-other"
+msgstr "Andere"
 
 msgid "label-track-library"
 msgstr "Tracks"

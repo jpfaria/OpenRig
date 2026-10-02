@@ -1,10 +1,11 @@
 //! Responsibility: mirrors the player's state onto the panel's bridge.
 
-use application::player_library::list_backing_tracks;
+use application::player_library::{list_backing_tracks, BackingTrack};
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::metronome_controls_wiring::refresh_metronome_outputs;
 use crate::metronome_view::resolve_output_endpoint;
+use crate::player_category_view::{category_tabs, selected_category, tracks_in};
 use crate::player_view::{loop_label, semitones_label, speed_label, time_label, track_name};
 use crate::player_wiring::PlayerCtx;
 use crate::PlayerTrackRow;
@@ -63,7 +64,7 @@ pub(crate) fn render_reading(ctx: &PlayerCtx) {
     });
 }
 
-/// List the bundled tracks and the user's folder.
+/// List the selected category's tracks, bundled and the user's.
 pub(crate) fn render_library(ctx: &PlayerCtx) {
     let Some(dirs) = ctx
         .project_session
@@ -73,13 +74,10 @@ pub(crate) fn render_library(ctx: &PlayerCtx) {
     else {
         return;
     };
-    let rows: Vec<PlayerTrackRow> = list_backing_tracks(&dirs)
+    let tracks = list_backing_tracks(&dirs);
+    let tabs: Vec<SharedString> = category_tabs(&tracks)
         .into_iter()
-        .map(|track| PlayerTrackRow {
-            name: SharedString::from(track.name.as_str()),
-            path: SharedString::from(track.path.to_string_lossy().as_ref()),
-            bundled: track.bundled,
-        })
+        .map(|category| SharedString::from(category.key()))
         .collect();
     let folder = dirs
         .user
@@ -87,7 +85,20 @@ pub(crate) fn render_library(ctx: &PlayerCtx) {
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
     ctx.for_each_bridge(|bridge| {
-        bridge.set_library(ModelRc::new(VecModel::from(rows.clone())));
+        let category = selected_category(bridge.get_category().as_str());
+        let rows: Vec<PlayerTrackRow> = tracks_in(&tracks, category).map(track_row).collect();
+        bridge.set_category(SharedString::from(category.key()));
+        bridge.set_categories(ModelRc::new(VecModel::from(tabs.clone())));
+        bridge.set_library(ModelRc::new(VecModel::from(rows)));
         bridge.set_user_folder(SharedString::from(folder.as_str()));
     });
+}
+
+fn track_row(track: &BackingTrack) -> PlayerTrackRow {
+    PlayerTrackRow {
+        name: SharedString::from(track.name.as_str()),
+        path: SharedString::from(track.path.to_string_lossy().as_ref()),
+        bundled: track.bundled,
+        category: SharedString::from(track.category.key()),
+    }
 }

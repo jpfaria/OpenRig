@@ -1147,7 +1147,7 @@ msgid "action-choose-file"
 msgstr "ファイルを選択…"
 
 msgid "action-loop-clear"
-msgstr "クリア"
+msgstr "ループ解除"
 
 msgid "action-loop-end"
 msgstr "ループ B"
@@ -1176,8 +1176,20 @@ msgstr "トラック出力"
 msgid "label-player-position"
 msgstr "再生位置"
 
-msgid "label-track-bundled"
-msgstr "付属"
+msgid "label-category-solo"
+msgstr "ソロ"
+
+msgid "label-category-rhythm"
+msgstr "リズム"
+
+msgid "label-category-bass"
+msgstr "ベース"
+
+msgid "label-category-acoustic"
+msgstr "アコースティック"
+
+msgid "label-category-other"
+msgstr "その他"
 
 msgid "label-track-library"
 msgstr "トラック"

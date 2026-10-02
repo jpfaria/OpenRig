@@ -1140,7 +1140,7 @@ msgid "action-choose-file"
 msgstr "选择文件…"
 
 msgid "action-loop-clear"
-msgstr "清除"
+msgstr "关闭循环"
 
 msgid "action-loop-end"
 msgstr "循环 B"
@@ -1169,8 +1169,20 @@ msgstr "音轨输出"
 msgid "label-player-position"
 msgstr "播放位置"
 
-msgid "label-track-bundled"
-msgstr "内置"
+msgid "label-category-solo"
+msgstr "独奏"
+
+msgid "label-category-rhythm"
+msgstr "节奏"
+
+msgid "label-category-bass"
+msgstr "贝斯"
+
+msgid "label-category-acoustic"
+msgstr "原声"
+
+msgid "label-category-other"
+msgstr "其他"
 
 msgid "label-track-library"
 msgstr "音轨"

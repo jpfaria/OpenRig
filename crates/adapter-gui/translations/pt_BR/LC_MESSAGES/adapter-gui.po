@@ -1154,7 +1154,7 @@ msgid "action-choose-file"
 msgstr "Escolher arquivo…"
 
 msgid "action-loop-clear"
-msgstr "Limpar"
+msgstr "Desligar loop"
 
 msgid "action-loop-end"
 msgstr "Loop B"
@@ -1183,8 +1183,20 @@ msgstr "Saída da faixa"
 msgid "label-player-position"
 msgstr "Posição na faixa"
 
-msgid "label-track-bundled"
-msgstr "Incluída"
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Base"
+
+msgid "label-category-bass"
+msgstr "Baixo"
+
+msgid "label-category-acoustic"
+msgstr "Violão"
+
+msgid "label-category-other"
+msgstr "Outras"
 
 msgid "label-track-library"
 msgstr "Faixas"

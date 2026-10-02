@@ -1,6 +1,6 @@
 // Responsibility: renders the backing-track player window.
 // Same visual language as the metronome: a dark header, an amber LCD with the
-// one readout read mid-song (where the track is), pill buttons for the
+// one readout read mid-song (where the track is), icon buttons for the
 // transport and pedal knobs for level, speed and pitch. The library sits
 // below, so picking the next track never needs a second dialog.
 //
@@ -13,6 +13,8 @@ import { OutputField, OutputRow } from "../components/output_picker.slint";
 import { PlayerBridge } from "../components/player_globals.slint";
 import { PlayerSeekBar } from "../components/player_seek_bar.slint";
 import { PlayerLibraryList } from "../components/player_library_list.slint";
+import { PlayerTransport } from "../components/player_transport.slint";
+import { PlayerCategoryTabs } from "../components/player_category_tabs.slint";
 
 export component PlayerPanel inherits Rectangle {
     in property <bool> show-close-button: false;
@@ -137,44 +139,10 @@ export component PlayerPanel inherits Rectangle {
         seek(s) => { PlayerBridge.seek(s); }
     }
 
-    // ── Transport — stop, play/pause, loop ───────────────────────────────
-    Rectangle {
+    // ── Transport — stop, play, pause, A-B loop ──────────────────────────
+    PlayerTransport {
         x: 16px; y: 254px;
         width: parent.width - 32px;
-        height: 38px;
-
-        PillButton {
-            x: 0; y: 0;
-            width: 100px;
-            label: @tr("action-stop");
-            enabled: PlayerBridge.track-path != "";
-            clicked => { PlayerBridge.stop(); }
-        }
-
-        PillButton {
-            x: 112px; y: 0;
-            width: 160px;
-            label: PlayerBridge.playing ? @tr("action-pause") : @tr("action-play");
-            emphasis: true;
-            enabled: PlayerBridge.track-path != "";
-            clicked => { PlayerBridge.toggle-playing(); }
-        }
-
-        PillButton {
-            x: parent.width - 212px; y: 0;
-            width: 100px;
-            label: PlayerBridge.loop-mark >= 0 ? @tr("action-loop-end") : @tr("action-loop-start");
-            enabled: PlayerBridge.duration > 0;
-            clicked => { PlayerBridge.mark-loop(); }
-        }
-
-        PillButton {
-            x: parent.width - 100px; y: 0;
-            width: 100px;
-            label: @tr("action-loop-clear");
-            enabled: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0;
-            clicked => { PlayerBridge.clear-loop(); }
-        }
     }
 
     // ── Knobs — level, speed, pitch ──────────────────────────────────────
@@ -260,13 +228,19 @@ export component PlayerPanel inherits Rectangle {
         clicked => { PlayerBridge.choose-file(); }
     }
 
-    PlayerLibraryList {
+    PlayerCategoryTabs {
         x: 16px; y: 520px;
         width: parent.width - 32px;
-        height: parent.height - 520px - 44px;
+    }
+
+    PlayerLibraryList {
+        x: 16px; y: 566px;
+        width: parent.width - 32px;
+        height: parent.height - 566px - 44px;
         tracks: PlayerBridge.library;
         active-path: PlayerBridge.track-path;
         pick(path) => { PlayerBridge.pick-track(path); }
+        play(path) => { PlayerBridge.play-track(path); }
     }
 
     Text {
@@ -347,9 +321,9 @@ export component PlayerWindow inherits Window {
     default-font-size: 18px;
     title: @tr("title-window-player");
     min-width: 520px;
-    min-height: 680px;
+    min-height: 720px;
     preferred-width: 600px;
-    preferred-height: 760px;
+    preferred-height: 800px;
     background: #050608;
 
     PlayerPanel {

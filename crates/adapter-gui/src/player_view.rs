@@ -62,12 +62,16 @@ pub(crate) enum LoopPress {
     Mark(f64),
     /// Close the loop between the two presses, earliest first.
     Set { start: f64, end: f64 },
+    /// Turn the set loop off.
+    Clear,
 }
 
-/// The first press marks where the loop starts, the second closes it. A
-/// second press too close to the first to make a loop marks again instead.
-pub(crate) fn loop_press(mark: Option<f64>, now: f64) -> LoopPress {
+/// As on a deck's A-B button: the first press marks A, the second closes the
+/// loop at B, the third turns it off. A second press too close to the first
+/// to make a loop marks again instead.
+pub(crate) fn loop_press(mark: Option<f64>, now: f64, loop_set: bool) -> LoopPress {
     match mark {
+        None if loop_set => LoopPress::Clear,
         Some(mark) if (now - mark).abs() >= PLAYER_LOOP_MIN_SECONDS => LoopPress::Set {
             start: mark.min(now),
             end: mark.max(now),

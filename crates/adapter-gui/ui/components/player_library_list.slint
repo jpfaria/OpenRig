@@ -2,11 +2,13 @@
 import { ScrollView } from "std-widgets.slint";
 import { PlayerTrackRow } from "player_globals.slint";
 
-// One clickable track; the loaded one is highlighted.
+// One track: a click loads it, a double click plays it; the loaded one is
+// highlighted and the user's own are tagged.
 component PlayerTrackItem inherits Rectangle {
     in property <PlayerTrackRow> track;
     in property <bool> active;
     callback pick();
+    callback play();
 
     height: 40px;
     border-radius: 5px;
@@ -23,12 +25,12 @@ component PlayerTrackItem inherits Rectangle {
         vertical-alignment: center;
         overflow: elide;
     }
-    Text {
+    if !root.track.bundled : Text {
         x: parent.width - 136px;
         width: 124px;
         height: parent.height;
-        text: root.track.bundled ? @tr("label-track-bundled") : @tr("label-track-mine");
-        color: root.track.bundled ? #6a7484 : #ccaa66;
+        text: @tr("label-track-mine");
+        color: #ccaa66;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 1.4px;
@@ -38,6 +40,7 @@ component PlayerTrackItem inherits Rectangle {
     ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.pick(); }
+        double-clicked => { root.play(); }
     }
     accessible-role: button;
     accessible-label: root.track.name;
@@ -47,6 +50,7 @@ export component PlayerLibraryList inherits Rectangle {
     in property <[PlayerTrackRow]> tracks;
     in property <string> active-path;
     callback pick(string);
+    callback play(string);
 
     border-radius: 6px;
     background: #0a0d12;
@@ -73,6 +77,7 @@ export component PlayerLibraryList inherits Rectangle {
                 track: track;
                 active: track.path == root.active-path;
                 pick => { root.pick(track.path); }
+                play => { root.play(track.path); }
             }
         }
     }

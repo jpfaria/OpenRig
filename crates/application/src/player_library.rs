@@ -2,10 +2,12 @@
 //!
 //! Two folders feed the list: the tracks bundled with the app and the user's
 //! own backing-tracks folder (`paths.backing_tracks_path` in `config.yaml`).
-//! The listing is flat: a track is a supported audio file directly inside one
-//! of them.
+//! A track is a supported audio file directly inside one of them or inside one
+//! of their subfolders; the subfolder names its category.
 
 use std::path::{Path, PathBuf};
+
+use crate::player_track_category::TrackCategory;
 
 /// File extensions the player can decode.
 pub const BACKING_TRACK_EXTENSIONS: [&str; 6] = ["wav", "flac", "mp3", "ogg", "m4a", "aac"];
@@ -18,6 +20,7 @@ pub struct BackingTrack {
     pub path: PathBuf,
     /// Shipped with the app rather than added by the user.
     pub bundled: bool,
+    pub category: TrackCategory,
 }
 
 /// Where the tracks live. A folder that is `None` or missing lists nothing.
@@ -52,11 +55,38 @@ pub fn list_backing_tracks(dirs: &PlayerLibraryDirs) -> Vec<BackingTrack> {
     tracks
 }
 
+/// The files at the top of `dir` (no category) and those one folder down
+/// (the folder's category), sorted by name ignoring case.
 fn list_folder(dir: Option<&Path>, bundled: bool) -> Vec<BackingTrack> {
-    let Some(entries) = dir.and_then(|dir| std::fs::read_dir(dir).ok()) else {
+    let Some(dir) = dir else {
         return Vec::new();
     };
-    let mut tracks: Vec<BackingTrack> = entries
+    let mut tracks = list_files(dir, bundled, TrackCategory::Other);
+    for sub in subfolders(dir) {
+        let name = sub.file_name().map(|n| n.to_string_lossy().into_owned());
+        let category = TrackCategory::from_folder(name.as_deref().unwrap_or_default());
+        tracks.extend(list_files(&sub, bundled, category));
+    }
+    tracks.sort_by_key(|track| track.name.to_lowercase());
+    tracks
+}
+
+fn subfolders(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect()
+}
+
+fn list_files(dir: &Path, bundled: bool, category: TrackCategory) -> Vec<BackingTrack> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.is_file() && is_backing_track_file(path))
@@ -66,11 +96,10 @@ fn list_folder(dir: Option<&Path>, bundled: bool) -> Vec<BackingTrack> {
                 name,
                 path,
                 bundled,
+                category,
             })
         })
-        .collect();
-    tracks.sort_by_key(|track| track.name.to_lowercase());
-    tracks
+        .collect()
 }
 
 #[cfg(test)]

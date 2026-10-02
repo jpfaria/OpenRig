@@ -1144,7 +1144,7 @@ msgid "action-choose-file"
 msgstr "파일 선택…"
 
 msgid "action-loop-clear"
-msgstr "지우기"
+msgstr "루프 해제"
 
 msgid "action-loop-end"
 msgstr "루프 B"
@@ -1173,8 +1173,20 @@ msgstr "트랙 출력"
 msgid "label-player-position"
 msgstr "재생 위치"
 
-msgid "label-track-bundled"
-msgstr "기본 제공"
+msgid "label-category-solo"
+msgstr "솔로"
+
+msgid "label-category-rhythm"
+msgstr "리듬"
+
+msgid "label-category-bass"
+msgstr "베이스"
+
+msgid "label-category-acoustic"
+msgstr "어쿠스틱"
+
+msgid "label-category-other"
+msgstr "기타"
 
 msgid "label-track-library"
 msgstr "트랙"

@@ -58,13 +58,13 @@ fn track_name_is_the_file_stem() {
 
 #[test]
 fn the_first_loop_press_marks_the_start() {
-    assert_eq!(loop_press(None, 12.5), LoopPress::Mark(12.5));
+    assert_eq!(loop_press(None, 12.5, false), LoopPress::Mark(12.5));
 }
 
 #[test]
 fn the_second_loop_press_closes_the_loop() {
     assert_eq!(
-        loop_press(Some(10.0), 20.0),
+        loop_press(Some(10.0), 20.0, false),
         LoopPress::Set {
             start: 10.0,
             end: 20.0
@@ -75,7 +75,7 @@ fn the_second_loop_press_closes_the_loop() {
 #[test]
 fn a_loop_closed_backwards_is_sorted() {
     assert_eq!(
-        loop_press(Some(20.0), 10.0),
+        loop_press(Some(20.0), 10.0, false),
         LoopPress::Set {
             start: 10.0,
             end: 20.0
@@ -85,5 +85,21 @@ fn a_loop_closed_backwards_is_sorted() {
 
 #[test]
 fn a_second_press_too_close_marks_again() {
-    assert_eq!(loop_press(Some(10.0), 10.1), LoopPress::Mark(10.1));
+    assert_eq!(loop_press(Some(10.0), 10.1, false), LoopPress::Mark(10.1));
+}
+
+#[test]
+fn a_press_on_a_set_loop_turns_it_off() {
+    assert_eq!(loop_press(None, 30.0, true), LoopPress::Clear);
+}
+
+#[test]
+fn a_pending_start_closes_even_over_an_old_loop() {
+    assert_eq!(
+        loop_press(Some(10.0), 20.0, true),
+        LoopPress::Set {
+            start: 10.0,
+            end: 20.0
+        }
+    );
 }

@@ -10,6 +10,8 @@ export struct PlayerTrackRow {
     path: string,
     // Shipped with OpenRig, as opposed to one the user added.
     bundled: bool,
+    // The part it leaves for the player: a `TrackCategory` key.
+    category: string,
 }
 
 export global PlayerBridge {
@@ -37,7 +39,11 @@ export global PlayerBridge {
     in-out property <float> semitones: 0.0;
     in-out property <string> speed-label: "1.00×";
     in-out property <string> semitones-label: "0";
+    // The tracks of the selected category only.
     in-out property <[PlayerTrackRow]> library;
+    // Category tab keys, in order, and the selected one.
+    in-out property <[string]> categories;
+    in-out property <string> category: "solo";
     in-out property <string> user-folder;
     in-out property <[SelectOption]> output-options;
     in-out property <string> output-key;
@@ -46,15 +52,17 @@ export global PlayerBridge {
     // ── Intent, routed to the dispatcher by the wiring ──
     callback open-player-window();
     callback close-player();
-    callback toggle-playing();
+    callback set-playing(bool);
     callback stop();
     callback seek(float);
     callback set-volume(float);
     callback set-speed(float);
     callback set-semitones(float);
     callback mark-loop();
-    callback clear-loop();
+    callback pick-category(string);
     callback pick-track(string);
+    // Load the track and start it at once (a double click in the library).
+    callback play-track(string);
     callback choose-file();
     callback pick-output(string);
     callback output-opened();

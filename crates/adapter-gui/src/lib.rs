@@ -119,6 +119,7 @@ mod looper_commands;
 mod looper_restore;
 mod param_tab_grouping;
 mod param_tabs_inline;
+mod player_category_view;
 mod player_controls_wiring;
 mod player_file_chooser;
 mod player_render;

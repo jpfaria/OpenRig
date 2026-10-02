@@ -7,13 +7,14 @@ use std::rc::Rc;
 
 use adapter_gui::{PlayerBridge, PlayerHarness, PlayerTrackRow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, Global, LogicalPosition, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, LogicalPosition, ModelRc, SharedString, VecModel};
 
 fn track(name: &str, bundled: bool) -> PlayerTrackRow {
     PlayerTrackRow {
         name: name.into(),
         path: format!("/tracks/{name}.m4a").into(),
         bundled,
+        category: "solo".into(),
     }
 }
 
@@ -26,6 +27,10 @@ fn harness(loaded: bool) -> PlayerHarness {
     bridge.set_library(ModelRc::new(VecModel::from(vec![
         track("Slow Blues in A", true),
         track("My Jam", false),
+    ])));
+    bridge.set_categories(ModelRc::new(VecModel::from(vec![
+        SharedString::from("solo"),
+        SharedString::from("rhythm"),
     ])));
     if loaded {
         bridge.set_track_name("Slow Blues in A".into());
@@ -68,10 +73,8 @@ fn presses(
     hits
 }
 
-// Transport order in the panel: STOP, PLAY/PAUSE, LOOP, CLEAR, CHOOSE FILE.
-const PLAY: usize = 1;
-const LOOP: usize = 2;
-const CHOOSE_FILE: usize = 4;
+// The panel's only pill button is CHOOSE FILE; the transport is icons.
+const CHOOSE_FILE: usize = 0;
 
 #[test]
 fn clicking_a_track_picks_its_path() {
@@ -84,26 +87,73 @@ fn clicking_a_track_picks_its_path() {
 }
 
 #[test]
-fn play_toggles_a_loaded_track() {
+fn double_clicking_a_track_plays_it() {
+    let w = harness(false);
+    let got = Rc::new(RefCell::new(Vec::<String>::new()));
+    let g = got.clone();
+    PlayerBridge::get(&w).on_play_track(move |path| g.borrow_mut().push(path.to_string()));
+    let at = center(&w, "PlayerTrackItem::ta", 1);
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: at });
+    for _ in 0..2 {
+        win.dispatch_event(WindowEvent::PointerPressed {
+            position: at,
+            button: PointerEventButton::Left,
+        });
+        win.dispatch_event(WindowEvent::PointerReleased {
+            position: at,
+            button: PointerEventButton::Left,
+        });
+    }
+    assert_eq!(*got.borrow(), vec!["/tracks/My Jam.m4a".to_string()]);
+}
+
+/// Every `set_playing` value the panel sends during the test.
+fn playing_requests(w: &PlayerHarness) -> Rc<RefCell<Vec<bool>>> {
+    let got = Rc::new(RefCell::new(Vec::new()));
+    let g = got.clone();
+    PlayerBridge::get(w).on_set_playing(move |playing| g.borrow_mut().push(playing));
+    got
+}
+
+#[test]
+fn play_starts_a_loaded_track() {
     let w = harness(true);
-    let hits = presses(&w, |b, h| b.on_toggle_playing(move || *h.borrow_mut() += 1));
-    press_release(&w, center(&w, "PillButton::ta", PLAY));
-    assert_eq!(*hits.borrow(), 1);
+    let got = playing_requests(&w);
+    press_release(&w, center(&w, "PlayerTransport::play-btn", 0));
+    assert_eq!(*got.borrow(), vec![true]);
+}
+
+#[test]
+fn pause_pauses_a_playing_track() {
+    let w = harness(true);
+    PlayerBridge::get(&w).set_playing(true);
+    let got = playing_requests(&w);
+    press_release(&w, center(&w, "PlayerTransport::pause-btn", 0));
+    assert_eq!(*got.borrow(), vec![false]);
 }
 
 #[test]
 fn play_does_nothing_without_a_track() {
     let w = harness(false);
-    let hits = presses(&w, |b, h| b.on_toggle_playing(move || *h.borrow_mut() += 1));
-    press_release(&w, center(&w, "PillButton::ta", PLAY));
-    assert_eq!(*hits.borrow(), 0);
+    let got = playing_requests(&w);
+    press_release(&w, center(&w, "PlayerTransport::play-btn", 0));
+    assert!(got.borrow().is_empty());
+}
+
+#[test]
+fn stop_stops_a_loaded_track() {
+    let w = harness(true);
+    let hits = presses(&w, |b, h| b.on_stop(move || *h.borrow_mut() += 1));
+    press_release(&w, center(&w, "PlayerTransport::stop-btn", 0));
+    assert_eq!(*hits.borrow(), 1);
 }
 
 #[test]
 fn loop_marks_once_the_track_has_a_length() {
     let w = harness(true);
     let hits = presses(&w, |b, h| b.on_mark_loop(move || *h.borrow_mut() += 1));
-    press_release(&w, center(&w, "PillButton::ta", LOOP));
+    press_release(&w, center(&w, "PlayerTransport::loop-btn", 0));
     assert_eq!(*hits.borrow(), 1);
 }
 
@@ -133,4 +183,14 @@ fn the_close_button_closes_the_player() {
     let hits = presses(&w, |b, h| b.on_close_player(move || *h.borrow_mut() += 1));
     press_release(&w, center(&w, "PlayerPanel::close-ta", 0));
     assert_eq!(*hits.borrow(), 1);
+}
+
+#[test]
+fn clicking_a_category_tab_picks_it() {
+    let w = harness(false);
+    let got = Rc::new(RefCell::new(Vec::<String>::new()));
+    let g = got.clone();
+    PlayerBridge::get(&w).on_pick_category(move |key| g.borrow_mut().push(key.to_string()));
+    press_release(&w, center(&w, "PlayerCategoryTab::ta", 1));
+    assert_eq!(*got.borrow(), vec!["rhythm".to_string()]);
 }

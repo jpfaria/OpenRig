@@ -91,6 +91,7 @@ pub mod persist_worker;
 pub mod player_decode;
 pub mod player_library;
 pub mod player_state;
+pub mod player_track_category;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;

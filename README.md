@@ -231,7 +231,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 ### Stage features
 
 - [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [x] Backing tracks / audio player — bundled rock, blues and funk tracks in several keys plus your own files, speed 0.5×–2× with pitch kept, ±12 semitone transpose, A–B loop, its own output ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [x] Backing tracks / audio player — bundled rock, blues and funk tracks in several keys, split by the part you play (solo, rhythm, bass, acoustic), plus your own files, speed 0.5×–2× with pitch kept, ±12 semitone transpose, A–B loop, its own output ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Global mixer — one fader and mute per input/output endpoint, over GUI, MCP and MIDI control surfaces ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))

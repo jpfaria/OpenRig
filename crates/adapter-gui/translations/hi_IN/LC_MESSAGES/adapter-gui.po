@@ -1141,7 +1141,7 @@ msgid "action-choose-file"
 msgstr "फ़ाइल चुनें…"
 
 msgid "action-loop-clear"
-msgstr "हटाएँ"
+msgstr "लूप बंद"
 
 msgid "action-loop-end"
 msgstr "लूप B"
@@ -1170,8 +1170,20 @@ msgstr "ट्रैक आउटपुट"
 msgid "label-player-position"
 msgstr "ट्रैक स्थिति"
 
-msgid "label-track-bundled"
-msgstr "शामिल"
+msgid "label-category-solo"
+msgstr "सोलो"
+
+msgid "label-category-rhythm"
+msgstr "रिदम"
+
+msgid "label-category-bass"
+msgstr "बेस"
+
+msgid "label-category-acoustic"
+msgstr "एकॉस्टिक"
+
+msgid "label-category-other"
+msgstr "अन्य"
 
 msgid "label-track-library"
 msgstr "ट्रैक"

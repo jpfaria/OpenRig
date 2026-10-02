@@ -231,7 +231,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 ### Features de escenario
 
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [x] Backing tracks / reproductor de audio — pistas de rock, blues y funk incluidas en varios tonos más tus propios archivos, velocidad 0.5×–2× sin cambiar el tono, transposición de ±12 semitonos, loop A–B, salida propia ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [x] Backing tracks / reproductor de audio — pistas de rock, blues y funk incluidas en varios tonos, separadas por la parte que tocas (solo, base, bajo, acústica), más tus propios archivos, velocidad 0.5×–2× sin cambiar el tono, transposición de ±12 semitonos, loop A–B, salida propia ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeado de pedal de expresión por MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — un fader y un mute por entrada/salida, desde la GUI, MCP y superficies de control MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
