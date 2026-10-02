@@ -203,6 +203,8 @@ mod stream_config;
 mod stream_rates;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod stream_signature;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod worker_promotion;
 pub use stream_builder_project::build_streams_for_project;
 
 // Cross-module helpers — these used to live in lib.rs and are referenced

@@ -13,6 +13,9 @@ pub(crate) mod builder;
 #[path = "runtime_split_knobs.rs"]
 pub(crate) mod knobs;
 
+#[path = "runtime_split_lanes.rs"]
+pub(crate) mod lanes;
+
 #[path = "runtime_split_latency.rs"]
 pub(crate) mod latency;
 

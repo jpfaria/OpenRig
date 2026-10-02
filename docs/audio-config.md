@@ -143,6 +143,14 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
   separate buffers. The fix is separating priority/class, never "make the
   other one spend less CPU" — that hides the coupling until N streams bring
   it back.
+- Isolation includes the device's own properties. The buffer size is a
+  device-level property on CoreAudio: a stream that opens a device with a
+  buffer size other than the project's re-sizes it under every stream already
+  running there (underrun bursts on the live chain, and a HAL deadlock when a
+  stream starts while an input callback is reallocating for the new size).
+  So a chain's streams and an isolated loop/DI playback resolve their device
+  through the same resolver, with the project's `device_settings` for that
+  device.
 
 ### Por que essas regras (invariantes 4 / 5 / 10)
 
@@ -590,6 +598,17 @@ preemptible realtime, computation budget sized to the real work, short
 spin (a bounded ~35% of the period — it keeps the model weights hot
 through the inter-buffer gap, killing the cold tail) then 100 us sleeps
 when idle.
+
+A split's paths do not run serially on that worker. Each path but the
+first has its own lane: a thread spawned when the split is built
+(`crates/engine/src/runtime_split_lanes.rs`), asleep between callbacks,
+that runs its path while the worker runs the first one; the worker waits
+for every lane, then mixes. Handing a path over is two atomic stores, no
+lock, no allocation. A lane takes the realtime policy of the worker that
+drives its split (`engine::worker_rt_policy`, set by the worker each time
+it promotes itself), so a nested split's lanes inherit it too. Two NAM amps
+in one Split → Mix used to put both models on one realtime thread (95% of
+a core, heard as crackle); now each amp has a core.
 
 What the xrun LED means under the worker: a late worker buffer that
 catches up is absorbed by the ring + elastic and is NOT audible — it

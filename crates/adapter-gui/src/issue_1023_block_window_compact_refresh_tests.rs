@@ -65,6 +65,7 @@ fn session_with_an_amp() -> (Rc<RefCell<Option<ProjectSession>>>, BlockId) {
             kind: "amp".into(),
             model_id: AMP_MODEL.into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     let amp = session.project.borrow().chains[0]
@@ -100,6 +101,7 @@ impl Harness {
             CompactChainCallbacksCtx {
                 project_session: session.clone(),
                 block_stream_reads: Rc::new(NoLiveSource),
+                looper_live: Rc::new(NoLiveSource),
                 audio_taps: Rc::new(application::audio_taps::NoAudioTaps),
                 project_chains: project_chains.clone(),
                 input_chain_devices: Rc::new(RefCell::new(Vec::new())),
@@ -155,6 +157,7 @@ impl Harness {
                 enabled: editor_data.enabled,
                 editor_data,
                 block_id: Some(self.amp.clone()),
+                path: None,
                 project_session: self.session.clone(),
                 project_chains: self.project_chains.clone(),
                 block_stream_reads: Rc::new(NoLiveSource),

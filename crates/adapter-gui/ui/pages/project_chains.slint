@@ -10,8 +10,6 @@ import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { MixerBridge } from "../components/mixer_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
-import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
-import { ChainMixerOverlay } from "../components/chain_mixer_overlay.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -405,15 +403,5 @@ export component ProjectChainsPage inherits Rectangle {
                 }
             }
         }
-    }
-
-    // #1007: the mixer a chain card's mixer button opens, over the whole list.
-    ChainMixerOverlay {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        chain-title: ChainMixerPanel.chain-index >= 0 && ChainMixerPanel.chain-index < root.project-chains.length
-            ? root.project-chains[ChainMixerPanel.chain-index].title : "";
-        di-playing: ChainMixerPanel.chain-index >= 0 && ChainMixerPanel.chain-index < root.project-chains.length
-            && root.project-chains[ChainMixerPanel.chain-index].di_loop_playing;
     }
 }

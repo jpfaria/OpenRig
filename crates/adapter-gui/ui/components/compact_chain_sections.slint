@@ -20,6 +20,7 @@ import { CompactLooper } from "compact_looper_globals.slint";
 // The header strip every non-mixer section shares: a 1px rule, then the toggle.
 component SectionHeader inherits Rectangle {
     in property <string> title;
+    in property <image> icon;
     in property <bool> expanded;
     callback toggled(bool);
     height: 36px;
@@ -29,21 +30,22 @@ component SectionHeader inherits Rectangle {
         x: 0; y: 1px;
         width: parent.width; height: parent.height - 1px;
         title: root.title;
+        icon: root.icon;
         expanded: root.expanded;
         toggled(e) => { root.toggled(e); }
     }
 }
 
-// A section body: the panel scrolls inside the room the view can spare.
+// A section body: the panel spans the view and scrolls vertically inside the
+// room the view can spare.
 component SectionBody inherits Rectangle {
-    in property <length> content-width;
     in property <length> content-height;
-    in property <length> max-height;
-    height: min(root.content-height + 16px, root.max-height);
+    in property <length> body-max-height;
+    height: min(root.content-height + 16px, root.body-max-height);
     background: #0c0e12;
     Flickable {
         width: 100%; height: 100%;
-        viewport-width: max(parent.width, root.content-width + 32px);
+        viewport-width: self.width;
         viewport-height: root.content-height + 16px;
         @children
     }
@@ -118,15 +120,17 @@ export component CompactChainSections inherits Rectangle {
 
         di-toggle := SectionHeader {
             title: @tr("di-loop-button-label");
+            icon: @image-url("../assets/headphones.svg");
             expanded: root.open == 1;
             toggled(e) => { root.pick(1, e); }
         }
         if root.open == 1 : SectionBody {
-            content-width: di.width;
             content-height: di.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             di := DiLoopPanel {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 sources: root.di-loop-sources;
                 selected-index: root.di-loop-selected-index;
                 playing: root.di-loop-playing;
@@ -144,15 +148,17 @@ export component CompactChainSections inherits Rectangle {
 
         looper-toggle := SectionHeader {
             title: @tr("looper-button-label");
+            icon: @image-url("../assets/loop.svg");
             expanded: root.open == 2;
             toggled(e) => { root.pick(2, e); }
         }
         if root.open == 2 : SectionBody {
-            content-width: looper.width;
             content-height: looper.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             looper := LooperPanelView {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 loopers: CompactLooper.loopers;
                 expanded-uid: LooperPanel.expanded-uid;
                 input-options: CompactLooper.input-options;
@@ -192,15 +198,17 @@ export component CompactChainSections inherits Rectangle {
 
         doctor-toggle := SectionHeader {
             title: @tr("tone-doctor-button-label");
+            icon: @image-url("../assets/stethoscope.svg");
             expanded: root.open == 3;
             toggled(e) => { root.pick(3, e); }
         }
         if root.open == 3 : SectionBody {
-            content-width: doctor.width;
             content-height: doctor.height;
-            max-height: root.max-body-height;
+            body-max-height: root.max-body-height;
             doctor := ToneDoctorPanel {
                 x: 16px; y: 8px;
+                width: root.width - 32px;
+                embedded: true;
                 running: ToneDoctorState.running;
                 has-result: ToneDoctorState.has-result;
                 symptom-level: ToneDoctorState.symptom-level;
@@ -227,6 +235,7 @@ export component CompactChainSections inherits Rectangle {
         // Only a running chain has live levels.
         if root.chain-enabled : meters-toggle := SectionHeader {
             title: @tr("label-meters");
+            icon: @image-url("../assets/meters.svg");
             expanded: root.open == 4;
             toggled(e) => { root.pick(4, e); }
         }

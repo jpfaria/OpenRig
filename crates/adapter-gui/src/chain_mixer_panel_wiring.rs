@@ -1,11 +1,11 @@
-//! Responsibility: keeps the chain list's mixer overlay live.
-//! #1007 — a chain card's mixer button opens that chain's mixer over the
-//! list (`ChainMixerPanel.opened`). Its global halves are the chain's own
+//! Responsibility: keeps the chain card's open mixer section live.
+//! A chain card's mixer button opens that chain's mixer at the bottom of the
+//! card (`ChainMixerPanel.opened`). Its global halves are the chain's own
 //! endpoints, drawn on `ChainMixerPanel`; their gestures reach the main
 //! window's `MixerBridge`, which the Mixer window wiring already dispatches.
 //! The chain's own faders sit on the main window's `ChainMixerBridge` and
 //! dispatch the chain mixer commands (MASTER goes through the chain volume
-//! path). While the overlay is open a poll redraws on any change (Mixer
+//! path). While the section is open a poll redraws on any change (Mixer
 //! window, compact view, MCP, MIDI).
 
 use std::cell::{Cell, RefCell};

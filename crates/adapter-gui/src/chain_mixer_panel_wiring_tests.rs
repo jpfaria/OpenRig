@@ -1,5 +1,5 @@
-//! #1007 — the chain list's mixer overlay draws the chain whose button opened
-//! it, and its MASTER fader moves THAT chain's volume.
+//! The chain card's mixer section draws the chain whose button opened it,
+//! and its MASTER fader moves THAT chain's volume.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,7 +26,6 @@ fn chain(id: &str, volume: f32) -> Chain {
         loopers: vec![],
         disabled_endpoints: Default::default(),
         mix: Default::default(),
-        disabled_endpoints: Default::default(),
     }
 }
 

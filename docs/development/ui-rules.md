@@ -2,8 +2,8 @@
 
 Standing rules for any work on `.slint`, layout, components or mockups. Each one
 cost a session (or several) and was stated by the owner; they are not
-suggestions. Read this before touching the UI, together with `docs/gui/README.md`
-(direction) and `docs/screens.md` (what each screen holds).
+suggestions. Read this before touching the UI, together with `docs/screens.md`
+(what each screen holds).
 
 ## 0. Before any UI work
 
@@ -110,3 +110,24 @@ system.
 
 **Apply:** before modelling a structure he named, write the shape back in one
 line (nodes, edges, fan-out N, fan-in N, outputs N) and get a yes.
+
+## 7. Reading a headless render
+
+`tools/slint-render` captures the **first frame**. Any property under an
+`animate` block is therefore rendered at its *starting* value, not its
+settled one: an `animate colorize` makes icons come out dark and muddy, an
+`animate background` gives buttons an off colour, and it reads exactly like a
+contrast bug that is not there. When a rendered component looks washed out,
+check for `animate` before redesigning it. Prefer no animation on the properties a render has to
+prove (state colour, enabled/disabled), and keep animations for hover
+transitions the PNG does not need to show.
+
+Two more traps the same render caught, worth checking first:
+
+- A fixed-size button (`width`/`height`) inside a `HorizontalLayout` still
+  gets stretched, and `min-*`/`max-*` conflict with `width`/`height`
+  (a hard compile error). Icon clusters in this app are positioned
+  absolutely for that reason; use layouts for the parts that stretch.
+- Texts inside a stretching container inflate it with their intrinsic width
+  and push the trailing buttons out of the card. Give that container a
+  `min-width` and `clip: true`.
