@@ -59,7 +59,7 @@ project:
 | `inputs.<name>.bank` | `BTreeMap<usize, String>` | index → preset name; gaps allowed |
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
-| `inputs.<name>.disabled_endpoints` | `EndpointDisables` | #328 graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |
+| `inputs.<name>.disabled_endpoints` | `EndpointDisables` | The graph's endpoint checklists: `{ inputs, outputs, path_outputs }`. `inputs`/`outputs` are lists of `{ io, endpoint }` (binding id + endpoint name) left out of that node; `path_outputs` holds one `{ split, path, disabled }` per Y leaf with something unchecked. Absent = every endpoint checked. Older files' `path_a_outputs`/`path_b_outputs` are read and moved onto the chain's Y. |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
 | `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | Chain split: `{ end: mix \| y, params, paths: [[blocks], …] }`, at least two paths. Path blocks are full `AudioBlock`s with their own ids. |
@@ -160,7 +160,7 @@ and rejects:
    `InputBlock::validate_channel_conflicts` (same `(device, channel)` used by
    two sources of the same input);
 6. a `routing` target not naming an `outputs` entry;
-7. a preset breaking the split rules of #328: two Mix splits, two Y splits, a Y before a Mix, a split/select/input/output/insert inside the path of any split, or anything but a port after a Y split.
+7. a preset breaking the split rules (`validate_split_layout`, judged at every depth): a split with fewer than two paths, anything but a port after a Y, or an `Input`/`Output`/`Insert` inside a split path — see [`blocks-catalog.md`](../blocks-catalog.md) → Chain split.
 
 Cross-input capture exclusivity is **not** validated statically: a project
 may freely hold many inputs sharing a `(device, channel)` tap (a library of
@@ -263,7 +263,7 @@ Both `project.yaml` and standalone preset files carry an explicit
 top-level `version:`. A document is written with the lowest version that can
 hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
 or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
-`Split` (#328). This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
+`Split`. This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
 older build refuses a version 2 file with its "newer than this build" error
 instead of failing inside serde:
 

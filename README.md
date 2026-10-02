@@ -31,6 +31,19 @@
   <img src="docs/assets/sc1.png" alt="OpenRig Project view — multiple parallel chains with amp, pedal, and cab blocks" width="900">
 </p>
 
+## Install
+
+**macOS** 11 or later, Apple Silicon or Intel — open Terminal and paste:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
+```
+
+Then open OpenRig from Applications. Prefer the `.dmg`? [Install by hand](docs/user-guide/installation.md#install-by-hand).
+
+**Linux** — no package yet: [build from source](docs/user-guide/installation.md#linux).
+**Windows** — coming soon.
+
 ---
 
 > **Professional audio shouldn't live inside a black box.**
@@ -96,11 +109,11 @@ Left: block library, organized by brand with hardware-faithful panel art. Right:
 
 ## Quick Start
 
-1. **Install** — [download the macOS release](https://github.com/jpfaria/OpenRig/releases/latest), or build from source on Linux and Windows (see below).
+1. **Install** — see [Install](#install).
 2. **Configure I/O** — pick your audio interface as input and your monitors/headphones as output.
 3. **Build a chain** — drop blocks between Input and Output (Tuner → EQ → Drive → Amp → Cab → Reverb is a good start).
 4. **Tweak in real time** — click any block to open its editor; turn knobs while you play.
-5. **Save a preset** — presets are plain YAML in `~/.openrig/presets/` (macOS/Linux) or `%APPDATA%\OpenRig\presets\` (Windows). Share by copy-paste.
+5. **Save a preset** — presets are plain YAML files in the folder set in **Settings → Paths**. Share by copy-paste.
 
 Full walkthrough: [Quick Start Guide](docs/user-guide/quick-start.md).
 
@@ -133,28 +146,6 @@ blocks:
 
 Every `model:` ID is registered in the [Blocks Reference Quick Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference). For Claude Code users, the [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) skill (in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds the full chain on the running rig from just an artist + song name, via MCP.
 
-## Installation
-
-### Download
-
-Releases ship for macOS for now: one universal `.dmg` (Apple Silicon + Intel) on the [Releases page](https://github.com/jpfaria/OpenRig/releases/latest). Linux and Windows build from source; packaged releases for them are on the way.
-
-- **macOS** — [download, quarantine fix & one-line installer](docs/user-guide/installation.md#macos)
-- **Linux / Windows** — [build from source](docs/user-guide/installation.md#build-from-source), plus the [Linux audio setup](docs/user-guide/installation.md#audio-setup-required-for-sound)
-
-### Build from Source
-
-```bash
-git lfs install
-git clone https://github.com/jpfaria/OpenRig.git
-cd OpenRig
-cargo build --release -p adapter-gui
-```
-
-Git LFS is required: it also carries the vendored NeuralAmpModelerCore sources the build unpacks ([deps/DEPS.md](deps/DEPS.md)).
-
-See the [Installation Guide](docs/user-guide/installation.md) for platform-specific dependencies and troubleshooting.
-
 ## Documentation
 
 ### For Musicians
@@ -171,7 +162,7 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 
 ### For Developers
 
-- [Architecture](docs/architecture.md) · [Architecture (deep)](docs/development/architecture.md) — crate map, layers, design patterns
+- [Architecture](docs/architecture.md) — layers, crate map, command and read bus
 - [Building](docs/development/building.md) — full build guide including the NAM engine and Docker
 - [Creating Blocks](docs/development/creating-blocks.md) — how to add new audio models
 - [Audio Backends](docs/development/audio-backends.md) — Native, NAM, IR, and LV2 internals
@@ -181,8 +172,7 @@ See the [Installation Guide](docs/user-guide/installation.md) for platform-speci
 - [Testing](docs/testing.md) — coverage, conventions, commands
 - [Scripts](docs/scripts.md) — build/deploy, `.deb` → Orange Pi flow
 - [Project format](docs/projects/project-format.md) — the `project.yaml` project model
-- [GUI architecture](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — desktop window internals ([window design](docs/gui/2026-03-20-desktop-window-architecture.md) · [plan](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
-- [Backend contract](docs/backend/current-contract.md) · [Native model catalog](docs/backend/native-model-catalog.md) · [MK-300 effects reference](docs/backend/mk-300-v69-effects-reference.md)
+- [UI rules](docs/development/ui-rules.md) · [Graph view](docs/gui/graph-view.md) — rules for UI work, the chain graph canvas
 - [Languages (i18n)](docs/i18n.md) — UI translation framework, adding a locale
 - [Hardware](docs/hardware.md) · [Orange Pi deploy](docs/hardware/orange-pi-deploy.md) — pedalboard board build & image deploy
 - [ADRs](docs/adr/0001-project-model.md) — architecture decision records ([device routing](docs/adr/0002-device-routing-and-validation.md))

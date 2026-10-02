@@ -1,17 +1,51 @@
-# Arquitetura
+# Architecture
 
-## Crates principais
+## Layers
 
-- `block-core` — `BlockProcessor`, `AudioChannelLayout`, `ParameterSet`, constantes de instrumento
-- `block-preamp` / `block-amp` — preamp / amp completo
-- `adapter-gui` — UI Slint (`ui/`)
-- `adapter-mcp` — servidor MCP (biblioteca, `rmcp` 1.7.0, Streamable HTTP); liga na instância viva via `application::bridge`. Ver `docs/mcp.md` e `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`
-- `application` — command bus: `Command`/`Event`, `LocalDispatcher`, `bridge` (ponte `Send`↔`!Send` p/ MCP/gRPC), `PublishingDispatcher` (fan-out de eventos), `command_schema` (schema de tool por variante), `persist_worker` (side-effect disk writes run on a dedicated worker thread — handlers serialize in memory and enqueue; `persist_worker::flush()` is the durability barrier used on shutdown and in save→reload round-trips; dispatch never blocks the calling thread on I/O), `app_config_persist` (`config.yaml` writes bind the destination path at dispatch time and hand it to the worker — the worker never re-resolves `$HOME` at write time, so a HOME-swap test can't leak fixtures onto the user's real config)
-- `engine` — `ChainRuntimeState`, `process_input_f32` / `process_output_f32`, lock-free graph rebuild via `update_chain_runtime_state`. Fast path: `set_block_enabled` flips `FadeState` on the live `BlockRuntimeNode` so a per-block toggle never rebuilds the chain. Public surface is re-exported through `engine::runtime::*`.
-- `infra-cpal` — `ProjectRuntimeController` owns the per-chain CPAL streams. `upsert_chain` is the full rebuild path; `pause_chain` + the fast-path resume branch inside `upsert_chain_modal` keep the runtime + streams alive across chain toggles via `set_draining()` so re-enable is O(1). `set_block_enabled` forwards into the engine for the matching block-level fast path.
-- `adapter-render` — headless offline render console. Binary `openrig-render` and lib `adapter_render::render()`. Loads a project, decodes an input WAV, drives `engine::offline::render_chain` (same `RuntimeProcessor::process_buffer` as the realtime callback), writes the output WAV atomically. No Slint, no MIDI — single-chain, deterministic, used by the audio-validation pipeline (`openrig-tone-analyzer` skill). Standalone — never linked into `adapter-gui`. It is also a dep of `application`: `Command::RenderChain` routes to `application::render_handler::run`, which calls `adapter_render::render()`. The dep direction is application → adapter-render — the orchestration itself stays in `adapter-render` so the binary keeps a single source of truth for the render pipeline. See `docs/render.md`.
-- `nam` — Neural Amp Modeler
-- `asset-runtime` — `EmbeddedAsset`, `materialize()`
+Dependencies point inward: the core knows nothing about Slint, audio drivers or file formats, so it is tested without them and every frontend (GUI, MCP, MIDI, console, render, a future gRPC server) drives the same core.
+
+- **Domain and project model** (`domain`, `project`) — IDs, value objects, chains, blocks, parameters, validation. No I/O.
+- **Application** (`application`) — the command bus: every state change is a `Command`; `State`/`Event`/`SideEffect` have no Slint dependency.
+- **Engine** (`engine`) — the real-time audio graph: one runtime per input stream, blocks processed within the callback deadline.
+- **Blocks and backends** (`block-*`, `nam`, `ir`, `lv2`, `vst3-host`, `plugin-loader`) — the models and the engines that run them.
+- **Adapters and infrastructure** (`adapter-*`, `infra-*`) — frontends, audio devices (cpal), YAML and filesystem.
+
+## Crates
+
+| Group | Crate | What it is |
+|---|---|---|
+| Core | `domain` | IDs, value objects, I/O bindings, mixer strips |
+| | `project` | Project model: chains, blocks, split rules, block catalog |
+| | `application` | Command bus, dispatcher, read bus, persistence worker |
+| | `engine` | Real-time runtime: chain runtimes, segments, splits, taps, offline render |
+| Blocks | `block-core` | `BlockProcessor`, `AudioChannelLayout`, `ParameterSet`, instrument constants |
+| | `block-preamp`, `block-amp`, `block-cab`, `block-gain`, `block-delay`, `block-reverb`, `block-mod`, `block-dyn`, `block-filter`, `block-wah`, `block-pitch` | One block type each, with its native models |
+| | `block-body`, `block-util`, `block-full-rig`, `block-routing` | Block types with no native models |
+| | `block-ir`, `block-nam` | The generic IR and NAM loaders |
+| Backends | `nam` | Neural Amp Modeler (vendored C++ core via `cpp/nam_wrapper`) |
+| | `ir` | Partitioned FFT convolution |
+| | `lv2` | LV2 host |
+| | `vst3-host` | VST3 host |
+| | `plugin-loader` | Discovers and loads OpenRig-plugins packages (manifests, grids, captures) |
+| | `feature-dsp` | Tuner pitch detection, spectrum FFT, metronome, tone descriptors |
+| Adapters | `adapter-gui` | The desktop app (Slint, `ui/`) |
+| | `adapter-mcp` | MCP server (library, `rmcp`, Streamable HTTP) on the live instance via `application::bridge` — see [mcp.md](mcp.md) |
+| | `adapter-midi` | MIDI controllers: devices, learn, mappings, feedback |
+| | `adapter-console`, `adapter-console-rig` | Terminal frontend; headless rig |
+| | `adapter-render` | Offline render, binary `openrig-render` — see [render.md](render.md) |
+| | `adapter-server`, `adapter-vst3` | Reserved; no product yet |
+| | `ui-openrig` | UI types shared across frontends |
+| Infrastructure | `infra-cpal` | Audio devices and streams (cpal; JACK on Linux) |
+| | `infra-yaml` | Project and preset YAML |
+| | `infra-filesystem` | Config, paths, MIDI profiles, I/O bindings on disk |
+| Tools | `tone-calibrate` | Offline calibration of the tone analysis limits (`openrig-tone-calibrate`) |
+
+Notes on the core crates:
+
+- `application` — `Command`/`Event`, `LocalDispatcher`, `bridge` (the `Send`↔`!Send` bridge for MCP/gRPC), `PublishingDispatcher` (event fan-out), `command_schema` (tool schema per variant), `persist_worker` (disk writes run on a dedicated worker thread — handlers serialize in memory and enqueue; `persist_worker::flush()` is the durability barrier used on shutdown and in save→reload round-trips; dispatch never blocks the calling thread on I/O), `app_config_persist` (`config.yaml` writes bind the destination path at dispatch time and hand it to the worker — the worker never re-resolves `$HOME` at write time, so a HOME-swap test can't leak fixtures onto the user's real config).
+- `engine` — `ChainRuntimeState`, `process_input_f32` / `process_output_f32`, lock-free graph rebuild via `update_chain_runtime_state`. Fast path: `set_block_enabled` flips `FadeState` on the live `BlockRuntimeNode`, so a per-block toggle never rebuilds the chain. The public surface is re-exported through `engine::runtime::*`.
+- `infra-cpal` — `ProjectRuntimeController` owns the per-chain cpal streams. `upsert_chain` is the rebuild path. Switching a chain off kills every stream it owns, open or still being activated (`kill_chain_streams`), so nothing lands later and plays a chain the screen shows as off; switching it on is a fresh activation. `set_block_enabled` forwards into the engine's block-level fast path.
+- `adapter-render` — binary `openrig-render` and lib `adapter_render::render()`. Loads a project, decodes an input WAV, drives `engine::offline::render_chain` (the same `RuntimeProcessor::process_buffer` as the realtime callback) and writes the output WAV atomically. No Slint, no MIDI; one chain, deterministic. `Command::RenderChain` routes to `application::render_handler::run`, which calls `adapter_render::render()`: the dependency goes application → adapter-render, and the render pipeline lives only in `adapter-render`.
 
 ## Read bus: `LiveSource` + `application::read::resolve`
 
@@ -404,59 +438,71 @@ MCP/MIDI reach the audio by the same road. All
 three assertions run against the source with `//` comments stripped, so no prose
 can satisfy them or trip them.
 
-## Chain split runs inside one segment (#328)
+## Chain split runs inside one segment
 
 `RuntimeProcessor::Split` is a node of the segment like any block. It holds
-both paths of a Split → Mix, path B's buffer (preallocated to
+every path of the split, one buffer per path (preallocated to
 `SEGMENT_FRAME_CAPACITY`; a larger callback is processed in chunks of that
 size, so it never grows), one alignment delay line per path and the knobs as
 atomics loaded once per callback. The mix is DSP inside that node — never a sum
 of two segments or two runtimes — so each segment of a chain runs its own split
-and stream isolation holds by construction.
+and stream isolation holds by construction. Every path but the first runs on a
+lane of its own: a realtime thread spawned at build and parked between
+callbacks, released and joined with two atomic stores, so one core never
+carries every path of a split.
 
-A Y → A/B is not a node of its own: the builder shapes it, per output segment,
-into the Split → Mix that segment runs (`split_segment_view`, see
-`docs/audio-config.md` → "Y → A/B outputs"). A chain may hold one Mix and,
-after it, one Y as its last processing block. Then the segment of each Y output
-runs the Mix node unchanged, the shared blocks, and the Y shaped to the paths
-that output checks: two split nodes in one segment. Every Y output therefore
-runs its own copy of the Mix and of everything before the Y, one pipeline per
-output, never a shared pre-Y runtime. The project-side lookups
-(`project::block::split_lookup`) find the Y by its end, never by "the first
-split".
+A Y is not a node of its own: per output segment the builder shapes it into a
+Split → Mix whose mixer passes at unity the paths that lead to that output's
+leaves, with the other paths left empty at level zero (`split_segment_view`,
+see [audio-config.md](audio-config.md) → "Y outputs"). Splits nest at any
+depth, so one segment may run several split nodes. Every Y output runs its own
+copy of everything on the way to its leaves — one pipeline per output, never a
+shared pre-Y runtime. The project-side lookups (`project::block::split_lookup`)
+never assume a chain holds a single split: they find one by its end (Mix or Y).
 
 Files: `runtime_split.rs` routes `runtime_split_builder.rs` (model → node),
 `runtime_split_state.rs` (what a split keeps), `runtime_split_process.rs` (one
-callback), `runtime_split_mix.rs` (pure per-sample math),
-`runtime_split_align.rs` (delay line), `runtime_split_knobs.rs` (atomics),
-`runtime_split_latency.rs` (path latency, from each processor's
-`latency_samples()`) and `runtime_split_walk.rs`, which the read-only node
-walkers (bypass mirror, offline faulted list, probe summary) use to see inside
-both paths; the block toggle descends into the paths itself because it
-mutates them.
+callback), `runtime_split_lanes.rs` (one thread per extra path),
+`runtime_split_mix.rs` (pure per-sample math), `runtime_split_align.rs` (delay
+line), `runtime_split_knobs.rs` (atomics), `runtime_split_latency.rs` (path
+latency, from each processor's `latency_samples()`) and `runtime_split_walk.rs`,
+which the read-only node walkers (bypass mirror, offline faulted list, probe
+summary) use to see inside the paths; the block toggle descends into the paths
+itself because it mutates them.
 
-## Registry auto-gerado
+## Generated model registry
 
-`crates/block-preamp/build.rs` (e equivalentes nos outros block-*) escaneia `src/*.rs` procurando `MODEL_DEFINITION` e gera `generated_registry.rs`. Novo modelo = criar `.rs` com `pub const MODEL_DEFINITION: PreampModelDefinition = ...`.
+Each block crate's `build.rs` (e.g. `crates/block-preamp/build.rs`) scans
+`src/*.rs` for `MODEL_DEFINITION` and generates `generated_registry.rs`. A new
+native model is a new `.rs` file with `pub const MODEL_DEFINITION` — see
+[creating-blocks.md](development/creating-blocks.md).
 
-`PreampModelDefinition` (em `crates/block-preamp/src/registry.rs`) tem: `id`, `display_name`, `brand`, `backend_kind`, `schema`, `validate`, `asset_summary`, `build`. Funções públicas: `preamp_display_name`, `preamp_brand`, `preamp_type_label` (`"native" | "NAM" | "IR"`).
-
-`component.yaml` só tem caminhos de assets e posições SVG (`svg_cx`, `svg_cy`). **NUNCA** colocar brand/type/display_name em YAML — sempre no Rust.
+`PreampModelDefinition` (`crates/block-preamp/src/registry.rs`) has `id`,
+`display_name`, `brand`, `backend_kind`, `schema`, `validate`, `asset_summary`,
+`build`, `supported_instruments` and `knob_layout`. Public lookups:
+`preamp_display_name`, `preamp_brand`, `preamp_type_label`. Brand, type and
+display name live only in Rust, never in YAML. Plugin models (NAM, IR, LV2,
+VST3) are not in these registries: `plugin-loader` reads them from the plugin
+packages.
 
 ## Assets
 
 ```
-assets/brands/{brand}/logo.{svg,png}           ← one per catalog brand id; single-colour on transparent, tinted by BrandLogo (colorize) — only Vox keeps its colours
-                                                 every folder must be mapped in ui/components/brand_logo.slint (pinned by tests/issue_956_brand_logos_wired.rs)
-assets/amps/{brand}/{model}/controls.svg       ← painel completo (não criar panel.svg separado)
-assets/amps/{brand}/{model}/component.yaml     ← caminhos de assets + svg_cx/cy
+assets/brands/{brand}/logo.{svg,png}   one per catalog brand id; single colour on transparent, tinted by BrandLogo (colorize) — only Vox keeps its colours;
+                                       every folder must be mapped in ui/components/brand_logo.slint (pinned by tests/issue_956_brand_logos_wired.rs)
+assets/models/{model}.svg              panel artwork of a native model, wired in ui/components/block_panel_brand_strip.slint
+assets/blocks/metadata/{lang}.yaml     description, license and homepage per model
+assets/blocks/thumbnails/{type}/       block thumbnails (_default.png per type)
 ```
 
-`controls.svg` usa o AC30 como template visual: viewBox 800×200, fundo escuro, círculos como âncoras de knob (`fill="#111" stroke="#505050"`). Controles editáveis têm `id="ctrl-xxx"`; não-editáveis usam `opacity="0.6"` sem id. **Logo do brand NUNCA dentro da imagem do equipamento.**
+A brand logo is never drawn inside the artwork of the gear.
 
-## BlockEditorPanel
+## Block editor panel
 
-Quando o bloco selecionado é `preamp`, o painel mostra `controls.svg` em vez de só sliders. Implementação em `crates/adapter-gui/ui/pages/project_chains.slint` (propriedades `is-preamp`, `selected-model-id`, ternary chain de `@image-url()` por compile-time). `amp` ainda não tem equivalente.
+Every block, native or plugin, is edited in the same panel, rendered from the
+model's parameter specs by the block editor's grid. A native model can place its
+knobs over its artwork with `knob_layout` and recolour the panel through its
+crate's `model_visual.rs`.
 
 ### EQ curve: which sample rate it is drawn at
 

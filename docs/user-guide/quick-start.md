@@ -1,82 +1,46 @@
-# Quick Start Guide
+# Quick Start
 
-This guide walks you through setting up OpenRig and building your first signal chain. By the end, you will have a working virtual pedalboard with real-time audio processing.
+From a fresh install to playing through your first chain.
 
-## Core Concepts
+## 1. Install
 
-Before diving in, familiarize yourself with the key building blocks of OpenRig:
+See [Installing OpenRig](installation.md).
 
-- **Project** -- A workspace that contains your chains and settings. Projects are saved as YAML files, making them easy to version control and share.
+## 2. Pick your audio interface
 
-- **Chain** -- A signal path from input to output. Each chain processes audio through a sequence of blocks. Every chain has an instrument type that determines which blocks are available.
+On the first launch OpenRig asks for the input of your audio interface, then its output, with the sample rate and buffer size. 48 kHz and a buffer of 128–256 samples is a good start: a smaller buffer means less latency, too small causes clicks. You can change this later in **Settings → Audio interface**.
 
-- **Block** -- A single audio processor in the chain, such as an amp, effect pedal, or cabinet. Each block has a type and a model.
+This also creates the `default` **I/O binding**: a named set of input and output channels that chains play through. **Settings → I/O bindings** lets you add more, for example one per guitar or one per pair of outputs.
 
-- **Model** -- A specific implementation of a block type. For example, "Marshall JCM 800 2203" is a model of the Preamp block type.
+## 3. Create a project
 
-- **Parameter** -- An adjustable value on a block (gain, bass, treble, mix, and so on). Parameters can be adjusted in real time while audio is playing.
+On the launcher, create a new project and give it a name. A project holds your chains with their presets and scenes, in one `.yaml` file.
 
-- **Instrument** -- The instrument type assigned to a chain. Available types are `electric_guitar`, `acoustic_guitar`, `bass`, `voice`, `keys`, `drums`, and `generic`. The instrument type filters which blocks are available for the chain.
+## 4. Add a chain
 
-- **Backend** -- The audio engine that powers a model. OpenRig supports four backends:
-  - **Native** -- Built-in Rust DSP processing
-  - **NAM** -- Neural Amp Modeler captures
-  - **IR** -- Impulse Response convolution
-  - **LV2** -- External LV2 plugins
+Create a **New chain**: give it a name, pick the instrument (it decides which blocks are offered) and the I/O binding it plays through. Turn the chain on with its power switch and you hear your instrument dry.
 
-## Step 1: Launch OpenRig
+## 5. Add blocks
 
-Open the application. You will see the Launcher screen with options to create a new project or open an existing one.
+Click **+** on the chain where the block should go and pick a block type. The block editor opens: choose the model, turn the knobs while you play, and confirm. Click a block later to edit it; drag it to move it.
 
-## Step 2: Create a New Project
+A typical guitar chain: gain pedal → preamp or amp → cab → delay → reverb. Every block type and model is listed in the [blocks catalog](../blocks-catalog.md).
 
-Click **New Project** and enter a project name. This creates a workspace with a default chain ready for you to customize.
+## 6. Save
 
-## Step 3: Configure Audio Devices
+Save the project from the top bar. Unsaved changes are flagged there until you do.
 
-Navigate to **Settings** and configure the following:
+## Words used in OpenRig
 
-1. **Audio input device** -- Select your guitar interface or microphone.
-2. **Audio output device** -- Select your headphones or studio monitors.
-3. **Sample rate** -- 48 kHz is recommended for most setups.
-4. **Buffer size** -- 256 samples provides a good balance between latency and stability. Lower values reduce latency but may cause audio glitches on slower hardware.
+- **Chain** — one signal path: an input, a list of blocks, an output. Each chain runs on its own, so several players or instruments can share one interface.
+- **Block** — one processor in the chain (amp, cab, delay, …). Its **model** is the specific unit it emulates, and its **parameters** are the knobs.
+- **Preset** and **scene** — a preset is a chain's set of blocks; a scene is a variation of its knob values. See [Presets](presets.md).
+- **I/O binding** — a named set of interface channels a chain plays through.
+- **Backend** — what runs a model: built-in DSP, NAM captures, impulse responses (IR), LV2 or VST3 plugins.
 
-## Step 4: Build Your Chain
+## Next
 
-Your chain starts with an **Input** block and ends with an **Output** block. To add processing blocks between them:
-
-1. Click the **add button** between two existing blocks.
-2. Choose a block type (e.g., Preamp, Cab, Delay, Reverb).
-3. Select a model (e.g., "Brit Crunch", "Brit 4x12").
-4. The new block appears in the chain and begins processing audio immediately.
-
-Here is an example signal chain for a classic rock tone:
-
-```
-Input -> Brit Crunch (Preamp) -> Brit 4x12 (Cab) -> Analog Warm (Delay) -> Plate Foundation (Reverb) -> Output
-```
-
-## Step 5: Adjust Parameters
-
-Click on any block to open the **Block Editor**. Use the knobs and sliders to shape your sound. Common parameters by block type:
-
-| Block Type | Parameters                                    |
-|------------|-----------------------------------------------|
-| Preamp     | gain, bass, middle, treble, presence, master  |
-| Cab        | low cut, high cut, mic position, room mix     |
-| Delay      | time (ms), feedback, mix                      |
-| Reverb     | room size, damping, mix                       |
-
-All changes are applied in real time. Play your instrument while adjusting parameters to hear the effect immediately.
-
-## Step 6: Save Your Work
-
-Your project is saved only when you press **Save** (the save icon turns yellow while there are unsaved changes). You can also export presets to share specific chain configurations with others.
-
-**Tip:** Pitch blocks (autotune) are also available for real-time vocal and instrument pitch correction. Add a Chromatic Autotune or Scale Autotune block to any chain that uses a monophonic source.
-
-## What's Next?
-
-- [Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md) -- Explore all 170+ available models across every block type.
-- [Presets](presets.md) -- Learn about creating and sharing presets.
-- [Installation Guide](installation.md) -- Detailed build and setup instructions.
+- [Presets and scenes](presets.md)
+- [Blocks catalog](../blocks-catalog.md)
+- [Screens](../screens.md)
+- [MIDI controllers](../midi.md)
