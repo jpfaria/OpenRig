@@ -15,10 +15,10 @@ pub use ir_asset::{IrAsset, IrChannelData};
 pub use ir_builders::{build_mono_ir_processor_from_wav, build_stereo_ir_processor_from_wav};
 pub use ir_processors::{MonoIrProcessor, StereoIrProcessor};
 
+pub use ir_prepare::resample_if_needed;
+
 #[cfg(test)]
-pub(crate) use ir_prepare::{
-    lanczos_kernel, resample_if_needed, truncate_with_fade, FADE_OUT_SAMPLES, MAX_IR_SAMPLES,
-};
+pub(crate) use ir_prepare::{lanczos_kernel, truncate_with_fade, FADE_OUT_SAMPLES, MAX_IR_SAMPLES};
 
 #[cfg(test)]
 #[path = "test_support.rs"]

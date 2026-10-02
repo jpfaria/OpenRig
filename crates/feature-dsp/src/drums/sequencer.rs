@@ -6,7 +6,9 @@
 //!
 //! Fills follow the play-along pedal convention: asked for mid-bar, the fill
 //! takes over from the current position to the end of the bar; asked for in
-//! the last beat, it plays the whole next bar. The groove resumes after it.
+//! the last beat, it plays the whole next bar. The groove resumes after it;
+//! a fill longer than a bar lands its extra hits (the crash on the next
+//! downbeat) on top of the resumed groove.
 
 use super::groove::Groove;
 use super::pattern::{DrumHit, DrumPattern};
@@ -30,17 +32,25 @@ pub struct DrumPosition {
 struct ActiveFill {
     index: usize,
     start: f64,
+    /// Where the groove takes over again: one bar after `start`.
+    resume: f64,
+    /// Where the fill's last hits (its landing) stop.
     end: f64,
 }
 
-/// The next hits to fire: every hit of `pattern` at absolute beat `beat`.
+/// The next hit of one pattern: the first hit at or after a beat.
+#[derive(Clone, Copy, Debug)]
+struct Cursor {
+    beat: f64,
+    origin: f64,
+    index: usize,
+}
+
+/// The next beat with hits to fire, from the groove, the fill or both.
 #[derive(Clone, Copy, Debug)]
 struct Pending {
     beat: f64,
     frame: u64,
-    origin: f64,
-    index: usize,
-    in_fill: bool,
 }
 
 pub(crate) struct Sequencer {
@@ -133,7 +143,8 @@ impl Sequencer {
         self.fill = Some(ActiveFill {
             index,
             start,
-            end: start + groove.fills[index].beats(),
+            resume: start + beats_per_bar,
+            end: start + groove.fills[index].beats().max(beats_per_bar),
         });
         self.reschedule(groove);
     }
@@ -149,14 +160,14 @@ impl Sequencer {
             if pending.frame > self.frame {
                 break;
             }
-            let pattern = self.pattern_of(groove, pending.in_fill);
-            let hits = pattern.hits();
-            let mut index = pending.index;
-            while index < hits.len() && pending.origin + hits[index].beat == pending.beat {
-                on_hit(hits[index]);
-                index += 1;
+            let beat = pending.beat;
+            if let Some(cursor) = self.next_groove(groove, beat, true) {
+                fire_at(&groove.beat, cursor, beat, &mut on_hit);
             }
-            self.pending = self.next_after(groove, pending.beat, false);
+            if let Some((fill, cursor)) = self.next_fill(groove, beat, true) {
+                fire_at(&groove.fills[fill.index], cursor, beat, &mut on_hit);
+            }
+            self.pending = self.next_after(groove, beat, false);
         }
     }
 
@@ -181,7 +192,7 @@ impl Sequencer {
     }
 
     fn in_fill(&self) -> bool {
-        self.fill.is_some_and(|f| self.current_beat() < f.end)
+        self.fill.is_some_and(|f| self.current_beat() < f.resume)
     }
 
     fn current_beat(&self) -> f64 {
@@ -208,65 +219,76 @@ impl Sequencer {
         self.pending = self.next_after(groove, played_until, false);
     }
 
-    fn pattern_of<'g>(&self, groove: &'g Groove, in_fill: bool) -> &'g DrumPattern {
-        match (in_fill, self.fill) {
-            (true, Some(fill)) => &groove.fills[fill.index],
-            _ => &groove.beat,
+    /// Next groove hit, skipping the bar a fill takes over.
+    fn next_groove(&self, groove: &Groove, from: f64, inclusive: bool) -> Option<Cursor> {
+        let found = loop_next(&groove.beat, from, inclusive)?;
+        match self.fill {
+            Some(fill) if found.beat >= fill.start && found.beat < fill.resume => {
+                loop_next(&groove.beat, fill.resume, true)
+            }
+            _ => Some(found),
         }
     }
 
-    fn next_after(&self, groove: &Groove, from: f64, inclusive: bool) -> Option<Pending> {
-        let found = match self.fill {
-            Some(fill) if from < fill.end => {
-                let before_fill = if from < fill.start {
-                    loop_next(&groove.beat, from, inclusive).filter(|p| p.beat < fill.start)
-                } else {
-                    None
-                };
-                before_fill.or_else(|| {
-                    let (from, inclusive) = if from < fill.start {
-                        (fill.start, true)
-                    } else {
-                        (from, inclusive)
-                    };
-                    once_next(&groove.fills[fill.index], fill.start, from, inclusive)
-                        .filter(|p| p.beat < fill.end)
-                        .or_else(|| loop_next(&groove.beat, fill.end, true))
-                })
-            }
-            _ => loop_next(&groove.beat, from, inclusive),
+    /// Next hit of the active fill, if one is still to play.
+    fn next_fill(
+        &self,
+        groove: &Groove,
+        from: f64,
+        inclusive: bool,
+    ) -> Option<(ActiveFill, Cursor)> {
+        let fill = self.fill?;
+        let (from, inclusive) = if from < fill.start {
+            (fill.start, true)
+        } else {
+            (from, inclusive)
         };
-        found.map(|mut p| {
-            p.frame = self.frame_of(p.beat);
-            p
+        once_next(&groove.fills[fill.index], fill.start, from, inclusive)
+            .filter(|c| c.beat < fill.end)
+            .map(|c| (fill, c))
+    }
+
+    fn next_after(&self, groove: &Groove, from: f64, inclusive: bool) -> Option<Pending> {
+        let groove_beat = self.next_groove(groove, from, inclusive).map(|c| c.beat);
+        let fill_beat = self.next_fill(groove, from, inclusive).map(|(_, c)| c.beat);
+        let beat = match (groove_beat, fill_beat) {
+            (Some(g), Some(f)) => g.min(f),
+            (g, f) => g.or(f)?,
+        };
+        Some(Pending {
+            beat,
+            frame: self.frame_of(beat),
         })
     }
 }
 
+/// Fires every hit of `pattern` from `cursor` that sits exactly on `beat`.
+fn fire_at(pattern: &DrumPattern, cursor: Cursor, beat: f64, on_hit: &mut impl FnMut(DrumHit)) {
+    let hits = pattern.hits();
+    let mut index = cursor.index;
+    while index < hits.len() && cursor.origin + hits[index].beat == beat {
+        on_hit(hits[index]);
+        index += 1;
+    }
+}
+
 /// Next hit of `pattern` played once from `origin`.
-fn once_next(pattern: &DrumPattern, origin: f64, from: f64, inclusive: bool) -> Option<Pending> {
+fn once_next(pattern: &DrumPattern, origin: f64, from: f64, inclusive: bool) -> Option<Cursor> {
     let index = pattern.first_from(origin, from, inclusive);
-    pattern.hits().get(index).map(|hit| Pending {
+    pattern.hits().get(index).map(|hit| Cursor {
         beat: origin + hit.beat,
-        frame: 0,
         origin,
         index,
-        in_fill: true,
     })
 }
 
 /// Next hit of `pattern` looping forever from beat 0.
-fn loop_next(pattern: &DrumPattern, from: f64, inclusive: bool) -> Option<Pending> {
+fn loop_next(pattern: &DrumPattern, from: f64, inclusive: bool) -> Option<Cursor> {
     if pattern.hits().is_empty() {
         return None;
     }
     let length = pattern.beats();
     let first_loop = ((from / length).floor().max(0.0) as u64).saturating_sub(1);
-    (first_loop..first_loop + 3).find_map(|turn| {
-        let origin = turn as f64 * length;
-        once_next(pattern, origin, from, inclusive).map(|p| Pending {
-            in_fill: false,
-            ..p
-        })
-    })
+    (first_loop..first_loop + 3)
+        .find_map(|turn| once_next(pattern, turn as f64 * length, from, inclusive))
 }

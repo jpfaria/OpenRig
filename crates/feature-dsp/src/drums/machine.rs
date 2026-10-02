@@ -153,7 +153,7 @@ fn start_hit(
     };
     *counter = counter.wrapping_add(1);
     if let Some(group) = piece.choke_group {
-        voices.choke(group, choke_fade);
+        voices.choke(group, role, choke_fade);
     }
     let gain = velocity * piece.layers[layer].gain * piece.gain;
     let (pan_l, pan_r) = pan_gains(piece.pan);

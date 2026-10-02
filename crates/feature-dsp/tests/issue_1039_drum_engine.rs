@@ -554,3 +554,64 @@ fn replacing_the_groove_hands_back_the_old_one_and_keeps_the_beat() {
     let (l, _) = render(&mut m, 12_001);
     assert_eq!(onset_levels(&l), vec![(12_000, 0.5)]);
 }
+
+#[test]
+fn a_fill_lands_on_the_next_downbeat_together_with_the_groove() {
+    let kit = kit_with(
+        vec![
+            (DrumRole::Kick, piece(impulse(1.0))),
+            (DrumRole::Snare, piece(impulse(0.5))),
+            (DrumRole::Crash, piece(impulse(0.2))),
+        ],
+        48_000,
+    );
+    let mut fill: Vec<DrumHit> = (0..4)
+        .map(|b| hit(b as f64, DrumRole::Snare, 1.0))
+        .collect();
+    fill.push(hit(4.0, DrumRole::Crash, 1.0));
+    let mut m = DrumMachine::new(
+        48_000.0,
+        kit,
+        groove(
+            four_on_the_floor(DrumRole::Kick),
+            vec![DrumPattern::new(5.0, fill)],
+        ),
+        settings(120.0),
+    );
+    m.play();
+    let (head, _) = render(&mut m, 36_000);
+    m.trigger_fill();
+    let (tail, _) = render(&mut m, 120_000 - 36_000 + 1);
+    assert!(!m.position().in_fill, "the landing bar is the groove again");
+    let mut all = head;
+    all.extend(tail);
+    assert_eq!(
+        onset_levels(&all),
+        vec![
+            (0, 1.0),
+            (24_000, 1.0),
+            (48_000, 0.5),
+            (72_000, 0.5),
+            (96_000, 1.2),
+            (120_000, 1.0),
+        ]
+    );
+}
+
+#[test]
+fn a_re_hit_cymbal_keeps_its_previous_hit_ringing() {
+    let mut crash = piece(samples(1.0, 96_000));
+    crash.choke_group = Some(2);
+    let kit = kit_with(vec![(DrumRole::Crash, crash)], 48_000);
+    let pattern = DrumPattern::new(
+        4.0,
+        vec![
+            hit(0.0, DrumRole::Crash, 1.0),
+            hit(1.0, DrumRole::Crash, 1.0),
+        ],
+    );
+    let mut m = DrumMachine::new(48_000.0, kit, groove(pattern, vec![]), settings(120.0));
+    m.play();
+    let (l, _) = render(&mut m, 48_000);
+    assert!((l[30_000] - 2.0 * CENTER).abs() < 1e-5, "{}", l[30_000]);
+}

@@ -1,6 +1,7 @@
 //! Responsibility: manages the fixed pool of sounding drum voices.
 
 use super::kit::DrumKit;
+use super::role::DrumRole;
 use super::voice::Voice;
 
 pub const MAX_VOICES: usize = 64;
@@ -36,10 +37,11 @@ impl VoicePool {
         self.voices[slot] = voice;
     }
 
-    /// Fades out every sounding voice of `group`.
-    pub fn choke(&mut self, group: u8, fade_len: u32) {
+    /// Fades out every sounding voice of `group` played by another role, so
+    /// a re-hit piece keeps its previous hit ringing.
+    pub fn choke(&mut self, group: u8, by: DrumRole, fade_len: u32) {
         for voice in self.voices.iter_mut() {
-            if voice.active && voice.choke_group == Some(group) {
+            if voice.active && voice.choke_group == Some(group) && voice.role != by {
                 voice.choke(fade_len);
             }
         }

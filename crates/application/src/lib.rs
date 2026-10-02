@@ -22,6 +22,7 @@ pub mod command;
 pub mod command_schema;
 pub mod di_loader;
 pub mod dispatcher;
+pub mod drums;
 pub mod event;
 mod event_scope;
 pub mod event_sink;
