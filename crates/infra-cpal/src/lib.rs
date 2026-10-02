@@ -184,7 +184,6 @@ mod input_evidence;
 pub use input_evidence::{
     CycleRecord, InputEvidenceSnapshot, InputStreamIdentity, SteppedInputEvidence, StreamEvidence,
 };
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 mod drums_callback;
 mod drums_stream;
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
