@@ -24,7 +24,7 @@ fn every_drums_control_dispatches_its_command() {
     let (w, sent) = wired();
     let bridge = DrumsBridge::get(&w);
     bridge.invoke_toggle_enabled(true);
-    bridge.invoke_toggle_play();
+    bridge.invoke_toggle_enabled(false);
     bridge.invoke_fill();
     bridge.invoke_set_bpm(132.0);
     bridge.invoke_set_volume(0.25);
@@ -34,8 +34,8 @@ fn every_drums_control_dispatches_its_command() {
     assert_eq!(
         *sent.borrow(),
         vec![
-            format!("{:?}", DrumsCommand::SetDrumsEnabled { enabled: true }),
-            format!("{:?}", DrumsCommand::ToggleDrums),
+            format!("{:?}", DrumsCommand::PlayDrums),
+            format!("{:?}", DrumsCommand::SetDrumsEnabled { enabled: false }),
             format!("{:?}", DrumsCommand::TriggerDrumFill),
             format!("{:?}", DrumsCommand::SetDrumsBpm { bpm: 132.0 }),
             format!("{:?}", DrumsCommand::SetDrumsVolume { volume: 0.25 }),

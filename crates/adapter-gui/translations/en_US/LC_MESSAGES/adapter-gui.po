@@ -1160,14 +1160,6 @@ msgid "label-drums-bar"
 msgstr "BAR {}"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-play"
-msgstr "PLAY"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-stop"
-msgstr "STOP"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "action-drums-fill"
 msgstr "FILL"
 

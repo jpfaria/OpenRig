@@ -1167,14 +1167,6 @@ msgid "label-drums-bar"
 msgstr "COMPASSO {}"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-play"
-msgstr "TOCAR"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-stop"
-msgstr "PARAR"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "action-drums-fill"
 msgstr "VIRADA"
 

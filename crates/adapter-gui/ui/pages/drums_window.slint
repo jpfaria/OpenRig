@@ -1,10 +1,11 @@
 // Responsibility: renders the drum machine panel.
 // The metronome's visual language: a stompbox header with a power switch, an
 // amber LCD carrying the tempo and the beat of the bar, then the pickers, the
-// two footswitches and the knobs. The panel reads `DrumsBridge`, so the same
-// component serves the standalone window, the inline fullscreen/touch overlay
-// and — with `embedded` — the compact chain view's DRUMS section, where the
-// section header replaces the panel's own.
+// FILL footswitch and the knobs. POWER is the one transport switch. The panel
+// reads `DrumsBridge`, so the same component serves the standalone window, the
+// inline fullscreen/touch overlay and — with `embedded` — the compact chain
+// view's DRUMS section, where the section header replaces the panel's own and
+// POWER moves next to FILL.
 import { ScrollView } from "std-widgets.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { PowerFootSwitch, BeatLamp, ControlCell } from "../components/metronome_controls.slint";
@@ -45,8 +46,8 @@ export component DrumsPanel inherits Rectangle {
 
         PowerFootSwitch {
             x: 14px; y: (72px - self.height) / 2;
-            active: DrumsBridge.enabled;
-            toggled => { DrumsBridge.toggle-enabled(!DrumsBridge.enabled); }
+            active: DrumsBridge.playing;
+            toggled => { DrumsBridge.toggle-enabled(!DrumsBridge.playing); }
         }
 
         Image {
@@ -199,10 +200,14 @@ export component DrumsPanel inherits Rectangle {
             height: 108px;
             alignment: space-around;
 
-            DrumFootSwitch {
-                caption: DrumsBridge.playing ? @tr("action-drums-stop") : @tr("action-drums-play");
-                active: DrumsBridge.playing;
-                pressed => { DrumsBridge.toggle-play(); }
+            // Embedded, there is no header to carry POWER.
+            if root.embedded : Rectangle {
+                width: 72px;
+                PowerFootSwitch {
+                    x: (parent.width - self.width) / 2; y: 12px;
+                    active: DrumsBridge.playing;
+                    toggled => { DrumsBridge.toggle-enabled(!DrumsBridge.playing); }
+                }
             }
 
             DrumFootSwitch {

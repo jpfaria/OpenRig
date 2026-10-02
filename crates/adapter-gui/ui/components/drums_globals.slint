@@ -44,8 +44,8 @@ export global DrumsBridge {
     // ── Intent, routed to the dispatcher by the wiring ──
     callback open-drums-window();
     callback close-drums();
+    // POWER: true plays, false stops and closes the output.
     callback toggle-enabled(bool);
-    callback toggle-play();
     callback fill();
     callback set-bpm(float);
     callback set-volume(float);

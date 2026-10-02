@@ -88,8 +88,12 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   read the `DrumsBridge` global and drive the one global drum machine.
 - **What**: POWER, an LCD with a lamp per beat of the groove's bar, the tempo,
   the bar and FILL while a fill plays; KIT and GROOVE pickers (grooves under a
-  header per genre, in library order); PLAY/STOP and FILL footswitches (FILL
-  only while playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
+  header per genre, in library order); the FILL footswitch (only while
+  playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
+- **POWER** is the one transport switch: on sends `PlayDrums` (opens the
+  output and plays), off sends `SetDrumsEnabled { false }` (stops and closes
+  it), and it is lit while the groove plays. In the compact view, which has no
+  panel header, POWER sits next to FILL.
   Every picker list opens with a search box that narrows it as you type
   (`drums_picker_filter.rs`; a genre header stays while a groove under it
   matches, and typing the genre keeps the whole genre).

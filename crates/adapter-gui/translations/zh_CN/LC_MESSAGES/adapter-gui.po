@@ -1153,14 +1153,6 @@ msgid "label-drums-bar"
 msgstr "小节 {}"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-play"
-msgstr "播放"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-stop"
-msgstr "停止"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "action-drums-fill"
 msgstr "加花"
 

@@ -1154,14 +1154,6 @@ msgid "label-drums-bar"
 msgstr "बार {}"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-play"
-msgstr "चलाएँ"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
-msgid "action-drums-stop"
-msgstr "रोकें"
-
-#: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "action-drums-fill"
 msgstr "फ़िल"
 

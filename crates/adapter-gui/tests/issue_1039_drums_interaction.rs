@@ -76,31 +76,33 @@ const FIELD: &str = "DrumPickerField::ta";
 const ROW: &str = "DrumPickRowView::ta";
 
 #[test]
-fn power_play_and_fill_fire_their_callbacks() {
+fn power_is_the_only_transport_switch_and_fill_fires_while_playing() {
     let w = window();
     let bridge = DrumsBridge::get(&w);
-    let powered = Rc::new(Cell::new(None));
+    let powered = Rc::new(RefCell::new(Vec::new()));
     let p = powered.clone();
-    bridge.on_toggle_enabled(move |on| p.set(Some(on)));
-    let plays = Rc::new(Cell::new(0));
-    let pl = plays.clone();
-    bridge.on_toggle_play(move || pl.set(pl.get() + 1));
+    bridge.on_toggle_enabled(move |on| p.borrow_mut().push(on));
     let fills = Rc::new(Cell::new(0));
     let f = fills.clone();
     bridge.on_fill(move || f.set(f.get() + 1));
 
+    assert_eq!(count(&w, FOOTSWITCH), 1, "FILL is the only footswitch");
     assert!(click(&w, "PowerFootSwitch::ta", 0));
-    assert_eq!(powered.get(), Some(true), "POWER while off asks to open");
-
-    assert_eq!(count(&w, FOOTSWITCH), 2, "PLAY/STOP and FILL");
-    assert!(click(&w, FOOTSWITCH, 0));
-    assert_eq!(plays.get(), 1);
+    assert_eq!(*powered.borrow(), vec![true], "POWER while silent plays");
+    bridge.set_playing(true);
+    assert!(click(&w, "PowerFootSwitch::ta", 0));
+    assert_eq!(
+        *powered.borrow(),
+        vec![true, false],
+        "POWER while playing turns it off"
+    );
 
     // A fill only lands on a running groove.
-    assert!(click(&w, FOOTSWITCH, 1));
+    bridge.set_playing(false);
+    assert!(click(&w, FOOTSWITCH, 0));
     assert_eq!(fills.get(), 0, "FILL is inert while stopped");
     bridge.set_playing(true);
-    assert!(click(&w, FOOTSWITCH, 1));
+    assert!(click(&w, FOOTSWITCH, 0));
     assert_eq!(fills.get(), 1);
 }
 
@@ -178,20 +180,20 @@ fn the_compact_view_drums_section_lays_the_same_controls_flat() {
     w.window().set_size(slint::LogicalSize::new(1100.0, 900.0));
     w.set_chain_enabled(true);
     w.show().unwrap();
-    let plays = Rc::new(Cell::new(0));
-    let pl = plays.clone();
-    DrumsBridge::get(&w).on_toggle_play(move || pl.set(pl.get() + 1));
+    let powered = Rc::new(RefCell::new(Vec::new()));
+    let p = powered.clone();
+    DrumsBridge::get(&w).on_toggle_enabled(move |on| p.borrow_mut().push(on));
 
     assert_eq!(count(&w, FOOTSWITCH), 0, "the section opens collapsed");
     assert!(click(&w, "CompactChainSections::drums-toggle", 0));
-    assert_eq!(count(&w, FOOTSWITCH), 2);
+    assert_eq!(count(&w, FOOTSWITCH), 1, "FILL only");
     assert_eq!(
         count(&w, "PowerFootSwitch::ta"),
-        0,
-        "the section header names it; no panel header inside"
+        1,
+        "no panel header inside, so POWER sits with the footswitches"
     );
-    assert!(click(&w, FOOTSWITCH, 0));
-    assert_eq!(plays.get(), 1);
+    assert!(click(&w, "PowerFootSwitch::ta", 0));
+    assert_eq!(*powered.borrow(), vec![true]);
 }
 
 #[test]

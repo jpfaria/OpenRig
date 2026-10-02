@@ -16,9 +16,14 @@ pub(crate) type DrumsDispatch = Rc<dyn Fn(DrumsCommand)>;
 /// Route every control on `bridge` through `dispatch`.
 pub(crate) fn wire_drums_intents(bridge: &DrumsBridge, dispatch: DrumsDispatch) {
     let d = dispatch.clone();
-    bridge.on_toggle_enabled(move |enabled| d(DrumsCommand::SetDrumsEnabled { enabled }));
-    let d = dispatch.clone();
-    bridge.on_toggle_play(move || d(DrumsCommand::ToggleDrums));
+    // POWER is the one transport switch: on plays, off stops and closes.
+    bridge.on_toggle_enabled(move |on| {
+        d(if on {
+            DrumsCommand::PlayDrums
+        } else {
+            DrumsCommand::SetDrumsEnabled { enabled: false }
+        })
+    });
     let d = dispatch.clone();
     bridge.on_fill(move || d(DrumsCommand::TriggerDrumFill));
     let d = dispatch.clone();
