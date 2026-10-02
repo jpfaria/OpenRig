@@ -250,6 +250,10 @@ mod render_scheduling_903;
 mod looper_speed;
 
 #[cfg(test)]
+#[path = "looper_playback_length_tests.rs"]
+mod looper_playback_length;
+
+#[cfg(test)]
 #[path = "looper_enabled_tests.rs"]
 mod looper_enabled;
 

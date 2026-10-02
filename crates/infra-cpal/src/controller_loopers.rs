@@ -67,7 +67,7 @@ pub(crate) fn looper_playback_pcm(
         LooperSpeed::Normal => sample_rate,
         LooperSpeed::Double => sample_rate.saturating_mul(2),
     };
-    DiPcm::new(samples, read_rate.max(1), 2)
+    DiPcm::new(samples, read_rate.max(1), 2).without_seam_crossfade()
 }
 
 #[cfg(test)]
