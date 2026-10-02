@@ -58,7 +58,7 @@ Princípios gerais de UI (responsividade, separação business/presentation, zer
 }
 ```
 
-A consequência prática para o catálogo OpenRig: cada novo brand exige tocar a chain de ternários nos componentes que renderizam a logo. Isso é uma **exceção autorizada** ao "zero coupling" — Slint não tem outra forma. Centralize a chain em UM componente (`BrandLogo.slint`) para minimizar pontos de toque.
+A consequência prática para o catálogo OpenRig: cada novo brand exige tocar a chain de ternários nos componentes que renderizam a logo. Isso é uma **exceção autorizada** ao "zero coupling" — Slint não tem outra forma. Centralize a chain em UM componente (`BrandLogo`, em `ui/components/brand_logo.slint`) para minimizar pontos de toque.
 
 ## Não hardcode cores/fontes por `model_id` em Slint
 
@@ -289,13 +289,13 @@ ui.on_clicked(move || {
 ```slint
 // ✅ Ternário para seleção condicional
 Image {
-    source: root.model-id == "amp_a"
-        ? @image-url("../assets/amp_a/controls.svg")
-        : @image-url("../assets/generic/controls.svg");
+    source: root.model-id == "analog_warm"
+        ? @image-url("../assets/models/analog_warm.svg")
+        : @image-url("../assets/models/digital_clean.svg");
 }
 
 // ❌ Impossível — @image-url não aceita variável
-// Image { source: @image-url(root.model-id + "/controls.svg"); }
+// Image { source: @image-url("../assets/models/" + root.model-id + ".svg"); }
 ```
 
 Para muitos modelos, use if/else encadeado ou componentes separados por tipo.
