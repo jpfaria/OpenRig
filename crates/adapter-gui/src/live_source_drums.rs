@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::live_source::LiveSource;
 use feature_dsp::drums::DrumPosition;
 use infra_cpal::ProjectRuntimeController;
 
@@ -20,3 +21,28 @@ pub(crate) fn drums_position(
     }
     Some(controller.drums_shared().position())
 }
+
+/// The drums are their own pipeline, so their read seam carries only the
+/// runtime handle — no chain, row or analyzer.
+struct DrumsLiveSource {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LiveSource for DrumsLiveSource {
+    fn drums(&self) -> Option<DrumPosition> {
+        drums_position(&self.runtime)
+    }
+}
+
+/// Build the drums' read seam over the app's shared runtime handle.
+pub(crate) fn drums_live_source(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Rc<dyn LiveSource> {
+    Rc::new(DrumsLiveSource {
+        runtime: Rc::clone(runtime),
+    })
+}
+
+#[cfg(test)]
+#[path = "live_source_drums_tests.rs"]
+mod tests;

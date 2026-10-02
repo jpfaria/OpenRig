@@ -1,0 +1,195 @@
+//! Headless proof that the drum machine's controls respond to a pointer, both
+//! in its own window and laid flat in the compact chain view's DRUMS section.
+//! A PNG proves layout only; these press the real TouchAreas and check the
+//! callback the Rust wiring listens to.
+
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use adapter_gui::{CompactChainViewWindow, DrumPickRow, DrumsBridge, DrumsWindow};
+use i_slint_backend_testing::ElementHandle;
+use slint::platform::{PointerEventButton, WindowEvent};
+use slint::{ComponentHandle, Global, LogicalPosition, ModelRc, VecModel};
+
+fn click(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
+    click_at(w, id, nth, 0.5)
+}
+
+/// Presses `id` at its horizontal centre, `down` of the way from its top.
+fn click_at(w: &impl ComponentHandle, id: &str, nth: usize, down: f32) -> bool {
+    let Some(el) = ElementHandle::find_by_element_id(w, id).nth(nth) else {
+        return false;
+    };
+    let (pos, size) = (el.absolute_position(), el.size());
+    let at = LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height * down);
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: at });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: at,
+        button: PointerEventButton::Left,
+    });
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: at,
+        button: PointerEventButton::Left,
+    });
+    win.dispatch_event(WindowEvent::PointerExited);
+    true
+}
+
+fn count(w: &impl ComponentHandle, id: &str) -> usize {
+    ElementHandle::find_by_element_id(w, id).count()
+}
+
+fn row(key: &str, label: &str, header: bool) -> DrumPickRow {
+    DrumPickRow {
+        key: key.into(),
+        label: label.into(),
+        header,
+    }
+}
+
+fn rows(items: Vec<DrumPickRow>) -> ModelRc<DrumPickRow> {
+    ModelRc::new(VecModel::from(items))
+}
+
+fn window() -> DrumsWindow {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = DrumsWindow::new().unwrap();
+    let bridge = DrumsBridge::get(&w);
+    bridge.set_kit_rows(rows(vec![
+        row("black-pearl", "Black Pearl", false),
+        row("red", "Red Zeppelin", false),
+    ]));
+    bridge.set_groove_rows(rows(vec![
+        row("", "rock", true),
+        row("rock-01", "Rock 1", false),
+        row("", "jazz", true),
+        row("jazz-01", "Jazz 1", false),
+    ]));
+    bridge.set_output_rows(rows(vec![row("main\u{1f}Out", "Main · Out", false)]));
+    w.show().unwrap();
+    w
+}
+
+const FOOTSWITCH: &str = "DrumFootSwitch::ta";
+const FIELD: &str = "DrumPickerField::ta";
+const ROW: &str = "DrumPickRowView::ta";
+
+#[test]
+fn power_play_and_fill_fire_their_callbacks() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    let powered = Rc::new(Cell::new(None));
+    let p = powered.clone();
+    bridge.on_toggle_enabled(move |on| p.set(Some(on)));
+    let plays = Rc::new(Cell::new(0));
+    let pl = plays.clone();
+    bridge.on_toggle_play(move || pl.set(pl.get() + 1));
+    let fills = Rc::new(Cell::new(0));
+    let f = fills.clone();
+    bridge.on_fill(move || f.set(f.get() + 1));
+
+    assert!(click(&w, "PowerFootSwitch::ta", 0));
+    assert_eq!(powered.get(), Some(true), "POWER while off asks to open");
+
+    assert_eq!(count(&w, FOOTSWITCH), 2, "PLAY/STOP and FILL");
+    assert!(click(&w, FOOTSWITCH, 0));
+    assert_eq!(plays.get(), 1);
+
+    // A fill only lands on a running groove.
+    assert!(click(&w, FOOTSWITCH, 1));
+    assert_eq!(fills.get(), 0, "FILL is inert while stopped");
+    bridge.set_playing(true);
+    assert!(click(&w, FOOTSWITCH, 1));
+    assert_eq!(fills.get(), 1);
+}
+
+#[test]
+fn the_kit_field_opens_a_list_and_a_row_picks_that_kit() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    let picked = Rc::new(RefCell::new(None));
+    let p = picked.clone();
+    bridge.on_pick_kit(move |key| *p.borrow_mut() = Some(key.to_string()));
+
+    assert_eq!(count(&w, FIELD), 3, "kit, groove and output fields");
+    assert!(click(&w, FIELD, 0));
+    assert_eq!(count(&w, ROW), 2);
+    assert!(click(&w, ROW, 1));
+    assert_eq!(picked.borrow().as_deref(), Some("red"));
+    assert_eq!(count(&w, ROW), 0, "picking closes the list");
+}
+
+#[test]
+fn the_groove_list_shows_genre_headers_that_are_not_choices() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    let picked = Rc::new(RefCell::new(None));
+    let p = picked.clone();
+    bridge.on_pick_groove(move |key| *p.borrow_mut() = Some(key.to_string()));
+
+    assert!(click(&w, FIELD, 1));
+    assert_eq!(
+        count(&w, "DrumPickRowView::genre"),
+        2,
+        "rock and jazz headers"
+    );
+    assert_eq!(count(&w, ROW), 2, "only the grooves are clickable");
+    assert!(click(&w, ROW, 1));
+    assert_eq!(picked.borrow().as_deref(), Some("jazz-01"));
+}
+
+#[test]
+fn the_output_field_asks_for_endpoints_and_a_row_picks_one() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    let opened = Rc::new(Cell::new(0));
+    let o = opened.clone();
+    bridge.on_output_opened(move || o.set(o.get() + 1));
+    let picked = Rc::new(RefCell::new(None));
+    let p = picked.clone();
+    bridge.on_pick_output(move |key| *p.borrow_mut() = Some(key.to_string()));
+
+    assert!(click(&w, FIELD, 2));
+    assert_eq!(opened.get(), 1);
+    assert!(click(&w, ROW, 0));
+    assert_eq!(picked.borrow().as_deref(), Some("main\u{1f}Out"));
+}
+
+#[test]
+fn a_click_outside_the_list_closes_it_without_picking() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    let picked = Rc::new(Cell::new(false));
+    let p = picked.clone();
+    bridge.on_pick_kit(move |_| p.set(true));
+
+    assert!(click(&w, FIELD, 0));
+    // The list box sits near the top; the scrim's bottom edge is outside it.
+    assert!(click_at(&w, "DrumsPanel::scrim", 0, 0.97));
+    assert_eq!(count(&w, ROW), 0);
+    assert!(!picked.get());
+}
+
+#[test]
+fn the_compact_view_drums_section_lays_the_same_controls_flat() {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = CompactChainViewWindow::new().unwrap();
+    w.window().set_size(slint::LogicalSize::new(1100.0, 900.0));
+    w.set_chain_enabled(true);
+    w.show().unwrap();
+    let plays = Rc::new(Cell::new(0));
+    let pl = plays.clone();
+    DrumsBridge::get(&w).on_toggle_play(move || pl.set(pl.get() + 1));
+
+    assert_eq!(count(&w, FOOTSWITCH), 0, "the section opens collapsed");
+    assert!(click(&w, "CompactChainSections::drums-toggle", 0));
+    assert_eq!(count(&w, FOOTSWITCH), 2);
+    assert_eq!(
+        count(&w, "PowerFootSwitch::ta"),
+        0,
+        "the section header names it; no panel header inside"
+    );
+    assert!(click(&w, FOOTSWITCH, 0));
+    assert_eq!(plays.get(), 1);
+}

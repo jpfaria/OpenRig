@@ -77,3 +77,20 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   handed to the callback lock-free; a newer load overtakes an older one, and
   a kit at the wrong rate is never played. The JACK backend has no drum
   output yet.
+
+## Panel (`crates/adapter-gui`)
+
+- **Where**: the drum icon on the top bar opens `DrumsWindow` (windowed
+  desktop) or the inline panel (fullscreen / touch); the Compact Chain View
+  has a DRUMS section with the same panel, without its header. All of them
+  read the `DrumsBridge` global and drive the one global drum machine.
+- **What**: POWER, an LCD with a lamp per beat of the groove's bar, the tempo,
+  the bar and FILL while a fill plays; KIT and GROOVE pickers (grooves under a
+  header per genre, in library order); PLAY/STOP and FILL footswitches (FILL
+  only while playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
+- **Wiring**: `drums_intents.rs` maps each control to its `DrumsCommand`;
+  `drums_view.rs` builds what the panel shows from the snapshot, the library
+  and the project's output endpoints; `drums_wiring.rs` (window and inline)
+  and `compact_drums_wiring.rs` (each compact view) redraw when the
+  dispatcher's state changes and move the lamps from `LiveSource::drums`
+  every frame.

@@ -1,7 +1,7 @@
 // Responsibility: renders the compact view's accordion of chain sections.
-// #1022 — Mixer, DI, Looper, Doctor and Meters stack at the bottom of the
-// compact chain view, each behind a `SectionToggle` header (the mixer's shape,
-// #1007). One section is open at a time; opening another closes it, and a
+// Mixer, DI, Looper, Doctor, Meters and Drums stack at the bottom of the
+// compact chain view, each behind a `SectionToggle` header (the mixer's shape).
+// One section is open at a time; opening another closes it, and a
 // second click on the open one closes it. Every section opens collapsed. The
 // bodies are `if`-built, so a closed section leaves nothing in the tree.
 
@@ -16,6 +16,7 @@ import { ToneDoctorState } from "tone_doctor_globals.slint";
 import { LooperPanelView } from "looper_panel.slint";
 import { LooperPanel, LooperTake } from "looper_panel_globals.slint";
 import { CompactLooper } from "compact_looper_globals.slint";
+import { DrumsPanel } from "../pages/drums_window.slint";
 
 // The header strip every non-mixer section shares: a 1px rule, then the toggle.
 component SectionHeader inherits Rectangle {
@@ -77,7 +78,7 @@ export component CompactChainSections inherits Rectangle {
     callback tone-doctor-run(int);
     callback tone-doctor-apply(int);
 
-    // Which section is open: 0 mixer, 1 DI, 2 looper, 3 doctor, 4 meters.
+    // Which section is open: 0 mixer, 1 DI, 2 looper, 3 doctor, 4 meters, 5 drums.
     in-out property <int> open: -1;
     // What the host reserves at the bottom of the view.
     out property <length> total-height: layout.preferred-height;
@@ -249,6 +250,24 @@ export component CompactChainSections inherits Rectangle {
                 // #717: the DI's own IN/OUT meter shows as one more row while it plays.
                 di-playing: root.di-loop-playing;
                 di-meter: root.di-graph-meter;
+            }
+        }
+
+        // The global drum machine, the same panel its window shows, laid flat.
+        drums-toggle := SectionHeader {
+            title: @tr("label-drums");
+            icon: @image-url("../assets/drums.svg");
+            expanded: root.open == 5;
+            toggled(e) => { root.pick(5, e); }
+        }
+        if root.open == 5 : SectionBody {
+            content-height: drums.content-height;
+            body-max-height: root.max-body-height;
+            drums := DrumsPanel {
+                x: 16px; y: 8px;
+                width: root.width - 32px;
+                height: self.content-height;
+                embedded: true;
             }
         }
     }
