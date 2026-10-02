@@ -6,6 +6,7 @@ use crate::input_tap::InputTap;
 use crate::runtime_state::ChainRuntimeState;
 use crate::spsc::SpscRing;
 use crate::stream_tap::StreamTap;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 impl ChainRuntimeState {
@@ -27,17 +28,37 @@ impl ChainRuntimeState {
         subscribed_channels: &[usize],
         capacity_per_channel: usize,
     ) -> Vec<Arc<SpscRing<f32>>> {
+        self.subscribe_input_tap_stamped(
+            input_index,
+            total_channels,
+            subscribed_channels,
+            capacity_per_channel,
+        )
+        .0
+    }
+
+    /// [`Self::subscribe_input_tap`] plus the host-clock capture time (ns) of
+    /// the buffer the tap's first sample came in — 0 until it is known. What
+    /// lets a recording place its first sample on the shared loop timeline.
+    pub fn subscribe_input_tap_stamped(
+        &self,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> (Vec<Arc<SpscRing<f32>>>, Arc<AtomicU64>) {
         let (tap, handles) = InputTap::new(
             input_index,
             total_channels,
             subscribed_channels,
             capacity_per_channel,
         );
+        let first_capture_ns = Arc::clone(&tap.first_capture_ns);
         let mut new_taps: Vec<Arc<InputTap>> =
             self.input_taps.load_full().iter().cloned().collect();
         new_taps.push(Arc::new(tap));
         self.input_taps.store(Arc::new(new_taps));
-        handles
+        (handles, first_capture_ns)
     }
 
     /// Subscribe a consumer to the post-FX, pre-mixdown stereo samples

@@ -49,6 +49,8 @@ struct LoopEntry {
     /// only — the audio thread never sees these.
     edit_undo: Vec<Vec<f32>>,
     edit_redo: Vec<Vec<f32>>,
+    /// The take being recorded, until it is placed on the shared timeline.
+    take: Option<sync::Take>,
 }
 
 impl LoopEntry {
@@ -63,6 +65,7 @@ impl LoopEntry {
             enabled: true,
             edit_undo: Vec::new(),
             edit_redo: Vec::new(),
+            take: None,
         }
     }
 }
@@ -103,6 +106,10 @@ pub struct LooperStore {
     /// Live device rate — sizes each slot's max recording length. Defaults to
     /// 48 kHz until the controller sets the resolved rate.
     sample_rate: u32,
+    /// Where presses are read from, in host nanoseconds.
+    clock: sync::LoopClock,
+    /// The top of the cycle every looper of the project follows.
+    anchor_ns: Option<u64>,
 }
 
 impl Default for LooperStore {
@@ -110,6 +117,8 @@ impl Default for LooperStore {
         Self {
             slots: HashMap::new(),
             sample_rate: 48_000,
+            clock: Arc::new(crate::host_clock::now_ns),
+            anchor_ns: None,
         }
     }
 }
@@ -138,12 +147,15 @@ impl LooperStore {
         self.slots.remove(&(chain.clone(), uid));
     }
 
-    /// The record/overdub tap. Allocates the layer buffer HERE (off the audio
-    /// thread) when the tap starts a recording or an overdub; closing needs no
-    /// buffer. Mirrors the audio-thread wiring the bank used to do.
+    /// The record tap. Allocates the layer buffer HERE (off the audio thread)
+    /// when the tap opens a take; closing places it on the shared timeline.
     pub fn tap_record(&mut self, chain: &ChainId, uid: u64) {
+        if self.has_open_take(chain, uid) {
+            self.begin_close(chain, uid, false);
+            return;
+        }
         let max = self.max_frames();
-        let mut just_closed = false;
+        let mut opened = false;
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
             // Single-take looper (#323): REC starts the one recording (Empty) or
             // closes it (Recording → Playing). It does NOT overdub a loop that
@@ -154,11 +166,9 @@ impl LooperStore {
                 LooperState::Empty => {
                     let buffer = vec![0.0f32; max * 2].into_boxed_slice();
                     entry.slot.tap_record(Some(buffer));
+                    opened = entry.slot.state() == LooperState::Recording;
                 }
-                LooperState::Recording => {
-                    entry.slot.tap_record(None);
-                    just_closed = true;
-                }
+                LooperState::Recording => entry.slot.tap_record(None),
                 _ => {}
             }
             drain_retired(&mut entry.slot);
@@ -168,46 +178,8 @@ impl LooperStore {
                 entry.rings.clear();
             }
         }
-        // #323 loop-sync: a freshly closed loop locks to the chain's master.
-        if just_closed {
-            self.sync_to_master(chain, uid);
-        }
-    }
-
-    /// #323 loop-sync: quantize the just-closed loop `uid` to a whole MULTIPLE
-    /// of the chain's MASTER loop (the shortest OTHER loop that has material)
-    /// and restart every playing loop of the chain at 0, so they play locked to
-    /// the same bar. No-op when this is the first loop on the chain (it IS the
-    /// master — nothing to sync to), so a lone loop keeps its natural length.
-    fn sync_to_master(&mut self, chain: &ChainId, uid: u64) {
-        let max = self.max_frames();
-        let master = self
-            .slots
-            .iter()
-            .filter(|((c, u), e)| {
-                c == chain
-                    && *u != uid
-                    && matches!(e.slot.state(), LooperState::Playing | LooperState::Stopped)
-                    && e.slot.len_frames() > 0
-            })
-            .map(|(_, e)| e.slot.len_frames())
-            .min();
-        let Some(master) = master else {
-            return;
-        };
-        // Quantize this loop to the nearest whole multiple of the master (≥1×).
-        if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
-            let captured = entry.slot.len_frames();
-            let mult = ((captured as f64 / master as f64).round() as usize).max(1);
-            entry.slot.set_len_frames((mult * master).min(max));
-        }
-        // Phase-align: restart every playing loop of the chain at 0 together, so
-        // the stack begins the bar in lock-step (the isolated streams re-arm
-        // cold at position 0 on the next reconcile).
-        for ((c, _), e) in self.slots.iter_mut() {
-            if c == chain && matches!(e.slot.state(), LooperState::Playing) {
-                e.slot.restart();
-            }
+        if opened {
+            self.open_take(chain, uid);
         }
     }
 
@@ -215,10 +187,9 @@ impl LooperStore {
     /// A no-op for a loop that is not currently recording.
     pub fn record_frames(&mut self, chain: &ChainId, uid: u64, frames: &[f32]) {
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
-            for f in frames.chunks_exact(2) {
-                let _ = entry.slot.tick([f[0], f[1]]);
-            }
+            Self::feed(entry, frames);
         }
+        self.finish_take_if_complete(chain, uid);
     }
 
     /// Task 2: install the input-tap rings a loop drains while recording. One
@@ -273,9 +244,8 @@ impl LooperStore {
                 }
             }
         }
-        for f in interleaved.chunks_exact(2) {
-            let _ = entry.slot.tick([f[0], f[1]]);
-        }
+        Self::feed(entry, &interleaved);
+        self.finish_take_if_complete(chain, uid);
     }
 
     /// Install a saved loop (interleaved stereo) as the loop's single layer,
@@ -293,6 +263,10 @@ impl LooperStore {
     /// Stop ONE loop — the row's own button, for taking a single loop out of
     /// what is sounding.
     pub fn stop(&mut self, chain: &ChainId, uid: u64) {
+        if self.has_open_take(chain, uid) {
+            self.begin_close(chain, uid, true);
+            return;
+        }
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
             e.slot.stop();
             e.rings.clear();
@@ -300,7 +274,19 @@ impl LooperStore {
     }
 
     /// Play ONE loop — the row's own button, for hearing a single loop.
+    /// Over silence it restarts the shared timeline, so loops started together
+    /// begin at the top together.
     pub fn play(&mut self, chain: &ChainId, uid: u64) {
+        if self.has_open_take(chain, uid) {
+            self.begin_close(chain, uid, false);
+            return;
+        }
+        let idle = self
+            .status(chain, uid)
+            .is_some_and(|s| matches!(s.state, LooperState::Stopped));
+        if idle {
+            self.reanchor_if_silent(chain, uid);
+        }
         self.with_slot(chain, uid, |s| s.play());
     }
 
@@ -358,6 +344,7 @@ impl LooperStore {
             e.slot.clear();
             drain_retired(&mut e.slot);
             e.rings.clear();
+            e.take = None;
         }
         // #826: the edit history describes audio that no longer exists.
         self.clear_edit_history(chain, uid);
@@ -589,6 +576,13 @@ fn drain_retired(slot: &mut LooperSlot) {
     while slot.take_retired().is_some() {}
 }
 
+#[path = "looper_store_sync.rs"]
+mod sync;
+
 #[cfg(test)]
 #[path = "looper_store_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "looper_store_sync_tests.rs"]
+mod sync_tests;
