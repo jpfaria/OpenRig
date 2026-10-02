@@ -22,14 +22,17 @@ pub(crate) struct DrumsHost {
     shared: DrumsCell,
 }
 
-// The JACK build never opens this stream, so the handle is never built there.
-#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+type DrumsStream = cpal::Stream;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+type DrumsStream = crate::drums_jack_stream::DrumsJackClient;
+
 struct DrumsStreamHandle {
     device_id: String,
     targets: Vec<usize>,
     sample_rate: u32,
     #[allow(dead_code)] // Dropping the handle is what stops the stream.
-    stream: cpal::Stream,
+    stream: DrumsStream,
 }
 
 impl ProjectRuntimeController {
@@ -56,10 +59,8 @@ impl ProjectRuntimeController {
     pub fn start_drums(&self, device_id: &str, target_channels: &[usize]) -> Result<u32> {
         use cpal::traits::{DeviceTrait, StreamTrait};
 
-        if let Some(handle) = self.drums.stream.borrow().as_ref() {
-            if handle.device_id == device_id && handle.targets == target_channels {
-                return Ok(handle.sample_rate);
-            }
+        if let Some(rate) = self.drums_open_on(device_id, target_channels) {
+            return Ok(rate);
         }
 
         let host = crate::host::get_host();
@@ -94,6 +95,39 @@ impl ProjectRuntimeController {
         )?;
         stream.play()?;
 
+        self.swap_drums_stream(device_id, targets, sample_rate, stream);
+        Ok(sample_rate)
+    }
+
+    /// The JACK build opens the drums as a client of their own on the
+    /// endpoint's server; same contract as the cpal stream.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn start_drums(&self, device_id: &str, target_channels: &[usize]) -> Result<u32> {
+        if let Some(rate) = self.drums_open_on(device_id, target_channels) {
+            return Ok(rate);
+        }
+        let shared: Arc<DrumsShared> = Arc::clone(&self.drums.shared);
+        let (client, sample_rate) =
+            crate::drums_jack_stream::open_drums_jack(device_id, target_channels, &shared)?;
+        self.swap_drums_stream(device_id, target_channels.to_vec(), sample_rate, client);
+        Ok(sample_rate)
+    }
+
+    /// The open stream's rate when it already plays on this endpoint.
+    fn drums_open_on(&self, device_id: &str, target_channels: &[usize]) -> Option<u32> {
+        let stream = self.drums.stream.borrow();
+        let handle = stream.as_ref()?;
+        (handle.device_id == device_id && handle.targets == target_channels)
+            .then_some(handle.sample_rate)
+    }
+
+    fn swap_drums_stream(
+        &self,
+        device_id: &str,
+        targets: Vec<usize>,
+        sample_rate: u32,
+        stream: DrumsStream,
+    ) {
         // Swapped out and dropped outside the borrow, so the old stream closes
         // with nothing else held.
         let previous = self.drums.stream.replace(Some(DrumsStreamHandle {
@@ -103,13 +137,6 @@ impl ProjectRuntimeController {
             stream,
         }));
         drop(previous);
-        Ok(sample_rate)
-    }
-
-    /// The JACK build (Orange Pi) has no dedicated drums stream yet.
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    pub fn start_drums(&self, _device_id: &str, _target_channels: &[usize]) -> Result<u32> {
-        anyhow::bail!("the drum machine has no output on the JACK backend yet")
     }
 
     /// Close the drums' stream. Dropping the handle stops it.

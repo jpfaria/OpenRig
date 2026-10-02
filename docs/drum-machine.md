@@ -75,8 +75,10 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   Only Play may create the audio runtime, so the drums sound with no chain
   enabled. A kit is decoded at the stream's rate on a worker thread and
   handed to the callback lock-free; a newer load overtakes an older one, and
-  a kit at the wrong rate is never played. The JACK backend has no drum
-  output yet.
+  a kit at the wrong rate is never played. On the JACK backend (Linux) the
+  drums are a JACK client of their own, `openrig_drums`, on the endpoint's
+  server, with one port per channel of the pair connected to that channel's
+  playback port (`drums_jack_stream.rs`); JACK sums it with the chains.
 
 ## Panel (`crates/adapter-gui`)
 
