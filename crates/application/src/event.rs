@@ -272,6 +272,23 @@ pub enum Event {
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
 
+    /// The "use global tempo" lock changed.
+    GlobalTempoLockChanged {
+        enabled: bool,
+    },
+
+    /// The tempo stored on the chain's active rig preset changed.
+    RigPresetBpmChanged {
+        chain: ChainId,
+        bpm: Option<f32>,
+    },
+
+    /// Tempo-synced params of this chain were rewritten for a new BPM.
+    /// The dispatcher already synced the runtime; a frontend only refreshes.
+    ChainTempoRetimed {
+        chain: ChainId,
+    },
+
     /// #1007: a global mixer strip moved. Values are the applied ones (the
     /// fader already clamped); a surface echoes them as fader/LED feedback.
     MixerStripChanged {

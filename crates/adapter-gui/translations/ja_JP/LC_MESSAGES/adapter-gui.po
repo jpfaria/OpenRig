@@ -1142,3 +1142,43 @@ msgstr "ポート"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
+msgid "Tempo"
+msgstr "テンポ"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+msgid "Slower"
+msgstr "遅く"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+msgid "Faster"
+msgstr "速く"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
+msgid "Preset tempo"
+msgstr "プリセットのテンポ"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
+msgid "{} BPM"
+msgstr "{} BPM"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
+msgid "Follows the global tempo"
+msgstr "グローバルテンポに従う"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
+msgid "Clear"
+msgstr "クリア"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
+msgid "Save {} BPM to preset"
+msgstr "{} BPM をプリセットに保存"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
+msgid "Use global tempo"
+msgstr "グローバルテンポを使用"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
+msgid "Loading a preset never changes the tempo"
+msgstr "プリセットを読み込んでもテンポは変わりません"

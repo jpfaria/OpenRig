@@ -36,7 +36,6 @@ fn project_with_mix(mix: ChainMix) -> Project {
             loopers: vec![],
             disabled_endpoints: Default::default(),
             mix,
-            disabled_endpoints: Default::default(),
         }],
     }
 }

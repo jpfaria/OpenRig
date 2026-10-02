@@ -45,4 +45,8 @@ pub enum MetronomeCommand {
     /// dispatches the resulting `SetMetronomeBpm`; this records the tap so MIDI
     /// and MCP reach tap tempo through the same door as the GUI.
     MetronomeTap,
+
+    /// "use global tempo". When on, loading a rig preset never changes
+    /// the tempo, even when the preset stores its own BPM. Per machine.
+    SetGlobalTempoLock { enabled: bool },
 }

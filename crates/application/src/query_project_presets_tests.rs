@@ -21,6 +21,7 @@ fn rig_with_pool(presets: Vec<&str>) -> RigProject {
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),
                 volume: 100.0,
+                bpm: None,
             },
         );
     }

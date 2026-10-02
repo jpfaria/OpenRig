@@ -65,7 +65,7 @@ A base que torna a visão maior possível já roda em todas as plataformas deskt
 - **Visualização em tempo real embutida.** Um afinador cromático e um analisador de espectro ao vivo entram na chain como qualquer outro bloco — veja o que você ouve.
 - **Controlável por IA (MCP).** Qualquer cliente MCP (Claude Desktop/Code, Cursor) dirige a rig *viva* pelo servidor MCP embutido do OpenRig — monta timbres, ajusta a chain, troca preset por conversa, com a GUI aberta. Veja **[Servidor MCP & plugin](docs/mcp.md)**.
 - **Pratique com um DI virtual.** Faça loop de um DI seco de guitarra em qualquer chain para moldar o seu timbre sem tocar — escolha um loop CC0 incluso ou carregue seu próprio WAV e aperte play; toda a chain (amp, cab, pedais) processa exatamente como um sinal ao vivo. Por chain e efêmero.
-- **Looper, metrônomo e mixer embutidos.** Até 8 loopers multi-camada por chain (overdub com desfazer/refazer, velocidade ½×/1×/2×, reverso, corte na forma de onda, takes salvos em uma biblioteca), um metrônomo com saída própria e um mixer global com um fader e um mute por entrada e saída.
+- **Looper, metrônomo e mixer embutidos.** Até 8 loopers multi-camada por chain (overdub com desfazer/refazer, velocidade ½×/1×/2×, reverso, corte na forma de onda, takes salvos em uma biblioteca), um metrônomo com saída própria cujo andamento também comanda todo delay e modulação sincronizados ao tempo (cada preset pode ter seu próprio BPM), e um mixer global com um fader e um mute por entrada e saída.
 - **Footswitch por MIDI.** MIDI Learn em qualquer knob ou chave, perfis MIDI para controladores, BLE-MIDI. Um M-Vave Chocolate já vem mapeado.
 - **Pedal de verdade na chain.** O bloco Insert manda o sinal para um equipamento externo e traz de volta, no meio da chain; uma porta de Output no meio da chain tira o sinal naquele ponto.
 - **Tone Doctor.** Aponta fizz, mud e boom comparando com uma referência do gênero e diz qual bloco é o responsável.
@@ -245,7 +245,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [ ] Mapeamento de pedal de expressão via MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Metrônomo embutido — andamento, fórmula de compasso, subdivisões, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — um fader e um mute por entrada/saída, pela GUI, MCP e superfícies de controle MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
-- [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [x] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [x] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer por stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))

@@ -70,6 +70,7 @@ mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
 mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
+mod local_dispatcher_tempo;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;

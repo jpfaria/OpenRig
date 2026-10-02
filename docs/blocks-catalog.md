@@ -74,6 +74,22 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
 ⚠️ `pitch_delay` (Delay block, 2048-sample grain) is **not** `native_pitch_shifter`
 (Pitch block, 1024-sample grain) — different models, different blocks.
 
+### Tempo sync
+
+Every native delay has a `time_sync` select and every native modulation with a
+`rate_hz` knob (choruses, flangers, phasers, tremolo, vibrato) has a `rate_sync`
+select: `off`, `1/1`, `1/2`, `1/2.`, `1/2T`, `1/4`, `1/4.`, `1/4T`, `1/8`,
+`1/8.`, `1/8T`, `1/16`, `1/16.`, `1/16T` (`.` dotted, `T` triplet). Default `off`.
+
+- With a note value picked, `time_ms` / `rate_hz` follow the **global tempo** (the
+  metronome's BPM): a delay repeats once per note value, a modulation completes one
+  cycle per note value. The value is clamped to the model's own range (a whole note
+  at 30 BPM cannot exceed a delay's 2000 ms).
+- The dispatcher writes the derived number into the block on the control thread
+  (`project::tempo_retime`, `block_core::tempo_sync`), exactly as a knob turn would;
+  the DSP never sees the tempo. Picking a note value applies it immediately.
+- Turning `time_ms` / `rate_hz` by hand sets the select back to `off`.
+
 ## Chain split (#328)
 
 A `Split` block divides the signal into **N paths** (at least two, no upper bound), shown as A, B, C, …, AA, …

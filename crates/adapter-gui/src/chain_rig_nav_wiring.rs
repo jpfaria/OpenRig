@@ -101,6 +101,8 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
             active_preset_index: r.active_index as i32,
             scene: r.scene as i32,
             scene_count: r.scene_count as i32,
+            has_preset_bpm: r.preset_bpm.is_some(),
+            preset_bpm: r.preset_bpm.unwrap_or_default(),
         })
         .collect();
     window.set_chain_rig_nav(ModelRc::new(VecModel::from(items)));
@@ -349,6 +351,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
             refresh_chain_rig_nav(&window, session);
         });
     }
+    crate::tempo_panel_wiring::wire(window, &ctx);
     wire_preset_picker_search(window);
     crate::di_source_picker_wiring::wire_di_source_picker_search(window);
 }

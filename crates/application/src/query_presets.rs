@@ -38,17 +38,21 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
             slots.push(',');
         }
         first = false;
-        let label = rig
-            .presets
-            .get(preset_key)
+        let preset = rig.presets.get(preset_key);
+        let label = preset
             .and_then(|p| p.name.clone())
             .unwrap_or_else(|| preset_key.clone());
+        // The preset's own tempo, `null` when it follows the global one.
+        let bpm = preset
+            .and_then(|p| p.bpm)
+            .map_or_else(|| "null".to_string(), |bpm| bpm.to_string());
         let _ = write!(
             slots,
-            "{{\"index\":{},\"name\":{},\"key\":{}}}",
+            "{{\"index\":{},\"name\":{},\"key\":{},\"bpm\":{}}}",
             idx,
             json_string(&label),
-            json_string(preset_key)
+            json_string(preset_key),
+            bpm
         );
     }
     slots.push(']');

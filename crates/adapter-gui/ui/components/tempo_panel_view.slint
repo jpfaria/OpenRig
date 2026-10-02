@@ -1,0 +1,252 @@
+// Responsibility: renders the tempo panel a chain header's chip opens.
+// Three sections, top to bottom: the global tempo (nudge down, the BPM, nudge
+// up, TAP), the chain's active preset tempo (shown, stored from the global,
+// cleared), and the "use global tempo" lock. The global tempo is the
+// metronome's, so the controls drive `MetronomeBridge` directly; the preset
+// section reports through `TempoPanel`. A chain without a rig has no preset,
+// so it gets no preset section.
+//
+// INLINE (inherits Rectangle), not a PopupWindow: every click is an in-tree
+// TouchArea the headless interaction test can actuate.
+
+import { Theme } from "../theme.slint";
+import { ChainRigNav } from "../models.slint";
+import { MetronomeBridge } from "metronome_globals.slint";
+import { TempoPanel } from "tempo_panel_globals.slint";
+
+export component TempoPanelView inherits Rectangle {
+    in property <ChainRigNav> nav;
+
+    private property <length> button-h: 40px;
+    private property <color> label-color: #8a94a2;
+    private property <color> line-color: #2b3340;
+    private property <int> rounded-bpm: Math.round(MetronomeBridge.bpm);
+
+    width: 320px;
+    height: content.preferred-height;
+    border-radius: 8px;
+    background: #11141af2;
+    border-width: 1px;
+    border-color: root.line-color;
+    // Swallow clicks so one on the panel never reaches the backdrop behind it.
+    TouchArea { }
+
+    content := VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+
+        Text {
+            text: @tr("Tempo");
+            color: root.label-color;
+            font-size: Theme.min-font;
+        }
+
+        // Global tempo: nudge down, the BPM, nudge up, TAP.
+        HorizontalLayout {
+            spacing: 8px;
+            height: root.button-h;
+
+            Rectangle {
+                width: root.button-h;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: root.line-color;
+                background: minus-ta.has-hover ? Theme.palette.card-secondary : transparent;
+                accessible-role: button;
+                accessible-label: @tr("Slower");
+                Text {
+                    text: "−";
+                    color: #f1f4f8;
+                    font-size: 22px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                minus-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm - 1); }
+                }
+            }
+
+            Text {
+                horizontal-stretch: 1;
+                text: root.rounded-bpm;
+                color: #f1f4f8;
+                font-family: "Bebas Neue";
+                font-size: 36px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                width: root.button-h;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: root.line-color;
+                background: plus-ta.has-hover ? Theme.palette.card-secondary : transparent;
+                accessible-role: button;
+                accessible-label: @tr("Faster");
+                Text {
+                    text: "+";
+                    color: #f1f4f8;
+                    font-size: 22px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                plus-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm + 1); }
+                }
+            }
+
+            Rectangle {
+                width: 80px;
+                border-radius: 5px;
+                background: tap-ta.pressed
+                    ? Theme.palette.accent-end
+                    : Theme.palette.accent-start;
+                accessible-role: button;
+                accessible-label: @tr("action-tap-tempo");
+                Text {
+                    text: @tr("action-tap-tempo");
+                    color: #ffffff;
+                    font-size: Theme.min-font;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                tap-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { MetronomeBridge.tap(); }
+                }
+            }
+        }
+
+        // The chain's active preset tempo.
+        if root.nav.has-rig : VerticalLayout {
+            spacing: 10px;
+
+            Rectangle { height: 1px; background: root.line-color; }
+
+            Text {
+                text: @tr("Preset tempo");
+                color: root.label-color;
+                font-size: Theme.min-font;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                min-height: 30px;
+                preset-value := Text {
+                    horizontal-stretch: 1;
+                    text: root.nav.has-preset-bpm
+                        ? @tr("{} BPM", Math.round(root.nav.preset-bpm))
+                        : @tr("Follows the global tempo");
+                    color: root.nav.has-preset-bpm ? Theme.palette.accent-start : root.label-color;
+                    font-size: Theme.min-font;
+                    font-weight: root.nav.has-preset-bpm ? 700 : 400;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if root.nav.has-preset-bpm : Rectangle {
+                    width: clear-label.preferred-width + 20px;
+                    height: 30px;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: root.line-color;
+                    background: clear-ta.has-hover ? Theme.palette.card-secondary : transparent;
+                    accessible-role: button;
+                    accessible-label: clear-label.text;
+                    clear-label := Text {
+                        text: @tr("Clear");
+                        color: #c5cbd6;
+                        font-size: Theme.min-font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    clear-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { TempoPanel.clear-preset-bpm(TempoPanel.chain-index); }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 36px;
+                border-radius: 5px;
+                border-width: 1px;
+                border-color: Theme.palette.accent-start;
+                background: store-ta.has-hover ? Theme.palette.card-secondary : transparent;
+                accessible-role: button;
+                accessible-label: store-label.text;
+                store-label := Text {
+                    text: @tr("Save {} BPM to preset", root.rounded-bpm);
+                    color: #f1f4f8;
+                    font-size: Theme.min-font;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                store-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        TempoPanel.store-preset-bpm(TempoPanel.chain-index, MetronomeBridge.bpm);
+                    }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: root.line-color; }
+
+        // The lock: a preset load never changes the tempo.
+        Rectangle {
+            height: lock-row.preferred-height;
+            accessible-role: checkbox;
+            accessible-checked: MetronomeBridge.global-tempo-lock;
+            accessible-label: @tr("Use global tempo");
+            lock-row := HorizontalLayout {
+                spacing: 10px;
+                Rectangle {
+                    width: 40px;
+                    height: 22px;
+                    y: 2px;
+                    border-radius: 11px;
+                    border-width: MetronomeBridge.global-tempo-lock ? 0px : 1px;
+                    border-color: #4a5463;
+                    background: MetronomeBridge.global-tempo-lock
+                        ? Theme.palette.accent-end
+                        : #2b3340;
+                    animate background { duration: 150ms; }
+                    Rectangle {
+                        x: MetronomeBridge.global-tempo-lock ? parent.width - self.width - 3px : 3px;
+                        y: 3px;
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 8px;
+                        background: #ffffff;
+                        animate x { duration: 150ms; }
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 2px;
+                    Text {
+                        text: @tr("Use global tempo");
+                        color: #f1f4f8;
+                        font-size: Theme.min-font;
+                    }
+                    Text {
+                        text: @tr("Loading a preset never changes the tempo");
+                        color: root.label-color;
+                        font-size: Theme.min-font;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            lock-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    MetronomeBridge.set-global-tempo-lock(!MetronomeBridge.global-tempo-lock);
+                }
+            }
+        }
+    }
+}
