@@ -1,5 +1,5 @@
-//! Headless proof that the drum machine's controls respond to a pointer, both
-//! in its own window and laid flat in the compact chain view's DRUMS section.
+//! Headless proof that the drum machine's controls respond to a pointer in its
+//! own window, and that the compact chain view carries no drums section.
 //! A PNG proves layout only; these press the real TouchAreas and check the
 //! callback the Rust wiring listens to.
 
@@ -174,26 +174,15 @@ fn a_click_outside_the_list_closes_it_without_picking() {
 }
 
 #[test]
-fn the_compact_view_drums_section_lays_the_same_controls_flat() {
+fn the_compact_view_has_no_drums_section() {
     i_slint_backend_testing::init_no_event_loop();
     let w = CompactChainViewWindow::new().unwrap();
     w.window().set_size(slint::LogicalSize::new(1100.0, 900.0));
     w.set_chain_enabled(true);
     w.show().unwrap();
-    let powered = Rc::new(RefCell::new(Vec::new()));
-    let p = powered.clone();
-    DrumsBridge::get(&w).on_toggle_enabled(move |on| p.borrow_mut().push(on));
 
-    assert_eq!(count(&w, FOOTSWITCH), 0, "the section opens collapsed");
-    assert!(click(&w, "CompactChainSections::drums-toggle", 0));
-    assert_eq!(count(&w, FOOTSWITCH), 1, "FILL only");
-    assert_eq!(
-        count(&w, "PowerFootSwitch::ta"),
-        1,
-        "no panel header inside, so POWER sits with the footswitches"
-    );
-    assert!(click(&w, "PowerFootSwitch::ta", 0));
-    assert_eq!(*powered.borrow(), vec![true]);
+    assert_eq!(count(&w, "CompactChainSections::drums-toggle"), 0);
+    assert_eq!(count(&w, "PowerFootSwitch::ta"), 0);
 }
 
 #[test]

@@ -83,26 +83,24 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
 ## Panel (`crates/adapter-gui`)
 
 - **Where**: the drum icon on the top bar opens `DrumsWindow` (windowed
-  desktop) or the inline panel (fullscreen / touch); the Compact Chain View
-  has a DRUMS section with the same panel, without its header. All of them
-  read the `DrumsBridge` global and drive the one global drum machine.
+  desktop) or the inline panel (fullscreen / touch); both read the
+  `DrumsBridge` global and drive the one global drum machine. The Compact
+  Chain View is about one chain, so it carries no drums.
 - **What**: POWER, an LCD with a lamp per beat of the groove's bar, the tempo,
   the bar and FILL while a fill plays; KIT and GROOVE pickers (grooves under a
   header per genre, in library order); the FILL footswitch (only while
   playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
-- **POWER** is the one transport switch: on sends `PlayDrums` (opens the
-  output and plays), off sends `SetDrumsEnabled { false }` (stops and closes
-  it), and it is lit while the groove plays. In the compact view, which has no
-  panel header, POWER sits next to FILL.
   Every picker list opens with a search box that narrows it as you type
   (`drums_picker_filter.rs`; a genre header stays while a groove under it
   matches, and typing the genre keeps the whole genre).
+- **POWER** is the one transport switch: on sends `PlayDrums` (opens the
+  output and plays), off sends `SetDrumsEnabled { false }` (stops and closes
+  it), and it is lit while the groove plays.
 - **Outputs**: only the endpoints of output-only bindings (no inputs), since
   an in+out binding repeats an output another binding already names; with no
   output-only binding, every output (`drums_outputs.rs`).
 - **Wiring**: `drums_intents.rs` maps each control to its `DrumsCommand`;
   `drums_view.rs` builds what the panel shows from the snapshot, the library
-  and the project's output endpoints; `drums_wiring.rs` (window and inline)
-  and `compact_drums_wiring.rs` (each compact view) redraw when the
-  dispatcher's state changes and move the lamps from `LiveSource::drums`
+  and the project's output endpoints; `drums_wiring.rs` redraws the window
+  and the inline panel when the dispatcher's state changes and move the lamps from `LiveSource::drums`
   every frame.

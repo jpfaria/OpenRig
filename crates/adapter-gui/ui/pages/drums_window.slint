@@ -2,10 +2,8 @@
 // The metronome's visual language: a stompbox header with a power switch, an
 // amber LCD carrying the tempo and the beat of the bar, then the pickers, the
 // FILL footswitch and the knobs. POWER is the one transport switch. The panel
-// reads `DrumsBridge`, so the same component serves the standalone window, the
-// inline fullscreen/touch overlay and — with `embedded` — the compact chain
-// view's DRUMS section, where the section header replaces the panel's own and
-// POWER moves next to FILL.
+// reads `DrumsBridge`, so the same component serves the standalone window and
+// the inline fullscreen/touch overlay.
 import { ScrollView } from "std-widgets.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { PowerFootSwitch, BeatLamp, ControlCell } from "../components/metronome_controls.slint";
@@ -15,12 +13,7 @@ import { DrumsBridge, DrumPickRow } from "../components/drums_globals.slint";
 export component DrumsPanel inherits Rectangle {
     // The inline overlay needs a close button; the window closes via its chrome.
     in property <bool> show-close-button: false;
-    // Laid flat inside a host that already names it: no header, smaller LCD.
-    in property <bool> embedded: false;
-    // What an embedded host reserves for the panel.
-    out property <length> content-height: body.preferred-height;
-
-    private property <length> header-height: root.embedded ? 0px : 72px;
+    private property <length> header-height: 72px;
 
     // A list always opens unfiltered.
     function open-picker(which: int) {
@@ -29,10 +22,10 @@ export component DrumsPanel inherits Rectangle {
         DrumsBridge.picker = which;
     }
 
-    background: root.embedded ? transparent : @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
     // ── Header bar ───────────────────────────────────────────────────────
-    if !root.embedded : Rectangle {
+    Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: 72px;
@@ -93,15 +86,15 @@ export component DrumsPanel inherits Rectangle {
     }
 
     body := VerticalLayout {
-        x: root.embedded ? 0px : 16px;
-        y: root.header-height + (root.embedded ? 0px : 16px);
+        x: 16px;
+        y: root.header-height + 16px;
         width: parent.width - 2 * self.x;
         height: self.preferred-height;
         spacing: 12px;
 
         // ── LCD — tempo, the bar, and where the groove is ────────────────
         Rectangle {
-            height: root.embedded ? 110px : 150px;
+            height: 150px;
             border-radius: 6px;
             background: DrumsBridge.playing ? #ccaa66 : #776633;
             border-width: 1px;
@@ -132,11 +125,11 @@ export component DrumsPanel inherits Rectangle {
             Text {
                 x: 0; y: 34px;
                 width: parent.width;
-                height: root.embedded ? 48px : 76px;
+                height: 76px;
                 text: Math.round(DrumsBridge.bpm);
                 color: #2a2008;
                 font-family: "Bebas Neue";
-                font-size: root.embedded ? 48px : 72px;
+                font-size: 72px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -199,16 +192,6 @@ export component DrumsPanel inherits Rectangle {
         HorizontalLayout {
             height: 108px;
             alignment: space-around;
-
-            // Embedded, there is no header to carry POWER.
-            if root.embedded : Rectangle {
-                width: 72px;
-                PowerFootSwitch {
-                    x: (parent.width - self.width) / 2; y: 12px;
-                    active: DrumsBridge.playing;
-                    toggled => { DrumsBridge.toggle-enabled(!DrumsBridge.playing); }
-                }
-            }
 
             DrumFootSwitch {
                 caption: @tr("action-drums-fill");
@@ -281,7 +264,7 @@ export component DrumsPanel inherits Rectangle {
                 : DrumsBridge.output-key;
 
             x: (parent.width - self.width) / 2;
-            y: root.embedded ? 8px : 80px;
+            y: 80px;
             width: min(parent.width - 32px, 480px);
             height: min(parent.height - self.y - 16px, max(self.rows.length, 1) * 44px + 104px);
             border-radius: 8px;

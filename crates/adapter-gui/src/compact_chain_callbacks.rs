@@ -69,8 +69,6 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub block_stream_reads: Rc<dyn LiveSource>,
     /// #1022: the loopers' live read seam, for the waveform editor.
     pub looper_live: Rc<dyn LiveSource>,
-    /// The drums' live read seam, for the DRUMS section's beat lamps.
-    pub drums_live: Rc<dyn LiveSource>,
     /// #127: the subscription seam the Tone Doctor records through.
     pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -89,7 +87,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         project_session,
         block_stream_reads,
         looper_live,
-        drums_live,
         audio_taps,
         project_chains,
         input_chain_devices,
@@ -330,7 +327,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 project_dirty: project_dirty.clone(),
             },
         );
-        crate::compact_drums_wiring::wire(&compact_win, &project_session, drums_live.clone());
 
         // Wire choose-block-type — when user picks a type from the compact view picker
         {

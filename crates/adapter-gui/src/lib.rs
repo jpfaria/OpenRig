@@ -234,7 +234,6 @@ mod chain_graph_ids;
 mod chain_graph_models;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
-mod compact_drums_wiring;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
