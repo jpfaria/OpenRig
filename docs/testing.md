@@ -45,6 +45,15 @@ the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
 broken (unused import, needless `mut`, dead code).
 
+**Pre-PR check.** Before `gh pr create`, and before any push to a branch that
+already has an open PR, commit and run `./scripts/pre-pr-check.sh` until it is
+green. It runs fmt, the static checks and `cargo check --workspace --all-targets`
+on Linux (Docker, the Test Suite job's packages) with warnings as errors:
+`cfg(target_os = "linux")` code and tests never compile on the Mac, so a Mac
+build cannot tell. Green stamps HEAD; `.claude/hooks/pre-pr-gate.sh` refuses the
+PR or the push until that stamp matches the commit being sent. Tests still run
+only in CI.
+
 **Do not search the code for the cause before the test exists and fails.**
 Reading the code first produces a biased hypothesis sold as "the cause". The
 investigation happens in step 4, driven by the RED.
