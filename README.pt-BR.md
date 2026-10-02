@@ -31,6 +31,19 @@
   <img src="docs/assets/sc1.png" alt="OpenRig — vista do projeto com várias chains paralelas, blocos de amp, pedais e cab" width="900">
 </p>
 
+## Instalar
+
+**macOS** 11 ou mais novo, Apple Silicon ou Intel — abra o Terminal e cole:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
+```
+
+Depois abra o OpenRig em Aplicativos. Prefere o `.dmg`? [Instalação manual](docs/user-guide/installation.md#install-by-hand).
+
+**Linux** — ainda sem pacote: [compile do código](docs/user-guide/installation.md#linux).
+**Windows** — em breve.
+
 ---
 
 > **Áudio profissional não devia caber em uma caixa preta.**
@@ -96,11 +109,11 @@ Esquerda: biblioteca de blocos, organizada por marca com arte de painel fiel ao 
 
 ## Início rápido
 
-1. **Instale** — [baixe o release de macOS](https://github.com/jpfaria/OpenRig/releases/latest), ou compile do código no Linux e no Windows (veja abaixo).
+1. **Instale** — veja [Instalar](#instalar).
 2. **Configure I/O** — escolha sua interface de áudio como input e seus monitores/fones como output.
 3. **Monte uma chain** — arraste blocos entre Input e Output (Tuner → EQ → Drive → Amp → Cab → Reverb é um bom começo).
 4. **Ajuste em tempo real** — clique em qualquer bloco para abrir o editor; gire knobs enquanto toca.
-5. **Salve um preset** — presets são YAML puro em `~/.openrig/presets/` (macOS/Linux) ou `%APPDATA%\OpenRig\presets\` (Windows). Compartilhe copiando e colando.
+5. **Salve um preset** — presets são arquivos YAML puro na pasta definida em **Settings → Paths**. Compartilhe copiando e colando.
 
 Walkthrough completo: [Quick Start Guide](docs/user-guide/quick-start.md).
 
@@ -133,28 +146,6 @@ blocks:
 
 Todo `model:` ID está registrado no [Blocks Reference Quick Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md#model-id-quick-reference). Para usuários do Claude Code, a skill [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) (em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta a chain completa na rig viva só a partir de artista + música, via MCP.
 
-## Instalação
-
-### Download
-
-Por enquanto os releases saem só para macOS: um `.dmg` universal (Apple Silicon + Intel) na [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest). No Linux e no Windows, compile do código; os pacotes deles estão a caminho.
-
-- **macOS** — [download, fix de quarentena & instalador de uma linha](docs/user-guide/installation.md#macos)
-- **Linux / Windows** — [compilar do código](docs/user-guide/installation.md#build-from-source), mais o [setup de áudio no Linux](docs/user-guide/installation.md#audio-setup-required-for-sound)
-
-### Compilar do código
-
-```bash
-git lfs install
-git clone https://github.com/jpfaria/OpenRig.git
-cd OpenRig
-cargo build --release -p adapter-gui
-```
-
-O Git LFS é obrigatório: ele também traz o código do NeuralAmpModelerCore que o build descompacta ([deps/DEPS.md](deps/DEPS.md)).
-
-Veja o [Installation Guide](docs/user-guide/installation.md) para dependências por plataforma e troubleshooting.
-
 ## Documentação
 
 ### Para músicos
@@ -181,8 +172,7 @@ Veja o [Installation Guide](docs/user-guide/installation.md) para dependências 
 - [Testing](docs/testing.md) — cobertura, convenções, comandos
 - [Scripts](docs/scripts.md) — build/deploy, fluxo `.deb` → Orange Pi
 - [Formato do projeto](docs/projects/project-format.md) — o modelo de projeto `project.yaml`
-- [Arquitetura da GUI](docs/gui/README.md) · [Graph view](docs/gui/graph-view.md) — internos da janela desktop ([design da janela](docs/gui/2026-03-20-desktop-window-architecture.md) · [plano](docs/gui/2026-03-20-desktop-window-implementation-plan.md))
-- [Contrato do backend](docs/backend/current-contract.md) · [Catálogo de modelos nativos](docs/backend/native-model-catalog.md) · [Referência de efeitos MK-300](docs/backend/mk-300-v69-effects-reference.md)
+- [Regras de UI](docs/development/ui-rules.md) · [Graph view](docs/gui/graph-view.md) — regras para trabalho de UI, o canvas do grafo da chain
 - [Idiomas (i18n)](docs/i18n.md) — framework de tradução da UI, adicionar um locale
 - [Hardware](docs/hardware.md) · [Deploy Orange Pi](docs/hardware/orange-pi-deploy.md) — build da placa do pedalboard & deploy da imagem
 - [ADRs](docs/adr/0001-project-model.md) — registros de decisão de arquitetura ([roteamento de device](docs/adr/0002-device-routing-and-validation.md))
