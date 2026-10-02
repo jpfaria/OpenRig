@@ -55,6 +55,8 @@ if [ ! -e "$ws/plugins" ]; then
     ln -s "$plugins_path" "$ws/plugins"
 fi
 grep -qx '/plugins' "$ws/.git/info/exclude" || echo '/plugins' >> "$ws/.git/info/exclude"
+# A push to a branch with an open PR runs scripts/pr-check.sh first.
+git -C "$ws" config core.hooksPath scripts/hooks
 
 echo "workspace: $ws ($branch)"
 echo "plugins:   $(readlink "$ws/plugins")"

@@ -45,6 +45,16 @@ the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
 broken (unused import, needless `mut`, dead code).
 
+**PR gate: `scripts/pr-check.sh`.** Before `gh pr create`, and before every
+push to a branch that already has an open PR, run it: fmt, the static
+`validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,
+examples), failing on any warning. It only compiles, so a test fixture a merge
+broke or a field a merge doubled fails here, not in CI. A push to a branch with
+an open PR runs it by itself: `scripts/solver-setup.sh` sets
+`core.hooksPath = scripts/hooks`, and `scripts/hooks/pre-push` blocks the push
+when it fails. Linux/JACK-only code is not compiled on macOS; CI still catches
+that.
+
 **Do not search the code for the cause before the test exists and fails.**
 Reading the code first produces a biased hypothesis sold as "the cause". The
 investigation happens in step 4, driven by the RED.

@@ -40,7 +40,7 @@ Issue → Branch (from the active release/vX.Y.Z) → Commits → PR → Review/
    **Exception — a docs-only change (`*.md`, `docs/**`, `.claude/skills/**`, `CLAUDE.md`): no PR.** Merge the issue branch straight into the active release, push, then release → `develop` (direct merge, push).
 
 4. **Merge the active release before any work**: `git merge -X theirs origin/release/vX.Y.Z`.
-   A clean merge can still break the build: when both sides added the same struct field, git keeps both lines (`E0062`). After every release merge, before the push: `cargo build --workspace --tests` (compile only, no test run).
+   A clean merge can still break the build: when both sides added the same struct field, git keeps both lines (`E0062`). `scripts/pr-check.sh` compiles every target and catches it; run it before `gh pr create` (a push to a branch with an open PR runs it through the pre-push hook).
 5. Commits in English, no `Co-Authored-By`, focused on the "why".
 6. **Never `Closes #N` or `Fixes #N`** in commits — GitHub auto-closes.
 7. A bug or hotfix merges right away. A feature waits for review. Never merge `feature → release` without the owner asking.
