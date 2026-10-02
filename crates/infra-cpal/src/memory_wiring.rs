@@ -1,4 +1,4 @@
-//! Responsibility: wires the audio's memory in use that is not wired yet.
+//! Responsibility: keeps exactly the audio's memory in use wired.
 //!
 //! On a machine out of memory the kernel compresses pages of OpenRig that the
 //! DSP touches only every few seconds (a reverb walks its delay line once per
@@ -13,6 +13,13 @@
 //! zone cannot exist (the router refused) the pass falls back to the whole
 //! process.
 //!
+//! A wire also outlives the free: once a chain is turned off its pages go
+//! back to the allocator still wired, and the kernel can never reclaim them.
+//! So each pass first unwires what it wired that is no longer under the audio
+//! zone (`memory_wiring_release`), keeping a ledger of its own wires — only
+//! ours are released, never a wire another library holds. The whole-process
+//! fallback never unwires.
+//!
 //! This file is the macOS side: it reads the regions from the kernel and
 //! wires with `mlock`. What a pass wires — private writable
 //! regions something already touched, up to 256 MB each and a quarter of the
@@ -24,6 +31,7 @@
 #[cfg(target_os = "macos")]
 mod imp {
     use crate::memory_wiring_pass::{run_pass, Region, Report};
+    use crate::memory_wiring_release::split_wired;
     use crate::memory_wiring_report::report_lines;
 
     extern "C" {
@@ -38,6 +46,7 @@ mod imp {
             object_name: *mut u32,
         ) -> i32;
         fn mlock(addr: *const std::ffi::c_void, len: usize) -> i32;
+        fn munlock(addr: *const std::ffi::c_void, len: usize) -> i32;
         fn sysctlbyname(
             name: *const std::ffi::c_char,
             old: *mut std::ffi::c_void,
@@ -132,16 +141,28 @@ mod imp {
         regions
     }
 
-    /// The audio zone's regions, or every region of the process when the
-    /// audio's memory cannot be told apart.
-    fn regions() -> Vec<Region> {
+    /// The audio zone's spans as `(start, size)`, or `None` when the audio's
+    /// memory cannot be told apart.
+    fn audio_spans() -> Option<Vec<(u64, u64)>> {
         if !engine::audio_zone_router::install() {
-            return regions_within(0, u64::MAX);
+            return None;
         }
-        match engine::audio_zone_regions::audio_zone_ranges() {
-            Some(ranges) => ranges
+        engine::audio_zone_regions::audio_zone_ranges()
+    }
+
+    /// The regions under `spans`, or every region of the process without them.
+    /// Under the spans everything is the audio zone's own heap: a wire on
+    /// part of one of its VM objects makes the kernel report the rest of that
+    /// object as shared, so the share mode is not asked there.
+    fn regions(spans: Option<&[(u64, u64)]>) -> Vec<Region> {
+        match spans {
+            Some(spans) => spans
                 .iter()
                 .flat_map(|&(start, size)| regions_within(start, start + size))
+                .map(|region| Region {
+                    private: true,
+                    ..region
+                })
                 .collect(),
             None => regions_within(0, u64::MAX),
         }
@@ -167,26 +188,53 @@ mod imp {
         }
     }
 
-    /// The previous pass's report. Its lock also runs passes one at a time:
-    /// between a region's last check and its `mlock` no other pass may wire
-    /// it (concurrent passes once stacked eleven wires on one region).
-    /// Ordinary threads only, never audio.
-    static LAST_PASS: std::sync::Mutex<Option<Report>> = std::sync::Mutex::new(None);
+    /// What the passes carry from one to the next.
+    struct Keeper {
+        /// The previous pass's report.
+        last: Option<Report>,
+        /// Every `(start, size)` this keeper wired and has not unwired.
+        wired: Vec<(u64, u64)>,
+    }
+
+    /// The keeper's state. Its lock also runs passes one at a time: between a
+    /// region's last check and its `mlock` no other pass may wire it
+    /// (concurrent passes once stacked eleven wires on one region). Ordinary
+    /// threads only, never audio.
+    static KEEPER: std::sync::Mutex<Keeper> = std::sync::Mutex::new(Keeper {
+        last: None,
+        wired: Vec::new(),
+    });
 
     /// One pass over the process's regions against the machine's budget;
     /// returns what to log about it.
     pub(crate) fn wire_private_memory() -> Vec<(log::Level, String)> {
-        let mut last = LAST_PASS
+        let mut keeper = KEEPER
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let spans = audio_spans();
+        if let Some(spans) = &spans {
+            let split = split_wired(&keeper.wired, spans);
+            for &(start, size) in &split.released {
+                unsafe { munlock(start as *const _, size as usize) };
+            }
+            keeper.wired = split.held;
+        }
+        let mut newly_wired = Vec::new();
         let report = run_pass(
-            &regions(),
+            &regions(spans.as_deref()),
             wiring_budget(),
             |region| !is_wired(region.start),
-            |region| unsafe { mlock(region.start as *const _, region.size as usize) } == 0,
+            |region| {
+                let wired = unsafe { mlock(region.start as *const _, region.size as usize) } == 0;
+                if wired {
+                    newly_wired.push((region.start, region.size));
+                }
+                wired
+            },
         );
-        let lines = report_lines(&report, last.as_ref());
-        *last = Some(report);
+        keeper.wired.extend(newly_wired);
+        let lines = report_lines(&report, keeper.last.as_ref());
+        keeper.last = Some(report);
         lines
     }
 }

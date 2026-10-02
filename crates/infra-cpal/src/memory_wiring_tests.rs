@@ -48,6 +48,12 @@ const APP_TAG_250: i32 = 250 << 24;
 
 /// How many user wires the region holding `ptr` carries.
 pub(crate) fn user_wired_count(ptr: *const u8) -> u16 {
+    wires_at(ptr).expect("no region holds the probe")
+}
+
+/// How many user wires the region holding `ptr` carries; `None` once nothing
+/// is mapped there.
+fn wires_at(ptr: *const u8) -> Option<u16> {
     let mut address = ptr as u64;
     let mut size = 0u64;
     let mut info = [0i32; 9];
@@ -64,13 +70,11 @@ pub(crate) fn user_wired_count(ptr: *const u8) -> u16 {
             &mut object,
         )
     };
-    assert_eq!(kr, 0, "mach_vm_region failed");
-    assert!(
-        address <= ptr as u64 && (ptr as u64) < address + size,
-        "no region holds the probe"
-    );
+    if kr != 0 || !(address <= ptr as u64 && (ptr as u64) < address + size) {
+        return None;
+    }
     // `user_wired_count` is the low half of word 8 of `vm_region_basic_info_64`.
-    (info[8] as u32 & 0xFFFF) as u16
+    Some((info[8] as u32 & 0xFFFF) as u16)
 }
 
 /// A delay line the size of a reverb's: allocated for the audio, then
@@ -175,5 +179,37 @@ fn memory_allocated_outside_the_audio_is_never_wired() {
         0,
         "only the audio's memory is wired; wiring the rest keeps every byte \
          the app ever freed resident"
+    );
+}
+
+#[test]
+fn memory_the_audio_freed_is_unwired_by_the_next_pass() {
+    // A reverb's delay lines, CloudReverb-style: 2-second `double` buffers.
+    let lines: Vec<Vec<f64>> = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        (0..64).map(|_| vec![1.0_f64; 88_200]).collect()
+    };
+    let probes: Vec<u64> = lines.iter().map(|line| line.as_ptr() as u64).collect();
+    wire_private_memory();
+    assert!(
+        probes.iter().all(|&p| user_wired_count(p as *const u8) > 0),
+        "the delay lines must be wired while the audio holds them"
+    );
+    drop(lines);
+    wire_private_memory();
+    let spans = engine::audio_zone_regions::audio_zone_ranges().unwrap_or_default();
+    let still_wired = probes
+        .iter()
+        .filter(|&&p| {
+            !spans
+                .iter()
+                .any(|&(start, size)| p >= start && p < start + size)
+        })
+        .filter(|&&p| wires_at(p as *const u8).unwrap_or(0) > 0)
+        .count();
+    assert_eq!(
+        still_wired, 0,
+        "memory the audio freed must be unwired by the next pass, or a chain \
+         turned off keeps its whole footprint pinned in RAM for good"
     );
 }

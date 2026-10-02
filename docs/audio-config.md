@@ -835,9 +835,18 @@ the pointer. The wiring pass walks only the audio zone's regions
   plays is audio memory too.
 
 Memory the audio touches must be allocated in one of these; anything else is
-never wired. If the router cannot be installed the pass falls back to the
-whole process. Cost: heap freed inside a wired audio-zone region stays
-resident, so the wired amount follows the audio's peak. No latency changes.
+never wired. Under the audio zone's spans the share mode is not asked: a
+wire on part of a VM object makes the kernel report the rest of it as shared,
+and that rest is still the audio's heap.
+
+**Freed audio memory is unwired.** A wire outlives the `free`: the pages of a
+chain turned off go back to the allocator still wired, and the kernel can
+never reclaim them. The keeper records every range it wired; each pass first
+unwires (`munlock`) whatever of those ranges no longer sits under the audio
+zone's spans (`memory_wiring_release.rs`), so turning a chain off returns its
+memory to the system. Only the keeper's own wires are released, never one
+another library holds. If the router cannot be installed the pass falls back
+to the whole process and never unwires. No latency changes.
 Linux and Windows: not done (not measured there).
 
 Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
