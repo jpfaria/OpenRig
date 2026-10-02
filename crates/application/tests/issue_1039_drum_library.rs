@@ -342,3 +342,29 @@ fn every_bundled_groove_parses_and_has_a_fill() {
     }
     assert!(genres >= 10, "only {genres} genres bundled");
 }
+
+#[test]
+fn every_bundled_kit_covers_the_core_pieces() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/drums/kits");
+    let library = scan_drum_library(&[dir.join("..")]);
+    assert!(library.kits.len() >= 2, "{:?}", library.kits);
+    for entry in &library.kits {
+        let xml = fs::read_to_string(entry.dir.join("drumkit.xml")).unwrap();
+        let kit = parse_hydrogen_kit(&xml, &entry.dir).unwrap();
+        let roles = assign_roles(&kit, &BTreeMap::new());
+        for role in [
+            DrumRole::Kick,
+            DrumRole::Snare,
+            DrumRole::HatClosed,
+            DrumRole::Crash,
+        ] {
+            assert!(roles[role.index()].is_some(), "{} lacks {role:?}", entry.id);
+        }
+        // Decode only when the samples are real audio, not LFS pointers.
+        let first = &kit.instruments[roles[DrumRole::Kick.index()].unwrap()].layers[0].files[0];
+        if fs::read(first).unwrap().starts_with(b"RIFF") {
+            let loaded = load_kit(&entry.dir, 48_000).unwrap();
+            assert!(loaded.piece(DrumRole::Kick).is_some(), "{}", entry.id);
+        }
+    }
+}
