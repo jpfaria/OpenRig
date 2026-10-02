@@ -16,6 +16,8 @@ export global DrumsBridge {
     in-out property <bool> show;
     // Which list is open over the panel: 0 none, 1 kit, 2 groove, 3 output.
     in-out property <int> picker;
+    // What the open list is narrowed to; the wiring republishes the rows.
+    in-out property <string> query;
 
     // ── Display state, mirrored from the dispatcher by the wiring ──
     in-out property <bool> enabled;
@@ -51,4 +53,5 @@ export global DrumsBridge {
     callback pick-groove(string);
     callback pick-output(string);
     callback output-opened();
+    callback query-changed(string);
 }

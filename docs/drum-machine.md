@@ -71,7 +71,7 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
 - **Persistence**: BPM, volume, kit, groove and output go in the machine's
   `config.yaml` under `drums:`.
 - **Output**: the drums open their own cpal stream on the chosen output
-  endpoint (the project's first when none is saved), like the metronome.
+  endpoint (the first the drums offer when none is saved), like the metronome.
   Only Play may create the audio runtime, so the drums sound with no chain
   enabled. A kit is decoded at the stream's rate on a worker thread and
   handed to the callback lock-free; a newer load overtakes an older one, and
@@ -88,6 +88,12 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   the bar and FILL while a fill plays; KIT and GROOVE pickers (grooves under a
   header per genre, in library order); PLAY/STOP and FILL footswitches (FILL
   only while playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
+  Every picker list opens with a search box that narrows it as you type
+  (`drums_picker_filter.rs`; a genre header stays while a groove under it
+  matches, and typing the genre keeps the whole genre).
+- **Outputs**: only the endpoints of output-only bindings (no inputs), since
+  an in+out binding repeats an output another binding already names; with no
+  output-only binding, every output (`drums_outputs.rs`).
 - **Wiring**: `drums_intents.rs` maps each control to its `DrumsCommand`;
   `drums_view.rs` builds what the panel shows from the snapshot, the library
   and the project's output endpoints; `drums_wiring.rs` (window and inline)

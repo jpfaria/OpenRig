@@ -9,8 +9,8 @@ use std::rc::Rc;
 use application::command::{Command, DrumsCommand};
 use application::drums_state::DrumsSnapshot;
 
+use crate::drums_outputs::drums_output_endpoints;
 use crate::drums_view::{drums_view, DrumsView};
-use crate::metronome_view::output_endpoints;
 use crate::state::ProjectSession;
 
 pub(crate) type SessionCell = Rc<RefCell<Option<ProjectSession>>>;
@@ -29,7 +29,7 @@ pub(crate) fn drums_panel_view(session: &SessionCell) -> Option<(DrumsSnapshot, 
     let s = borrowed.as_ref()?;
     let snapshot = s.dispatcher.drums_snapshot();
     let library = s.dispatcher.drums_library();
-    let outputs = output_endpoints(&s.io_bindings.borrow());
+    let outputs = drums_output_endpoints(&s.io_bindings.borrow());
     let view = drums_view(&snapshot, &library, &outputs);
     Some((snapshot, view))
 }

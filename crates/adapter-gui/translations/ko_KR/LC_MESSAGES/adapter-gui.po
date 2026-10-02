@@ -1187,3 +1187,9 @@ msgstr "그루브 선택"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "설치된 킷이나 그루브가 없습니다"
+
+msgid "placeholder-drums-search"
+msgstr "검색"
+
+msgid "status-drums-no-match"
+msgstr "일치하는 항목이 없습니다"

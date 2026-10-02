@@ -1190,3 +1190,9 @@ msgstr "グルーヴを選択"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "キットもグルーヴもありません"
+
+msgid "placeholder-drums-search"
+msgstr "検索"
+
+msgid "status-drums-no-match"
+msgstr "一致する項目がありません"

@@ -61,6 +61,8 @@ pub(crate) fn wire(
     );
     let c = ctx.clone();
     bridge.on_output_opened(move || c.render());
+    let c = ctx.clone();
+    bridge.on_query_changed(move |_| c.render());
     ctx.render();
     start_poll(ctx, live);
 }

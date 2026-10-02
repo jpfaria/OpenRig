@@ -193,3 +193,30 @@ fn the_compact_view_drums_section_lays_the_same_controls_flat() {
     assert!(click(&w, FOOTSWITCH, 0));
     assert_eq!(plays.get(), 1);
 }
+
+#[test]
+fn opening_a_list_clears_its_search_and_typing_narrows_it() {
+    let w = window();
+    let bridge = DrumsBridge::get(&w);
+    bridge.set_query("stale".into());
+    let queries = Rc::new(RefCell::new(Vec::new()));
+    let q = queries.clone();
+    bridge.on_query_changed(move |text| q.borrow_mut().push(text.to_string()));
+
+    assert_eq!(count(&w, "DrumsPanel::search"), 0, "no search while closed");
+    assert!(click(&w, FIELD, 1));
+    assert_eq!(bridge.get_query(), "", "a list opens unfiltered");
+    assert!(
+        click(&w, "DrumsPanel::search", 0),
+        "the open list has a search box"
+    );
+    for ch in "jazz".chars() {
+        let text = slint::SharedString::from(ch.to_string().as_str());
+        w.window()
+            .dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+        w.window().dispatch_event(WindowEvent::KeyReleased { text });
+    }
+    assert_eq!(bridge.get_query(), "jazz");
+    assert_eq!(queries.borrow().last().map(String::as_str), Some("jazz"));
+    assert_eq!(queries.borrow().first().map(String::as_str), Some(""));
+}

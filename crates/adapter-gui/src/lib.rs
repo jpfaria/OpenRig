@@ -244,6 +244,8 @@ mod device_selection_items;
 mod device_settings_resolve;
 mod drums_bridge_sync;
 mod drums_intents;
+mod drums_outputs;
+mod drums_picker_filter;
 mod drums_session;
 mod drums_view;
 mod drums_wiring;

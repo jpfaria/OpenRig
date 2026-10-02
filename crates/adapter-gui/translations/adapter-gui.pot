@@ -1182,3 +1182,9 @@ msgstr ""
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr ""
+
+msgid "placeholder-drums-search"
+msgstr ""
+
+msgid "status-drums-no-match"
+msgstr ""

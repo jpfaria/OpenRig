@@ -91,6 +91,8 @@ pub(crate) fn wire_drums(
         let c = ctx.clone();
         bridge.on_output_opened(move || c.render());
         let c = ctx.clone();
+        bridge.on_query_changed(move |_| c.render());
+        let c = ctx.clone();
         bridge.on_open_drums_window(move || open(&c));
         let c = ctx.clone();
         bridge.on_close_drums(move || close(&c));

@@ -1184,3 +1184,9 @@ msgstr "ग्रूव चुनें"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "कोई किट या ग्रूव इंस्टॉल नहीं"
+
+msgid "placeholder-drums-search"
+msgstr "खोजें"
+
+msgid "status-drums-no-match"
+msgstr "कोई मेल नहीं मिला"

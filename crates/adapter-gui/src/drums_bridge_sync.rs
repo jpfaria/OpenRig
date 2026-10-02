@@ -3,6 +3,7 @@
 use feature_dsp::drums::DrumPosition;
 use slint::{ModelRc, SharedString, VecModel};
 
+use crate::drums_picker_filter::filter_picks;
 use crate::drums_view::{DrumPick, DrumsView};
 use crate::{DrumPickRow, DrumsBridge};
 
@@ -18,7 +19,8 @@ fn rows(picks: &[DrumPick]) -> ModelRc<DrumPickRow> {
     ModelRc::new(VecModel::from(rows))
 }
 
-/// Publish the panel's choices, transport, tempo and level.
+/// Publish the panel's choices (narrowed by the bridge's search), transport,
+/// tempo and level.
 pub(crate) fn set_drums_view(bridge: &DrumsBridge, view: &DrumsView) {
     bridge.set_enabled(view.enabled);
     bridge.set_playing(view.playing);
@@ -27,9 +29,10 @@ pub(crate) fn set_drums_view(bridge: &DrumsBridge, view: &DrumsView) {
     bridge.set_bpm_max(view.bpm_max);
     bridge.set_volume(view.volume);
     bridge.set_beats_per_bar(view.beats_per_bar);
-    bridge.set_kit_rows(rows(&view.kits));
-    bridge.set_groove_rows(rows(&view.grooves));
-    bridge.set_output_rows(rows(&view.outputs));
+    let query = bridge.get_query();
+    bridge.set_kit_rows(rows(&filter_picks(&view.kits, &query)));
+    bridge.set_groove_rows(rows(&filter_picks(&view.grooves, &query)));
+    bridge.set_output_rows(rows(&filter_picks(&view.outputs, &query)));
     bridge.set_kit_key(view.kit_key.as_str().into());
     bridge.set_kit_label(view.kit_label.as_str().into());
     bridge.set_groove_key(view.groove_key.as_str().into());
@@ -45,3 +48,7 @@ pub(crate) fn set_drums_position(bridge: &DrumsBridge, position: Option<DrumPosi
     bridge.set_current_beat(p.beat as i32);
     bridge.set_in_fill(p.playing && p.in_fill);
 }
+
+#[cfg(test)]
+#[path = "drums_bridge_sync_tests.rs"]
+mod tests;

@@ -1191,3 +1191,9 @@ msgstr "Elegir ritmo"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "No hay kits ni ritmos instalados"
+
+msgid "placeholder-drums-search"
+msgstr "Buscar"
+
+msgid "status-drums-no-match"
+msgstr "Sin resultados"

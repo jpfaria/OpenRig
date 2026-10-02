@@ -21,6 +21,13 @@ export component DrumsPanel inherits Rectangle {
 
     private property <length> header-height: root.embedded ? 0px : 72px;
 
+    // A list always opens unfiltered.
+    function open-picker(which: int) {
+        DrumsBridge.query = "";
+        DrumsBridge.query-changed("");
+        DrumsBridge.picker = which;
+    }
+
     background: root.embedded ? transparent : @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
     // ── Header bar ───────────────────────────────────────────────────────
@@ -175,7 +182,7 @@ export component DrumsPanel inherits Rectangle {
                 label: DrumsBridge.kit-label;
                 placeholder: @tr("placeholder-drum-kit");
                 icon: @image-url("../assets/drums.svg");
-                open => { DrumsBridge.picker = 1; }
+                open => { root.open-picker(1); }
             }
 
             DrumPickerField {
@@ -183,7 +190,7 @@ export component DrumsPanel inherits Rectangle {
                 label: DrumsBridge.groove-label;
                 placeholder: @tr("placeholder-drum-groove");
                 icon: @image-url("../assets/loop.svg");
-                open => { DrumsBridge.picker = 2; }
+                open => { root.open-picker(2); }
             }
         }
 
@@ -244,8 +251,8 @@ export component DrumsPanel inherits Rectangle {
             placeholder: @tr("placeholder-metronome-output");
             icon: @image-url("../assets/headphones.svg");
             open => {
+                root.open-picker(3);
                 DrumsBridge.output-opened();
-                DrumsBridge.picker = 3;
             }
         }
     }
@@ -271,7 +278,7 @@ export component DrumsPanel inherits Rectangle {
             x: (parent.width - self.width) / 2;
             y: root.embedded ? 8px : 80px;
             width: min(parent.width - 32px, 480px);
-            height: min(parent.height - self.y - 16px, self.rows.length * 44px + 56px);
+            height: min(parent.height - self.y - 16px, max(self.rows.length, 1) * 44px + 104px);
             border-radius: 8px;
             background: #0f131b;
             border-width: 1px;
@@ -294,9 +301,64 @@ export component DrumsPanel inherits Rectangle {
                 letter-spacing: 2.0px;
             }
 
+            // ── Search — narrows the list as you type ──
+            Rectangle {
+                x: 8px; y: 44px;
+                width: parent.width - 16px; height: 40px;
+                border-radius: 6px;
+                background: #15191f;
+                border-width: 1px;
+                border-color: search.has-focus ? #4d5868 : #2b3340;
+
+                Image {
+                    x: 10px; y: (parent.height - 16px) / 2;
+                    width: 16px; height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
+                }
+
+                search := TextInput {
+                    x: 34px;
+                    width: parent.width - 34px - (DrumsBridge.query == "" ? 8px : 32px);
+                    height: parent.height;
+                    text <=> DrumsBridge.query;
+                    color: #f1f4f8;
+                    font-size: 18px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => { DrumsBridge.query-changed(self.text); }
+                }
+
+                if DrumsBridge.query == "" : Text {
+                    x: 34px;
+                    width: parent.width - 42px; height: parent.height;
+                    text: @tr("placeholder-drums-search");
+                    color: #6a6a82;
+                    font-size: 18px;
+                    vertical-alignment: center;
+                }
+
+                if DrumsBridge.query != "" : TouchArea {
+                    x: parent.width - 32px;
+                    width: 28px; height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => {
+                        DrumsBridge.query = "";
+                        DrumsBridge.query-changed("");
+                    }
+                    Image {
+                        x: (parent.width - 12px) / 2; y: (parent.height - 12px) / 2;
+                        width: 12px; height: 12px;
+                        source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                        colorize: #8a94a2;
+                    }
+                }
+            }
+
             if list-box.rows.length == 0 : Text {
-                x: 0; y: 0; width: parent.width; height: parent.height;
-                text: DrumsBridge.picker == 3 ? @tr("status-no-outputs") : @tr("status-no-drum-content");
+                x: 0; y: 92px; width: parent.width; height: parent.height - 92px;
+                text: DrumsBridge.query != "" ? @tr("status-drums-no-match")
+                    : DrumsBridge.picker == 3 ? @tr("status-no-outputs") : @tr("status-no-drum-content");
                 color: #6a6a82;
                 font-size: 18px;
                 horizontal-alignment: center;
@@ -304,9 +366,9 @@ export component DrumsPanel inherits Rectangle {
             }
 
             ScrollView {
-                x: 8px; y: 44px;
+                x: 8px; y: 92px;
                 width: parent.width - 16px;
-                height: parent.height - 52px;
+                height: parent.height - 100px;
                 VerticalLayout {
                     spacing: 4px;
                     for item in list-box.rows : DrumPickRowView {

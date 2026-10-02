@@ -1196,3 +1196,9 @@ msgstr "Groove wählen"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "Keine Kits oder Grooves installiert"
+
+msgid "placeholder-drums-search"
+msgstr "Suchen"
+
+msgid "status-drums-no-match"
+msgstr "Keine Treffer"

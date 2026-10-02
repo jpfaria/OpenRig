@@ -1183,3 +1183,9 @@ msgstr "选择节奏型"
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "status-no-drum-content"
 msgstr "未安装鼓组或节奏型"
+
+msgid "placeholder-drums-search"
+msgstr "搜索"
+
+msgid "status-drums-no-match"
+msgstr "没有匹配项"
