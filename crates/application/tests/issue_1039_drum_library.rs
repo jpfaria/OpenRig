@@ -368,3 +368,11 @@ fn every_bundled_kit_covers_the_core_pieces() {
         }
     }
 }
+
+#[test]
+fn user_kits_live_in_a_drums_folder_under_the_user_data_root() {
+    assert_eq!(
+        application::drums::user_drum_dir(),
+        infra_filesystem::user_data_root().join("drums")
+    );
+}

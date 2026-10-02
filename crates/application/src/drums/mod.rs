@@ -6,7 +6,9 @@ mod hydrogen_kit;
 mod kit_loader;
 mod kit_roles;
 
-pub use drum_library::{bundled_drum_dir, scan_drum_library, DrumKitEntry, DrumLibrary};
+pub use drum_library::{
+    bundled_drum_dir, scan_drum_library, user_drum_dir, DrumKitEntry, DrumLibrary,
+};
 pub use groove_file::parse_groove_file;
 pub use hydrogen_kit::{parse_hydrogen_kit, KitDescription, KitInstrument, KitLayerFiles};
 pub use kit_loader::load_kit;

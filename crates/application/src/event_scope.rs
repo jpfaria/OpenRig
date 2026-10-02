@@ -83,6 +83,11 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            | Event::DrumsTransportChanged { .. }
+            | Event::DrumFillTriggered
+            | Event::DrumsSettingsChanged { .. }
+            | Event::DrumsContentChanged { .. }
+            | Event::DrumsOutputChanged { .. }
             // #1007: mixer strips are system-level endpoints, never a chain.
             | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }

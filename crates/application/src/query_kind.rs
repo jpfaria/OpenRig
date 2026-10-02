@@ -100,6 +100,9 @@ pub enum QueryKind {
     /// to see the tempo it is running at and the beat it is on. Serialized by
     /// [`crate::read`].
     MetronomeState,
+    /// The drum machine: its settings, the installed kits and grooves, and
+    /// the live bar and beat. Serialized by [`crate::query_drums`].
+    DrumsState,
     /// #923: what each output ROUTE's device stream pulled — callbacks
     /// served, empty pops, and the loudest sample since the previous read,
     /// per (chain, runtime group, route). The per-chain meters say what a

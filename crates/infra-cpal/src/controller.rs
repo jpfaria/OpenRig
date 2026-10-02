@@ -139,6 +139,8 @@ pub struct ProjectRuntimeController {
     /// Issue #14: lock-free settings/position shared with that stream's
     /// callback. Outlives the stream so settings survive a stop/start.
     pub(crate) metronome_shared: engine::metronome_state::MetronomeCell,
+    /// The drum machine's own output stream and the state it shares with it.
+    pub(crate) drums: crate::drums_stream::DrumsHost,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -185,6 +187,7 @@ impl ProjectRuntimeController {
             metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
                 Default::default(),
             )),
+            drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -234,6 +237,7 @@ impl ProjectRuntimeController {
             metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
                 Default::default(),
             )),
+            drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),

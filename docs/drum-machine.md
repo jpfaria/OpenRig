@@ -54,3 +54,26 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   each performance, and fills taken from bars that end on a crash.
 - `scan_drum_library` lists kits (reading only `drumkit.xml`) and grooves;
   a bad file is logged and skipped.
+- The library scanned is the bundled folder plus the user's own
+  `drums/` folder under the app data root (`user_drum_dir()`), in that order.
+
+## Playback
+
+- **Commands** (`DrumsCommand`, so the GUI, MCP and MIDI share them):
+  `SetDrumsEnabled`, `PlayDrums`, `StopDrums`, `ToggleDrums`,
+  `TriggerDrumFill`, `SetDrumsBpm`, `SetDrumsVolume`, `SelectDrumKit`,
+  `SelectDrumGroove`, `SetDrumsOutput`. Play opens the output when it is
+  closed; Stop only stops the transport; `SetDrumsEnabled { false }` closes
+  the output. A fill while stopped is an error.
+- **Read**: `QueryKind::DrumsState`, served on MCP as `openrig://drums`
+  (settings, kit and groove lists, live bar and beat).
+- **MIDI** slots: `toggle_drums`, `drum_fill`.
+- **Persistence**: BPM, volume, kit, groove and output go in the machine's
+  `config.yaml` under `drums:`.
+- **Output**: the drums open their own cpal stream on the chosen output
+  endpoint (the project's first when none is saved), like the metronome.
+  Only Play may create the audio runtime, so the drums sound with no chain
+  enabled. A kit is decoded at the stream's rate on a worker thread and
+  handed to the callback lock-free; a newer load overtakes an older one, and
+  a kit at the wrong rate is never played. The JACK backend has no drum
+  output yet.

@@ -32,6 +32,11 @@ pub fn bundled_drum_dir() -> PathBuf {
         .join("drums")
 }
 
+/// The folder where the user drops extra kits and grooves.
+pub fn user_drum_dir() -> PathBuf {
+    infra_filesystem::user_data_root().join("drums")
+}
+
 /// Scans `dirs` in order; an unreadable kit or groove file is logged and
 /// skipped so one bad file never hides the rest.
 pub fn scan_drum_library(dirs: &[PathBuf]) -> DrumLibrary {
