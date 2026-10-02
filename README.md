@@ -236,6 +236,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Global mixer — one fader and mute per input/output endpoint, over GUI, MCP and MIDI control surfaces ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [x] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [ ] Built-in drum machine — play-along drums ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer per stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))
@@ -246,7 +247,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [ ] Manual component models for the OpenRig benchmark amps ([#347](https://github.com/jpfaria/OpenRig/issues/347))
 - [ ] NAM → native generators for amps and preamps ([#282](https://github.com/jpfaria/OpenRig/issues/282), [#283](https://github.com/jpfaria/OpenRig/issues/283))
 - [ ] IR → native generators for cabinets and acoustic bodies ([#284](https://github.com/jpfaria/OpenRig/issues/284), [#285](https://github.com/jpfaria/OpenRig/issues/285))
-- [ ] User-authored plugin wizard for NAM / IR import ([#287](https://github.com/jpfaria/OpenRig/issues/287))
+- [ ] User-authored plugin wizard for NAM / IR import
 
 ### Ecosystem and remote
 
