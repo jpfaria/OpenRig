@@ -19,6 +19,7 @@ fn every_query_kind() -> Vec<QueryKind> {
         QueryKind::DiLoopState,
         QueryKind::OutputRoutes,
         QueryKind::MetronomeState,
+        QueryKind::PlayerState,
         QueryKind::MixerState,
         QueryKind::ChainMixer {
             chain: ChainId("rig:input-1".into()),
@@ -82,6 +83,16 @@ fn analyzer_readings_are_listed_resources() {
     assert!(
         uris.contains(&"openrig://spectrum".to_string()),
         "spectrum readings missing from the MCP resource list: {uris:?}"
+    );
+}
+
+/// The player is a window the user reads, so every transport reads it too.
+#[test]
+fn the_player_is_a_listed_resource() {
+    let uris: Vec<String> = resources().iter().map(|r| r.raw.uri.to_string()).collect();
+    assert!(
+        uris.contains(&"openrig://player".to_string()),
+        "player state missing from the MCP resource list: {uris:?}"
     );
 }
 

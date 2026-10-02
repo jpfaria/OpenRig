@@ -1143,3 +1143,81 @@ msgstr "Puerto"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "Elegir archivo…"
+
+msgid "action-loop-clear"
+msgstr "Borrar"
+
+msgid "action-loop-end"
+msgstr "Loop B"
+
+msgid "action-loop-start"
+msgstr "Loop A"
+
+msgid "action-pause"
+msgstr "Pausa"
+
+msgid "action-play"
+msgstr "Reproducir"
+
+msgid "action-stop"
+msgstr "Detener"
+
+msgid "label-backing-tracks"
+msgstr "Pistas de acompañamiento"
+
+msgid "label-loop-range"
+msgstr "Bucle {}"
+
+msgid "label-player-output"
+msgstr "Salida de la pista"
+
+msgid "label-player-position"
+msgstr "Posición en la pista"
+
+msgid "label-track-bundled"
+msgstr "Incluida"
+
+msgid "label-track-library"
+msgstr "Pistas"
+
+msgid "label-track-mine"
+msgstr "Mía"
+
+msgid "label-track-pitch"
+msgstr "Tono"
+
+msgid "label-track-speed"
+msgstr "Velocidad"
+
+msgid "label-track-volume"
+msgstr "Volumen"
+
+msgid "label-user-tracks-folder"
+msgstr "Tus pistas: {}"
+
+msgid "placeholder-player-output"
+msgstr "Selecciona la salida"
+
+msgid "status-no-backing-tracks"
+msgstr "Aún no hay pistas. Pon archivos de audio en tu carpeta de pistas o elige un archivo."
+
+msgid "status-no-track"
+msgstr "Ninguna pista cargada"
+
+msgid "status-track-failed"
+msgstr "No se pudo leer este archivo"
+
+msgid "status-track-loading"
+msgstr "Cargando…"
+
+msgid "title-window-player"
+msgstr "OpenRig · Pistas de acompañamiento"
+
+msgid "tooltip-backing-tracks"
+msgstr "Pistas de acompañamiento"
+
+msgid "label-backing-tracks-path"
+msgstr "Pistas de acompañamiento"

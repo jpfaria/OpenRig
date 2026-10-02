@@ -54,6 +54,14 @@ mod jack_route_ports;
 
 mod active_runtime;
 
+mod aux_output;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod aux_output_cpal;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod aux_output_jack;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_client_open;
+
 // #127: `AudioDeviceDescriptor` used to be DEFINED here, which meant every UI
 // module that rendered a device name linked this crate. It now lives in
 // `domain::audio_device` — this crate still PRODUCES it (see `device_enum`),
@@ -188,6 +196,9 @@ mod memory_wiring_pass;
 #[cfg(any(target_os = "macos", test))]
 mod memory_wiring_report;
 mod metronome_stream;
+mod player_stream;
+mod player_worker;
+pub use player_worker::PlayerDecoder;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

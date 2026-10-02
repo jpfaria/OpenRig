@@ -187,6 +187,7 @@ pub(super) fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeContr
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
@@ -420,6 +421,7 @@ pub(super) fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeCont
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),

@@ -62,6 +62,7 @@ fn controller() -> ProjectRuntimeController {
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),

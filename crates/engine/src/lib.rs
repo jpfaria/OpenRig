@@ -55,6 +55,7 @@ mod mixer_ramp;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;
+pub mod player;
 pub mod probe;
 mod rig_projection;
 pub mod rig_runtime;

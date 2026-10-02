@@ -29,5 +29,6 @@ impl ProjectRuntimeController {
             || !self.pending_activations.is_empty()
             || !self.di_streams.borrow().is_empty()
             || self.metronome_active()
+            || self.player_active()
     }
 }

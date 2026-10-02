@@ -59,6 +59,7 @@ mod local_dispatcher_model_swap_rig;
 mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
 mod local_dispatcher_paths;
+mod local_dispatcher_player;
 mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;
@@ -86,6 +87,10 @@ pub mod mixer_view;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
+/// The backing-track player: its library, decoder and control-plane state.
+pub mod player_decode;
+pub mod player_library;
+pub mod player_state;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
@@ -102,6 +107,7 @@ pub mod query_loopers;
 pub mod query_mixer;
 pub mod query_output_routes;
 pub mod query_paths;
+pub mod query_player;
 pub mod query_plugins;
 pub mod query_presets;
 /// #831: the single `QueryKind` resolver every transport answers through —

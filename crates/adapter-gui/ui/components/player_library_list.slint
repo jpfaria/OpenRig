@@ -1,0 +1,79 @@
+// Responsibility: renders the backing-track library list.
+import { ScrollView } from "std-widgets.slint";
+import { PlayerTrackRow } from "player_globals.slint";
+
+// One clickable track; the loaded one is highlighted.
+component PlayerTrackItem inherits Rectangle {
+    in property <PlayerTrackRow> track;
+    in property <bool> active;
+    callback pick();
+
+    height: 40px;
+    border-radius: 5px;
+    background: root.active ? #1d4e73 : (ta.has-hover ? #1b2230 : transparent);
+
+    Text {
+        x: 12px;
+        width: parent.width - 152px;
+        height: parent.height;
+        text: root.track.name;
+        color: #f1f4f8;
+        font-size: 18px;
+        font-weight: root.active ? 700 : 500;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Text {
+        x: parent.width - 136px;
+        width: 124px;
+        height: parent.height;
+        text: root.track.bundled ? @tr("label-track-bundled") : @tr("label-track-mine");
+        color: root.track.bundled ? #6a7484 : #ccaa66;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.4px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.pick(); }
+    }
+    accessible-role: button;
+    accessible-label: root.track.name;
+}
+
+export component PlayerLibraryList inherits Rectangle {
+    in property <[PlayerTrackRow]> tracks;
+    in property <string> active-path;
+    callback pick(string);
+
+    border-radius: 6px;
+    background: #0a0d12;
+    border-width: 1px;
+    border-color: #2b3340;
+
+    if root.tracks.length == 0 : Text {
+        x: 16px; width: parent.width - 32px; height: parent.height;
+        text: @tr("status-no-backing-tracks");
+        color: #6a6a82;
+        font-size: 18px;
+        wrap: word-wrap;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ScrollView {
+        x: 6px; y: 6px;
+        width: parent.width - 12px;
+        height: parent.height - 12px;
+        VerticalLayout {
+            spacing: 2px;
+            for track in root.tracks : PlayerTrackItem {
+                track: track;
+                active: track.path == root.active-path;
+                pick => { root.pick(track.path); }
+            }
+        }
+    }
+}

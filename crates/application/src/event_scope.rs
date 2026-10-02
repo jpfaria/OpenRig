@@ -83,6 +83,12 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            // The backing-track player is its own stream, never a chain.
+            | Event::PlayerTrackLoaded { .. }
+            | Event::PlayerTransportChanged { .. }
+            | Event::PlayerSeeked { .. }
+            | Event::PlayerSettingsChanged { .. }
+            | Event::PlayerOutputChanged { .. }
             // #1007: mixer strips are system-level endpoints, never a chain.
             | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }

@@ -108,6 +108,11 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         }
         QueryKind::ChainToneReport { chain } => Ok(ctx.dispatcher.tone_report_json(chain)),
         QueryKind::MetronomeState => Ok(metronome_state(ctx)),
+        QueryKind::PlayerState => Ok(crate::query_player::player_state_json(
+            &ctx.dispatcher.player_snapshot(),
+            ctx.live.player(),
+            &ctx.dispatcher.player_library(),
+        )),
         QueryKind::MixerState => Ok(crate::query_mixer::mixer_state_json(
             &ctx.dispatcher.mixer_strips(),
         )),

@@ -1136,3 +1136,81 @@ msgstr "पोर्ट"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "फ़ाइल चुनें…"
+
+msgid "action-loop-clear"
+msgstr "हटाएँ"
+
+msgid "action-loop-end"
+msgstr "लूप B"
+
+msgid "action-loop-start"
+msgstr "लूप A"
+
+msgid "action-pause"
+msgstr "रोकें"
+
+msgid "action-play"
+msgstr "चलाएँ"
+
+msgid "action-stop"
+msgstr "बंद करें"
+
+msgid "label-backing-tracks"
+msgstr "बैकिंग ट्रैक"
+
+msgid "label-loop-range"
+msgstr "लूप {}"
+
+msgid "label-player-output"
+msgstr "ट्रैक आउटपुट"
+
+msgid "label-player-position"
+msgstr "ट्रैक स्थिति"
+
+msgid "label-track-bundled"
+msgstr "शामिल"
+
+msgid "label-track-library"
+msgstr "ट्रैक"
+
+msgid "label-track-mine"
+msgstr "मेरा"
+
+msgid "label-track-pitch"
+msgstr "पिच"
+
+msgid "label-track-speed"
+msgstr "गति"
+
+msgid "label-track-volume"
+msgstr "वॉल्यूम"
+
+msgid "label-user-tracks-folder"
+msgstr "आपके ट्रैक: {}"
+
+msgid "placeholder-player-output"
+msgstr "आउटपुट चुनें"
+
+msgid "status-no-backing-tracks"
+msgstr "अभी कोई ट्रैक नहीं। अपने ट्रैक फ़ोल्डर में ऑडियो फ़ाइलें रखें या एक फ़ाइल चुनें।"
+
+msgid "status-no-track"
+msgstr "कोई ट्रैक लोड नहीं"
+
+msgid "status-track-failed"
+msgstr "यह फ़ाइल पढ़ी नहीं जा सकी"
+
+msgid "status-track-loading"
+msgstr "लोड हो रहा है…"
+
+msgid "title-window-player"
+msgstr "OpenRig · बैकिंग ट्रैक"
+
+msgid "tooltip-backing-tracks"
+msgstr "बैकिंग ट्रैक"
+
+msgid "label-backing-tracks-path"
+msgstr "बैकिंग ट्रैक"

@@ -1,0 +1,360 @@
+// Responsibility: renders the backing-track player window.
+// Same visual language as the metronome: a dark header, an amber LCD with the
+// one readout read mid-song (where the track is), pill buttons for the
+// transport and pedal knobs for level, speed and pitch. The library sits
+// below, so picking the next track never needs a second dialog.
+//
+// The panel reads everything from the `PlayerBridge` global, so the standalone
+// window and the inline (fullscreen / touch) placement share one component.
+import { ScrollView } from "std-widgets.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { ControlCell, PillButton } from "../components/metronome_controls.slint";
+import { OutputField, OutputRow } from "../components/output_picker.slint";
+import { PlayerBridge } from "../components/player_globals.slint";
+import { PlayerSeekBar } from "../components/player_seek_bar.slint";
+import { PlayerLibraryList } from "../components/player_library_list.slint";
+
+export component PlayerPanel inherits Rectangle {
+    in property <bool> show-close-button: false;
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header ───────────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 64px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        Image {
+            x: 18px; y: 20px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/backing-track.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 52px; y: 0;
+            width: 260px; height: parent.height;
+            text: @tr("label-backing-tracks");
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 18px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { PlayerBridge.close-player(); }
+            }
+        }
+    }
+
+    // ── LCD — the track and where it is ──────────────────────────────────
+    Rectangle {
+        x: 16px; y: 80px;
+        width: parent.width - 32px;
+        height: 124px;
+        border-radius: 6px;
+        background: PlayerBridge.playing ? #ccaa66 : #776633;
+        border-width: 1px;
+        border-color: #00000099;
+        clip: true;
+        drop-shadow-blur: 6px;
+        drop-shadow-color: #00000080;
+
+        Text {
+            x: 16px; y: 6px;
+            width: parent.width - 32px; height: 32px;
+            text: PlayerBridge.track-name != "" ? PlayerBridge.track-name : @tr("status-no-track");
+            color: #2a2008;
+            font-family: "Bebas Neue";
+            font-size: 22px;
+            letter-spacing: 1.0px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        Text {
+            x: 0; y: 36px;
+            width: parent.width; height: 56px;
+            text: PlayerBridge.time-label;
+            color: #2a2008;
+            font-family: "Bebas Neue";
+            font-size: 52px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 16px; y: 94px;
+            width: parent.width - 32px; height: 22px;
+            text: PlayerBridge.loading ? @tr("status-track-loading")
+                : PlayerBridge.failed ? @tr("status-track-failed")
+                : PlayerBridge.loop-label != "" ? @tr("label-loop-range", PlayerBridge.loop-label)
+                : "";
+            color: PlayerBridge.failed ? #7a1a0a : #5a4a1a;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 2.0px;
+            horizontal-alignment: center;
+        }
+    }
+
+    PlayerSeekBar {
+        x: 16px; y: 212px;
+        width: parent.width - 32px;
+        position: PlayerBridge.position;
+        duration: PlayerBridge.duration;
+        loop-active: PlayerBridge.loop-active;
+        loop-start: PlayerBridge.loop-start;
+        loop-end: PlayerBridge.loop-end;
+        loop-mark: PlayerBridge.loop-mark;
+        seek(s) => { PlayerBridge.seek(s); }
+    }
+
+    // ── Transport — stop, play/pause, loop ───────────────────────────────
+    Rectangle {
+        x: 16px; y: 254px;
+        width: parent.width - 32px;
+        height: 38px;
+
+        PillButton {
+            x: 0; y: 0;
+            width: 100px;
+            label: @tr("action-stop");
+            enabled: PlayerBridge.track-path != "";
+            clicked => { PlayerBridge.stop(); }
+        }
+
+        PillButton {
+            x: 112px; y: 0;
+            width: 160px;
+            label: PlayerBridge.playing ? @tr("action-pause") : @tr("action-play");
+            emphasis: true;
+            enabled: PlayerBridge.track-path != "";
+            clicked => { PlayerBridge.toggle-playing(); }
+        }
+
+        PillButton {
+            x: parent.width - 212px; y: 0;
+            width: 100px;
+            label: PlayerBridge.loop-mark >= 0 ? @tr("action-loop-end") : @tr("action-loop-start");
+            enabled: PlayerBridge.duration > 0;
+            clicked => { PlayerBridge.mark-loop(); }
+        }
+
+        PillButton {
+            x: parent.width - 100px; y: 0;
+            width: 100px;
+            label: @tr("action-loop-clear");
+            enabled: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0;
+            clicked => { PlayerBridge.clear-loop(); }
+        }
+    }
+
+    // ── Knobs — level, speed, pitch ──────────────────────────────────────
+    HorizontalLayout {
+        x: 16px; y: 304px;
+        width: parent.width - 32px;
+        height: 108px;
+        alignment: space-around;
+
+        ControlCell {
+            caption: @tr("label-track-volume");
+            value: Math.round(PlayerBridge.volume * 100) + "%";
+            PanelKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                value: PlayerBridge.volume;
+                min-val: 0.0;
+                max-val: 1.0;
+                step: 0.01;
+                path: "player.volume";
+                changed(p, v) => { PlayerBridge.set-volume(v); }
+            }
+        }
+
+        ControlCell {
+            caption: @tr("label-track-speed");
+            value: PlayerBridge.speed-label;
+            PanelKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                value: PlayerBridge.speed;
+                min-val: 0.5;
+                max-val: 2.0;
+                step: 0.05;
+                path: "player.speed";
+                changed(p, v) => { PlayerBridge.set-speed(v); }
+            }
+        }
+
+        ControlCell {
+            caption: @tr("label-track-pitch");
+            value: PlayerBridge.semitones-label;
+            PanelKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                value: PlayerBridge.semitones;
+                min-val: -12.0;
+                max-val: 12.0;
+                step: 1.0;
+                path: "player.semitones";
+                changed(p, v) => { PlayerBridge.set-semitones(v); }
+            }
+        }
+    }
+
+    OutputField {
+        x: 16px; y: 424px;
+        width: parent.width - 32px;
+        label: PlayerBridge.output-label;
+        placeholder: @tr("placeholder-player-output");
+        open => {
+            PlayerBridge.output-opened();
+            PlayerBridge.output-picker-open = true;
+        }
+    }
+
+    // ── Library ──────────────────────────────────────────────────────────
+    Text {
+        x: 16px; y: 474px;
+        width: parent.width - 200px; height: 38px;
+        text: @tr("label-track-library");
+        color: #7c8798;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.6px;
+        vertical-alignment: center;
+    }
+
+    PillButton {
+        x: parent.width - 16px - self.width; y: 474px;
+        width: 168px;
+        label: @tr("action-choose-file");
+        clicked => { PlayerBridge.choose-file(); }
+    }
+
+    PlayerLibraryList {
+        x: 16px; y: 520px;
+        width: parent.width - 32px;
+        height: parent.height - 520px - 44px;
+        tracks: PlayerBridge.library;
+        active-path: PlayerBridge.track-path;
+        pick(path) => { PlayerBridge.pick-track(path); }
+    }
+
+    Text {
+        x: 16px; y: parent.height - 36px;
+        width: parent.width - 32px; height: 24px;
+        text: @tr("label-user-tracks-folder", PlayerBridge.user-folder);
+        color: #6a7484;
+        font-size: 18px;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // ── Output picker overlay — clickable rows, click-outside to dismiss ──
+    if PlayerBridge.output-picker-open : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000cc;
+
+        TouchArea {
+            clicked => { PlayerBridge.output-picker-open = false; }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 80px;
+            width: parent.width - 96px;
+            height: min(parent.height - 130px,
+                PlayerBridge.output-options.length * 44px + 56px);
+            border-radius: 8px;
+            background: #0f131b;
+            border-width: 1px;
+            border-color: #2b3340;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+
+            Text {
+                x: 16px; y: 14px;
+                width: parent.width - 32px; height: 22px;
+                text: @tr("label-player-output");
+                color: #93a1b7;
+                font-family: "Bebas Neue";
+                font-size: 18px;
+                letter-spacing: 2.0px;
+            }
+
+            if PlayerBridge.output-options.length == 0 : Text {
+                x: 0; y: 0; width: parent.width; height: parent.height;
+                text: @tr("status-no-outputs");
+                color: #6a6a82;
+                font-size: 18px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            ScrollView {
+                x: 8px; y: 44px;
+                width: parent.width - 16px;
+                height: parent.height - 52px;
+                VerticalLayout {
+                    spacing: 4px;
+                    for opt in PlayerBridge.output-options : OutputRow {
+                        label: opt.label;
+                        active: opt.key == PlayerBridge.output-key;
+                        pick => {
+                            PlayerBridge.pick-output(opt.key);
+                            PlayerBridge.output-picker-open = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component PlayerWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 18px;
+    title: @tr("title-window-player");
+    min-width: 520px;
+    min-height: 680px;
+    preferred-width: 600px;
+    preferred-height: 760px;
+    background: #050608;
+
+    PlayerPanel {
+        width: 100%;
+        height: 100%;
+        show-close-button: false;
+    }
+}

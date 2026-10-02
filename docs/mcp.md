@@ -178,6 +178,13 @@ follow-up.
     metronome commands — a client that can start the click can see the
     tempo it runs at and the beat it is on. With no runtime hosted the
     position reads as beat zero rather than a fabricated one.
+  - `openrig://player` — the backing-track player: `track` (path or
+    null), `playing`, `position_seconds` and `duration_seconds` (what was
+    heard), `loading`, `failed`, `volume`, `speed`, `semitones`, `loop`
+    (`{start, end}` in seconds or null), `output`, and `library` (the
+    bundled tracks first, then the user's folder) (JSON). Read parity for
+    the player commands: a path from `library` is what `load_player_track`
+    takes.
   - `openrig://mixer` — the global mixer: `strips`, one per input
     and output endpoint configured in the I/O bindings, inputs first, each
     with `id` (what the mixer tools address), `direction`
@@ -245,6 +252,8 @@ follow-up.
     OS default a consumer would compute itself. Skills (e.g.
     `openrig-tone-analyzer`) read this instead of hard-coding
     `~/Library/Application Support/OpenRig/…`.
+    `backing_tracks_path` is the user's backing-track folder: a file
+    dropped there appears in `openrig://player`'s `library`.
     `looper_takes_path` is the app-wide looper take library: a
     take saved with `save_chain_looper_take` lands there as
     `<name>.wav`, and handing that path to `set_chain_di_loop_source`

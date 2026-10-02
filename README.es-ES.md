@@ -78,7 +78,7 @@ La base que hace posible la visión más grande ya corre en todas las plataforma
 - **Visualización en tiempo real integrada.** Un afinador cromático y un analizador de espectro en vivo entran en la cadena como cualquier otro bloque — ve lo que oyes.
 - **Controlable por IA (MCP).** Cualquier cliente MCP (Claude Desktop/Code, Cursor) maneja la rig *viva* mediante el servidor MCP integrado de OpenRig — arma timbres, ajusta la cadena, cambia preset por conversación, con la GUI abierta. Ver **[Servidor MCP y plugin](docs/mcp.md)**.
 - **Practica con un DI virtual.** Haz loop de un DI seco de guitarra en cualquier cadena para moldear tu timbre sin tocar — elige un loop CC0 incluido o carga tu propio WAV y dale play; toda la cadena (amp, cab, pedales) lo procesa exactamente igual que una señal en vivo. Por cadena y efímero.
-- **Looper, metrónomo y mixer integrados.** Hasta 8 loopers multicapa por cadena (overdub con deshacer/rehacer, velocidad ½×/1×/2×, reversa, recorte sobre la forma de onda, tomas guardadas en una biblioteca), un metrónomo con salida propia y un mixer global con un fader y un mute por entrada y salida.
+- **Looper, metrónomo y mixer integrados.** Hasta 8 loopers multicapa por cadena (overdub con deshacer/rehacer, velocidad ½×/1×/2×, reversa, recorte sobre la forma de onda, tomas guardadas en una biblioteca), un metrónomo con salida propia, un reproductor de backing tracks (velocidad, tono y loop A–B) con salida propia y un mixer global con un fader y un mute por entrada y salida.
 - **Footswitch por MIDI.** MIDI Learn en cualquier knob o interruptor, perfiles MIDI para controladores, BLE-MIDI. Un M-Vave Chocolate ya viene mapeado.
 - **Pedales de verdad en la cadena.** El bloque Insert manda la señal a un equipo externo y la trae de vuelta, en medio de la cadena; un puerto de Output en medio de la cadena saca la señal en ese punto.
 - **Tone Doctor.** Señala fizz, mud y boom comparando con una referencia del género y dice qué bloque es el responsable.
@@ -231,7 +231,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 ### Features de escenario
 
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [ ] Backing tracks / reproductor de audio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [x] Backing tracks / reproductor de audio — pistas de rock, blues y funk incluidas en varios tonos más tus propios archivos, velocidad 0.5×–2× sin cambiar el tono, transposición de ±12 semitonos, loop A–B, salida propia ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeado de pedal de expresión por MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — un fader y un mute por entrada/salida, desde la GUI, MCP y superficies de control MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))

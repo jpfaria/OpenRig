@@ -40,6 +40,7 @@ use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::metronome_state::MetronomeControlState;
 use crate::mixer_state::MixerControlState;
+use crate::player_state::PlayerControlState;
 use crate::runtime_control::RuntimeControl;
 
 /// The rate the dispatcher reports when NO audio stream is running: before the
@@ -159,6 +160,10 @@ pub struct LocalDispatcher {
     /// the tap history start over. A dispatcher nobody attached one to keeps
     /// this private, unpersisted allocation.
     pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
+    /// The backing-track player's loaded track, settings, output and library
+    /// folders. Same handle shape and same persistence guard as the
+    /// metronome: unattached ⇒ nothing persists.
+    pub(crate) player: RefCell<Rc<RefCell<PlayerControlState>>>,
     /// #1007: the global mixer's faders and mutes. Same handle shape and
     /// same #701 guard as the metronome: unattached ⇒ nothing persists.
     pub(crate) mixer: RefCell<Rc<RefCell<MixerControlState>>>,
@@ -215,6 +220,7 @@ impl LocalDispatcher {
             runtime_control: RefCell::new(None),
             metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
             mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
+            player: RefCell::new(Rc::new(RefCell::new(PlayerControlState::default()))),
         }
     }
 
@@ -253,6 +259,17 @@ impl LocalDispatcher {
     /// calls into the frontend, which may re-attach on its way back.
     pub(crate) fn metronome_state(&self) -> Rc<RefCell<MetronomeControlState>> {
         self.metronome.borrow().clone()
+    }
+
+    /// Adopt the player state the frontend built for this session. Idempotent.
+    pub fn attach_player_state(&self, state: Rc<RefCell<PlayerControlState>>) {
+        *self.player.borrow_mut() = state;
+    }
+
+    /// The player state, cloned OUT of its `RefCell` (see
+    /// [`Self::metronome_state`]).
+    pub(crate) fn player_state(&self) -> Rc<RefCell<PlayerControlState>> {
+        self.player.borrow().clone()
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

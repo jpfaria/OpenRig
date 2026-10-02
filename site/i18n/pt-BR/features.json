@@ -1,7 +1,7 @@
 {
   "features.eyebrow": "Tudo que você precisa",
   "features.h2": "Mais do que<br>um rig.",
-  "features.lede": "Looper, afinador, metrônomo, analisador de espectro e um diagnóstico de timbre, tudo embutido. Você não sai do app pra conferir nem pra corrigir o som.",
+  "features.lede": "Looper, afinador, metrônomo, backing tracks, analisador de espectro e um diagnóstico de timbre, tudo embutido. Você não sai do app pra conferir nem pra corrigir o som.",
   "features.f1.h3": "Looper",
   "features.f1.p": "Até 8 loops por cadeia, camada sobre camada — desfaz, inverte, toca na metade ou no dobro da velocidade.",
   "features.f2.h3": "DI loop",
@@ -14,6 +14,8 @@
   "features.f5.p": "Espectro em tempo real por entrada, esquerda e direita — dá pra ver o que você está tocando.",
   "features.f6.h3": "Tone Doctor",
   "features.f6.p": "Aponta fizz, mud e boom comparando com uma referência do gênero, e diz como corrigir.",
+  "features.more.backing.b": "Backing tracks",
+  "features.more.backing.p": "27 bases de rock, blues e funk em vários tons, ou o teu arquivo — toca a 0.5× sem mudar o tom, transpõe ±12 semitons, repete o trecho que você está estudando.",
   "features.more.presets.b": "Presets",
   "features.more.presets.p": "Teu board inteiro, salvo. Chama de volta pela tela, pelo footswitch ou pelo Claude.",
   "features.more.scenes.b": "Scenes",

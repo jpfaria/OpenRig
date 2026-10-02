@@ -28,10 +28,11 @@ page for the working rule.
   GUI's in-memory config is loaded at boot and is stale for every other
   section, so writing it whole would overwrite edits made elsewhere (an I/O
   binding changed over MCP, for one).
-- `paths` — asset roots (thumbnails, screenshots, metadata) plus three
+- `paths` — asset roots (thumbnails, screenshots, metadata) plus four
   user-overridable directories: `presets_path` (project presets),
   `plugins_path` (NAM/IR/LV2 packs),
-  `evaluations_path` (tone-analyzer outputs). Each defaults to
+  `evaluations_path` (tone-analyzer outputs),
+  `backing_tracks_path` (the user's own backing tracks). Each defaults to
   a folder under the OS data root (`~/Library/Application
   Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
   and is machine-local per ADR 0003 — never travels with
@@ -51,6 +52,9 @@ page for the working rule.
   the output device it clicks through only exists on this machine. The on/off
   flag is deliberately **not** persisted: the metronome always opens off, so no
   config file can make a session start clicking.
+- `player` — the backing-track player's `volume` and `output_device`. Speed,
+  pitch and loop are not persisted: they belong to the track and reset when
+  another one loads, and the player always opens stopped.
 - `mixer` — the global mixer: a list of `{id, gain_db, muted, soloed}`,
   one per strip the user moved. `id` addresses a configured endpoint
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists

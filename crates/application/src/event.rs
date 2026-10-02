@@ -272,6 +272,35 @@ pub enum Event {
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
 
+    /// A backing track was loaded into the player; it starts paused.
+    PlayerTrackLoaded {
+        path: PathBuf,
+    },
+
+    /// The player started or paused.
+    PlayerTransportChanged {
+        playing: bool,
+    },
+
+    /// The player moved to a position, in seconds of the track.
+    PlayerSeeked {
+        seconds: f64,
+    },
+
+    /// The player's settings changed. Values are the applied, clamped ones.
+    PlayerSettingsChanged {
+        volume: f32,
+        speed: f32,
+        semitones: f32,
+        loop_start: Option<f64>,
+        loop_end: Option<f64>,
+    },
+
+    /// The player's output endpoint key changed.
+    PlayerOutputChanged {
+        device_id: Option<String>,
+    },
+
     /// #1007: a global mixer strip moved. Values are the applied ones (the
     /// fader already clamped); a surface echoes them as fader/LED feedback.
     MixerStripChanged {

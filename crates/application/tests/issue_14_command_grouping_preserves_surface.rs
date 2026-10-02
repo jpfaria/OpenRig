@@ -157,6 +157,18 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "UnloadPlugin",
     "UpdateIoBinding",
     "UpdateProjectName",
+    // The backing-track player.
+    "ClearPlayerLoop",
+    "LoadPlayerTrack",
+    "SeekPlayer",
+    "SetBackingTracksPath",
+    "SetPlayerLoop",
+    "SetPlayerOutput",
+    "SetPlayerPlaying",
+    "SetPlayerSemitones",
+    "SetPlayerSpeed",
+    "SetPlayerVolume",
+    "StopPlayer",
 ];
 
 #[test]

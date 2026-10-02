@@ -19,6 +19,7 @@ pub(crate) use crate::live_source_gui::GuiLiveSource;
 pub(crate) use crate::live_source_health::health_live_source;
 pub(crate) use crate::live_source_looper::looper_live_source;
 pub(crate) use crate::live_source_metronome::metronome_live_source;
+pub(crate) use crate::live_source_player::player_live_source;
 
 #[cfg(test)]
 #[path = "gui_live_source_tests.rs"]

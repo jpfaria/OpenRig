@@ -1139,3 +1139,81 @@ msgstr "포트"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "파일 선택…"
+
+msgid "action-loop-clear"
+msgstr "지우기"
+
+msgid "action-loop-end"
+msgstr "루프 B"
+
+msgid "action-loop-start"
+msgstr "루프 A"
+
+msgid "action-pause"
+msgstr "일시정지"
+
+msgid "action-play"
+msgstr "재생"
+
+msgid "action-stop"
+msgstr "정지"
+
+msgid "label-backing-tracks"
+msgstr "반주 트랙"
+
+msgid "label-loop-range"
+msgstr "루프 {}"
+
+msgid "label-player-output"
+msgstr "트랙 출력"
+
+msgid "label-player-position"
+msgstr "재생 위치"
+
+msgid "label-track-bundled"
+msgstr "기본 제공"
+
+msgid "label-track-library"
+msgstr "트랙"
+
+msgid "label-track-mine"
+msgstr "내 트랙"
+
+msgid "label-track-pitch"
+msgstr "피치"
+
+msgid "label-track-speed"
+msgstr "속도"
+
+msgid "label-track-volume"
+msgstr "볼륨"
+
+msgid "label-user-tracks-folder"
+msgstr "내 트랙: {}"
+
+msgid "placeholder-player-output"
+msgstr "출력 선택"
+
+msgid "status-no-backing-tracks"
+msgstr "트랙이 없습니다. 트랙 폴더에 오디오 파일을 넣거나 파일을 선택하세요."
+
+msgid "status-no-track"
+msgstr "불러온 트랙 없음"
+
+msgid "status-track-failed"
+msgstr "이 파일을 읽을 수 없습니다"
+
+msgid "status-track-loading"
+msgstr "불러오는 중…"
+
+msgid "title-window-player"
+msgstr "OpenRig · 반주 트랙"
+
+msgid "tooltip-backing-tracks"
+msgstr "반주 트랙"
+
+msgid "label-backing-tracks-path"
+msgstr "반주 트랙"

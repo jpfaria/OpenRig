@@ -119,6 +119,12 @@ mod looper_commands;
 mod looper_restore;
 mod param_tab_grouping;
 mod param_tabs_inline;
+mod player_controls_wiring;
+mod player_file_chooser;
+mod player_render;
+mod player_session;
+mod player_view;
+mod player_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod plugin_info_panel;
@@ -138,6 +144,7 @@ mod runtime_health;
 mod runtime_lifecycle;
 pub mod runtime_loopers;
 mod runtime_pipelines;
+mod runtime_player;
 mod runtime_session_handle;
 mod runtime_sync_policy;
 #[cfg(test)]
@@ -275,6 +282,7 @@ mod live_source_gui;
 mod live_source_health;
 mod live_source_looper;
 mod live_source_metronome;
+mod live_source_player;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
