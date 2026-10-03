@@ -38,7 +38,7 @@ cargo fmt --all -- --check
 echo "== static checks"
 VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
 
-echo "== Linux build (warnings are errors)"
+echo "== Linux build"
 started_docker=0
 quit_docker() {
     if [ "$started_docker" = 1 ]; then
