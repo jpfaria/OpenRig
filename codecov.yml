@@ -47,7 +47,8 @@ ignore:
   # The shells #913 emptied. Each of these had its logic pulled into a module
   # that IS tested — `recent_projects_wiring` → `recent_project_open` +
   # `recent_project_remove`, `preset_save_wiring` → `preset_save`,
-  # `latency_probe` → `latency_probe_run` + `latency_badge_expiry`, and so on.
+  # `latency_probe` → `latency_probe_run` + `latency_badge_expiry`,
+  # `drums_wiring` → `drums_ctx` + `drums_session`, and so on.
   # What is left in the file is `window.on_x(...)` and window setters. They are
   # here because they meet the criterion above, NOT to move a number: each one
   # earned its place by having its logic taken out first, and the day a body
@@ -65,6 +66,7 @@ ignore:
   - "crates/adapter-gui/src/desktop_app_cli_open.rs"
   - "crates/adapter-gui/src/desktop_app_polling.rs"
   - "crates/adapter-gui/src/di_loop_chooser_wiring.rs"
+  - "crates/adapter-gui/src/drums_wiring.rs"
   - "crates/adapter-gui/src/latency_probe.rs"
   - "crates/adapter-gui/src/midi_adapter_wiring.rs"
   - "crates/adapter-gui/src/plugin_info_inline_wiring.rs"

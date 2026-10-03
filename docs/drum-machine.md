@@ -101,6 +101,7 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
   output-only binding, every output (`drums_outputs.rs`).
 - **Wiring**: `drums_intents.rs` maps each control to its `DrumsCommand`;
   `drums_view.rs` builds what the panel shows from the snapshot, the library
-  and the project's output endpoints; `drums_wiring.rs` redraws the window
-  and the inline panel when the dispatcher's state changes and move the lamps from `LiveSource::drums`
-  every frame.
+  and the project's output endpoints; `drums_ctx.rs` redraws the window
+  and the inline panel when the dispatcher's state changes and moves the
+  lamps from `LiveSource::drums` every frame; `drums_wiring.rs` only
+  registers the callbacks and the frame poll.

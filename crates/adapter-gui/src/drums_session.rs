@@ -46,3 +46,7 @@ pub(crate) fn dispatch_drums(session: &SessionCell, command: DrumsCommand) -> bo
     }
     true
 }
+
+#[cfg(test)]
+#[path = "drums_session_tests.rs"]
+mod tests;

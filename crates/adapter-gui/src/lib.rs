@@ -242,6 +242,7 @@ mod device_rows;
 mod device_selection_items;
 mod device_settings_resolve;
 mod drums_bridge_sync;
+mod drums_ctx;
 mod drums_intents;
 mod drums_outputs;
 mod drums_picker_filter;
