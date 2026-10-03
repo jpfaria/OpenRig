@@ -51,7 +51,6 @@ pub(crate) struct DiPlayback {
     out_peak_bits: AtomicU32,
     /// When the first frame is due on the host clock, and what is owed since.
     timing: PlaybackTiming,
-    fader: Option<crate::output_fader::OutputFader>,
 }
 
 /// Per-output-stream slot the callback loads wait-free. `None` = no DI parked.
@@ -83,7 +82,6 @@ impl DiPlayback {
             in_peak_bits: AtomicU32::new(0),
             out_peak_bits: AtomicU32::new(0),
             timing: PlaybackTiming::untimed(loop_len),
-            fader: None,
         }
     }
 
@@ -95,12 +93,6 @@ impl DiPlayback {
     }
 
     /// The loop position the listener is currently hearing.
-    /// Play under the global mixer fader of the endpoint it lands on.
-    pub(crate) fn with_fader(mut self, fader: crate::output_fader::OutputFader) -> Self {
-        self.fader = Some(fader);
-        self
-    }
-
     pub(crate) fn play_pos(&self) -> usize {
         let loop_len = self.loop_len.max(1) as u64;
         let consumed = self.consumed.load(Ordering::Relaxed);
@@ -188,10 +180,9 @@ pub(crate) fn mix_di_playback_at(
         popped += 1;
     }
     playback.timing.owe(debt);
-    let glide = playback.fader.as_ref().and_then(|f| f.glide(frames));
     let mut out_peak = 0.0f32;
     let mut served = skip;
-    for (i, frame) in out.chunks_mut(output_total_channels).enumerate().skip(skip) {
+    for frame in out.chunks_mut(output_total_channels).skip(skip) {
         // A whole frame (2 samples) or stop — the producer pushes whole
         // frames, so fewer than 2 readable samples means "mid-push"; leave
         // it for the next callback rather than skewing channels.
@@ -202,8 +193,7 @@ pub(crate) fn mix_di_playback_at(
             break;
         };
         served += 1;
-        let gain = f32::from_bits(playback.gain_bits.load(Ordering::Relaxed))
-            * glide.map_or(1.0, |g| g.gain_at(i));
+        let gain = f32::from_bits(playback.gain_bits.load(Ordering::Relaxed));
         let (l, r) = (l * gain, r * gain);
         out_peak = out_peak.max(l.abs()).max(r.abs());
         popped += 1;
