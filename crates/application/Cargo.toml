@@ -23,6 +23,9 @@ infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 plugin-loader = { path = "../plugin-loader" }
 adapter-render = { path = "../adapter-render" }
+# #1039: drum kits are Hydrogen drumkit.xml folders resampled to the stream rate.
+ir = { path = "../ir" }
+roxmltree = "0.21"
 
 [dev-dependencies]
 block-core = { path = "../block-core" }

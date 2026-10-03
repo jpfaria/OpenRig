@@ -45,6 +45,14 @@ the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
 broken (unused import, needless `mut`, dead code).
 
+**Push-time compile check: `scripts/pr-check.sh`.** fmt, the static
+`validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,
+examples), failing on any warning. A push to a branch with an open PR runs it
+by itself: `scripts/solver-setup.sh` sets `core.hooksPath = scripts/hooks`, and
+`scripts/hooks/pre-push` blocks the push when it fails. It only compiles; the
+PR gate that also runs the tests is `./scripts/pre-pr-gate.sh` (see "Full
+suite").
+
 **Do not search the code for the cause before the test exists and fails.**
 Reading the code first produces a biased hypothesis sold as "the cause". The
 investigation happens in step 4, driven by the RED.
@@ -223,12 +231,23 @@ The whole workspace suite runs in CI (the `Test Suite` job of
 tests of your change (`cargo test -p <crate> <filter>`).
 
 Before `gh pr create`, and before every push to a branch whose PR is open, run
-`./scripts/pre-pr-gate.sh` on the committed HEAD. It runs what CI runs (fmt,
-the whole-repo static checks, the workspace tests) and stamps the commit it
-passed on. Tests run through `cargo nextest run --workspace` (every test binary
-in parallel) plus `cargo test --workspace --doc`, in CI and in the gate, which
-falls back to `cargo test` when nextest is not installed
-(`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
+`./scripts/pre-pr-gate.sh` on the committed HEAD. It runs fmt and the tests of
+every package the branch can affect, and stamps the commit it passed on. The
+affected packages are the ones owning a file changed since the release branch
+the work was cut from (the nearest `origin/release/*`, or `PRE_PR_GATE_BASE`)
+plus every workspace package depending on them, dev-dependencies included
+(`scripts/pre_pr_gate_packages.py`). A change to the root `Cargo.toml`, the
+lockfile, `.config/` or any file outside every crate (an asset a test reads)
+tests the whole workspace; a change only to docs, the site, CI or scripts runs
+no tests. The static checks (`validate.sh`) are not part of the gate: CI's
+`Static Checks` job runs them. One gate runs at a time on the machine: a second
+one waits on the lock directory `/tmp/openrig-pre-pr-gate.lock`
+(`PRE_PR_GATE_LOCK`) instead of splitting the CPU, which also makes the
+clock-bound tests fail; a lock left by a gate that died is taken over. Tests
+run through `cargo nextest run` (every test binary in parallel) plus
+`cargo test --doc` for the affected library packages, in CI (whole workspace)
+and in the gate, which falls back to `cargo test` when nextest is not
+installed (`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
 the push unless HEAD carries the stamp, so commit first and push in a command of
 its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
 failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK

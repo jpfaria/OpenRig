@@ -1,0 +1,72 @@
+# Converted from the Groove MIDI Dataset (Magenta, CC BY 4.0)
+# by tools/drums/gmd_to_grooves.py. Hits: [beat, role, velocity 0-127].
+genre: punk
+grooves:
+  - id: punk-01
+    name: Punk 1
+    beats_per_bar: 4
+    tempo: 144
+    source: drummer1/session2/62
+    beat:
+      beats: 8
+      hits:
+        - [-0.0333, ride, 90]
+        - [-0.0250, kick, 57]
+        - [0.6521, kick, 47]
+        - [0.9604, ride, 76]
+        - [0.9667, snare, 124]
+        - [1.8833, kick, 65]
+        - [1.9667, ride, 73]
+        - [2.5875, kick, 82]
+        - [2.9104, snare, 127]
+        - [2.9271, ride, 85]
+        - [3.9458, kick, 76]
+        - [4.0042, ride, 84]
+        - [4.6229, kick, 65]
+        - [4.9146, snare, 127]
+        - [4.9479, ride, 82]
+        - [5.9479, kick, 40]
+        - [6.0312, ride, 80]
+        - [6.3062, snare, 84]
+        - [6.5542, kick, 48]
+        - [6.9542, snare, 127]
+        - [6.9771, ride, 89]
+    fills:
+      - beats: 5
+        hits:
+          - [0.0000, ride_bell, 32]
+          - [0.0292, kick, 47]
+          - [0.2958, snare, 95]
+          - [0.4625, snare, 127]
+          - [0.6979, snare, 127]
+          - [0.9458, hat_pedal, 50]
+          - [1.0250, snare, 127]
+          - [1.3479, snare, 127]
+          - [1.6771, snare, 127]
+          - [1.9979, hat_pedal, 62]
+          - [2.0250, snare, 127]
+          - [2.3500, tom_high, 127]
+          - [2.6854, tom_high, 127]
+          - [2.9354, hat_pedal, 65]
+          - [3.0208, tom_floor, 127]
+          - [3.3250, tom_floor, 127]
+          - [3.5583, kick, 16]
+          - [3.9792, splash, 112]
+      - beats: 5
+        hits:
+          - [0.6083, tom_floor, 86]
+          - [0.6313, snare, 71]
+          - [0.9312, hat_pedal, 22]
+          - [0.9958, snare, 96]
+          - [1.0146, tom_floor, 109]
+          - [1.6250, tom_floor, 113]
+          - [1.6354, snare, 90]
+          - [1.9208, hat_pedal, 25]
+          - [1.9896, tom_floor, 101]
+          - [2.0292, snare, 90]
+          - [2.5312, snare, 85]
+          - [2.6000, tom_floor, 88]
+          - [2.9271, hat_pedal, 30]
+          - [2.9542, tom_floor, 127]
+          - [3.0063, snare, 127]
+          - [3.9604, splash, 96]

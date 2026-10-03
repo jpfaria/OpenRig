@@ -11,7 +11,7 @@ use slint::ComponentHandle;
 
 use crate::state::ProjectSession;
 use crate::{
-    AppWindow, ChainEditorWindow, ChainInsertWindow, MetronomeWindow, MixerWindow,
+    AppWindow, ChainEditorWindow, ChainInsertWindow, DrumsWindow, MetronomeWindow, MixerWindow,
     PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow, TunerWindow,
 };
 
@@ -23,6 +23,7 @@ pub(crate) struct LanguageWindows<'a> {
     pub spectrum_window: &'a SpectrumWindow,
     pub metronome_window: &'a MetronomeWindow,
     pub mixer_window: &'a MixerWindow,
+    pub drums_window: &'a DrumsWindow,
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
 }
@@ -39,6 +40,7 @@ pub(crate) fn wire(
     let weak_spectrum = windows.spectrum_window.as_weak();
     let weak_metronome = windows.metronome_window.as_weak();
     let weak_mixer = windows.mixer_window.as_weak();
+    let weak_drums = windows.drums_window.as_weak();
     let chain_editor_window_for_apply = windows.chain_editor_window.clone();
     let plugin_info_window_for_apply = windows.plugin_info_window.clone();
     let apply_font_to_all = move |font: &str| {
@@ -62,6 +64,9 @@ pub(crate) fn wire(
             crate::Locale::get(&w).set_font_family(f());
         }
         if let Some(w) = weak_mixer.upgrade() {
+            crate::Locale::get(&w).set_font_family(f());
+        }
+        if let Some(w) = weak_drums.upgrade() {
             crate::Locale::get(&w).set_font_family(f());
         }
         if let Some(w) = chain_editor_window_for_apply.borrow().as_ref() {

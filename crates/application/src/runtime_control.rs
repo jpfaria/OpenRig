@@ -259,6 +259,11 @@ pub trait RuntimeControl {
         Ok(())
     }
 
+    /// The frontend's drum machine, if it hosts one.
+    fn drums(&self) -> Option<&dyn crate::drums_runtime::DrumsRuntime> {
+        None
+    }
+
     // ── analyzers (#544/#546/#829) ──────────────────────────────────────
     //
     // The tuner and the spectrum are OBSERVATION pipelines: each subscribes to
