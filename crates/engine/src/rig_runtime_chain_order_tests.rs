@@ -43,6 +43,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 blocks: Vec::<AudioBlock>::new(),
                 scenes: BTreeMap::new(),
                 scene_params: Vec::new(),
+                bpm: None,
             },
         );
     }

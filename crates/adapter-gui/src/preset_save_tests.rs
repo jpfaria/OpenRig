@@ -76,6 +76,7 @@ fn rig_with_active_preset(input: &str, preset_name: &str) -> RigProject {
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),
                 volume: 100.0,
+                bpm: None,
             },
         )]),
         midi: None,

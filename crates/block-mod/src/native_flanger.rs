@@ -91,6 +91,7 @@ pub fn model_schema() -> ModelParameterSchema {
                 0.05,
                 ParameterUnit::Hertz,
             ),
+            block_core::tempo_sync::rate_sync_parameter(),
             float_parameter(
                 "depth",
                 "Depth",

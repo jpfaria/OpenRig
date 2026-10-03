@@ -68,3 +68,16 @@ fn graph_changing_events_do_rebuild() {
 // `application::local_dispatcher_runtime_doors_tests::
 // saving_the_device_settings_rebuilds_the_whole_graph` and
 // `..._makes_the_driver_adopt_them_first`.
+
+// A retime is synced by the dispatcher itself (one sync per changed
+// chain); a second rebuild from the drain would double every tap.
+#[test]
+fn tempo_events_do_not_rebuild() {
+    assert!(!event_requires_runtime_sync(&Event::ChainTempoRetimed {
+        chain: chain()
+    }));
+    assert!(!event_requires_runtime_sync(&Event::RigPresetBpmChanged {
+        chain: chain(),
+        bpm: Some(90.0),
+    }));
+}

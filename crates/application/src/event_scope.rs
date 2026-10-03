@@ -56,7 +56,10 @@ impl Event {
             | Event::ChainLooperTakeSaved { chain, .. }
             // #1007: a chain's own mixer faders.
             | Event::ChainMixerStripChanged { chain, .. }
-            | Event::ChainDiFaderChanged { chain, .. } => Some(chain),
+            | Event::ChainDiFaderChanged { chain, .. }
+            // A preset tempo and a retime both belong to one chain.
+            | Event::RigPresetBpmChanged { chain, .. }
+            | Event::ChainTempoRetimed { chain } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded
@@ -83,6 +86,7 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            | Event::GlobalTempoLockChanged { .. }
             | Event::DrumsTransportChanged { .. }
             | Event::DrumFillTriggered
             | Event::DrumsSettingsChanged { .. }

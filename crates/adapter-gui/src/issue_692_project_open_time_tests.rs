@@ -118,6 +118,7 @@ fn fixture_preset(id: &str) -> RigPreset {
         scene_params,
         scenes,
         volume: 100.0,
+        bpm: None,
     }
 }
 

@@ -195,6 +195,11 @@ pub struct RigPreset {
     /// so master gain is unchanged (CLAUDE.md invariant). Default 100.0.
     #[serde(default = "default_preset_volume")]
     pub volume: f32,
+    /// The preset's own tempo. Loading the preset sets the global BPM
+    /// to it unless the machine's "use global tempo" lock is on. `None` ⇒
+    /// the preset follows whatever tempo is running.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bpm: Option<f32>,
 }
 
 impl RigPreset {
@@ -211,6 +216,7 @@ impl RigPreset {
             scene_params: Vec::new(),
             scenes: BTreeMap::new(),
             volume,
+            bpm: None,
         }
     }
 
