@@ -18,7 +18,7 @@
 # Linux build caches its registry and target dir in Docker volumes.
 set -euo pipefail
 
-repo="$(cd "$(dirname "$0")/.." && pwd)"
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 cd "$repo"
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
