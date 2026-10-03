@@ -11,6 +11,7 @@ import { LooperPanel, LooperTake } from "components/looper_panel_globals.slint";
 import { CompactLooper } from "components/compact_looper_globals.slint";
 import { LooperEditorOverlay } from "components/looper_editor_overlay.slint";
 import { LooperPresetPicker } from "components/looper_preset_picker.slint";
+import { LooperEndpointPicker } from "components/looper_endpoint_picker.slint";
 import { LooperTakeSaveDialog } from "components/looper_take_save_dialog.slint";
 
 export component BlockEditorWindow inherits Window {
@@ -290,6 +291,14 @@ export component CompactChainViewWindow inherits Window {
         width: root.width; height: root.height;
         preset-options: CompactLooper.preset-options;
         preset-picked(ci, uid, i) => { CompactLooper.preset-picked(ci, uid, i); }
+    }
+    if LooperPanel.endpoint-picker-uid >= 0 : LooperEndpointPicker {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        input-options: CompactLooper.input-options;
+        output-options: CompactLooper.output-options;
+        input-picked(ci, uid, i) => { CompactLooper.input-picked(ci, uid, i); }
+        output-picked(ci, uid, i) => { CompactLooper.output-picked(ci, uid, i); }
     }
     if LooperTake.dialog-uid >= 0 : LooperTakeSaveDialog {
         x: 0; y: 0;

@@ -19,6 +19,8 @@ export component LooperOverlayHarness inherits Window {
     in property <int> expanded-uid: 7;
 
     callback preset-picked(int, int, int);
+    callback input-picked(int, int, int);
+    callback output-picked(int, int, int);
 
     // Drive the panel open on chain 0 with the row drawer expanded, so the
     // preset button is on screen for the interaction test (the picker modal is
@@ -28,6 +30,7 @@ export component LooperOverlayHarness inherits Window {
         LooperPanel.chain-index = 0;
         LooperPanel.expanded-uid = root.expanded-uid;
         LooperPanel.preset-picker-uid = -1;
+        LooperPanel.endpoint-picker-uid = -1;
     }
 
     LooperOverlay {
@@ -38,5 +41,7 @@ export component LooperOverlayHarness inherits Window {
         output-options: root.output-options;
         preset-options: root.preset-options;
         preset-picked(ci, uid, v) => { root.preset-picked(ci, uid, v); }
+        input-picked(ci, uid, v) => { root.input-picked(ci, uid, v); }
+        output-picked(ci, uid, v) => { root.output-picked(ci, uid, v); }
     }
 }

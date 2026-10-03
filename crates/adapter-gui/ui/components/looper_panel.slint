@@ -45,8 +45,9 @@ export component LooperPanelView inherits Rectangle {
     callback decay-changed(int, int);
     callback speed-picked(int, int);
     callback reverse-toggled(int, bool);
-    callback input-picked(int, int);
-    callback output-picked(int, int);
+    // (uid, kind, selected) — open a loop's endpoint list; kind 0 is the
+    // record-from list, 1 the play-to list.
+    callback endpoint-open(int, int, int);
     callback preset-open(int, int);
     // #826: open the waveform editor for this loop.
     callback edit(int);
@@ -208,8 +209,8 @@ export component LooperPanelView inherits Rectangle {
             decay-changed(v) => { root.decay-changed(item.uid, v); }
             speed-picked(v) => { root.speed-picked(item.uid, v); }
             reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
-            input-picked(v) => { root.input-picked(item.uid, v); }
-            output-picked(v) => { root.output-picked(item.uid, v); }
+            input-open => { root.endpoint-open(item.uid, 0, item.input_index); }
+            output-open => { root.endpoint-open(item.uid, 1, item.output_index); }
             preset-open => { root.preset-open(item.uid, item.preset_index); }
             edit => { root.edit(item.uid); }
             save-take => { root.save-take(item.uid); }

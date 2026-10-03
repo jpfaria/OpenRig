@@ -76,6 +76,13 @@ global, mirroring `PresetPicker`). Re-point existing selects at it, proving it
 against the working preset select first. The trigger may differ per consumer (a
 wide field vs a compact icon); the dropdown does not.
 
+**A choice among data-driven options is a select, never a horizontal row of
+buttons.** Endpoints, presets, sources: their count and label length come from the
+user's rig, so a segmented row overflows or truncates and reads as a list laid on
+its side. A segmented control is only for a short, fixed set the app defines
+(½× / 1× / 2×). Inside a panel that is itself an overlay, the select's list is a
+root-level modal (`looper_endpoint_picker.slint`, `looper_preset_picker.slint`).
+
 ## 4. A mockup restyles the real screen — it never invents UI
 
 In a redesign concept, only restyle what the screen actually has: read the real
