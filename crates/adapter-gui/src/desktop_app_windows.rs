@@ -47,10 +47,7 @@ pub(crate) fn create() -> Result<DesktopWindows> {
     crate::i18n::apply_bundled_translation(persisted_language.as_deref());
     window
         .window()
-        .set_size(slint::WindowSize::Logical(slint::LogicalSize {
-            width: 1100.0,
-            height: 620.0,
-        }));
+        .set_size(crate::main_window_size::initial_size());
 
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;

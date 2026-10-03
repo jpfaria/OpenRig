@@ -181,6 +181,7 @@ mod mixer_fader_law;
 mod mixer_rows;
 mod mixer_rows_sync;
 pub use mixer_rows_sync::set_mixer_rows;
+mod main_window_size;
 mod mixer_strip_intents;
 mod mixer_window_size;
 mod mixer_wiring;
