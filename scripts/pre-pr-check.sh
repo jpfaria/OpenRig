@@ -10,6 +10,7 @@
 #   3. the Linux build of every target with warnings as errors, in Docker with
 #      the Test Suite job's system packages: cfg(target_os = "linux") code and
 #      tests never compile on the Mac, so this is the only place they fail early.
+#      cmake is added because the CI runner image ships it and the Debian one does not.
 # Green -> stamps HEAD in .git/pre-pr-check.ok, which the hook reads. Tests are
 # not run here; the PR runs them.
 #
@@ -60,7 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libasound2-dev libudev-dev pkg-config \
       libfontconfig1-dev libseat-dev \
       libxkbcommon-dev libinput-dev libgbm-dev \
-      libjack-jackd2-dev gettext \
+      libjack-jackd2-dev gettext cmake \
     && rm -rf /var/lib/apt/lists/*
 EOF
 }
