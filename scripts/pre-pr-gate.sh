@@ -28,7 +28,7 @@ if [ -n "${PRE_PR_GATE_SUITE:-}" ]; then
 else
   cargo fmt --all -- --check
   VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
-  cargo test --workspace
+  cargo test --workspace --no-fail-fast
 fi
 
 if [ "$(git rev-parse HEAD)" != "$head" ]; then
