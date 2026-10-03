@@ -85,6 +85,8 @@ To test an agent's branch, the owner runs `git fetch && git checkout {type}/issu
 
 **Setting up the workspace = `scripts/solver-setup.sh <N> <branch> [release-base]`.** It clones (never a worktree), creating and pushing the branch from `release-base` when it is not on the remote yet; brings in the NAM sources; links `plugins` to the config's `paths.plugins_path` (kept out of `git status` through `.git/info/exclude`); and prints the absolute `run:` command for the checklist. Re-running it on an existing workspace only completes what is missing, and it fails loudly when it cannot find the plugins.
 
+**Where the workspace lives is the machine owner's call.** When his global `CLAUDE.md` names a workspaces folder (e.g. an external disk, to keep clones and their `target/` off the internal disk), run `OPENRIG_SOLVERS_ROOT=<that folder> scripts/solver-setup.sh …`: the clone goes to `<that folder>/issue-N` and `.solvers/issue-N` becomes a link to it, so every path, guard and `run:` line stays `.solvers/issue-N`. The script fails loudly when the folder does not exist (disk not mounted). Without `OPENRIG_SOLVERS_ROOT` the clone lives in `.solvers/issue-N` itself.
+
 Without the `plugins` link an app opened from the solver loads **zero** plugin packages — any check involving NAM/IR/LV2/VST3 says "not found" and looks like a code bug. Check the app's startup log: `plugin catalog ready: … (N native, M disk package(s))` with `M > 0`.
 
 After the merge, delivery ends only with these three steps — none is automatic:
