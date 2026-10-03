@@ -67,9 +67,14 @@ impl ProjectRuntimeController {
         let device = crate::find_output_device_by_id(host, device_id)?
             .ok_or_else(|| anyhow::anyhow!("drums output device '{device_id}' not found"))?;
         let supported = device.default_output_config()?;
-        let sample_rate = supported.sample_rate();
+        let format = crate::aux_stream_format::aux_stream_format(
+            &self.device_settings,
+            device_id,
+            supported.sample_rate(),
+        );
+        let sample_rate = format.sample_rate;
         let channels = supported.channels() as usize;
-        let buffer_frames = 512u32;
+        let buffer_frames = format.buffer_frames;
         let config = crate::stream_config::build_stream_config(
             supported.channels(),
             sample_rate,
@@ -77,8 +82,11 @@ impl ProjectRuntimeController {
         );
 
         let shared: Arc<DrumsShared> = Arc::clone(&self.drums.shared);
-        let mut callback =
-            crate::drums_callback::DrumsCallback::new(&shared, sample_rate, buffer_frames as usize);
+        let mut callback = crate::drums_callback::DrumsCallback::new(
+            &shared,
+            sample_rate,
+            crate::aux_output_cpal::AUX_MAX_FRAMES,
+        );
         let error_label = device_id.to_string();
         let targets = target_channels.to_vec();
         let callback_targets = targets.clone();

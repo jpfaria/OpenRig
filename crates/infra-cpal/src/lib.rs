@@ -62,6 +62,10 @@ mod aux_output;
 mod aux_output_cpal;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod aux_output_jack;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod aux_stream_format;
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod aux_stream_format_tests;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_client_open;
 
