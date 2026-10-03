@@ -203,10 +203,6 @@ msgstr "글로벌"
 msgid "btn-close"
 msgstr "닫기"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "선택 해제한 엔드포인트는 목록에 남지만 이 노드에서 제외됩니다."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "이 체인의 E/S에는 이 노드용 엔드포인트가 없습니다."

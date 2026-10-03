@@ -203,11 +203,6 @@ msgstr "グローバル"
 msgid "btn-close"
 msgstr "閉じる"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr ""
-"チェックを外したエンドポイントは一覧に残りますが、このノードからは外れます。"
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "このチェーンのE/Sには、このノード用のエンドポイントがありません。"

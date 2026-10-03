@@ -203,10 +203,6 @@ msgstr "GLOBAL"
 msgid "btn-close"
 msgstr "Fermer"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "Les points décochés restent listés mais sont exclus de ce nœud."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "Les E/S de cette chaîne n'ont aucun point pour ce nœud."

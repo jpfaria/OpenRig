@@ -130,3 +130,24 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         "an unchecked endpoint stays listed"
     );
 }
+
+#[test]
+fn the_card_shows_only_the_title_and_the_rows() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = EndpointChecklistHarness::new().unwrap();
+    open(&h);
+    h.show().unwrap();
+    let labels: Vec<String> = i_slint_backend_testing::ElementQuery::from_root(&h)
+        .match_descendants()
+        .find_all()
+        .into_iter()
+        .filter_map(|el| el.accessible_label())
+        .map(|s| s.to_string())
+        .collect();
+    assert!(
+        !labels.iter().any(|l| l.contains("hint-endpoint-checklist")
+            || l.starts_with("Unchecked endpoints")
+            || l.starts_with("Endpoints desmarcados")),
+        "no explanatory text under the title: {labels:?}"
+    );
+}

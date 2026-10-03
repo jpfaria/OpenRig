@@ -68,13 +68,6 @@ export component EndpointChecklistOverlay inherits Rectangle {
                 }
             }
 
-            Text {
-                text: @tr("hint-endpoint-checklist");
-                color: #a1a1aa;
-                font-size: 18px;
-                wrap: word-wrap;
-            }
-
             // A rig can list many endpoints: past the cap the list scrolls
             // inside the card instead of growing it off-screen.
             ScrollView {

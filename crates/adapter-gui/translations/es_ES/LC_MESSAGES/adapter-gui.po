@@ -203,11 +203,6 @@ msgstr "GLOBAL"
 msgid "btn-close"
 msgstr "Cerrar"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr ""
-"Los endpoints desmarcados siguen en la lista, pero quedan fuera de este nodo."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "La E/S de esta cadena no tiene endpoints para este nodo."

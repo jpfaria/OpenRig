@@ -203,11 +203,6 @@ msgstr "GLOBAL"
 msgid "btn-close"
 msgstr "Schließen"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr ""
-"Abgewählte Endpunkte bleiben gelistet, sind aber von diesem Knoten getrennt."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "Die E/A dieser Kette hat keine Endpunkte für diesen Knoten."

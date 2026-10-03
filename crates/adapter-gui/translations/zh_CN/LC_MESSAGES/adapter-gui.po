@@ -203,10 +203,6 @@ msgstr "全局"
 msgid "btn-close"
 msgstr "关闭"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "取消勾选的端点仍保留在列表中，但不再连接到此节点。"
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "此链的 E/S 没有此节点的端点。"
