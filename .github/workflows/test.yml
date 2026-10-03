@@ -38,6 +38,8 @@ jobs:
           python3 -m pytest -q scripts/test_nam_vendor.py
       - name: Test the pre-PR gate and its hook
         run: python3 -m pytest -q scripts/test_pre_pr_gate.py
+      - name: Test the build lock and its hook
+        run: python3 -m pytest -q scripts/test_cargo_locked.py
 
   test:
     name: Test Suite

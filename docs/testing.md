@@ -244,10 +244,8 @@ plus every workspace package depending on them, dev-dependencies included
 lockfile, `.config/` or any file outside every crate (an asset a test reads)
 tests the whole workspace; a change only to docs, the site, CI or scripts runs
 no tests. The static checks (`validate.sh`) are not part of the gate: CI's
-`Static Checks` job runs them. One gate runs at a time on the machine: a second
-one waits on the lock directory `/tmp/openrig-pre-pr-gate.lock`
-(`PRE_PR_GATE_LOCK`) instead of splitting the CPU, which also makes the
-clock-bound tests fail; a lock left by a gate that died is taken over. Tests
+`Static Checks` job runs them. The gate holds the machine-wide build lock
+(see "Agent builds take the build lock" below) for its whole run. Tests
 run through `cargo nextest run` (every test binary in parallel) plus
 `cargo test --doc` for the affected library packages, in CI (whole workspace)
 and in the gate, which falls back to `cargo test` when nextest is not
@@ -448,3 +446,18 @@ so CI and the parallel suite stay green. They must run single-threaded
 OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
+
+## Agent builds take the build lock
+
+Agent sessions build in their own clones but share one machine; two builds at
+once slow both several times over and make the clock-bound tests fail. Every
+agent cargo build therefore goes through `scripts/cargo-locked.sh <cargo args>`
+(`scripts/cargo-locked.sh test -p engine`), which waits on the lock directory
+`/tmp/openrig-build.lock` (`OPENRIG_BUILD_LOCK`, `scripts/build-lock.sh`) before
+running cargo; a lock left by a process that died is taken over. `run` builds
+under the lock and starts the program after releasing it. The pre-PR gate holds
+the same lock for its whole run, and its own cargo calls do not wait for it
+(`OPENRIG_BUILD_LOCK_HELD=1`). The Claude hook `.claude/hooks/build-lock-guard.sh`
+denies a bare `cargo build|test|check|run|nextest|clippy|doc|bench`; `cargo fmt`,
+`cargo metadata` and other commands that build nothing pass. Tested by
+`scripts/test_cargo_locked.py`.
