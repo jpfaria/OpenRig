@@ -471,3 +471,44 @@ fn export_raw_sums_the_audible_layers_and_is_none_when_empty() {
         "an undone layer is not audible, so it is not exported"
     );
 }
+
+#[test]
+fn rotating_a_loop_moves_each_frame_later_and_wraps_the_tail_to_the_top() {
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(
+        &mut s,
+        &[[1.0, -1.0], [2.0, -2.0], [3.0, -3.0], [4.0, -4.0]],
+    );
+    s.tap_record(None);
+    let rev = s.content_revision();
+
+    s.rotate_right(1);
+
+    assert_eq!(
+        s.export_raw().unwrap(),
+        vec![4.0, -4.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0]
+    );
+    assert_eq!(s.len_frames(), 4, "the length does not change");
+    assert_ne!(
+        s.content_revision(),
+        rev,
+        "the material moved: re-render it"
+    );
+}
+
+#[test]
+fn rotating_by_a_whole_loop_or_on_an_empty_slot_changes_nothing() {
+    let mut s = slot();
+    s.rotate_right(3);
+    assert_eq!(s.state(), LooperState::Empty);
+
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0]]);
+    s.tap_record(None);
+    let rev = s.content_revision();
+    s.rotate_right(2);
+    s.rotate_right(0);
+    assert_eq!(s.export_raw().unwrap(), vec![1.0, 1.0, 2.0, 2.0]);
+    assert_eq!(s.content_revision(), rev);
+}

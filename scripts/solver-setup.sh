@@ -12,6 +12,11 @@
 # <branch> exists on origin -> it is checked out; otherwise it is created from
 # [base-branch] (required then: the active release/vX.Y.Z) and pushed.
 # Safe to re-run: an existing workspace is only completed (submodule + link).
+#
+# OPENRIG_SOLVERS_ROOT set (the machine owner names it in his global CLAUDE.md,
+# e.g. a folder on an external disk) -> the clone, and so its target/, lives in
+# $OPENRIG_SOLVERS_ROOT/issue-N and .solvers/issue-N is a link to it. Unset ->
+# the clone lives in .solvers/issue-N itself.
 set -euo pipefail
 
 issue="${1:?usage: solver-setup.sh <issue-number> <branch> [base-branch]}"
@@ -24,16 +29,25 @@ case "$repo_root" in
     */.solvers/*) repo_root="${repo_root%%/.solvers/*}" ;;
 esac
 ws="$repo_root/.solvers/issue-$issue"
+clone_dir="$ws"
+if [ -n "${OPENRIG_SOLVERS_ROOT:-}" ] && [ ! -e "$ws" ]; then
+    [ -d "$OPENRIG_SOLVERS_ROOT" ] || { echo "OPENRIG_SOLVERS_ROOT=$OPENRIG_SOLVERS_ROOT does not exist (disk not mounted?)" >&2; exit 1; }
+    clone_dir="$OPENRIG_SOLVERS_ROOT/issue-$issue"
+fi
 remote="$(git -C "$repo_root" config --get remote.origin.url)"
 
 if [ ! -d "$ws/.git" ]; then
     if git ls-remote --exit-code --heads "$remote" "$branch" >/dev/null; then
-        git clone -q --branch "$branch" "$remote" "$ws"
+        git clone -q --branch "$branch" "$remote" "$clone_dir"
     else
         [ -n "$base" ] || { echo "branch $branch not on origin: pass the base release branch" >&2; exit 1; }
-        git clone -q --branch "$base" "$remote" "$ws"
-        git -C "$ws" checkout -q -b "$branch"
-        git -C "$ws" push -q -u origin "$branch"
+        git clone -q --branch "$base" "$remote" "$clone_dir"
+        git -C "$clone_dir" checkout -q -b "$branch"
+        git -C "$clone_dir" push -q -u origin "$branch"
+    fi
+    if [ "$clone_dir" != "$ws" ]; then
+        mkdir -p "$repo_root/.solvers"
+        ln -s "$clone_dir" "$ws"
     fi
 fi
 [ -d "$ws/.git" ] || { echo "$ws/.git is not a directory: not a real clone" >&2; exit 1; }
@@ -57,6 +71,7 @@ fi
 grep -qx '/plugins' "$ws/.git/info/exclude" || echo '/plugins' >> "$ws/.git/info/exclude"
 
 echo "workspace: $ws ($branch)"
+[ -L "$ws" ] && echo "lives in:  $(readlink "$ws")"
 echo "plugins:   $(readlink "$ws/plugins")"
 # OPENRIG_PLUGINS_ROOT outranks every config lookup (plugin-loader/src/config.rs),
 # so the handed-off command loads the plugins whatever config the app reads.

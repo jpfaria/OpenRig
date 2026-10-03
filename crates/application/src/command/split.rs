@@ -24,7 +24,7 @@ pub enum SplitCommand {
         chain: ChainId,
         position: usize,
         end: SplitEnd,
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         path: Option<PathRef>,
     },
     /// Switch a split, at any depth, between Split → Mix and Y → A/B.

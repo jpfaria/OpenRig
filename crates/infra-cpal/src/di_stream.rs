@@ -234,21 +234,30 @@ impl ProjectRuntimeController {
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
         let output_index =
             resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
-        self.arm_isolated_stream(chain, IsolatedSource::Di, output_index, pcm)
+        self.arm_isolated_stream(chain, IsolatedSource::Di, output_index, pcm, None)
     }
 
     /// #323: arm one looper's isolated playback — the SAME pipeline as the DI,
     /// with the looper's live-recorded buffer as the source and its chosen
     /// output. Independent of the record input: the loop plays out `output_index`
-    /// through a routed copy of the chain, isolated (invariant #4).
+    /// through a routed copy of the chain, isolated (invariant #4). With a
+    /// `sync_anchor_ns`, the loop starts on the shared loop timeline whose top
+    /// is that host-clock instant, in phase with every other loop.
     pub fn arm_looper_stream(
         &self,
         chain: &Chain,
         uid: u64,
         output_index: usize,
         pcm: Arc<DiPcm>,
+        sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
-        self.arm_isolated_stream(chain, IsolatedSource::Looper(uid), output_index, pcm)
+        self.arm_isolated_stream(
+            chain,
+            IsolatedSource::Looper(uid),
+            output_index,
+            pcm,
+            sync_anchor_ns,
+        )
     }
 
     /// #323: disarm one looper's isolated playback.
@@ -264,11 +273,12 @@ impl ProjectRuntimeController {
         source: IsolatedSource,
         output_index: usize,
         pcm: Arc<DiPcm>,
+        sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
         // A fresh arm replaces any previous playback (and retires it off the
         // audio thread) — the listener asked for this one.
         self.disarm_isolated_stream(&chain.id, source);
-        self.spawn_di_stream(chain, source, output_index, pcm, None)
+        self.spawn_di_stream(chain, source, output_index, pcm, None, sync_anchor_ns)
     }
 
     /// Spawn the render worker for `chain`. With a `handoff`, the incoming
@@ -281,6 +291,7 @@ impl ProjectRuntimeController {
         output_index: usize,
         pcm: Arc<DiPcm>,
         handoff: Option<DiHandoff>,
+        sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
         let key = (chain.id.clone(), source);
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
@@ -342,6 +353,7 @@ impl ProjectRuntimeController {
             failed: Arc::clone(&failed),
             retired: Arc::clone(&self.di_retired),
             handoff,
+            sync_anchor_ns,
         });
 
         self.di_streams.borrow_mut().insert(
@@ -436,6 +448,7 @@ impl ProjectRuntimeController {
                     output_index,
                     pcm,
                     Some(handoff),
+                    None,
                 );
             }
         }

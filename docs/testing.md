@@ -19,7 +19,7 @@ suite — also forbidden.
    honestly and stop**.
 4. **Only after the RED**, investigate the cause — guided by the failing
    test — and fix until it passes (GREEN).
-5. The full suite + audio invariants run in CI, not locally.
+5. The full suite runs locally only through `./scripts/pre-pr-gate.sh`, before a PR is opened or a branch with an open PR is pushed (see "Full suite").
 
 **Two rounds per delivery, never per micro-step.** A delivery with
 several items does not compile once per item:
@@ -37,12 +37,8 @@ forces a new RED (and a new compile) per step. Exception: while the owner is
 validating on his machine, a fix he is waiting for is committed and pushed
 right away.
 
-**PR gate.** Before opening a PR, and before any push to a branch that already
-has an open PR, run `cargo test --workspace` locally: zero warnings, zero
-compile errors, every test green. Anything red blocks the PR or the push.
-
-**Local push gate.** Outside the PR gate, never `cargo test --workspace` or
-`cargo build --workspace` locally (10+ minutes on the owner's Mac). Without
+**Local push gate.** Never `cargo test --workspace` or `cargo build --workspace`
+locally (10+ minutes on the owner's Mac; CI runs them). Without
 `cargo fmt --all -- --check` the `release → main` PR fails on the `fmt` metric.
 `./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
 the commit that diff is empty and it always passes — use
@@ -223,8 +219,20 @@ activation is asynchronous.
 ## Full suite
 
 The whole workspace suite runs in CI (the `Test Suite` job of
-`.github/workflows/test.yml`, on Linux). Locally, run only the targeted tests of
-your change (`cargo test -p <crate> <filter>`).
+`.github/workflows/test.yml`, on Linux). While working, run only the targeted
+tests of your change (`cargo test -p <crate> <filter>`).
+
+Before `gh pr create`, and before every push to a branch whose PR is open, run
+`./scripts/pre-pr-gate.sh` on the committed HEAD. It runs what CI runs (fmt,
+the whole-repo static checks, the workspace tests) and stamps the commit it
+passed on. Tests run through `cargo nextest run --workspace` (every test binary
+in parallel) plus `cargo test --workspace --doc`, in CI and in the gate, which
+falls back to `cargo test` when nextest is not installed
+(`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
+the push unless HEAD carries the stamp, so commit first and push in a command of
+its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
+failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
+backend) still shows up in CI only.
 
 ## Real-hardware battery
 

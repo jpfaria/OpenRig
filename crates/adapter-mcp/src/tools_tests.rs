@@ -187,13 +187,13 @@ fn add_block_tool_keeps_the_split_path_and_defaults_to_the_top_level() {
         "add_block",
         serde_json::json!({
             "chain": "rig:in", "kind": "gain", "model_id": "fuzz_ge", "position": 0,
-            "path": { "split": "s1", "side": "b" }
+            "path": { "split": "s1", "path": 1 }
         }),
     )
     .unwrap();
     assert_eq!(
         serde_json::to_value(&with_path).unwrap()["AddBlock"]["path"],
-        serde_json::json!({ "split": "s1", "side": "b" }),
+        serde_json::json!({ "split": "s1", "path": 1 }),
         "#328: the split path an MCP client sends must reach the command"
     );
 
@@ -237,7 +237,7 @@ fn split_tools_build_their_commands() {
 #[test]
 fn set_chain_endpoint_enabled_tool_builds_its_command() {
     let args = serde_json::json!({
-        "chain": "rig:in", "node": "path_a_output", "io": "io-main",
+        "chain": "rig:in", "node": { "path_output": { "split": "s1", "path": 0 } }, "io": "io-main",
         "endpoint": "Out 1", "enabled": false
     });
     let cmd = build_command("set_chain_endpoint_enabled", args.clone()).unwrap();
