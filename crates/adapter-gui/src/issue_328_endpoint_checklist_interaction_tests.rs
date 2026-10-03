@@ -153,3 +153,31 @@ fn the_card_shows_only_the_title_and_the_rows() {
         "no explanatory text and no endpoint count: {labels:?}"
     );
 }
+
+#[test]
+fn the_card_closes_with_the_x_button_like_every_panel() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = EndpointChecklistHarness::new().unwrap();
+    open(&h);
+    h.show().unwrap();
+    let close = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &h,
+        "EndpointChecklistOverlay::close-x",
+    )
+    .next()
+    .expect("the X close button");
+    assert_eq!(
+        close.accessible_role(),
+        Some(i_slint_backend_testing::AccessibleRole::Button)
+    );
+    let worded_close = i_slint_backend_testing::ElementQuery::from_root(&h)
+        .match_descendants()
+        .match_accessible_role(i_slint_backend_testing::AccessibleRole::Text)
+        .find_all()
+        .into_iter()
+        .filter_map(|el| el.accessible_label())
+        .any(|l| l == "Fechar" || l == "Close" || l == "btn-close");
+    assert!(!worded_close, "no worded Close button");
+    click_at(&h, centre(&close));
+    assert!(!ChainGraphOverlayState::get(&h).get_checklist_open());
+}

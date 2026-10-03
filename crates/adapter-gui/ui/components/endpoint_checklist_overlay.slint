@@ -50,20 +50,31 @@ export component EndpointChecklistOverlay inherits Rectangle {
                     font-weight: 800;
                     vertical-alignment: center;
                 }
-                Rectangle {
-                    width: 88px;
-                    border-radius: 6px;
-                    background: close-ta.has-hover ? #2b3340 : #1b2230;
-                    close-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { ChainGraphOverlayState.checklist-open = false; }
-                    }
-                    Text {
-                        text: @tr("btn-close");
-                        color: #d8e0ff;
-                        font-size: 18px;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                // The round X every panel closes with.
+                VerticalLayout {
+                    alignment: center;
+                    close-x := Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 14px;
+                        background: close-ta.has-hover ? #2a3340 : #1c2028;
+                        border-width: 1px;
+                        border-color: #2c323d;
+                        accessible-role: button;
+                        accessible-label: @tr("btn-close");
+                        accessible-action-default => { ChainGraphOverlayState.checklist-open = false; }
+                        Image {
+                            x: (parent.width - 12px) / 2;
+                            y: (parent.height - 12px) / 2;
+                            width: 12px;
+                            height: 12px;
+                            source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                            colorize: #c5cdd9;
+                        }
+                        close-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { ChainGraphOverlayState.checklist-open = false; }
+                        }
                     }
                 }
             }
