@@ -1,0 +1,400 @@
+// Responsibility: renders the drum machine panel.
+// The metronome's visual language: a stompbox header with a power switch, an
+// amber LCD carrying the tempo and the beat of the bar, then the pickers, the
+// FILL footswitch and the knobs. POWER is the one transport switch. The panel
+// reads `DrumsBridge`, so the same component serves the standalone window and
+// the inline fullscreen/touch overlay.
+import { ScrollView } from "std-widgets.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { PowerFootSwitch, BeatLamp, ControlCell } from "../components/metronome_controls.slint";
+import { DrumFootSwitch, DrumPickerField, DrumPickRowView } from "../components/drums_controls.slint";
+import { DrumsBridge, DrumPickRow } from "../components/drums_globals.slint";
+
+export component DrumsPanel inherits Rectangle {
+    // The inline overlay needs a close button; the window closes via its chrome.
+    in property <bool> show-close-button: false;
+    private property <length> header-height: 72px;
+
+    // A list always opens unfiltered.
+    function open-picker(which: int) {
+        DrumsBridge.query = "";
+        DrumsBridge.query-changed("");
+        DrumsBridge.picker = which;
+    }
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header bar ───────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 72px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        PowerFootSwitch {
+            x: 14px; y: (72px - self.height) / 2;
+            active: DrumsBridge.playing;
+            toggled => { DrumsBridge.toggle-enabled(!DrumsBridge.playing); }
+        }
+
+        Image {
+            x: 78px; y: 24px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/drums.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 110px; y: 0;
+            width: 200px; height: parent.height;
+            text: @tr("label-drums");
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 22px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { DrumsBridge.close-drums(); }
+            }
+        }
+    }
+
+    body := VerticalLayout {
+        x: 16px;
+        y: root.header-height + 16px;
+        width: parent.width - 2 * self.x;
+        height: self.preferred-height;
+        spacing: 12px;
+
+        // ── LCD — tempo, the bar, and where the groove is ────────────────
+        Rectangle {
+            height: 150px;
+            border-radius: 6px;
+            background: DrumsBridge.playing ? #ccaa66 : #776633;
+            border-width: 1px;
+            border-color: #00000099;
+            clip: true;
+            drop-shadow-blur: 6px;
+            drop-shadow-color: #00000080;
+            animate background { duration: 200ms; }
+
+            HorizontalLayout {
+                x: 0; y: 14px;
+                width: parent.width;
+                height: 16px;
+                alignment: center;
+                spacing: 10px;
+
+                for slot[idx] in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : Rectangle {
+                    width: idx < DrumsBridge.beats-per-bar ? 16px : 0px;
+                    height: 16px;
+                    if idx < DrumsBridge.beats-per-bar : BeatLamp {
+                        lit: DrumsBridge.playing && idx == DrumsBridge.current-beat;
+                        downbeat: idx == 0;
+                        counting-in: DrumsBridge.in-fill;
+                    }
+                }
+            }
+
+            Text {
+                x: 0; y: 34px;
+                width: parent.width;
+                height: 76px;
+                text: Math.round(DrumsBridge.bpm);
+                color: #2a2008;
+                font-family: "Bebas Neue";
+                font-size: 72px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            Text {
+                x: 0; y: parent.height - 30px;
+                width: parent.width;
+                height: 22px;
+                text: @tr("label-bpm");
+                color: #5a4a1a;
+                font-family: "Bebas Neue";
+                font-size: 18px;
+                letter-spacing: 4.0px;
+                horizontal-alignment: center;
+            }
+
+            if DrumsBridge.playing : Text {
+                x: 16px; y: 40px;
+                width: self.preferred-width; height: 26px;
+                text: @tr("label-drums-bar", DrumsBridge.current-bar + 1);
+                color: #5a4a1a;
+                font-family: "Bebas Neue";
+                font-size: 22px;
+                letter-spacing: 1.0px;
+            }
+
+            if DrumsBridge.in-fill : Text {
+                x: parent.width - self.width - 16px; y: 40px;
+                width: self.preferred-width; height: 26px;
+                text: @tr("action-drums-fill");
+                color: #7a3a0a;
+                font-family: "Bebas Neue";
+                font-size: 22px;
+                letter-spacing: 2.0px;
+            }
+        }
+
+        // ── Kit and groove ───────────────────────────────────────────────
+        HorizontalLayout {
+            spacing: 12px;
+
+            DrumPickerField {
+                caption: @tr("label-drum-kit");
+                label: DrumsBridge.kit-label;
+                placeholder: @tr("placeholder-drum-kit");
+                icon: @image-url("../assets/drums.svg");
+                open => { root.open-picker(1); }
+            }
+
+            DrumPickerField {
+                caption: @tr("label-drum-groove");
+                label: DrumsBridge.groove-label;
+                placeholder: @tr("placeholder-drum-groove");
+                icon: @image-url("../assets/loop.svg");
+                open => { root.open-picker(2); }
+            }
+        }
+
+        // ── Footswitches and knobs ───────────────────────────────────────
+        HorizontalLayout {
+            height: 108px;
+            alignment: space-around;
+
+            DrumFootSwitch {
+                caption: @tr("action-drums-fill");
+                active: DrumsBridge.in-fill;
+                // A fill lands on a running groove only.
+                enabled: DrumsBridge.playing;
+                pressed => { DrumsBridge.fill(); }
+            }
+
+            ControlCell {
+                caption: @tr("label-bpm");
+                value: Math.round(DrumsBridge.bpm);
+                PanelKnob {
+                    x: (parent.width - 64px) / 2; y: 20px;
+                    width: 64px; height: 64px;
+                    value: DrumsBridge.bpm;
+                    min-val: DrumsBridge.bpm-min;
+                    max-val: DrumsBridge.bpm-max;
+                    step: 1.0;
+                    path: "drums.bpm";
+                    changed(p, v) => { DrumsBridge.set-bpm(v); }
+                }
+            }
+
+            ControlCell {
+                caption: @tr("label-click-volume");
+                value: Math.round(DrumsBridge.volume * 100) + "%";
+                PanelKnob {
+                    x: (parent.width - 64px) / 2; y: 20px;
+                    width: 64px; height: 64px;
+                    value: DrumsBridge.volume;
+                    min-val: 0.0;
+                    max-val: 1.0;
+                    step: 0.01;
+                    path: "drums.volume";
+                    changed(p, v) => { DrumsBridge.set-volume(v); }
+                }
+            }
+        }
+
+        // ── Output endpoint ──────────────────────────────────────────────
+        DrumPickerField {
+            caption: @tr("label-output");
+            label: DrumsBridge.output-label;
+            placeholder: @tr("placeholder-metronome-output");
+            icon: @image-url("../assets/headphones.svg");
+            open => {
+                root.open-picker(3);
+                DrumsBridge.output-opened();
+            }
+        }
+    }
+
+    // ── Picker list — clickable rows, click outside to dismiss ───────────
+    if DrumsBridge.picker != 0 : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000cc;
+
+        scrim := TouchArea {
+            clicked => { DrumsBridge.picker = 0; }
+        }
+
+        list-box := Rectangle {
+            private property <[DrumPickRow]> rows: DrumsBridge.picker == 1 ? DrumsBridge.kit-rows
+                : DrumsBridge.picker == 2 ? DrumsBridge.groove-rows
+                : DrumsBridge.output-rows;
+            private property <string> current: DrumsBridge.picker == 1 ? DrumsBridge.kit-key
+                : DrumsBridge.picker == 2 ? DrumsBridge.groove-key
+                : DrumsBridge.output-key;
+
+            x: (parent.width - self.width) / 2;
+            y: 80px;
+            width: min(parent.width - 32px, 480px);
+            height: min(parent.height - self.y - 16px, max(self.rows.length, 1) * 44px + 104px);
+            border-radius: 8px;
+            background: #0f131b;
+            border-width: 1px;
+            border-color: #2b3340;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+
+            // Swallows clicks on the box itself so only the scrim dismisses.
+            TouchArea { }
+
+            Text {
+                x: 16px; y: 14px;
+                width: parent.width - 32px; height: 22px;
+                text: DrumsBridge.picker == 1 ? @tr("label-drum-kit")
+                    : DrumsBridge.picker == 2 ? @tr("label-drum-groove")
+                    : @tr("label-output");
+                color: #93a1b7;
+                font-family: "Bebas Neue";
+                font-size: 18px;
+                letter-spacing: 2.0px;
+            }
+
+            // ── Search — narrows the list as you type ──
+            Rectangle {
+                x: 8px; y: 44px;
+                width: parent.width - 16px; height: 40px;
+                border-radius: 6px;
+                background: #15191f;
+                border-width: 1px;
+                border-color: search.has-focus ? #4d5868 : #2b3340;
+
+                Image {
+                    x: 10px; y: (parent.height - 16px) / 2;
+                    width: 16px; height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
+                }
+
+                search := TextInput {
+                    x: 34px;
+                    width: parent.width - 34px - (DrumsBridge.query == "" ? 8px : 32px);
+                    height: parent.height;
+                    text <=> DrumsBridge.query;
+                    color: #f1f4f8;
+                    font-size: 18px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => { DrumsBridge.query-changed(self.text); }
+                }
+
+                if DrumsBridge.query == "" : Text {
+                    x: 34px;
+                    width: parent.width - 42px; height: parent.height;
+                    text: @tr("placeholder-drums-search");
+                    color: #6a6a82;
+                    font-size: 18px;
+                    vertical-alignment: center;
+                }
+
+                if DrumsBridge.query != "" : TouchArea {
+                    x: parent.width - 32px;
+                    width: 28px; height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => {
+                        DrumsBridge.query = "";
+                        DrumsBridge.query-changed("");
+                    }
+                    Image {
+                        x: (parent.width - 12px) / 2; y: (parent.height - 12px) / 2;
+                        width: 12px; height: 12px;
+                        source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                        colorize: #8a94a2;
+                    }
+                }
+            }
+
+            if list-box.rows.length == 0 : Text {
+                x: 0; y: 92px; width: parent.width; height: parent.height - 92px;
+                text: DrumsBridge.query != "" ? @tr("status-drums-no-match")
+                    : DrumsBridge.picker == 3 ? @tr("status-no-outputs") : @tr("status-no-drum-content");
+                color: #6a6a82;
+                font-size: 18px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            ScrollView {
+                x: 8px; y: 92px;
+                width: parent.width - 16px;
+                height: parent.height - 100px;
+                VerticalLayout {
+                    spacing: 4px;
+                    for item in list-box.rows : DrumPickRowView {
+                        label: item.label;
+                        header: item.header;
+                        active: item.key == list-box.current;
+                        pick => {
+                            if DrumsBridge.picker == 1 {
+                                DrumsBridge.pick-kit(item.key);
+                            } else if DrumsBridge.picker == 2 {
+                                DrumsBridge.pick-groove(item.key);
+                            } else {
+                                DrumsBridge.pick-output(item.key);
+                            }
+                            DrumsBridge.picker = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The standalone window is only a host for the panel.
+export component DrumsWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 18px;
+    title: @tr("title-window-drums");
+    min-width: 480px;
+    min-height: 540px;
+    preferred-width: 560px;
+    preferred-height: 540px;
+    background: #050608;
+
+    DrumsPanel {
+        width: 100%;
+        height: 100%;
+        show-close-button: false;
+    }
+}

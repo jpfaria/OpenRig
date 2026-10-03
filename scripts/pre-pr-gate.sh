@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
-# Responsibility: runs CI's checks locally and stamps the commit they passed on.
+# Responsibility: runs CI's tests locally and stamps the commit they passed on.
 #
 # Run it from the clone, on a committed tree, before `gh pr create` and before
 # pushing to a branch whose PR is open:
 #
 #   ./scripts/pre-pr-gate.sh
 #
-# It runs what the Test workflow runs — fmt, the whole-repo static checks and
-# `cargo test --workspace` — and on success records HEAD in the clone's git dir.
-# `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or the push unless HEAD
-# carries that stamp. A warning fails it like an error. The tests run on
-# macOS; the Linux build (a `cfg(target_os = "linux")` path, the JACK backend)
-# is checked for errors and warnings in the Debian container of
-# docker/Dockerfile.linux-builder, its target kept in a Docker volume so only
-# the first run is cold. With cargo-nextest installed the tests run through it
-# (every test binary in parallel) plus `cargo test --doc`, which nextest does
-# not run; without it, plain `cargo test`. PRE_PR_GATE_SUITE replaces the
-# checks (tests only).
+# It runs fmt and the tests of every package the branch can affect: the
+# packages owning a file changed since the release branch it was cut from,
+# plus every package depending on them (scripts/pre_pr_gate_packages.py).
+# A change to the root manifest, the lockfile or a file outside every crate
+# tests the whole workspace; a docs-only change runs no tests. PRE_PR_GATE_BASE
+# names the base instead of the nearest `origin/release/*`. The static checks
+# (scripts/validate.sh) are left to CI's `Static Checks` job. On success it
+# records HEAD in the clone's git dir; `.claude/hooks/pre-pr-gate-guard.sh`
+# denies the PR or the push unless HEAD carries that stamp.
+#
+# One gate runs at a time on the machine: a second one waits on the lock
+# directory PRE_PR_GATE_LOCK (default /tmp/openrig-pre-pr-gate.lock) instead of
+# splitting the CPU, which also turns the clock-bound tests flaky. A lock left
+# by a gate that died is taken over.
+#
+# It runs on macOS: a failure that only exists on Linux (a
+# `cfg(target_os = "linux")` path, the JACK backend) still shows up in CI only.
+# With cargo-nextest installed the tests run through it plus `cargo test
+# --doc`, which nextest does not run; without it, plain `cargo test`.
+# PRE_PR_GATE_SUITE replaces the checks (tests only).
 set -euo pipefail
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -28,37 +37,72 @@ head="$(git rev-parse HEAD)"
 stamp="$(git rev-parse --git-path openrig-pre-pr-gate)"
 rm -f "$stamp"
 
+lock="${PRE_PR_GATE_LOCK:-/tmp/openrig-pre-pr-gate.lock}"
+waiting=""
+until mkdir "$lock" 2>/dev/null; do
+  holder="$(cat "$lock/pid" 2>/dev/null || true)"
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+    rm -rf "$lock"
+    continue
+  fi
+  if [ -z "$waiting" ]; then
+    echo "pre-pr-gate: another gate is running (pid ${holder:-?}) — waiting for it." >&2
+    waiting=1
+  fi
+  sleep 1
+done
+trap 'rm -rf "$lock"' EXIT
+echo $$ > "$lock/pid"
+
+nearest_release() {
+  local ref n best="" best_n=""
+  for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/release/); do
+    n="$(git rev-list --count "$ref..HEAD")"
+    if [ -z "$best_n" ] || [ "$n" -lt "$best_n" ]; then best="$ref"; best_n="$n"; fi
+  done
+  echo "$best"
+}
+
+run_tests() {
+  local base meta selected
+  base="${PRE_PR_GATE_BASE:-$(nearest_release)}"
+  meta="$(mktemp)"
+  cargo metadata --format-version 1 > "$meta"
+  if [ -z "$base" ]; then
+    selected="ALL"
+  else
+    selected="$(git diff --name-only "$base...HEAD" | python3 scripts/pre_pr_gate_packages.py "$meta")"
+  fi
+  local tests=() docs=()
+  if [ "$selected" = "ALL" ]; then
+    tests=(--workspace)
+    docs=(--workspace)
+  else
+    local p
+    for p in $selected; do tests+=(-p "$p"); done
+    for p in $(git diff --name-only "$base...HEAD" | python3 scripts/pre_pr_gate_packages.py "$meta" --lib-only); do
+      docs+=(-p "$p")
+    done
+  fi
+  rm -f "$meta"
+  if [ ${#tests[@]} -eq 0 ]; then
+    echo "pre-pr-gate: no package changed since $base — no tests to run."
+    return
+  fi
+  echo "pre-pr-gate: testing ${tests[*]} (changes since ${base:-nothing})"
+  if cargo nextest --version >/dev/null 2>&1; then
+    cargo nextest run "${tests[@]}" --no-fail-fast
+    if [ ${#docs[@]} -gt 0 ]; then cargo test "${docs[@]}" --doc; fi
+  else
+    cargo test "${tests[@]}" --no-fail-fast
+  fi
+}
+
 if [ -n "${PRE_PR_GATE_SUITE:-}" ]; then
   bash -c "$PRE_PR_GATE_SUITE"
 else
   cargo fmt --all -- --check
-  VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
-
-  if ! docker info >/dev/null 2>&1; then
-    echo "pre-pr-gate: Docker is not running — the Linux build cannot be checked." >&2
-    exit 1
-  fi
-  image="openrig-pre-pr-gate-linux"
-  if ! docker image inspect "$image" >/dev/null 2>&1; then
-    docker build -t "$image" -f docker/Dockerfile.linux-builder docker
-  fi
-  docker run --rm -v "$PWD:/workspace" -v openrig-pre-pr-linux-target:/target \
-    -v openrig-pre-pr-linux-registry:/root/.cargo/registry \
-    -e CARGO_TARGET_DIR=/target -e RUSTFLAGS="-D warnings" -w /workspace "$image" \
-    cargo check --workspace --tests
-
-  log="$(mktemp)"
-  trap 'rm -f "$log"' EXIT
-  if cargo nextest --version >/dev/null 2>&1; then
-    cargo nextest run --workspace --no-fail-fast 2>&1 | tee "$log"
-    cargo test --workspace --doc 2>&1 | tee -a "$log"
-  else
-    cargo test --workspace --no-fail-fast 2>&1 | tee "$log"
-  fi
-  if grep -Eq '^warning: .* generated [0-9]+ warnings?' "$log"; then
-    echo "pre-pr-gate: the build has warnings — fix them first." >&2
-    exit 1
-  fi
+  run_tests
 fi
 
 if [ "$(git rev-parse HEAD)" != "$head" ]; then

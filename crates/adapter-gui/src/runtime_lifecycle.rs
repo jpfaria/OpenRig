@@ -52,13 +52,16 @@ use crate::{runtime_devices, runtime_loopers, runtime_pipelines, runtime_teardow
 ///
 /// Lives here because `runtime_lifecycle` is the module that owns the
 /// controller; every other wiring module dispatches a `Command` instead.
-struct GuiRuntimeControl {
-    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+pub(crate) struct GuiRuntimeControl {
+    pub(crate) runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     /// The tuner / spectrum sessions (#544/#546). Not part of the audio
     /// runtime: an analyzer is a READER of it, which is why powering one on
     /// never creates a controller.
-    analyzers: AnalyzerSessions,
-    session: SessionHandle,
+    pub(crate) analyzers: AnalyzerSessions,
+    pub(crate) session: SessionHandle,
+    /// Which kit the drums play, kept so a stream re-opened at another rate
+    /// reloads it. Body in `runtime_drums`.
+    pub(crate) drum_kit: crate::runtime_drums::DrumKitMemory,
 }
 
 impl RuntimeControl for GuiRuntimeControl {
@@ -177,6 +180,11 @@ impl RuntimeControl for GuiRuntimeControl {
             return Ok(());
         };
         runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
+    }
+
+    /// The drum machine, an independent pipeline; body in `runtime_drums`.
+    fn drums(&self) -> Option<&dyn application::drums_runtime::DrumsRuntime> {
+        Some(self)
     }
 
     // The analyzers (#544/#546). Powering one on is what makes it SUBSCRIBE
@@ -329,6 +337,7 @@ pub(crate) fn attach_runtime_control(
             runtime: project_runtime.clone(),
             analyzers: analyzers.clone(),
             session: SessionHandle::mirror(session),
+            drum_kit: Default::default(),
         }));
 }
 

@@ -34,7 +34,9 @@ pub(crate) fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> 
     samples
 }
 
-pub(crate) fn resample_if_needed(
+/// Resamples `samples` from `ir_rate` to `runtime_rate` with a Lanczos
+/// (a=4) windowed sinc; returns them untouched when the rates match.
+pub fn resample_if_needed(
     samples: Vec<f32>,
     ir_rate: u32,
     runtime_rate: f32,
