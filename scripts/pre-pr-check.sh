@@ -53,7 +53,8 @@ if ! docker info >/dev/null 2>&1; then
     docker info >/dev/null 2>&1 || { echo "Docker Desktop did not come up" >&2; exit 1; }
 fi
 
-docker build --pull -q -t openrig-pre-pr-linux - >/dev/null <<'EOF'
+build_image() {
+    docker build --pull -q "$@" -t openrig-pre-pr-linux - >/dev/null <<'EOF'
 FROM rust:1-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libasound2-dev libudev-dev pkg-config \
@@ -62,6 +63,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libjack-jackd2-dev gettext \
     && rm -rf /var/lib/apt/lists/*
 EOF
+}
+build_image
+# A pull cut short leaves a cached layer with empty files (cargo: exec format
+# error): rebuild it from scratch once.
+if ! docker run --rm openrig-pre-pr-linux cargo --version >/dev/null 2>&1; then
+    build_image --no-cache
+    docker run --rm openrig-pre-pr-linux cargo --version >/dev/null
+fi
 
 docker run --rm \
     -v "$repo:/src" -w /src \
