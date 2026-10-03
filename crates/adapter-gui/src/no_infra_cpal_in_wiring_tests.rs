@@ -85,6 +85,9 @@ const GUARDED: &[Guarded] = &[
 ///   and, on Linux, starts the JACK server (`start_jack_in_background`). Both
 ///   are driver reconfiguration on the host, not a rig operation, and both are
 ///   in the "NOT on the bus" table for that reason.
+/// * `stepped_input_mark.rs` — probes the host's input DEVICE
+///   (`probe_input_device`) for the evidence a stepped-input restart writes to
+///   disk. A question to this machine's driver, not a rig operation.
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "device_refresh_list.rs",
     "desktop_app.rs",
@@ -92,6 +95,7 @@ const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "live_source_block_stream.rs",
     "live_source_chain_rate.rs",
     "live_source_chain_row.rs",
+    "live_source_drums.rs",
     "live_source_gui.rs",
     "live_source_health.rs",
     "live_source_looper.rs",
@@ -105,6 +109,7 @@ const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "runtime_pipelines.rs",
     "runtime_taps.rs",
     "runtime_teardown.rs",
+    "stepped_input_mark.rs",
 ];
 
 /// The one-chain runtime sync sequence. Only the module that owns the
@@ -161,7 +166,9 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   to the modules below. Someone has to say the type once.
 ///
 /// ── Reads it as the frontend's `LiveSource` ─────────────────────────────────
-/// * `gui_live_source.rs` — the read side of the same seam.
+/// * `gui_live_source.rs` — the read side of the same seam, split by reading
+///   into the `live_source_*.rs` modules (the drum machine's transport in
+///   `live_source_drums.rs`, like the metronome's in `live_source_metronome.rs`).
 /// * `mcp_query_resolver.rs` — builds `GuiLiveSource`, so it names the handle
 ///   type it is handed.
 ///
@@ -288,6 +295,7 @@ const OWNS_THE_RUNTIME: &[&str] = &[
     "live_source_block_stream.rs",
     "live_source_chain_rate.rs",
     "live_source_chain_row.rs",
+    "live_source_drums.rs",
     "live_source_gui.rs",
     "live_source_health.rs",
     "live_source_looper.rs",
