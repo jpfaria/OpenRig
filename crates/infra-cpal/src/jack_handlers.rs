@@ -276,7 +276,7 @@ impl jack::ProcessHandler for JackProcessHandler {
                 // #771: the DI playback rides route 0's ports, as it always did.
                 if output.route == 0 {
                     for cell in di_cells {
-                        crate::di_playback::mix_di_playback(cell, buf, total_out_ports);
+                        crate::di_playback::mix_di_playback_at(cell, buf, total_out_ports, None);
                     }
                 }
             }));

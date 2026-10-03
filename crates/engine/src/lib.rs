@@ -78,6 +78,7 @@ mod runtime_graph_assemble;
 mod runtime_graph_impl;
 mod runtime_graph_prebuild;
 mod runtime_graph_update;
+mod runtime_input_clock;
 mod runtime_input_seams;
 pub mod runtime_io;
 pub mod runtime_layout;

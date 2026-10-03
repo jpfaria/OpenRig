@@ -223,6 +223,7 @@ pub fn process_input_f32_patient(
                 if tap.input_index != input_index {
                     continue;
                 }
+                tap.stamp_first_capture(runtime.input_capture_ns(input_index));
                 for (ch_idx, ring_opt) in tap.channel_rings.iter().enumerate() {
                     if let Some(ring) = ring_opt {
                         if ch_idx >= input_total_channels {
