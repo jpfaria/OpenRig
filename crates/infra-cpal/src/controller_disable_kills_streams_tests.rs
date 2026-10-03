@@ -16,6 +16,7 @@ use super::active_runtime::ActiveChainRuntime;
 use super::resolved::ChainStreamSignature;
 use super::ProjectRuntimeController;
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn chain(id: &str, enabled: bool) -> Chain {
     Chain {
         id: ChainId(id.into()),
@@ -32,6 +33,7 @@ fn chain(id: &str, enabled: bool) -> Chain {
     }
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn project() -> Project {
     Project {
         name: None,
@@ -41,6 +43,7 @@ fn project() -> Project {
     }
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn controller() -> ProjectRuntimeController {
     ProjectRuntimeController {
         runtime_graph: engine::runtime::RuntimeGraph {
@@ -74,6 +77,7 @@ fn controller() -> ProjectRuntimeController {
 
 /// A chain whose streams are open: one runtime in the graph, one active entry,
 /// and the registry saying it owns 1 input + 2 output streams.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn controller_with_open_streams(
     chain_id: &ChainId,
 ) -> (

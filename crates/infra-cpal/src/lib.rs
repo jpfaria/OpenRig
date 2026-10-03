@@ -274,14 +274,14 @@ mod looper_level;
 mod looper_transport_scope;
 
 #[cfg(test)]
+#[path = "controller_disable_kills_streams_tests.rs"]
+mod controller_disable_kills_streams_tests;
+#[cfg(test)]
 #[path = "controller_global_transport_tests.rs"]
 mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
-#[cfg(test)]
-#[path = "controller_disable_kills_streams_tests.rs"]
-mod controller_disable_kills_streams_tests;
-#[cfg(test)]
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "controller_drop_nonblocking_tests.rs"]
 mod controller_drop_nonblocking_tests;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

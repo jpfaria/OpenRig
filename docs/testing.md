@@ -233,9 +233,12 @@ in parallel) plus `cargo test --workspace --doc`, in CI and in the gate, which
 falls back to `cargo test` when nextest is not installed
 (`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
 the push unless HEAD carries the stamp, so commit first and push in a command of
-its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
-failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
-backend) still shows up in CI only.
+its own. Pushes to a branch with no PR are not gated. A warning fails the gate
+like an error. The tests run on macOS; the Linux build (a
+`cfg(target_os = "linux")` path, the JACK backend) is checked with
+`cargo check --workspace --tests` and `-D warnings` in the Debian container of
+`docker/Dockerfile.linux-builder`, so Docker must be running. Its target lives
+in a Docker volume: only the first run compiles from scratch.
 
 ## Real-hardware battery
 
