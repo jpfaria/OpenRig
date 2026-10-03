@@ -51,7 +51,9 @@ when its tests are gated `cfg(not(all(target_os = "linux", feature = "jack")))`
 
 **Push-time compile check: `scripts/pr-check.sh`.** fmt, the static
 `validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,
-examples), failing on any warning. A push to a branch with an open PR runs it
+examples), failing on any warning. It compiles on macOS only — nothing Linux
+or Docker runs on the owner's machine; Linux/JACK-only code is checked by CI,
+whose Test Suite builds with `-D warnings`. A push to a branch with an open PR runs it
 by itself: `scripts/solver-setup.sh` sets `core.hooksPath = scripts/hooks`, and
 `scripts/hooks/pre-push` blocks the push when it fails. It only compiles; the
 PR gate that also runs the tests is `./scripts/pre-pr-gate.sh` (see "Full
@@ -87,6 +89,9 @@ Details and real cases: `.claude/skills/openrig-code-quality/SKILL.md`.
   Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
   both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
   pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
+  A saved cache key is never overwritten, so the Test Suite builds with
+  `--keep-going` first: a compile error in a workspace crate must not save a cache
+  that is missing dependencies, or every later run compiles them from scratch.
   Instrumentation is what makes long simulations expensive: they run several times
   slower under llvm-cov. A test that simulates minutes
   of audio or sweeps many seeds costs minutes of Coverage.
@@ -253,7 +258,7 @@ installed (`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-
 the push unless HEAD carries the stamp, so commit first and push in a command of
 its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
 failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
-backend) still shows up in CI only.
+backend) shows up in CI only.
 
 ## Real-hardware battery
 
@@ -446,6 +451,24 @@ so CI and the parallel suite stay green. They must run single-threaded
 OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
+
+## Looking at the dev build the owner has open
+
+A build started with `cargo run` (or from RustRover) has no bundle id, so the
+computer-use tools, which grant apps by bundle, cannot see or click it. Drive it
+from the shell instead:
+
+- window geometry: `osascript -e 'tell application "System Events" to tell
+  (first process whose unix id is <pid>) to get {name, position, size} of every
+  window'` (`pgrep -fl adapter-gui` gives the pid);
+- picture: `screencapture -x -R<x>,<y>,<w>,<h> shot.png` with that geometry;
+- click: a few lines of Swift posting `CGEvent` mouse down/up at screen
+  coordinates (`swiftc -O click.swift -o click`), the window origin plus the
+  point read off the picture.
+
+Re-read the geometry before each click: the owner may resize the window while
+you work. Only open lists and close them again; picking an entry or saving
+changes his rig.
 
 ## Agent builds take the build lock
 

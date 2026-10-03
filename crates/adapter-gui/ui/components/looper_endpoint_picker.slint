@@ -1,0 +1,100 @@
+// Responsibility: renders the looper endpoint picker modal.
+// The option list of a loop's record-from or play-to select: a root-level
+// overlay (never a PopupWindow, so every option is a reachable in-tree
+// TouchArea). Shared by the main window's looper overlay and the compact view.
+
+import { Theme } from "../theme.slint";
+import { LooperPanel } from "looper_panel_globals.slint";
+
+export component LooperEndpointPicker inherits Rectangle {
+    in property <[string]> input-options;
+    in property <[string]> output-options;
+    // (chain-index, uid, option-index) — the picked endpoint.
+    callback input-picked(int, int, int);
+    callback output-picked(int, int, int);
+
+    private property <bool> is-output: LooperPanel.endpoint-picker-kind == 1;
+    private property <[string]> options: root.is-output ? root.output-options : root.input-options;
+
+    background: #000000a8;
+
+    // Click-outside closes without changing the endpoint.
+    TouchArea { clicked => { LooperPanel.endpoint-picker-uid = -1; } }
+
+    Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: 360px;
+        height: min(root.height - 80px, 96px + root.options.length * 48px);
+        background: #1e1f22;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.palette.border-strong;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 8px;
+
+            Text {
+                text: root.is-output ? @tr("looper-output") : @tr("looper-input");
+                color: Theme.palette.text-primary;
+                font-size: Theme.min-font;
+                font-weight: 700;
+            }
+
+            Flickable {
+                viewport-height: options-col.preferred-height;
+                options-col := VerticalLayout {
+                    spacing: 4px;
+
+                    for option[i] in root.options : Rectangle {
+                        height: 44px;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: i == LooperPanel.endpoint-picker-selected
+                            ? #6e8aff : transparent;
+                        background: opt-ta.has-hover
+                            ? #6e8aff28
+                            : (i == LooperPanel.endpoint-picker-selected ? #6e8aff14 : #2a2c31);
+
+                        Text {
+                            x: 12px;
+                            width: parent.width - 44px;
+                            height: parent.height;
+                            vertical-alignment: center;
+                            text: option;
+                            color: Theme.palette.text-primary;
+                            font-size: Theme.min-font;
+                            overflow: elide;
+                        }
+
+                        if i == LooperPanel.endpoint-picker-selected : Image {
+                            x: parent.width - 30px;
+                            y: (parent.height - 16px) / 2;
+                            width: 16px;
+                            height: 16px;
+                            source: @image-url("../assets/check.svg");
+                            image-fit: contain;
+                            colorize: #6e8aff;
+                        }
+
+                        opt-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if root.is-output {
+                                    root.output-picked(LooperPanel.chain-index, LooperPanel.endpoint-picker-uid, i);
+                                } else {
+                                    root.input-picked(LooperPanel.chain-index, LooperPanel.endpoint-picker-uid, i);
+                                }
+                                LooperPanel.endpoint-picker-uid = -1;
+                            }
+                        }
+
+                        accessible-role: button;
+                        accessible-label: option;
+                    }
+                }
+            }
+        }
+    }
+}

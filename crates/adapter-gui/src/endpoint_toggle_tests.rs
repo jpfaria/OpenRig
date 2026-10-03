@@ -83,3 +83,39 @@ fn a_block_node_has_no_endpoints() {
         Err(GestureError::NotApplicable)
     );
 }
+
+#[test]
+fn a_shared_endpoint_switches_every_binding_copy() {
+    let mut c = chain(vec![]);
+    c.io_binding_ids = vec!["main".into(), "dup".into()];
+    let (session, recorder) = recording_session(vec![c]);
+    session
+        .borrow()
+        .as_ref()
+        .expect("session")
+        .io_bindings
+        .borrow_mut()
+        .push(infra_filesystem::IoBinding {
+            id: "dup".into(),
+            name: "DUP".into(),
+            inputs: vec![],
+            outputs: vec![crate::chain_graph_fixtures_tests::endpoint_at(
+                "Out L/R",
+                vec![0, 1],
+            )],
+        });
+    let rows = rows();
+    set_endpoint_enabled(&session, 0, OUTPUT_NODE_ID, 0, false, &target(&rows)).expect("toggle");
+    let switched: Vec<String> = recorder
+        .seen
+        .borrow()
+        .iter()
+        .filter_map(|c| match c {
+            Command::Chain(ChainCommand::SetChainEndpointEnabled {
+                io, enabled: false, ..
+            }) => Some(io.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(switched, vec!["main".to_string(), "dup".to_string()]);
+}

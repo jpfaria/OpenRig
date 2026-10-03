@@ -42,9 +42,9 @@ fn only_output_only_bindings_are_offered() {
     assert_eq!(
         labels,
         vec![
-            "MAIN-FRFR · MAIN".to_string(),
-            "MAIN-FRFR · FRFR".to_string(),
-            "SYN5050 · SYN-5050".to_string(),
+            "MAIN".to_string(),
+            "FRFR".to_string(),
+            "SYN-5050".to_string()
         ]
     );
 }
@@ -57,5 +57,5 @@ fn with_no_output_only_binding_every_output_is_offered() {
         .into_iter()
         .map(|o| o.label)
         .collect();
-    assert_eq!(labels, vec!["DEFAULT · Out1".to_string()]);
+    assert_eq!(labels, vec!["Out1".to_string()]);
 }

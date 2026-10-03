@@ -7,6 +7,7 @@
 
 use std::sync::{Arc, Mutex, Weak};
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::input_evidence::InputStreamIdentity;
 use crate::input_evidence_ring::InputEvidenceRing;
 
@@ -14,7 +15,7 @@ static RINGS: Mutex<Vec<Weak<InputEvidenceRing>>> = Mutex::new(Vec::new());
 
 /// A ring for a stream being built, findable by its chain while the stream
 /// lives.
-#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn open_ring(identity: InputStreamIdentity) -> Arc<InputEvidenceRing> {
     let ring = Arc::new(InputEvidenceRing::new(identity));
     register(&ring);

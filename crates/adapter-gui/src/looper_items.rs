@@ -19,7 +19,7 @@ pub fn looper_items_with_recorded(
     runtime_live: bool,
     preset_ids: &[String],
 ) -> Vec<LooperItem> {
-    use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
+    use project::chain_endpoint_options::{input_option_index, output_option_index};
     chain
         .loopers
         .iter()
@@ -71,8 +71,8 @@ pub fn looper_items_with_recorded(
                 // an enabled button is never a lie. The rule is resolved here,
                 // not in Slint: the view reads a flag, it does not decide.
                 can_edit: state == LooperState::Stopped && len > 0,
-                input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
-                output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
+                input_index: input_option_index(chain, registry, cfg.input.as_ref()) as i32,
+                output_index: output_option_index(chain, registry, cfg.output.as_ref()) as i32,
                 preset_index: preset_option_index(cfg.preset.as_deref(), preset_ids),
             }
         })

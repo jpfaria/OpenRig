@@ -22,6 +22,7 @@ mod catalog_registry;
 mod catalog_types;
 pub mod chain;
 pub mod chain_bus_layout;
+pub mod chain_endpoint_options;
 pub mod chain_mix;
 pub mod chain_modes;
 pub mod channel_mode_conv;
