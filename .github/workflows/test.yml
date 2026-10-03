@@ -114,7 +114,7 @@ jobs:
       # after it compiled them all again. --keep-going builds every crate the
       # error does not block, so the saved cache always holds all dependencies.
       - name: Build tests
-        run: timeout --signal=SIGKILL 1500 cargo test --workspace --no-run --keep-going
+        run: timeout --signal=SIGKILL 1500 cargo build --workspace --tests --keep-going
 
       - name: Run tests
         run: |
