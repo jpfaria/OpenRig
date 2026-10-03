@@ -2,7 +2,7 @@
 
 | Script | What it does |
 |--------|--------|
-| `scripts/solver-setup.sh <N> <branch> [release-base]` | Builds the agent workspace `.solvers/issue-N` (clone, `plugins` link) and prints the absolute run command with `OPENRIG_PLUGINS_ROOT` |
+| `scripts/solver-setup.sh <N> <branch> [release-base]` | Builds the agent workspace `.solvers/issue-N` (clone, `plugins` link) and prints the absolute run command with `OPENRIG_PLUGINS_ROOT`; with `OPENRIG_SOLVERS_ROOT` set the clone lives there and `.solvers/issue-N` links to it |
 | `scripts/validate.sh [files…\|crates]` | OpenRig's static rules (responsibility header, LOC caps, minimum font size, no inline test modules); `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates` is the pre-push check over the whole repo — see [quality gate](development/quality-gate.md) |
 | `scripts/nam_vendor.py check\|update\|push` | The vendored NeuralAmpModelerCore archive (`deps/NeuralAmpModelerCore.tar.gz` + `.lock`): `check` names a newer upstream release (the first local build after a `git fetch` runs it), `update` vendors it and commits on the current branch, `push` publishes that commit — CI's `nam-refresh` job does both on `develop` after the tests pass. Offline / timeout / failed commit / refused push = warning, exit 0 |
 | `scripts/install-macos.sh` | The one-line `curl` installer: downloads the release `.dmg`, copies the app to `/Applications`, strips quarantine |
