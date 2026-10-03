@@ -123,8 +123,9 @@ pub(crate) fn build_input_stream_for_input(
                         .duration_since(&host_origin)
                         .map_or(0, |since_boot| since_boot.as_nanos() as u64);
                     evidence.record(data, host_ns);
+                    let capture_ns = crate::host_clock::capture_ns(info);
                     for worker in &workers {
-                        worker.push(data);
+                        worker.push(data, capture_ns);
                     }
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),

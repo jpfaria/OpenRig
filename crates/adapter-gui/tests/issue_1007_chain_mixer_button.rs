@@ -1,5 +1,5 @@
 //! #1007 — HEADLESS proof that every chain card in the chain list carries a
-//! mixer button that opens THAT chain's mixer over the list: instantiate the
+//! mixer button that opens THAT chain's mixer at the bottom of its card: instantiate the
 //! real `ProjectChainsPage` (through `ProjectChainsHarness`), click the button
 //! and read back the `ChainMixerPanel` global. The open mixer shows the same
 //! tabs as the compact view: one dual strip per endpoint, the GLOBAL fader
@@ -60,6 +60,13 @@ fn mixer_buttons(w: &ProjectChainsHarness) -> Vec<ElementHandle> {
     visible(w, "ChainMixerButton::ta")
 }
 
+/// The chain cards' mixer sections that are open (a closed one has no height).
+fn open_mixers(w: &ProjectChainsHarness) -> usize {
+    ElementHandle::find_by_element_type_name(w, "ChainRowMixer")
+        .filter(|el| el.size().height > 0.0)
+        .count()
+}
+
 fn click(w: &ProjectChainsHarness, el: &ElementHandle) {
     let (pos, size) = (el.absolute_position(), el.size());
     let at = LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0);
@@ -101,7 +108,7 @@ fn a_stopped_chain_keeps_its_mixer_button() {
 fn the_chain_list_opens_with_no_mixer_shown() {
     let w = page(true);
     assert!(!ChainMixerPanel::get(&w).get_open());
-    assert!(visible(&w, "ChainMixerOverlay::close-ta").is_empty());
+    assert_eq!(open_mixers(&w), 0);
 }
 
 #[test]
@@ -115,7 +122,7 @@ fn the_mixer_button_opens_the_mixer_of_its_own_chain() {
     assert!(panel.get_open());
     assert_eq!(panel.get_chain_index(), 1);
     assert_eq!(*opened.borrow(), vec![1]);
-    assert_eq!(visible(&w, "ChainMixerOverlay::close-ta").len(), 1);
+    assert_eq!(open_mixers(&w), 1);
 }
 
 #[test]
@@ -141,11 +148,10 @@ fn the_open_mixer_pairs_each_endpoint_with_the_chains_own_fader() {
 }
 
 #[test]
-fn the_close_button_hides_the_mixer() {
+fn a_second_click_on_the_mixer_button_hides_the_mixer() {
     let w = page(true);
     open_mixer_of(&w, 0);
-    let close = visible(&w, "ChainMixerOverlay::close-ta");
-    click(&w, close.first().expect("close button not found"));
+    open_mixer_of(&w, 0);
     assert!(!ChainMixerPanel::get(&w).get_open());
-    assert!(visible(&w, "ChainMixerOverlay::close-ta").is_empty());
+    assert_eq!(open_mixers(&w), 0);
 }
