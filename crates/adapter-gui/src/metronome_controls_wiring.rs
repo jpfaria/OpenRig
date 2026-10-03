@@ -134,7 +134,10 @@ pub(crate) fn refresh_metronome_outputs(
     let outputs = project_session
         .borrow()
         .as_ref()
-        .map(|session| output_endpoints(&session.io_bindings.borrow()))
+        .map(|session| {
+            let devices = infra_cpal::list_output_device_descriptors().unwrap_or_default();
+            output_endpoints(&session.io_bindings.borrow(), &devices)
+        })
         .unwrap_or_default();
     *cache.borrow_mut() = outputs.clone();
     outputs

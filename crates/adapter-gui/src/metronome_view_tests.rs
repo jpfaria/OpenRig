@@ -87,7 +87,16 @@ fn a_key_no_knob_position_carries_rests_on_the_first_one() {
 
 // ── #14: output selection from the project's I/O bindings ─────────────────
 
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::{ChannelMode, IoBinding, IoEndpoint};
+
+fn device(id: &str, name: &str) -> AudioDeviceDescriptor {
+    AudioDeviceDescriptor {
+        id: id.into(),
+        name: name.into(),
+        channels: 32,
+    }
+}
 
 fn binding(id: &str, name: &str, outputs: Vec<IoEndpoint>) -> IoBinding {
     IoBinding {
@@ -124,16 +133,20 @@ fn output_endpoints_flattens_every_bindings_outputs() {
             ],
         ),
     ];
-    let outs = output_endpoints(&bindings);
+    let devices = vec![
+        device("dev:scarlett", "Scarlett 2i2"),
+        device("dev:hp", "Headphones"),
+    ];
+    let outs = output_endpoints(&bindings, &devices);
     assert_eq!(
         outs.len(),
         3,
         "one entry per output endpoint across bindings"
     );
-    assert_eq!(outs[0].label, "Scarlett 2i2 · Main Out 1-2");
+    assert_eq!(outs[0].label, "Scarlett 2i2 · Out 1/2");
     assert_eq!(outs[0].device_id, "dev:scarlett");
     assert_eq!(outs[0].channels, vec![0, 1]);
-    assert_eq!(outs[2].label, "Headphones · Phones R");
+    assert_eq!(outs[2].label, "Headphones · Out 2");
     assert_eq!(outs[2].channels, vec![1]);
     // Keys are unique so the select can round-trip a pick.
     assert_ne!(outs[1].key, outs[2].key);
@@ -149,7 +162,7 @@ fn resolve_output_endpoint_prefers_the_saved_one() {
             endpoint("Out B", "dev:x", vec![2, 3]),
         ],
     )];
-    let outs = output_endpoints(&bindings);
+    let outs = output_endpoints(&bindings, &[]);
     let saved = outs[1].key.clone();
     let picked = resolve_output_endpoint(Some(&saved), &outs).expect("saved endpoint resolves");
     assert_eq!(picked.channels, vec![2, 3], "the saved endpoint is chosen");
@@ -162,7 +175,7 @@ fn resolve_output_endpoint_falls_back_to_the_first() {
         "Scarlett",
         vec![endpoint("Out A", "dev:x", vec![0, 1])],
     )];
-    let outs = output_endpoints(&bindings);
+    let outs = output_endpoints(&bindings, &[]);
     // A saved key from another machine / a renamed binding no longer resolves.
     let picked = resolve_output_endpoint(Some("gone::whatever"), &outs)
         .expect("falls back rather than going silent");
@@ -203,12 +216,13 @@ fn output_endpoints_lists_each_physical_output_once() {
             vec![endpoint("Out1", "dev:hd8", vec![0, 1])],
         ),
     ];
-    let outs = output_endpoints(&bindings);
+    let outs = output_endpoints(&bindings, &[device("dev:hd8", "Quantum HD 8")]);
     assert_eq!(outs.len(), 2, "two physical outputs, not five endpoints");
     assert_eq!(
-        outs[0].label, "Guitar 1 · MAIN",
-        "the first binding names it"
+        outs[0].label, "Quantum HD 8 · Out 1/2",
+        "device and channels, no binding name"
     );
+    assert_eq!(outs[1].label, "Quantum HD 8 · Out 25/26");
     assert_eq!(outs[0].channels, vec![0, 1]);
     assert_eq!(outs[1].channels, vec![24, 25]);
 }
@@ -219,7 +233,7 @@ fn output_endpoints_keeps_the_same_channels_on_another_device() {
         binding("a", "A", vec![endpoint("Out", "dev:a", vec![0, 1])]),
         binding("b", "B", vec![endpoint("Out", "dev:b", vec![0, 1])]),
     ];
-    assert_eq!(output_endpoints(&bindings).len(), 2);
+    assert_eq!(output_endpoints(&bindings, &[]).len(), 2);
 }
 
 #[test]
@@ -241,8 +255,19 @@ fn a_saved_key_of_a_merged_duplicate_still_resolves_to_its_output() {
             ],
         ),
     ];
-    let outs = output_endpoints(&bindings);
+    let outs = output_endpoints(&bindings, &[]);
     let saved = crate::metronome_outputs::endpoint_key("g2", "SYN");
     let picked = resolve_output_endpoint(Some(&saved), &outs).expect("resolves");
     assert_eq!(picked.channels, vec![4, 5]);
+}
+
+#[test]
+fn an_output_on_a_device_the_host_no_longer_lists_is_named_by_its_id() {
+    let bindings = vec![binding(
+        "a",
+        "A",
+        vec![endpoint("Out", "dev:gone", vec![7])],
+    )];
+    let outs = output_endpoints(&bindings, &[]);
+    assert_eq!(outs[0].label, "dev:gone · Out 8");
 }

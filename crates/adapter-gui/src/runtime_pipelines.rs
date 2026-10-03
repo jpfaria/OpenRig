@@ -230,7 +230,7 @@ fn metronome_endpoint(
     output_key: Option<&str>,
 ) -> Option<MetronomeOutput> {
     let bindings = session.io_bindings.borrow();
-    resolve_output_endpoint(output_key, &output_endpoints(&bindings))
+    resolve_output_endpoint(output_key, &output_endpoints(&bindings, &[]))
 }
 
 #[cfg(test)]

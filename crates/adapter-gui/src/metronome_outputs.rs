@@ -9,7 +9,8 @@ pub struct MetronomeOutput {
     /// Stable key `"{binding_id}\u{1f}{endpoint_name}"`, round-tripped by the
     /// select and persisted in `config.yaml`.
     pub key: String,
-    /// `"{binding name} · {endpoint name}"`, shown in the picker.
+    /// `"{device name} · Out {channels}"` (channels 1-based, e.g. `Out 1/2`),
+    /// shown in the picker.
     pub label: String,
     pub device_id: String,
     pub channels: Vec<usize>,
@@ -27,8 +28,13 @@ pub fn endpoint_key(binding_id: &str, endpoint_name: &str) -> String {
 
 /// Every physical output the project's bindings expose, in registry order.
 /// Endpoints of different bindings that route to the same device channels are
-/// one output: the first one names it, the others become its aliases.
-pub fn output_endpoints(bindings: &[infra_filesystem::IoBinding]) -> Vec<MetronomeOutput> {
+/// one output: the first one owns the key, the others become its aliases.
+/// `devices` names each device in the label; a device the host no longer lists
+/// is shown by its id.
+pub fn output_endpoints(
+    bindings: &[infra_filesystem::IoBinding],
+    devices: &[domain::AudioDeviceDescriptor],
+) -> Vec<MetronomeOutput> {
     let mut outputs: Vec<MetronomeOutput> = Vec::new();
     for binding in bindings {
         for endpoint in &binding.outputs {
@@ -41,7 +47,7 @@ pub fn output_endpoints(bindings: &[infra_filesystem::IoBinding]) -> Vec<Metrono
                 Some(existing) => existing.aliases.push(key),
                 None => outputs.push(MetronomeOutput {
                     key,
-                    label: format!("{} · {}", binding.name, endpoint.name),
+                    label: output_label(device_id, &endpoint.channels, devices),
                     device_id: device_id.to_string(),
                     channels: endpoint.channels.clone(),
                     aliases: Vec::new(),
@@ -50,6 +56,19 @@ pub fn output_endpoints(bindings: &[infra_filesystem::IoBinding]) -> Vec<Metrono
         }
     }
     outputs
+}
+
+fn output_label(
+    device_id: &str,
+    channels: &[usize],
+    devices: &[domain::AudioDeviceDescriptor],
+) -> String {
+    let device = devices
+        .iter()
+        .find(|d| d.id == device_id)
+        .map_or(device_id, |d| d.name.as_str());
+    let channels: Vec<String> = channels.iter().map(|c| (c + 1).to_string()).collect();
+    format!("{device} · Out {}", channels.join("/"))
 }
 
 /// Resolve the saved endpoint key to a concrete output: the saved one while it

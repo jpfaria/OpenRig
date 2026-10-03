@@ -104,5 +104,5 @@ pub(crate) fn refresh_player_output(
 /// The saved endpoint while it exists, otherwise the project's first.
 fn player_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<MetronomeOutput> {
     let bindings = session.io_bindings.borrow();
-    resolve_output_endpoint(output_key, &output_endpoints(&bindings))
+    resolve_output_endpoint(output_key, &output_endpoints(&bindings, &[]))
 }
