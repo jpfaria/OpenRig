@@ -54,7 +54,7 @@ fn every_reason_to_leave_memory_unwired_is_named() {
 }
 
 #[test]
-fn newly_wired_memory_is_logged() {
+fn newly_wired_memory_is_logged_at_debug() {
     let now = Report {
         wired: Tally {
             regions: 2,
@@ -65,8 +65,9 @@ fn newly_wired_memory_is_logged() {
     };
     let lines = report_lines(&now, Some(&Report::default()));
     assert!(
-        lines.len() == 1 && lines[0].0 == log::Level::Info && lines[0].1.contains("30 MB"),
-        "a pass that wired memory says how much: {lines:?}"
+        lines.len() == 1 && lines[0].0 == log::Level::Debug && lines[0].1.contains("30 MB"),
+        "a pass that wired memory says how much, at debug: the keeper runs every \
+         few seconds and this is routine, not something to read: {lines:?}"
     );
 }
 
