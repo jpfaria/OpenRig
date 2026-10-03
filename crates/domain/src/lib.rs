@@ -1,6 +1,7 @@
 //! Responsibility: routes the domain crate's public surface.
 
 pub mod audio_device;
+pub mod distinct_endpoints;
 pub mod ids;
 pub mod io_binding;
 pub mod mixer_gain;

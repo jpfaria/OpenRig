@@ -86,7 +86,8 @@ use application::command_schema::command_variant_names;
 /// `DeletePlayerTrack` — the trash on the user's own tracks. The drum machine
 /// adds its ten `DrumsCommand` leaves (play, stop, toggle, enable, kit, groove,
 /// fill, bpm, volume, output).
-const COMMAND_VARIANT_COUNT: usize = 138;
+/// The tempo lock and a preset's own BPM add `SetGlobalTempoLock`/`SetRigPresetBpm`.
+const COMMAND_VARIANT_COUNT: usize = 140;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

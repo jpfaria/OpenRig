@@ -19,6 +19,7 @@ fn preset(id: &str, name: Option<&str>) -> RigPreset {
         scene_params: Vec::new(),
         scenes: BTreeMap::new(),
         volume: 100.0,
+        bpm: None,
     }
 }
 

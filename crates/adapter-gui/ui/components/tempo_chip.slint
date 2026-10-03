@@ -1,0 +1,49 @@
+// Responsibility: renders the chain header's tempo chip.
+// The metronome icon and the global tempo. Accented when the chain's active
+// preset carries a tempo of its own, so loading it changes the tempo.
+
+import { Theme } from "../theme.slint";
+
+export component TempoChip inherits Rectangle {
+    in property <float> bpm;
+    in property <bool> preset-tempo: false;
+    callback clicked();
+
+    width: 68px;
+    height: 30px;
+    border-radius: 5px;
+    border-width: 1px;
+    border-color: root.preset-tempo ? Theme.palette.accent-end : #2b3340;
+    background: ta.has-hover ? Theme.palette.card-secondary : transparent;
+    animate background { duration: 150ms; }
+    accessible-role: button;
+    accessible-label: @tr("Tempo");
+    accessible-value: Math.round(root.bpm);
+    accessible-action-default => { root.clicked(); }
+
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        spacing: 4px;
+        alignment: center;
+        Image {
+            width: 16px;
+            height: 16px;
+            y: (parent.height - self.height) / 2;
+            source: @image-url("../assets/metronome.svg");
+            image-fit: contain;
+            colorize: root.preset-tempo ? Theme.palette.accent-end : (ta.has-hover ? #ffffff : #8a94a2);
+        }
+        Text {
+            text: Math.round(root.bpm);
+            color: ta.has-hover ? #ffffff : #f1f4f8;
+            font-size: Theme.min-font;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

@@ -30,6 +30,7 @@ impl LocalDispatcher {
         let Some(rig) = self.rig.borrow().clone() else {
             return Ok(vec![]);
         };
+        let loads_preset = matches!(kind, RigNavKind::Preset(_) | RigNavKind::StepPreset(_));
 
         // The GUI sentinel int → the existing pure RigCommand mapping.
         let rig_cmd = match kind {
@@ -98,7 +99,11 @@ impl LocalDispatcher {
             }
         }
 
-        Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
+        // 5. The loaded preset may bring its own tempo; either way the
+        //    reloaded chain plays its synced blocks at the current one.
+        let mut events = self.apply_tempo_after_nav(&chain, &input, loads_preset)?;
+        events.extend([Event::ChainReloaded { chain }, Event::ProjectMutated]);
+        Ok(events)
     }
 
     /// #436: fold pending synthetic-chain edits back into the rig. Was

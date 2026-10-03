@@ -192,6 +192,10 @@ export struct ChainRigNav {
     // a preset starts with just 1). The UI shows 1..scene-count + a
     // "+" to add the next one.
     scene_count: int,
+    // The active preset carries its own tempo (loading it sets the global
+    // BPM); `preset_bpm` is that tempo, meaningless when false.
+    has_preset_bpm: bool,
+    preset_bpm: float,
 }
 
 export struct BlockTypePickerItem {

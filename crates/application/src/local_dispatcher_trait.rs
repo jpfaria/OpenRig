@@ -188,6 +188,10 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_rename_rig_preset(cmd)
             }
 
+            Command::Selection(SelectionCommand::SetRigPresetBpm { chain, bpm }) => {
+                self.handle_set_rig_preset_bpm(chain, bpm)
+            }
+
             Command::Selection(SelectionCommand::SelectChainBlock { chain, block_index }) => {
                 // #548: record the click in the GUI selection state that
                 // MIDI/MCP/gRPC read (`QueryKind::Selection`). Resolve the

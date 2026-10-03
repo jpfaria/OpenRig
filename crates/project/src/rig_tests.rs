@@ -68,6 +68,7 @@ pub(super) fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> R
                         scene_params: vec![],
                         scenes: BTreeMap::new(),
                         volume: 100.0,
+                        bpm: None,
                     },
                 )
             })
@@ -163,6 +164,7 @@ fn scene_or_default_empty_preset_returns_default_for_slot_1() {
         scene_params: vec![],
         scenes: BTreeMap::new(),
         volume: 100.0,
+        bpm: None,
     };
     assert_eq!(p.scene_or_default(1), RigScene::default());
 }
@@ -182,6 +184,7 @@ fn scene_or_default_returns_present_scene() {
         scene_params: vec![],
         scenes: BTreeMap::from([(2, scene.clone())]),
         volume: 100.0,
+        bpm: None,
     };
     assert_eq!(p.scene_or_default(2), scene);
 }
@@ -230,6 +233,7 @@ fn preset_with(
         scene_params: marked.iter().map(|s| s.to_string()).collect(),
         scenes: scenes.into_iter().collect(),
         volume: 100.0,
+        bpm: None,
     }
 }
 

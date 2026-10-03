@@ -164,3 +164,49 @@ fn di_output_select_populates_before_the_chain_is_ever_enabled() {
          the chain was never enabled — it stayed empty until the first enable."
     );
 }
+
+/// Two bindings of the chain both carry MAIN (same device + channels): the
+/// select lists it once, and a choice saved through either copy selects it.
+fn overlapping_registry() -> Vec<IoBinding> {
+    let out = |name: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
+    };
+    vec![
+        IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![],
+            outputs: vec![out("MAIN", vec![0, 1]), out("FRFR", vec![14, 15])],
+        },
+        IoBinding {
+            id: "main".into(),
+            name: "Main".into(),
+            inputs: vec![],
+            outputs: vec![out("MAIN", vec![0, 1])],
+        },
+    ]
+}
+
+#[test]
+fn an_output_shared_by_two_bindings_is_one_option() {
+    let mut c = chain(None);
+    c.io_binding_ids = vec!["io".into(), "main".into()];
+    let outputs = output_endpoints(&overlapping_registry(), &[]);
+    let channels: Vec<&[usize]> = outputs.iter().map(|o| o.channels.as_slice()).collect();
+    assert_eq!(channels, vec![&[0, 1][..], &[14, 15][..]]);
+}
+
+#[test]
+fn a_choice_saved_through_the_other_copy_selects_the_shared_option() {
+    let mut c = chain(Some(DiOutputRef {
+        binding_id: "main".into(),
+        endpoint: "MAIN".into(),
+    }));
+    c.io_binding_ids = vec!["io".into(), "main".into()];
+    let registry = overlapping_registry();
+    let outputs = output_endpoints(&registry, &[]);
+    assert_eq!(di_output_selected_index(&c, &registry, &outputs), 0);
+}

@@ -62,6 +62,7 @@ fn rig() -> RigProject {
             scene_params: vec![],
             scenes: BTreeMap::new(),
             volume: 100.0,
+            bpm: None,
         },
     );
     let mut inputs = BTreeMap::new();

@@ -18,6 +18,7 @@ pub mod param;
 pub mod plugin_editor;
 pub mod processor;
 pub mod stream_handle;
+pub mod tempo_sync;
 pub mod text;
 pub mod traits;
 pub mod visual;

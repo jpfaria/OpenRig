@@ -261,7 +261,7 @@ pub(crate) fn replace_project_chains(
                 looper_active: false,
                 looper_input_options: {
                     let (inputs, _) =
-                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                        project::chain_endpoint_options::chain_endpoint_labels(chain, io_bindings);
                     ModelRc::from(Rc::new(VecModel::from(
                         inputs
                             .into_iter()

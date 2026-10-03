@@ -20,6 +20,7 @@ use crate::app_config_persist::persist_player;
 use crate::command::{Command, PlayerCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::player_event::PlayerEvent;
 use crate::player_library::is_backing_track_file;
 
 impl LocalDispatcher {
@@ -37,8 +38,8 @@ impl LocalDispatcher {
                 }
                 self.player_state().borrow_mut().set_playing(false);
                 Ok(vec![
-                    Event::PlayerTransportChanged { playing: false },
-                    Event::PlayerSeeked { seconds: 0.0 },
+                    Event::Player(PlayerEvent::TransportChanged { playing: false }),
+                    Event::Player(PlayerEvent::Seeked { seconds: 0.0 }),
                 ])
             }
             PlayerCommand::SeekPlayer { seconds } => {
@@ -49,7 +50,7 @@ impl LocalDispatcher {
                 if let Some(control) = self.runtime_control() {
                     control.seek_player(seconds);
                 }
-                Ok(vec![Event::PlayerSeeked { seconds }])
+                Ok(vec![Event::Player(PlayerEvent::Seeked { seconds })])
             }
             PlayerCommand::SetPlayerVolume { volume } => {
                 let stored = self.edit_player_settings(|s| s.volume = volume);
@@ -99,7 +100,9 @@ impl LocalDispatcher {
                 if let Some(control) = self.runtime_control() {
                     control.refresh_player_output(device_id.as_deref())?;
                 }
-                Ok(vec![Event::PlayerOutputChanged { device_id }])
+                Ok(vec![Event::Player(PlayerEvent::OutputChanged {
+                    device_id,
+                })])
             }
         }
     }
@@ -119,7 +122,7 @@ impl LocalDispatcher {
             control.load_player_track(&path)?;
         }
         self.player_state().borrow_mut().set_track(path.clone());
-        Ok(vec![Event::PlayerTrackLoaded { path }])
+        Ok(vec![Event::Player(PlayerEvent::TrackLoaded { path })])
     }
 
     fn set_player_playing(&self, playing: bool) -> Result<Vec<Event>> {
@@ -147,7 +150,9 @@ impl LocalDispatcher {
             control.pause_player();
         }
         state.borrow_mut().set_playing(playing);
-        Ok(vec![Event::PlayerTransportChanged { playing }])
+        Ok(vec![Event::Player(PlayerEvent::TransportChanged {
+            playing,
+        })])
     }
 
     /// Clamp and store a settings edit, then hand the result to the runtime.
@@ -169,13 +174,13 @@ impl LocalDispatcher {
 }
 
 fn settings_event(settings: PlayerSettings) -> Event {
-    Event::PlayerSettingsChanged {
+    Event::Player(PlayerEvent::SettingsChanged {
         volume: settings.volume,
         speed: settings.speed,
         semitones: settings.semitones,
         loop_start: settings.loop_range.map(|(start, _)| start),
         loop_end: settings.loop_range.map(|(_, end)| end),
-    }
+    })
 }
 
 #[cfg(test)]

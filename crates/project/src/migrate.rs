@@ -70,6 +70,7 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),
                 volume: chain.volume,
+                bpm: None,
             },
         );
         inputs.insert(

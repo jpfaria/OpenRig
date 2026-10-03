@@ -86,6 +86,7 @@ fn the_saved_config_comes_back_on_every_setting() {
         volume: 0.4,
         count_in: true,
         output_device: Some("dev:1".into()),
+        global_tempo_lock: true,
     });
 
     let settings = state.settings();
@@ -96,6 +97,7 @@ fn the_saved_config_comes_back_on_every_setting() {
     assert_eq!(settings.volume, 0.4);
     assert!(settings.count_in);
     assert_eq!(state.output_key(), Some("dev:1"));
+    assert!(state.snapshot().global_tempo_lock);
 }
 
 #[test]

@@ -10,8 +10,11 @@
 #![allow(clippy::type_complexity)]
 
 pub mod arc_handoff;
+pub mod audio_alloc_scope;
 mod audio_frame;
 mod audio_processor;
+pub mod audio_zone_regions;
+pub mod audio_zone_router;
 #[cfg(test)]
 mod chain_mix_gain_tests;
 pub mod chain_mix_gains;

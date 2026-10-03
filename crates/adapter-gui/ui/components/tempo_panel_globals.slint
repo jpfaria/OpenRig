@@ -1,0 +1,17 @@
+// Responsibility: carries the state of the chain list's open tempo panel.
+// A chain header's tempo chip opens it for THAT chain; one panel at a time.
+// The tempo itself lives on `MetronomeBridge` (the global tempo is the
+// metronome's); this global only says which chain's preset the panel stores
+// to and where the chip that opened it sits.
+
+export global TempoPanel {
+    in-out property <bool> open: false;
+    in-out property <int> chain-index: -1;
+    // Window-absolute position of the panel's top-left corner.
+    in-out property <length> x;
+    in-out property <length> y;
+    // Store the given tempo on chain `index`'s active preset.
+    callback store-preset-bpm(int, float);
+    // Drop chain `index`'s active preset tempo: it follows the global again.
+    callback clear-preset-bpm(int);
+}

@@ -31,6 +31,7 @@ fn tuned() -> MetronomeConfig {
         volume: 0.35,
         count_in: true,
         output_device: Some("hw:1,0".to_string()),
+        global_tempo_lock: true,
     }
 }
 

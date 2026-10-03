@@ -207,6 +207,8 @@ pub(crate) fn build_jack_direct_chain(
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
+            // Whatever a block allocates while it plays is audio memory.
+            engine::audio_alloc_scope::mark_audio_thread();
             // Pin to big cores (A76 on RK3588)
             let big_cores = detect_big_cores();
             if !big_cores.is_empty() {

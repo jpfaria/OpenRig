@@ -12,6 +12,7 @@ use crate::command::{Command, PlayerCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::player_event::PlayerEvent;
 use crate::player_library::PlayerLibraryDirs;
 use crate::player_state::PlayerControlState;
 
@@ -71,7 +72,10 @@ fn a_track_in_the_users_folder_is_deleted() {
     let events = delete(&lib.dispatcher, &track).expect("delete");
 
     assert!(!track.exists());
-    assert_eq!(events, vec![Event::PlayerTrackDeleted { path: track }]);
+    assert_eq!(
+        events,
+        vec![Event::Player(PlayerEvent::TrackDeleted { path: track })]
+    );
 }
 
 #[test]

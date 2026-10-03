@@ -391,6 +391,7 @@ fn the_persisted_config_seeds_the_dispatchers_settings() {
             volume: 0.4,
             count_in: true,
             output_device: Some("binding-c\u{1f}mon".into()),
+            global_tempo_lock: false,
         },
         // No config path: a test must never be able to write the user's real
         // `config.yaml` (#701).

@@ -1233,6 +1233,46 @@ msgstr "반주 트랙"
 msgid "label-backing-tracks-path"
 msgstr "반주 트랙"
 
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
+msgid "Tempo"
+msgstr "템포"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+msgid "Slower"
+msgstr "느리게"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+msgid "Faster"
+msgstr "빠르게"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
+msgid "Preset tempo"
+msgstr "프리셋 템포"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
+msgid "{} BPM"
+msgstr "{} BPM"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
+msgid "Follows the global tempo"
+msgstr "글로벌 템포를 따름"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
+msgid "Clear"
+msgstr "지우기"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
+msgid "Save {} BPM to preset"
+msgstr "{} BPM을 프리셋에 저장"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
+msgid "Use global tempo"
+msgstr "글로벌 템포 사용"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
+msgid "Loading a preset never changes the tempo"
+msgstr "프리셋을 불러와도 템포는 바뀌지 않음"
+
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"
 msgstr "드럼"

@@ -13,6 +13,7 @@ use crate::command::{Command, PlayerCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::player_event::PlayerEvent;
 use crate::player_library::PlayerLibraryDirs;
 use crate::player_state::PlayerControlState;
 use crate::runtime_control::RuntimeControl;
@@ -161,9 +162,9 @@ fn loading_a_track_reaches_the_runtime_and_is_remembered() {
     assert_eq!(*calls.borrow(), vec![format!("load {}", track.display())]);
     assert_eq!(
         events,
-        vec![Event::PlayerTrackLoaded {
+        vec![Event::Player(PlayerEvent::TrackLoaded {
             path: track.clone()
-        }]
+        })]
     );
     let snapshot = dispatcher.player_snapshot();
     assert_eq!(snapshot.track, Some(track));
@@ -218,7 +219,9 @@ fn play_starts_the_loaded_track_with_the_dispatchers_settings() {
     );
     assert_eq!(
         events,
-        vec![Event::PlayerTransportChanged { playing: true }]
+        vec![Event::Player(PlayerEvent::TransportChanged {
+            playing: true
+        })]
     );
     assert!(dispatcher.player_snapshot().playing);
 }
@@ -260,7 +263,9 @@ fn pause_reaches_the_runtime() {
     assert_eq!(*calls.borrow(), vec!["pause".to_string()]);
     assert_eq!(
         events,
-        vec![Event::PlayerTransportChanged { playing: false }]
+        vec![Event::Player(PlayerEvent::TransportChanged {
+            playing: false
+        })]
     );
 }
 
@@ -278,8 +283,8 @@ fn stop_rewinds() {
     assert_eq!(
         events,
         vec![
-            Event::PlayerTransportChanged { playing: false },
-            Event::PlayerSeeked { seconds: 0.0 }
+            Event::Player(PlayerEvent::TransportChanged { playing: false }),
+            Event::Player(PlayerEvent::Seeked { seconds: 0.0 })
         ]
     );
     assert!(!dispatcher.player_snapshot().playing);
@@ -290,7 +295,10 @@ fn seek_is_clamped_at_the_start_and_rejects_nonsense() {
     let (dispatcher, calls, _track, _dir) = loaded();
     let events = run(&dispatcher, PlayerCommand::SeekPlayer { seconds: -3.0 }).unwrap();
     assert_eq!(*calls.borrow(), vec!["seek 0".to_string()]);
-    assert_eq!(events, vec![Event::PlayerSeeked { seconds: 0.0 }]);
+    assert_eq!(
+        events,
+        vec![Event::Player(PlayerEvent::Seeked { seconds: 0.0 })]
+    );
     assert!(run(&dispatcher, PlayerCommand::SeekPlayer { seconds: f64::NAN }).is_err());
 }
 
@@ -308,13 +316,13 @@ fn settings_are_clamped_before_they_reach_the_runtime() {
     );
     assert_eq!(
         events,
-        vec![Event::PlayerSettingsChanged {
+        vec![Event::Player(PlayerEvent::SettingsChanged {
             volume: expected.volume,
             speed: 2.0,
             semitones: 0.0,
             loop_start: None,
             loop_end: None,
-        }]
+        })]
     );
 }
 
@@ -367,9 +375,9 @@ fn picking_an_output_moves_a_playing_player_and_starts_nothing() {
     );
     assert_eq!(
         events,
-        vec![Event::PlayerOutputChanged {
+        vec![Event::Player(PlayerEvent::OutputChanged {
             device_id: Some("binding-b\u{1f}phones".into())
-        }]
+        })]
     );
 }
 

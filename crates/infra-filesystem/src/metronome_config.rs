@@ -39,6 +39,10 @@ pub struct MetronomeConfig {
     /// predates #14, when this held a raw device id.)
     #[serde(default)]
     pub output_device: Option<String>,
+    /// "use global tempo" — when on, loading a rig preset never
+    /// changes the tempo, even if the preset carries its own BPM.
+    #[serde(default)]
+    pub global_tempo_lock: bool,
 }
 
 fn default_bpm() -> f32 {
@@ -71,6 +75,7 @@ impl Default for MetronomeConfig {
             volume: default_volume(),
             count_in: false,
             output_device: None,
+            global_tempo_lock: false,
         }
     }
 }

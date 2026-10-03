@@ -77,6 +77,7 @@ mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
 mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
+mod local_dispatcher_tempo;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
@@ -95,6 +96,7 @@ pub mod mixer_view;
 pub mod persist_worker;
 /// The backing-track player: its library, decoder and control-plane state.
 pub mod player_decode;
+pub mod player_event;
 pub mod player_library;
 pub mod player_state;
 pub mod player_track_category;

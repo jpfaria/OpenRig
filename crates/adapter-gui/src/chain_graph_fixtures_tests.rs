@@ -114,30 +114,35 @@ pub(crate) fn mix_then_y_chain() -> Chain {
     ])
 }
 
-pub(crate) fn endpoint(name: &str) -> IoEndpoint {
+/// An endpoint on `channels` of the fixture device: two endpoints only count
+/// as different physical endpoints when their channels differ.
+pub(crate) fn endpoint_at(name: &str, channels: Vec<usize>) -> IoEndpoint {
     IoEndpoint {
         name: name.into(),
         device_id: DeviceId("dev".into()),
         mode: ChannelMode::Stereo,
-        channels: vec![0, 1],
+        channels,
     }
 }
 
 /// `main` ("Scarlett"): inputs In 1, In 2 — output Out L/R.
-/// `aux` ("AUX"): output Out L/R (same endpoint name as main's).
+/// `aux` ("AUX"): output Out L/R (same endpoint name as main's, other channels).
 pub(crate) fn registry() -> Vec<IoBinding> {
     vec![
         IoBinding {
             id: "main".into(),
             name: "Scarlett".into(),
-            inputs: vec![endpoint("In 1"), endpoint("In 2")],
-            outputs: vec![endpoint("Out L/R")],
+            inputs: vec![
+                endpoint_at("In 1", vec![0, 1]),
+                endpoint_at("In 2", vec![2, 3]),
+            ],
+            outputs: vec![endpoint_at("Out L/R", vec![0, 1])],
         },
         IoBinding {
             id: "aux".into(),
             name: "AUX".into(),
             inputs: vec![],
-            outputs: vec![endpoint("Out L/R")],
+            outputs: vec![endpoint_at("Out L/R", vec![2, 3])],
         },
     ]
 }

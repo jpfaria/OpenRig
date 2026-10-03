@@ -33,6 +33,7 @@ fn preset(id: &str, volume: f32) -> RigPreset {
         scene_params: Vec::new(),
         scenes: BTreeMap::new(),
         volume,
+        bpm: None,
     }
 }
 

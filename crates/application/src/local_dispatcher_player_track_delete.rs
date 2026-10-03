@@ -12,6 +12,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::player_event::PlayerEvent;
 use crate::player_library::is_backing_track_file;
 
 impl LocalDispatcher {
@@ -30,11 +31,13 @@ impl LocalDispatcher {
                 control.stop_player();
             }
             self.player_state().borrow_mut().clear_track();
-            events.push(Event::PlayerTransportChanged { playing: false });
+            events.push(Event::Player(PlayerEvent::TransportChanged {
+                playing: false,
+            }));
         }
         std::fs::remove_file(&target)
             .with_context(|| format!("cannot delete '{}'", path.display()))?;
-        events.push(Event::PlayerTrackDeleted { path });
+        events.push(Event::Player(PlayerEvent::TrackDeleted { path }));
         Ok(events)
     }
 }

@@ -12,6 +12,7 @@ import { MixerBridge } from "../components/mixer_globals.slint";
 import { PlayerBridge } from "../components/player_globals.slint";
 import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
+import { TempoOverlay } from "../components/tempo_overlay.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -292,6 +293,15 @@ export component ProjectChainsPage inherits Rectangle {
                 drag-hover-before-index <=> root.drag-hover-before-index;
             }
         }
+    }
+
+    // The tempo panel a chain header's chip opens, above the list.
+    TempoOverlay {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        navs: root.chain-rig-nav;
     }
 
     if root.show-inline-block-drawer && BlockEditorBridge.show-block-drawer : Rectangle {

@@ -270,38 +270,24 @@ pub enum Event {
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
 
-    /// A backing track was loaded into the player; it starts paused.
-    PlayerTrackLoaded {
-        path: PathBuf,
+    /// The backing-track player changed. It is its own stream, never a chain.
+    Player(crate::player_event::PlayerEvent),
+
+    /// The "use global tempo" lock changed.
+    GlobalTempoLockChanged {
+        enabled: bool,
     },
 
-    /// A track was deleted from the user's backing-track folder.
-    PlayerTrackDeleted {
-        path: PathBuf,
+    /// The tempo stored on the chain's active rig preset changed.
+    RigPresetBpmChanged {
+        chain: ChainId,
+        bpm: Option<f32>,
     },
 
-    /// The player started or paused.
-    PlayerTransportChanged {
-        playing: bool,
-    },
-
-    /// The player moved to a position, in seconds of the track.
-    PlayerSeeked {
-        seconds: f64,
-    },
-
-    /// The player's settings changed. Values are the applied, clamped ones.
-    PlayerSettingsChanged {
-        volume: f32,
-        speed: f32,
-        semitones: f32,
-        loop_start: Option<f64>,
-        loop_end: Option<f64>,
-    },
-
-    /// The player's output endpoint key changed.
-    PlayerOutputChanged {
-        device_id: Option<String>,
+    /// Tempo-synced params of this chain were rewritten for a new BPM.
+    /// The dispatcher already synced the runtime; a frontend only refreshes.
+    ChainTempoRetimed {
+        chain: ChainId,
     },
 
     /// The drums' output opened or closed, or the groove started or stopped.

@@ -59,4 +59,33 @@ unset FAKE_PRS
 FAKE_GH_FAIL=1 FAKE_CHECK_EXIT=1 run "$push_line"; code=$?
 [ $code != 0 ] && [ $RAN = 1 ] && pass "gh unavailable: check runs anyway" || fail "gh down (code=$code ran=$RAN)"
 
+# A real repo: a push carrying only Markdown has nothing to compile.
+REPO="$TMP/repo"
+git init -q "$REPO"
+git -C "$REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m base
+base="$(git -C "$REPO" rev-parse HEAD)"
+mkdir -p "$REPO/docs" "$REPO/src"
+echo x > "$REPO/docs/notes.md"; echo x > "$REPO/README.md"
+git -C "$REPO" add -A && git -C "$REPO" -c user.name=t -c user.email=t@t commit -q -m docs
+docs="$(git -C "$REPO" rev-parse HEAD)"
+echo x > "$REPO/src/lib.rs"
+git -C "$REPO" add -A && git -C "$REPO" -c user.name=t -c user.email=t@t commit -q -m code
+code_sha="$(git -C "$REPO" rev-parse HEAD)"
+
+run_in_repo() {
+    rm -f "$TMP/check-ran"
+    (cd "$REPO" && printf '%s\n' "$1" | GH="$TMP/gh" PR_CHECK="$TMP/check" bash "$HOOK" origin url >/dev/null 2>&1)
+    local code=$?
+    RAN=0; [ -f "$TMP/check-ran" ] && RAN=1
+    return $code
+}
+
+export FAKE_PRS=1 FAKE_CHECK_EXIT=1
+run_in_repo "refs/heads/b $docs refs/heads/b $base"; code=$?
+[ $code = 0 ] && [ $RAN = 0 ] && pass "open PR, only .md pushed: no check" || fail "md-only (code=$code ran=$RAN)"
+
+run_in_repo "refs/heads/b $code_sha refs/heads/b $base"; code=$?
+[ $code != 0 ] && [ $RAN = 1 ] && pass "open PR, code pushed with the .md: check runs" || fail "md+code (code=$code ran=$RAN)"
+unset FAKE_PRS FAKE_CHECK_EXIT
+
 [ $FAILURES = 0 ] && echo "all passed" || { echo "$FAILURES failure(s)" >&2; exit 1; }
