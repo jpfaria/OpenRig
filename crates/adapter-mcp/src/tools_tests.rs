@@ -79,9 +79,9 @@ use application::command_schema::command_variant_names;
 /// with any number of paths.
 /// #1021 bumped to 116 with `DeleteLooperTake` — removing a saved take from
 /// the library, so a headless client can prune it as the DI panel's trash does.
-/// Bumped to 118 with `SetGlobalTempoLock`/`SetRigPresetBpm` — the
-/// "use global tempo" lock and a rig preset's own tempo.
-const COMMAND_VARIANT_COUNT: usize = 118;
+/// Bumped to 128: the drum machine's ten `DrumsCommand` leaves plus
+/// `SetGlobalTempoLock`/`SetRigPresetBpm` (the tempo lock and a preset's own BPM).
+const COMMAND_VARIANT_COUNT: usize = 128;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

@@ -289,6 +289,32 @@ pub enum Event {
         chain: ChainId,
     },
 
+    /// The drums' output opened or closed, or the groove started or stopped.
+    DrumsTransportChanged {
+        enabled: bool,
+        playing: bool,
+    },
+
+    /// A fill was requested; it plays on the running groove.
+    DrumFillTriggered,
+
+    /// Tempo or level changed, already clamped.
+    DrumsSettingsChanged {
+        bpm: f32,
+        volume: f32,
+    },
+
+    /// The chosen kit or groove changed.
+    DrumsContentChanged {
+        kit: Option<String>,
+        groove: Option<String>,
+    },
+
+    /// The drums' output endpoint changed.
+    DrumsOutputChanged {
+        output_key: Option<String>,
+    },
+
     /// #1007: a global mixer strip moved. Values are the applied ones (the
     /// fader already clamped); a surface echoes them as fader/LED feedback.
     MixerStripChanged {

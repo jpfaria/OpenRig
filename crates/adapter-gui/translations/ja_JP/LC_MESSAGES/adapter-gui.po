@@ -1182,3 +1182,49 @@ msgstr "グローバルテンポを使用"
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
 msgid "Loading a preset never changes the tempo"
 msgstr "プリセットを読み込んでもテンポは変わりません"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums"
+msgstr "ドラム"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint
+msgid "tooltip-drums"
+msgstr "ドラムマシン"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "title-window-drums"
+msgstr "ドラム"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums-bar"
+msgstr "小節 {}"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "action-drums-fill"
+msgstr "フィル"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-kit"
+msgstr "キット"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-groove"
+msgstr "グルーヴ"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-kit"
+msgstr "キットを選択"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-groove"
+msgstr "グルーヴを選択"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "status-no-drum-content"
+msgstr "キットもグルーヴもありません"
+
+msgid "placeholder-drums-search"
+msgstr "検索"
+
+msgid "status-drums-no-match"
+msgstr "一致する項目がありません"

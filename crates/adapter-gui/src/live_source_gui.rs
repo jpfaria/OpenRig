@@ -164,6 +164,10 @@ impl LiveSource for GuiLiveSource<'_> {
     fn metronome(&self) -> Option<MetronomeReading> {
         metronome_reading(self.runtime)
     }
+
+    fn drums(&self) -> Option<feature_dsp::drums::DrumPosition> {
+        crate::live_source_drums::drums_position(self.runtime)
+    }
 }
 
 /// One chain's DI loop state: is its dedicated stream playing (#614/#717 —

@@ -160,6 +160,17 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "UnloadPlugin",
     "UpdateIoBinding",
     "UpdateProjectName",
+    // The drum machine.
+    "PlayDrums",
+    "SelectDrumGroove",
+    "SelectDrumKit",
+    "SetDrumsBpm",
+    "SetDrumsEnabled",
+    "SetDrumsOutput",
+    "SetDrumsVolume",
+    "StopDrums",
+    "ToggleDrums",
+    "TriggerDrumFill",
 ];
 
 #[test]

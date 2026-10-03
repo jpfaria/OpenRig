@@ -112,6 +112,7 @@ pub fn run_desktop_app(
         spectrum_window,
         metronome_window,
         mixer_window,
+        drums_window,
         chain_editor_window,
         plugin_info_window,
     } = crate::desktop_app_windows::create()?;
@@ -126,6 +127,7 @@ pub fn run_desktop_app(
     // the same `LiveSource` an MCP client reads the click's position through.
     let metronome_live = crate::gui_live_source::metronome_live_source(&project_runtime);
     let metronome_timer = Rc::new(Timer::default());
+    let drums_live = crate::gui_live_source::drums_live_source(&project_runtime);
 
     crate::desktop_app_language::wire(
         crate::desktop_app_language::LanguageWindows {
@@ -136,6 +138,7 @@ pub fn run_desktop_app(
             spectrum_window: &spectrum_window,
             metronome_window: &metronome_window,
             mixer_window: &mixer_window,
+            drums_window: &drums_window,
             chain_editor_window: chain_editor_window.clone(),
             plugin_info_window: plugin_info_window.clone(),
         },
@@ -360,6 +363,8 @@ pub fn run_desktop_app(
             spectrum_window: &spectrum_window,
             metronome_window: &metronome_window,
             mixer_window: &mixer_window,
+            drums_window: &drums_window,
+            drums_live,
         },
         &project_session,
         &project_chains,
