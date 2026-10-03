@@ -38,10 +38,17 @@ jobs:
           python3 -m pytest -q scripts/test_nam_vendor.py
       - name: Test the pre-PR gate and its hook
         run: python3 -m pytest -q scripts/test_pre_pr_gate.py
+      - name: Test the build lock and its hook
+        run: python3 -m pytest -q scripts/test_cargo_locked.py
 
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    # A warning fails the job like an error: Linux-only warnings (a helper
+    # left unused by a `cfg(not(all(target_os = "linux", feature = "jack")))`
+    # test) never show up on the owner's Mac. Job-level, so rust-cache keys on it.
+    env:
+      RUSTFLAGS: -D warnings
     steps:
       # The debug test binaries of the whole workspace outgrow the runner's
       # free disk: lld then dies with SIGBUS (signal 7) while writing the

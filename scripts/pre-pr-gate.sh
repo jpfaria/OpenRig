@@ -16,10 +16,9 @@
 # records HEAD in the clone's git dir; `.claude/hooks/pre-pr-gate-guard.sh`
 # denies the PR or the push unless HEAD carries that stamp.
 #
-# One gate runs at a time on the machine: a second one waits on the lock
-# directory PRE_PR_GATE_LOCK (default /tmp/openrig-pre-pr-gate.lock) instead of
-# splitting the CPU, which also turns the clock-bound tests flaky. A lock left
-# by a gate that died is taken over.
+# It holds the machine-wide build lock (scripts/build-lock.sh) for its whole
+# run: it waits for any other agent build or gate instead of splitting the CPU,
+# which also turns the clock-bound tests flaky.
 #
 # It runs on macOS: a failure that only exists on Linux (a
 # `cfg(target_os = "linux")` path, the JACK backend) still shows up in CI only.
@@ -37,22 +36,9 @@ head="$(git rev-parse HEAD)"
 stamp="$(git rev-parse --git-path openrig-pre-pr-gate)"
 rm -f "$stamp"
 
-lock="${PRE_PR_GATE_LOCK:-/tmp/openrig-pre-pr-gate.lock}"
-waiting=""
-until mkdir "$lock" 2>/dev/null; do
-  holder="$(cat "$lock/pid" 2>/dev/null || true)"
-  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
-    rm -rf "$lock"
-    continue
-  fi
-  if [ -z "$waiting" ]; then
-    echo "pre-pr-gate: another gate is running (pid ${holder:-?}) — waiting for it." >&2
-    waiting=1
-  fi
-  sleep 1
-done
-trap 'rm -rf "$lock"' EXIT
-echo $$ > "$lock/pid"
+# shellcheck source=build-lock.sh
+. "$(dirname "$0")/build-lock.sh"
+build_lock_acquire
 
 nearest_release() {
   local ref n best="" best_n=""
