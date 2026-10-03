@@ -9,7 +9,7 @@ use slint::{ComponentHandle, Global, LogicalPosition, Model, ModelRc, Timer, Vec
 
 use application::command::{ChainCommand, Command};
 
-use crate::chain_graph_fixtures_tests::{chain, core, recording_session, rows};
+use crate::chain_graph_fixtures_tests::{chain, core, devices, recording_session, rows};
 use crate::chain_graph_ids::INPUT_NODE_ID;
 use crate::endpoint_checklist_wiring::{wire, EndpointChecklistWiringCtx};
 use crate::{ChainGraphOverlayState, ChannelOptionItem, EndpointChecklistHarness};
@@ -96,8 +96,8 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         EndpointChecklistWiringCtx {
             project_session: session,
             project_chains: rows(),
-            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
-            output_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            input_chain_devices: Rc::new(RefCell::new(devices())),
+            output_chain_devices: Rc::new(RefCell::new(devices())),
             toast_timer: Rc::new(Timer::default()),
         },
     );
@@ -113,7 +113,10 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         .iter()
         .map(|i| i.label.to_string())
         .collect();
-    assert_eq!(labels, vec!["In 1", "In 2"]);
+    assert_eq!(
+        labels,
+        vec!["Quantum HD 8 · In 1/2", "Quantum HD 8 · In 3/4"]
+    );
 
     state.invoke_checklist_toggled(0, INPUT_NODE_ID.into(), 1, false);
 
