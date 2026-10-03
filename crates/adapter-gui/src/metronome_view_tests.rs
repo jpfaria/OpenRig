@@ -130,10 +130,10 @@ fn output_endpoints_flattens_every_bindings_outputs() {
         3,
         "one entry per output endpoint across bindings"
     );
-    assert_eq!(outs[0].label, "Scarlett 2i2 · Main Out 1-2");
+    assert_eq!(outs[0].label, "Main Out 1-2");
     assert_eq!(outs[0].device_id, "dev:scarlett");
     assert_eq!(outs[0].channels, vec![0, 1]);
-    assert_eq!(outs[2].label, "Headphones · Phones R");
+    assert_eq!(outs[2].label, "Phones R");
     assert_eq!(outs[2].channels, vec![1]);
     // Keys are unique so the select can round-trip a pick.
     assert_ne!(outs[1].key, outs[2].key);
@@ -175,4 +175,39 @@ fn resolve_output_endpoint_falls_back_to_the_first() {
 fn resolve_output_endpoint_is_none_without_any_output() {
     assert!(resolve_output_endpoint(Some("main::x"), &[]).is_none());
     assert!(resolve_output_endpoint(None, &[]).is_none());
+}
+
+#[test]
+fn an_output_shared_by_two_bindings_is_listed_once() {
+    let bindings = vec![
+        binding(
+            "g2",
+            "Guitarra 2",
+            vec![
+                endpoint("MAIN", "hd8", vec![0, 1]),
+                endpoint("FRFR", "hd8", vec![14, 15]),
+            ],
+        ),
+        binding("main", "Main", vec![endpoint("MAIN", "hd8", vec![0, 1])]),
+    ];
+    let outs = output_endpoints(&bindings);
+    let labels: Vec<&str> = outs.iter().map(|o| o.label.as_str()).collect();
+    assert_eq!(labels, vec!["MAIN", "FRFR"]);
+}
+
+#[test]
+fn a_key_saved_through_the_other_copy_resolves_to_the_shared_output() {
+    let bindings = vec![
+        binding(
+            "g2",
+            "Guitarra 2",
+            vec![endpoint("FRFR", "hd8", vec![14, 15])],
+        ),
+        binding("main", "Main", vec![endpoint("MAIN", "hd8", vec![0, 1])]),
+        binding("dup", "Dup", vec![endpoint("MAIN", "hd8", vec![0, 1])]),
+    ];
+    let outs = output_endpoints(&bindings);
+    let saved = crate::metronome_outputs::endpoint_key("dup", "MAIN");
+    let picked = resolve_output_endpoint(Some(&saved), &outs).expect("resolves");
+    assert_eq!(picked.channels, vec![0, 1], "not the fallback FRFR");
 }

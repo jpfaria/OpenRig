@@ -19,7 +19,8 @@ pub fn apply_looper_endpoints_to_rows(
         let Some(mut row) = project_chains.row_data(idx) else {
             continue;
         };
-        let (inputs, outputs) = project::binding_discovery::chain_endpoint_labels(chain, registry);
+        let (inputs, outputs) =
+            project::chain_endpoint_options::chain_endpoint_labels(chain, registry);
         let cur_in: Vec<String> = row
             .looper_input_options
             .iter()

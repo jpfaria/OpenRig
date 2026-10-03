@@ -83,6 +83,17 @@ its side. A segmented control is only for a short, fixed set the app defines
 (½× / 1× / 2×). Inside a panel that is itself an overlay, the select's list is a
 root-level modal (`looper_endpoint_picker.slint`, `looper_preset_picker.slint`).
 
+**An input/output list shows each physical endpoint once.** I/O bindings overlap:
+the same guitar input or the same MAIN output (same device + channels) is
+declared by several of them. Every list the user picks from (looper selects, DI
+output, metronome and drums outputs, the graph's input/output checklists) is
+built from `domain::distinct_endpoints`: one row per physical endpoint, labelled
+with the endpoint name, prefixed with the binding name only when two different
+endpoints share that name. A pick persists the first binding copy, a saved copy
+of any other binding still resolves to the same row, and a checklist toggle
+switches every copy. The binding editor in Settings is the one place that lists
+per binding.
+
 ## 4. A mockup restyles the real screen — it never invents UI
 
 In a redesign concept, only restyle what the screen actually has: read the real

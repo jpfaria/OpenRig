@@ -369,7 +369,7 @@ pub(crate) fn wire_looper_callbacks(
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 let registry = s.io_bindings.borrow();
                 let input = s.project.borrow().chains.get(index as usize).and_then(|c| {
-                    project::binding_discovery::input_endpoint_ref(
+                    project::chain_endpoint_options::input_option_ref(
                         c,
                         &registry,
                         endpoint_index as usize,
@@ -400,7 +400,7 @@ pub(crate) fn wire_looper_callbacks(
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 let registry = s.io_bindings.borrow();
                 let output = s.project.borrow().chains.get(index as usize).and_then(|c| {
-                    project::binding_discovery::output_endpoint_ref(
+                    project::chain_endpoint_options::output_option_ref(
                         c,
                         &registry,
                         endpoint_index as usize,

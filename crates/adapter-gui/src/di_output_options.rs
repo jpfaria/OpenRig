@@ -1,15 +1,15 @@
 //! Responsibility: builds the option list of the DI panel's output select.
 //! #771: pure option list for the DI panel's OUTPUT select — the chain's
-//! already-bound output endpoints, in the SAME flat order
-//! `engine::di_output_resolve::resolve_di_output_index` numbers them with
-//! (both walk `resolve_chain_ports`), so a picked index maps 1:1 to the
-//! output the playback parks on.
+//! already-bound output endpoints, each physical one once. A pick persists a
+//! `DiOutputRef`, which `engine::di_output_resolve::resolve_di_output_index`
+//! maps back to the flat port the playback parks on.
 
 use std::rc::Rc;
 
 use domain::io_binding::IoBinding;
-use project::binding_discovery::{resolve_chain_ports, PortDirection};
+use project::binding_discovery::PortDirection;
 use project::chain::{Chain, DiOutputRef};
+use project::chain_endpoint_options::chain_endpoint_options;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
@@ -20,42 +20,31 @@ use crate::ProjectChainItem;
 pub struct DiOutputOption {
     pub di_ref: DiOutputRef,
     pub label: String,
+    /// Every binding copy of this physical output, `di_ref` included.
+    pub aliases: Vec<DiOutputRef>,
 }
 
-/// The chain's bound output endpoints in flat resolve order. An endpoint
-/// name that repeats across the options (two interfaces both exposing an
-/// "Out 1") gets its binding's name prefixed, so the select never shows two
-/// identical rows; the persisted ref keeps the raw endpoint name.
+/// The chain's distinct output endpoints in resolve order
+/// (`project::chain_endpoint_options`): an output carried by several bindings
+/// is one option, persisted through its first copy, which the engine resolves
+/// back to its own flat port.
 pub fn build_di_output_options(chain: &Chain, registry: &[IoBinding]) -> Vec<DiOutputOption> {
-    let ports: Vec<_> = resolve_chain_ports(chain, registry)
+    chain_endpoint_options(chain, registry, PortDirection::Output)
         .into_iter()
-        .filter(|p| p.direction == PortDirection::Output)
-        .collect();
-    ports
-        .iter()
-        .map(|p| {
-            let duplicated = ports
-                .iter()
-                .filter(|q| q.endpoint.name == p.endpoint.name)
-                .count()
-                > 1;
-            let label = if duplicated {
-                let binding_name = registry
-                    .iter()
-                    .find(|b| b.id == p.binding_id)
-                    .map(|b| b.name.trim())
-                    .unwrap_or(p.binding_id.as_str());
-                format!("{} · {}", binding_name, p.endpoint.name)
-            } else {
-                p.endpoint.name.clone()
-            };
-            DiOutputOption {
-                di_ref: DiOutputRef {
-                    binding_id: p.binding_id.clone(),
-                    endpoint: p.endpoint.name.clone(),
-                },
-                label,
-            }
+        .map(|d| DiOutputOption {
+            di_ref: DiOutputRef {
+                binding_id: d.binding_id,
+                endpoint: d.endpoint,
+            },
+            label: d.label,
+            aliases: d
+                .aliases
+                .into_iter()
+                .map(|a| DiOutputRef {
+                    binding_id: a.binding_id,
+                    endpoint: a.endpoint,
+                })
+                .collect(),
         })
         .collect()
 }
@@ -78,7 +67,7 @@ pub fn di_output_selected_index(chain: &Chain, options: &[DiOutputOption]) -> i3
     chain
         .di_output
         .as_ref()
-        .and_then(|r| options.iter().position(|o| o.di_ref == *r))
+        .and_then(|r| options.iter().position(|o| o.aliases.contains(r)))
         .unwrap_or(0) as i32
 }
 
@@ -213,12 +202,12 @@ mod duplicate_label_tests {
     use domain::ids::{ChainId, DeviceId};
     use domain::io_binding::{ChannelMode, IoEndpoint};
 
-    fn out(name: &str) -> IoEndpoint {
+    fn out(name: &str, device: &str, channels: Vec<usize>) -> IoEndpoint {
         IoEndpoint {
             name: name.into(),
-            device_id: DeviceId("dev".into()),
+            device_id: DeviceId(device.into()),
             mode: ChannelMode::Stereo,
-            channels: vec![0, 1],
+            channels,
         }
     }
 
@@ -246,13 +235,13 @@ mod duplicate_label_tests {
                 id: "scarlett".into(),
                 name: "SCARLET".into(),
                 inputs: vec![],
-                outputs: vec![out("Out 1")],
+                outputs: vec![out("Out 1", "scarlett", vec![0, 1])],
             },
             IoBinding {
                 id: "teyun".into(),
                 name: "TEYUN".into(),
                 inputs: vec![],
-                outputs: vec![out("Out 1")],
+                outputs: vec![out("Out 1", "teyun", vec![0, 1])],
             },
         ];
         let options = build_di_output_options(&chain, &registry);
@@ -288,7 +277,10 @@ mod duplicate_label_tests {
             id: "io".into(),
             name: "IO".into(),
             inputs: vec![],
-            outputs: vec![out("Main Out"), out("FX Out")],
+            outputs: vec![
+                out("Main Out", "dev", vec![0, 1]),
+                out("FX Out", "dev", vec![2, 3]),
+            ],
         }];
         let options = build_di_output_options(&chain, &registry);
         assert_eq!(options[0].label, "Main Out");
