@@ -43,7 +43,11 @@ locally (10+ minutes on the owner's Mac; CI runs them). Without
 `./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
 the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
-broken (unused import, needless `mut`, dead code).
+broken (unused import, needless `mut`, dead code). CI's Test Suite job builds
+with `RUSTFLAGS=-D warnings`, so a Linux-only warning — a helper left unused
+when its tests are gated `cfg(not(all(target_os = "linux", feature = "jack")))`
+— fails the job; gate the helper with the same `cfg`, or
+`cfg_attr(..., allow(dead_code))` when an ungated test shares the file.
 
 **Push-time compile check: `scripts/pr-check.sh`.** fmt, the static
 `validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,

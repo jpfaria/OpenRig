@@ -14,6 +14,7 @@ static RINGS: Mutex<Vec<Weak<InputEvidenceRing>>> = Mutex::new(Vec::new());
 
 /// A ring for a stream being built, findable by its chain while the stream
 /// lives.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn open_ring(identity: InputStreamIdentity) -> Arc<InputEvidenceRing> {
     let ring = Arc::new(InputEvidenceRing::new(identity));
     register(&ring);
