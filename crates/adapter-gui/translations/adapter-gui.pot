@@ -1156,7 +1156,7 @@ msgid "{} BPM"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Follows the global tempo"
+msgid "Not set"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
@@ -1164,15 +1164,11 @@ msgid "Clear"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save {} BPM to preset"
+msgid "Save to preset"
 msgstr ""
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
 msgid "Use global tempo"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
-msgid "Loading a preset never changes the tempo"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
@@ -1219,4 +1215,8 @@ msgid "placeholder-drums-search"
 msgstr ""
 
 msgid "status-drums-no-match"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint
+msgid "Global tempo"
 msgstr ""

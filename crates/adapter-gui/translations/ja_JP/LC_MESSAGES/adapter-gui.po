@@ -1257,24 +1257,20 @@ msgid "{} BPM"
 msgstr "{} BPM"
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Follows the global tempo"
-msgstr "グローバルテンポに従う"
+msgid "Not set"
+msgstr "未設定"
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
 msgid "Clear"
 msgstr "クリア"
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save {} BPM to preset"
-msgstr "{} BPM をプリセットに保存"
+msgid "Save to preset"
+msgstr "プリセットに保存"
 
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
 msgid "Use global tempo"
 msgstr "グローバルテンポを使用"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
-msgid "Loading a preset never changes the tempo"
-msgstr "プリセットを読み込んでもテンポは変わりません"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"
@@ -1321,3 +1317,7 @@ msgstr "検索"
 
 msgid "status-drums-no-match"
 msgstr "一致する項目がありません"
+
+#: crates/adapter-gui/ui/components/tempo_panel_view.slint
+msgid "Global tempo"
+msgstr "グローバルテンポ"

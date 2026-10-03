@@ -35,8 +35,8 @@ export component TempoPanelView inherits Rectangle {
         padding: 14px;
         spacing: 12px;
 
-        Text {
-            text: @tr("Tempo");
+        global-title := Text {
+            text: @tr("Global tempo");
             color: root.label-color;
             font-size: Theme.min-font;
         }
@@ -140,7 +140,7 @@ export component TempoPanelView inherits Rectangle {
                     horizontal-stretch: 1;
                     text: root.nav.has-preset-bpm
                         ? @tr("{} BPM", Math.round(root.nav.preset-bpm))
-                        : @tr("Follows the global tempo");
+                        : @tr("Not set");
                     color: root.nav.has-preset-bpm ? Theme.palette.accent-start : root.label-color;
                     font-size: Theme.min-font;
                     font-weight: root.nav.has-preset-bpm ? 700 : 400;
@@ -179,7 +179,7 @@ export component TempoPanelView inherits Rectangle {
                 accessible-role: button;
                 accessible-label: store-label.text;
                 store-label := Text {
-                    text: @tr("Save {} BPM to preset", root.rounded-bpm);
+                    text: @tr("Save to preset");
                     color: #f1f4f8;
                     font-size: Theme.min-font;
                     horizontal-alignment: center;
@@ -225,20 +225,12 @@ export component TempoPanelView inherits Rectangle {
                         animate x { duration: 150ms; }
                     }
                 }
-                VerticalLayout {
+                Text {
                     horizontal-stretch: 1;
-                    spacing: 2px;
-                    Text {
-                        text: @tr("Use global tempo");
-                        color: #f1f4f8;
-                        font-size: Theme.min-font;
-                    }
-                    Text {
-                        text: @tr("Loading a preset never changes the tempo");
-                        color: root.label-color;
-                        font-size: Theme.min-font;
-                        wrap: word-wrap;
-                    }
+                    text: @tr("Use global tempo");
+                    color: #f1f4f8;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
                 }
             }
             lock-ta := TouchArea {

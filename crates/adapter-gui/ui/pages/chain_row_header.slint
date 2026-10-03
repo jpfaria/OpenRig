@@ -1,7 +1,7 @@
 // Responsibility: renders one chain card's header bar.
 //
 // The power switch, the title with its preset/scene picker, the rig-nav
-// arrows and the chain action toolbar (mixer, meters, looper, probe latency,
+// arrows and the chain action toolbar (tempo, mixer, meters, looper, probe latency,
 // configure, compact view, move, remove). #591: tapping empty header space selects the
 // chain as the footswitch's active chain.
 
@@ -15,6 +15,9 @@ import { ChainLooperButton } from "../components/chain_looper_button.slint";
 import { ChainMetersButton } from "../components/chain_meters_button.slint";
 import { ChainMixerButton } from "../components/chain_mixer_button.slint";
 import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
+import { TempoChip } from "../components/tempo_chip.slint";
+import { TempoPanel } from "../components/tempo_panel_globals.slint";
+import { MetronomeBridge } from "../components/metronome_globals.slint";
 
 export component ChainRowHeader inherits Rectangle {
     in property <ProjectChainItem> chain;
@@ -109,15 +112,13 @@ export component ChainRowHeader inherits Rectangle {
         // chain-action cluster on the right needs ~80px less.
         // Title area now reaches further across the row.
         // #1007: it ends 8px short of the action cluster's left end (the
-        // meters button at -436px), so its title elides instead of the
+        // tempo chip at -512px, #1050), so its title elides instead of the
         // row running under the cluster.
-        width: parent.width - 72px - 444px;
+        width: parent.width - 72px - 520px;
         height: 40px;
         title: root.chain.title;
         nav: root.rig-nav;
         fullscreen: root.fullscreen;
-        show-tempo: true;
-        chain-index: root.chain-index;
         open-compact => {
             root.open-compact-chain-view(root.chain-index);
         }
@@ -156,6 +157,20 @@ export component ChainRowHeader inherits Rectangle {
         y: 12px;
         shown: root.chain.meters_expanded;
         toggled(shown) => { root.meters-toggled(shown); }
+    }
+    // #1050: the global tempo, at the cluster's left end; its panel stores
+    // the tempo on this chain's active preset.
+    TempoChip {
+        x: parent.width - 512px;
+        y: 14px;
+        bpm: MetronomeBridge.bpm;
+        preset-tempo: root.rig-nav.has-preset-bpm;
+        clicked => {
+            TempoPanel.chain-index = root.chain-index;
+            TempoPanel.x = min(self.absolute-position.x, self.absolute-position.x + self.width - 320px);
+            TempoPanel.y = self.absolute-position.y + self.height + 6px;
+            TempoPanel.open = true;
+        }
     }
     // This chain's mixer, opened at the bottom of the card.
     ChainMixerButton { x: parent.width - 404px; y: 12px; chain-index: root.chain-index; }

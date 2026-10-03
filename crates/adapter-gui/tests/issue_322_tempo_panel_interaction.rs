@@ -243,3 +243,46 @@ fn the_lock_toggle_asks_for_the_opposite_state() {
     click_id(&w, "TempoPanelView::lock-ta");
     assert_eq!(*asked.borrow(), vec![true, false]);
 }
+
+// #1050: the tempo chip lives in the chain's action icon cluster, to the right
+// of the preset and scene controls, not between them.
+#[test]
+fn the_chip_sits_right_of_the_scene_bar() {
+    let w = rig_page();
+    let chip = visible(&w, "TempoChip::root").into_iter().next().unwrap();
+    let scene = visible(&w, "SceneBar::root")
+        .into_iter()
+        .next()
+        .expect("scene bar");
+    let scene_right = scene.absolute_position().x + scene.size().width;
+    assert!(
+        chip.absolute_position().x > scene_right,
+        "chip x {} scene right {scene_right} window {:?}",
+        chip.absolute_position().x,
+        w.window().size()
+    );
+}
+
+// #1050: the panel's labels are short and name the global tempo.
+fn label_of(w: &ProjectChainsHarness, id: &str) -> String {
+    visible(w, id)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("{id} not found"))
+        .accessible_label()
+        .unwrap_or_default()
+        .to_string()
+}
+
+#[test]
+fn the_panel_labels_are_short() {
+    let w = rig_page();
+    open_panel_of(&w, 0);
+    let title = label_of(&w, "TempoPanelView::global-title").to_lowercase();
+    assert!(
+        title.contains("global"),
+        "title names the global tempo: {title}"
+    );
+    let store = label_of(&w, "TempoPanelView::store-label");
+    assert!(!store.contains("BPM") && !store.contains("97"), "{store}");
+}
