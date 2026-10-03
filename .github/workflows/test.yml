@@ -36,6 +36,8 @@ jobs:
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest -q scripts/test_nam_vendor.py
+      - name: Test the pre-PR gate and its hook
+        run: python3 -m pytest -q scripts/test_pre_pr_gate.py
 
   test:
     name: Test Suite

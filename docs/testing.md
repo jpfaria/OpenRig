@@ -19,7 +19,7 @@ suite — also forbidden.
    honestly and stop**.
 4. **Only after the RED**, investigate the cause — guided by the failing
    test — and fix until it passes (GREEN).
-5. The full suite + audio invariants run in CI, not locally.
+5. The full suite runs locally only through `./scripts/pre-pr-gate.sh`, before a PR is opened or a branch with an open PR is pushed (see "Full suite").
 
 **Two rounds per delivery, never per micro-step.** A delivery with
 several items does not compile once per item:
@@ -219,8 +219,17 @@ activation is asynchronous.
 ## Full suite
 
 The whole workspace suite runs in CI (the `Test Suite` job of
-`.github/workflows/test.yml`, on Linux). Locally, run only the targeted tests of
-your change (`cargo test -p <crate> <filter>`).
+`.github/workflows/test.yml`, on Linux). While working, run only the targeted
+tests of your change (`cargo test -p <crate> <filter>`).
+
+Before `gh pr create`, and before every push to a branch whose PR is open, run
+`./scripts/pre-pr-gate.sh` on the committed HEAD. It runs what CI runs (fmt,
+the whole-repo static checks, `cargo test --workspace`) and stamps the commit it
+passed on; the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
+the push unless HEAD carries the stamp, so commit first and push in a command of
+its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
+failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
+backend) still shows up in CI only.
 
 ## Real-hardware battery
 
