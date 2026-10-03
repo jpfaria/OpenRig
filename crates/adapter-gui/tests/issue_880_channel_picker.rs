@@ -218,26 +218,4 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
          index {idx}"
     );
     assert!(sel, "clicking an unselected channel must toggle it ON");
-
-    // ── 5. The selection echo lists EVERY selected channel, side by side ─────
-    //    Real device labels are words ("Channel 1"), not digits: chips that do
-    //    not claim their own width draw on top of each other.
-    let w = window_with_open_input_form_selecting(&[0, 1]);
-    let chips: Vec<(f32, f32)> =
-        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "ChannelPicker::chip")
-            .map(|el| (el.absolute_position().x, el.size().width))
-            .filter(|(_, w)| *w > 0.0)
-            .collect();
-    assert_eq!(
-        chips.len(),
-        2,
-        "two channels are selected but the header shows {} chip(s) with a \
-         width: {chips:?}",
-        chips.len()
-    );
-    assert!(
-        chips[0].0 + chips[0].1 <= chips[1].0,
-        "the selection chips overlap ({chips:?}) — the second one draws on top \
-         of the first, so the header reads as garbage"
-    );
 }

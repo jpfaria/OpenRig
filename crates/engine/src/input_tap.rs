@@ -32,6 +32,7 @@
 //! one callback). Drop never runs on the audio thread in practice as long
 //! as `runtime.input_taps` keeps at least one Arc alive.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crate::spsc::SpscRing;
@@ -49,6 +50,9 @@ pub struct InputTap {
     /// input data buffer (channel 0, 1, 2, ...). `None` means that channel
     /// is not subscribed and the audio thread skips it.
     pub channel_rings: Vec<Option<Arc<SpscRing<f32>>>>,
+    /// Host-clock capture time (ns) of the buffer the tap's first sample came
+    /// in; 0 until a buffer with a known capture time reaches it.
+    pub first_capture_ns: Arc<AtomicU64>,
 }
 
 impl InputTap {
@@ -85,9 +89,26 @@ impl InputTap {
             Self {
                 input_index,
                 channel_rings,
+                first_capture_ns: Arc::new(AtomicU64::new(0)),
             },
             consumer_handles,
         )
+    }
+}
+
+impl InputTap {
+    /// Keep `capture_ns` as the tap's first capture time unless one is already
+    /// set. Lock-free: one load, at most one compare-exchange.
+    #[inline]
+    pub fn stamp_first_capture(&self, capture_ns: u64) {
+        if capture_ns != 0 && self.first_capture_ns.load(Ordering::Relaxed) == 0 {
+            let _ = self.first_capture_ns.compare_exchange(
+                0,
+                capture_ns,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
+        }
     }
 }
 

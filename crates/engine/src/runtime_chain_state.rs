@@ -73,6 +73,9 @@ pub struct ChainRuntimeState {
     /// windows). Empty by default. Hot-swapped via ArcSwap so the audio
     /// thread reads without locking. See `crate::input_tap::InputTap`.
     pub(crate) input_taps: ArcSwap<Vec<Arc<InputTap>>>,
+    /// Host-clock capture time (ns) of the buffer each input is processing,
+    /// noted by the worker that feeds it. See `runtime_input_clock.rs`.
+    pub(crate) input_capture_ns: [AtomicU64; crate::runtime_input_clock::STAMPED_INPUTS],
     /// Per-stream sample taps published to consumers (Spectrum window).
     /// A "stream" is one `InputProcessingState` — one input feeding one
     /// parallel pipeline through the chain — so each tap publishes the

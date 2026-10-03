@@ -36,6 +36,8 @@ jobs:
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest -q scripts/test_nam_vendor.py
+      - name: Test the pre-PR gate and its hook
+        run: python3 -m pytest -q scripts/test_pre_pr_gate.py
 
   test:
     name: Test Suite
@@ -92,8 +94,17 @@ jobs:
       # when it is absent; they never hard-fail CI. See issue #793.
       # A hard timeout keeps a hung test from wedging the runner for hours
       # (see issue #693 FIFO tests, fixed to never block the test thread).
+      # nextest runs every test binary in parallel; it skips doctests, so
+      # `cargo test --doc` runs them after. scripts/pre-pr-gate.sh runs the same.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Run tests
-        run: timeout --signal=SIGKILL 1500 cargo test --workspace
+        run: |
+          timeout --signal=SIGKILL 1500 cargo nextest run --workspace --no-fail-fast
+          timeout --signal=SIGKILL 600 cargo test --workspace --doc
 
       - name: Disk left after the build
         if: always()

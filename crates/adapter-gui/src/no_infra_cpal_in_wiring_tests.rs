@@ -85,9 +85,11 @@ const GUARDED: &[Guarded] = &[
 ///   and, on Linux, starts the JACK server (`start_jack_in_background`). Both
 ///   are driver reconfiguration on the host, not a rig operation, and both are
 ///   in the "NOT on the bus" table for that reason.
-/// * `stepped_input_mark.rs` — probes the host's input DEVICE
-///   (`probe_input_device`) for the evidence a stepped-input restart writes to
-///   disk. A question to this machine's driver, not a rig operation.
+/// * `stepped_input_mark.rs` — the body of `runtime_health.rs`'s restart of a
+///   chain whose input arrives stepped, split off by responsibility: it reads
+///   the evidence the controller kept and probes the host device the stream
+///   runs on. A host-device probe at the moment of a restart, not a rig
+///   operation.
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "device_refresh_list.rs",
     "desktop_app.rs",

@@ -25,6 +25,8 @@ use engine::DiPcm;
 use project::chain::Chain;
 
 use crate::di_playback::{DiPlayback, DiPlaybackCell, DiRetired};
+use crate::host_clock::now_ns;
+use crate::loop_sync::cold_start;
 
 /// Scheduling class an isolated playback render declared for itself.
 ///
@@ -81,6 +83,9 @@ pub(crate) struct DiWorkerSpec {
     pub(crate) failed: Arc<AtomicBool>,
     pub(crate) retired: DiRetired,
     pub(crate) handoff: Option<DiHandoff>,
+    /// Host-clock top of the shared loop timeline a cold arm starts on, in
+    /// phase; `None` starts at loop position 0 as soon as it is ready.
+    pub(crate) sync_anchor_ns: Option<u64>,
 }
 
 /// Spawn the render thread for one armed DI.
@@ -130,6 +135,7 @@ fn run(spec: DiWorkerSpec) {
         failed,
         retired,
         handoff,
+        sync_anchor_ns,
     } = spec;
 
     // Build the routed isolated runtime (heavy: NAM/IR loads) OFF the frontend;
@@ -160,17 +166,20 @@ fn run(spec: DiWorkerSpec) {
     //
     // A hand-off instead starts where the listener WILL be once the pre-roll is
     // ready, and waits to reach exactly that position before taking the cell.
+    //
+    // A cold arm on the shared loop timeline starts one lead from now (or at
+    // the anchor, if later) at the position the timeline is at then, and the
+    // output callback holds it to that instant.
     let loop_len = routed.loop_len.max(1);
-    let start_pos = handoff
-        .as_ref()
-        .map(|h| (h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len)
-        .unwrap_or(0);
-    let playback = Arc::new(DiPlayback::starting_at(
-        dest_left,
-        dest_right,
-        routed.loop_len,
-        start_pos,
-    ));
+    let (start_pos, start_at_ns) = match (handoff.as_ref(), sync_anchor_ns) {
+        (Some(h), _) => ((h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len, 0),
+        (None, Some(anchor)) => cold_start(anchor, now_ns(), output_rate, loop_len),
+        (None, None) => (0, 0),
+    };
+    let playback = Arc::new(
+        DiPlayback::starting_at(dest_left, dest_right, routed.loop_len, start_pos)
+            .at_host_time(start_at_ns, output_rate),
+    );
     routed.runtime.set_di_loop_pos(start_pos);
     let ring = playback.ring();
     let mut parked = false;
