@@ -13,6 +13,7 @@ dir; nothing touches the network, cargo or the real repository.
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -91,7 +92,7 @@ def gate(cwd: Path, suite: str) -> subprocess.CompletedProcess:
         cwd=cwd,
         capture_output=True,
         text=True,
-        env={**os.environ, "PRE_PR_GATE_SUITE": suite},
+        env={**os.environ, "PRE_PR_GATE_SUITE": suite, "PRE_PR_GATE_LOCK": str(cwd.parent / "gate.lock")},
     )
 
 
@@ -171,3 +172,127 @@ def test_the_gate_refuses_a_dirty_tree(tmp_path):
     result = gate(r, "true")
     assert result.returncode != 0
     assert "commit" in result.stderr
+
+
+# --- Lock: one gate at a time on the machine -------------------------------
+
+def test_the_gate_waits_while_another_gate_holds_the_lock(tmp_path):
+    r = repo(tmp_path)
+    lock = tmp_path / "gate.lock"
+    lock.mkdir()
+    (lock / "pid").write_text(f"{os.getpid()}\n")
+    marker = tmp_path / "ran"
+    proc = subprocess.Popen(
+        ["bash", str(GATE)],
+        cwd=r,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, "PRE_PR_GATE_SUITE": f"touch {marker}", "PRE_PR_GATE_LOCK": str(lock)},
+    )
+    time.sleep(2)
+    assert proc.poll() is None and not marker.exists()
+    (lock / "pid").unlink()
+    lock.rmdir()
+    assert proc.wait(timeout=10) == 0
+    assert marker.exists()
+    assert not lock.exists()
+
+
+def test_a_lock_left_by_a_dead_gate_is_taken_over(tmp_path):
+    r = repo(tmp_path)
+    lock = tmp_path / "gate.lock"
+    lock.mkdir()
+    dead = subprocess.Popen(["true"])
+    dead.wait()
+    (lock / "pid").write_text(f"{dead.pid}\n")
+    result = subprocess.run(
+        ["bash", str(GATE)],
+        cwd=r,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        env={**os.environ, "PRE_PR_GATE_SUITE": "true", "PRE_PR_GATE_LOCK": str(lock)},
+    )
+    assert result.returncode == 0
+    assert not lock.exists()
+
+
+# --- Package selection: test only what the branch can affect ---------------
+
+PACKAGES = ROOT / "scripts" / "pre_pr_gate_packages.py"
+
+
+def metadata(tmp_path: Path) -> Path:
+    """A workspace: core <- engine <- gui, engine <- tool (bin only), plus serde outside."""
+    def pkg(name, kinds=("lib",)):
+        return {
+            "id": f"{name}-id",
+            "name": name,
+            "manifest_path": f"/w/crates/{name}/Cargo.toml",
+            "targets": [{"kind": [k]} for k in kinds],
+        }
+
+    meta = {
+        "workspace_root": "/w",
+        "workspace_members": ["core-id", "engine-id", "gui-id", "tool-id"],
+        "packages": [
+            pkg("core"),
+            pkg("engine"),
+            pkg("gui"),
+            pkg("tool", kinds=("bin",)),
+            {"id": "serde-id", "name": "serde", "manifest_path": "/reg/serde/Cargo.toml", "targets": [{"kind": ["lib"]}]},
+        ],
+        "resolve": {
+            "nodes": [
+                {"id": "core-id", "deps": [{"pkg": "serde-id"}]},
+                {"id": "engine-id", "deps": [{"pkg": "core-id"}]},
+                {"id": "gui-id", "deps": [{"pkg": "engine-id"}]},
+                {"id": "tool-id", "deps": [{"pkg": "engine-id"}]},
+                {"id": "serde-id", "deps": []},
+            ]
+        },
+    }
+    path = tmp_path / "metadata.json"
+    path.write_text(json.dumps(meta))
+    return path
+
+
+def packages(tmp_path: Path, changed: list[str], *flags: str) -> list[str]:
+    out = subprocess.run(
+        ["python3", str(PACKAGES), str(metadata(tmp_path)), *flags],
+        input="\n".join(changed) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return sorted(out.split())
+
+
+def test_a_change_in_a_crate_tests_it_and_everything_that_depends_on_it(tmp_path):
+    assert packages(tmp_path, ["crates/engine/src/lib.rs"]) == ["engine", "gui", "tool"]
+
+
+def test_a_change_in_a_leaf_crate_tests_only_that_crate(tmp_path):
+    assert packages(tmp_path, ["crates/gui/tests/a.rs"]) == ["gui"]
+
+
+def test_a_change_in_the_bottom_crate_reaches_the_whole_chain(tmp_path):
+    assert packages(tmp_path, ["crates/core/Cargo.toml"]) == ["core", "engine", "gui", "tool"]
+
+
+def test_doc_changes_test_nothing(tmp_path):
+    assert packages(tmp_path, ["docs/testing.md", "README.md", "site/index.html", ".github/workflows/test.yml"]) == []
+
+
+def test_a_root_build_file_tests_the_whole_workspace(tmp_path):
+    assert packages(tmp_path, ["Cargo.lock"]) == ["ALL"]
+    assert packages(tmp_path, [".config/nextest.toml"]) == ["ALL"]
+
+
+def test_a_file_outside_every_crate_tests_the_whole_workspace(tmp_path):
+    assert packages(tmp_path, ["assets/fixtures/a.wav"]) == ["ALL"]
+
+
+def test_doc_tests_skip_crates_without_a_library(tmp_path):
+    assert packages(tmp_path, ["crates/engine/src/lib.rs"], "--lib-only") == ["engine", "gui"]
