@@ -47,11 +47,9 @@ broken (unused import, needless `mut`, dead code).
 
 **Push-time compile check: `scripts/pr-check.sh`.** fmt, the static
 `validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,
-examples), failing on any warning — on macOS and, for the `cfg(target_os =
-"linux")` code and the JACK backend, on Linux: the same check with
-`-D warnings` in the Debian container of `docker/Dockerfile.linux-builder`, so
-Docker must be running. The Linux target lives in a Docker volume, so only the
-first run compiles from scratch. A push to a branch with an open PR runs it
+examples), failing on any warning. It compiles on macOS only — nothing Linux
+or Docker runs on the owner's machine; Linux/JACK-only code is checked by CI,
+whose Test Suite builds with `-D warnings`. A push to a branch with an open PR runs it
 by itself: `scripts/solver-setup.sh` sets `core.hooksPath = scripts/hooks`, and
 `scripts/hooks/pre-push` blocks the push when it fails. It only compiles; the
 PR gate that also runs the tests is `./scripts/pre-pr-gate.sh` (see "Full
@@ -256,7 +254,9 @@ run through `cargo nextest run` (every test binary in parallel) plus
 and in the gate, which falls back to `cargo test` when nextest is not
 installed (`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
 the push unless HEAD carries the stamp, so commit first and push in a command of
-its own. Pushes to a branch with no PR are not gated.
+its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
+failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
+backend) shows up in CI only.
 
 ## Real-hardware battery
 
