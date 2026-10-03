@@ -38,6 +38,8 @@ fn render_all(renderer: &mut PlayerRenderer, block: usize, limit: usize) -> Vec<
             break;
         }
     }
+    // `limit` need not be a whole number of blocks.
+    all.truncate(limit.saturating_mul(2));
     all
 }
 

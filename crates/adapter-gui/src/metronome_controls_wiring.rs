@@ -15,7 +15,7 @@ use slint::{ModelRc, SharedString, VecModel};
 
 use crate::metronome_events::dispatch;
 use crate::metronome_view::{
-    output_endpoints, subdivision_key, timbre_key, time_signature_beats, MetronomeOutput,
+    output_endpoints, subdivision_key, timbre_key, time_signature_beats, ProjectOutput,
 };
 use crate::metronome_wiring::MetronomeCtx;
 use crate::state::ProjectSession;
@@ -129,8 +129,8 @@ pub(crate) fn wire_output_select(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
 /// configured with (#14), not a raw device list.
 pub(crate) fn refresh_metronome_outputs(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    cache: &Rc<RefCell<Vec<MetronomeOutput>>>,
-) -> Vec<MetronomeOutput> {
+    cache: &Rc<RefCell<Vec<ProjectOutput>>>,
+) -> Vec<ProjectOutput> {
     let outputs = project_session
         .borrow()
         .as_ref()
@@ -163,7 +163,7 @@ fn publish_output_options(ctx: &MetronomeCtx, query: &str) {
 
 /// Case-insensitive substring match on the endpoint label, original order kept.
 /// An empty (trimmed) query returns every endpoint.
-pub fn filter_outputs<'a>(outputs: &'a [MetronomeOutput], query: &str) -> Vec<&'a MetronomeOutput> {
+pub fn filter_outputs<'a>(outputs: &'a [ProjectOutput], query: &str) -> Vec<&'a ProjectOutput> {
     let needle = query.trim().to_lowercase();
     outputs
         .iter()

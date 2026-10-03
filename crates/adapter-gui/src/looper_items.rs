@@ -19,7 +19,10 @@ pub fn looper_items_with_recorded(
     runtime_live: bool,
     preset_ids: &[String],
 ) -> Vec<LooperItem> {
-    use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
+    use project::binding_discovery::resolve_input_segment;
+    use project::chain_output_choice::chain_output_index;
+    // Indices only: the labels are written by `looper_rows`.
+    let outputs = project::project_outputs::output_endpoints(registry, &[]);
     chain
         .loopers
         .iter()
@@ -72,7 +75,14 @@ pub fn looper_items_with_recorded(
                 // not in Slint: the view reads a flag, it does not decide.
                 can_edit: state == LooperState::Stopped && len > 0,
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
-                output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
+                output_index: chain_output_index(
+                    chain,
+                    registry,
+                    &outputs,
+                    cfg.output
+                        .as_ref()
+                        .map(|r| (r.binding_id.as_str(), r.endpoint.as_str())),
+                ),
                 preset_index: preset_option_index(cfg.preset.as_deref(), preset_ids),
             }
         })

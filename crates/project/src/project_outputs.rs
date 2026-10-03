@@ -1,13 +1,20 @@
-//! Responsibility: lists the endpoints the metronome can play to.
+//! Responsibility: lists the physical outputs a project's bindings expose.
 
-/// One selectable metronome output: an output endpoint of one of the project's
-/// I/O bindings (#14). The metronome plays through the SAME outputs the project
-/// is configured with, not a raw device list — so it lands on the channels the
-/// user already set up.
+use domain::io_binding::IoBinding;
+use domain::AudioDeviceDescriptor;
+
+/// One selectable output: a device and a set of its channels, reached through
+/// an output endpoint of one of the project's I/O bindings. Every output
+/// picker (backing-track player, metronome, DI, looper) lists these, so they
+/// all offer the same outputs under the same names.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MetronomeOutput {
-    /// Stable key `"{binding_id}\u{1f}{endpoint_name}"`, round-tripped by the
-    /// select and persisted in `config.yaml`.
+pub struct ProjectOutput {
+    /// The binding whose endpoint names this output first.
+    pub binding_id: String,
+    /// That endpoint's name.
+    pub endpoint: String,
+    /// Stable key `"{binding_id}\u{1f}{endpoint}"`, round-tripped by the
+    /// pickers that persist a string.
     pub key: String,
     /// `"{device name} · Out {channels}"` (channels 1-based, e.g. `Out 1/2`),
     /// shown in the picker.
@@ -15,9 +22,16 @@ pub struct MetronomeOutput {
     pub device_id: String,
     pub channels: Vec<usize>,
     /// Keys of the other endpoints that route to these same device channels.
-    /// They are not listed again, but a key saved for one of them still
+    /// They are not listed again, but a reference to one of them still
     /// resolves here.
     pub aliases: Vec<String>,
+}
+
+impl ProjectOutput {
+    /// Whether `key` names this output, directly or through an alias.
+    pub fn answers_to(&self, key: &str) -> bool {
+        self.key == key || self.aliases.iter().any(|a| a == key)
+    }
 }
 
 /// The key that identifies an output endpoint. The unit separator keeps it
@@ -32,10 +46,10 @@ pub fn endpoint_key(binding_id: &str, endpoint_name: &str) -> String {
 /// `devices` names each device in the label; a device the host no longer lists
 /// is shown by its id.
 pub fn output_endpoints(
-    bindings: &[infra_filesystem::IoBinding],
-    devices: &[domain::AudioDeviceDescriptor],
-) -> Vec<MetronomeOutput> {
-    let mut outputs: Vec<MetronomeOutput> = Vec::new();
+    bindings: &[IoBinding],
+    devices: &[AudioDeviceDescriptor],
+) -> Vec<ProjectOutput> {
+    let mut outputs: Vec<ProjectOutput> = Vec::new();
     for binding in bindings {
         for endpoint in &binding.outputs {
             let key = endpoint_key(&binding.id, &endpoint.name);
@@ -45,7 +59,9 @@ pub fn output_endpoints(
                 .find(|o| o.device_id == device_id && o.channels == endpoint.channels)
             {
                 Some(existing) => existing.aliases.push(key),
-                None => outputs.push(MetronomeOutput {
+                None => outputs.push(ProjectOutput {
+                    binding_id: binding.id.clone(),
+                    endpoint: endpoint.name.clone(),
                     key,
                     label: output_label(device_id, &endpoint.channels, devices),
                     device_id: device_id.to_string(),
@@ -58,11 +74,7 @@ pub fn output_endpoints(
     outputs
 }
 
-fn output_label(
-    device_id: &str,
-    channels: &[usize],
-    devices: &[domain::AudioDeviceDescriptor],
-) -> String {
+fn output_label(device_id: &str, channels: &[usize], devices: &[AudioDeviceDescriptor]) -> String {
     let device = devices
         .iter()
         .find(|d| d.id == device_id)
@@ -71,20 +83,30 @@ fn output_label(
     format!("{device} · Out {}", channels.join("/"))
 }
 
+/// Position of the output a `(binding id, endpoint name)` reference names,
+/// directly or through an alias. `None` when it names no output any more.
+pub fn output_position(
+    outputs: &[ProjectOutput],
+    binding_id: &str,
+    endpoint: &str,
+) -> Option<usize> {
+    let key = endpoint_key(binding_id, endpoint);
+    outputs.iter().position(|o| o.answers_to(&key))
+}
+
 /// Resolve the saved endpoint key to a concrete output: the saved one while it
 /// still exists, otherwise the first endpoint (a renamed binding or a different
-/// machine must not leave the metronome silent). `None` only when the project
+/// machine must not leave the player silent). `None` only when the project
 /// has no output endpoint at all.
 pub fn resolve_output_endpoint(
     saved: Option<&str>,
-    endpoints: &[MetronomeOutput],
-) -> Option<MetronomeOutput> {
+    endpoints: &[ProjectOutput],
+) -> Option<ProjectOutput> {
     saved
-        .and_then(|key| {
-            endpoints
-                .iter()
-                .find(|o| o.key == key || o.aliases.iter().any(|a| a == key))
-                .cloned()
-        })
+        .and_then(|key| endpoints.iter().find(|o| o.answers_to(key)).cloned())
         .or_else(|| endpoints.first().cloned())
 }
+
+#[cfg(test)]
+#[path = "project_outputs_tests.rs"]
+mod tests;

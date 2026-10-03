@@ -398,15 +398,15 @@ pub(crate) fn wire_looper_callbacks(
         let dirty_ctx = dirty_ctx.clone();
         window.on_looper_output_picked(move |index, uid, endpoint_index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
-                let registry = s.io_bindings.borrow();
-                let output = s.project.borrow().chains.get(index as usize).and_then(|c| {
-                    project::binding_discovery::output_endpoint_ref(
-                        c,
-                        &registry,
-                        endpoint_index as usize,
-                    )
-                });
-                drop(registry);
+                // The picker lists every output of the project (the list the
+                // player and the DI share), so the row maps to its endpoint.
+                let output =
+                    project::project_outputs::output_endpoints(&s.io_bindings.borrow(), &[])
+                        .get(endpoint_index as usize)
+                        .map(|o| project::chain::EndpointRef {
+                            binding_id: o.binding_id.clone(),
+                            endpoint: o.endpoint.clone(),
+                        });
                 dispatch_and_apply(
                     s,
                     &live,

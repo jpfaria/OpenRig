@@ -1,7 +1,7 @@
 //! Responsibility: resolves a chain's ports into the engine's endpoint entries.
 
 use domain::ids::DeviceId;
-use domain::io_binding::IoBinding;
+use domain::io_binding::{IoBinding, IoEndpoint};
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
@@ -23,6 +23,16 @@ pub struct OutputEntry {
     pub channels: Vec<usize>,
 }
 
+impl From<&IoEndpoint> for OutputEntry {
+    fn from(endpoint: &IoEndpoint) -> Self {
+        Self {
+            device_id: endpoint.device_id.clone(),
+            mode: ChainOutputMode::try_from(endpoint.mode).unwrap_or(ChainOutputMode::Stereo),
+            channels: endpoint.channels.clone(),
+        }
+    }
+}
+
 /// Resolve a chain's input and output device endpoints from the binding
 /// `registry`. Head/tail come from `chain.io_binding_ids`; mid `Input`/`Output`
 /// blocks resolve their `io`/`endpoint`. The device data lives only in the
@@ -41,12 +51,7 @@ pub fn resolve_chain_io(
                 mode: ChainInputMode::from(port.endpoint.mode),
                 channels: port.endpoint.channels,
             }),
-            PortDirection::Output => outputs.push(OutputEntry {
-                device_id: port.endpoint.device_id,
-                mode: ChainOutputMode::try_from(port.endpoint.mode)
-                    .unwrap_or(ChainOutputMode::Stereo),
-                channels: port.endpoint.channels,
-            }),
+            PortDirection::Output => outputs.push(OutputEntry::from(&port.endpoint)),
         }
     }
     (inputs, outputs)
@@ -86,12 +91,7 @@ pub fn resolve_chain_io_by_binding(chain: &Chain, registry: &[IoBinding]) -> Vec
                 mode: ChainInputMode::from(port.endpoint.mode),
                 channels: port.endpoint.channels,
             }),
-            PortDirection::Output => groups[idx].outputs.push(OutputEntry {
-                device_id: port.endpoint.device_id,
-                mode: ChainOutputMode::try_from(port.endpoint.mode)
-                    .unwrap_or(ChainOutputMode::Stereo),
-                channels: port.endpoint.channels,
-            }),
+            PortDirection::Output => groups[idx].outputs.push(OutputEntry::from(&port.endpoint)),
         }
     }
     groups

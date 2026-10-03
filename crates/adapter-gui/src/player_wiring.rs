@@ -16,7 +16,7 @@ use application::player_state::PlayerSnapshot;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
-use crate::metronome_view::MetronomeOutput;
+use crate::metronome_view::ProjectOutput;
 use crate::player_controls_wiring::wire_controls;
 use crate::player_render::{render_library, render_reading, render_snapshot};
 use crate::state::ProjectSession;
@@ -34,7 +34,7 @@ pub(crate) struct PlayerCtx {
     pub(crate) window: slint::Weak<PlayerWindow>,
     pub(crate) main_window: slint::Weak<AppWindow>,
     /// The project's output endpoints as the select shows them.
-    pub(crate) outputs: Rc<RefCell<Vec<MetronomeOutput>>>,
+    pub(crate) outputs: Rc<RefCell<Vec<ProjectOutput>>>,
     /// The snapshot the panel currently shows, so the timer re-renders only
     /// when another transport changed it.
     pub(crate) rendered: Rc<RefCell<Option<PlayerSnapshot>>>,

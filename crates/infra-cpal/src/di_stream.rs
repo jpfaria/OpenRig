@@ -34,7 +34,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 
 use domain::ids::ChainId;
-use engine::di_output_resolve::resolve_di_output_index;
+use engine::di_output_resolve::{resolve_isolated_output, IsolatedOutput};
 use engine::runtime_endpoints::resolve_chain_io;
 use engine::DiPcm;
 use project::chain::Chain;
@@ -63,7 +63,9 @@ pub(crate) type IsolatedKey = (ChainId, IsolatedSource);
 /// the controller's `disarm_di_stream` is the primary path because it also
 /// retires the parked playback off the audio thread.
 pub(crate) struct DiStreamHandle {
-    output_index: usize,
+    /// Where it plays; `None` when neither the saved reference nor the chain
+    /// names an output.
+    output: Option<IsolatedOutput>,
     cell: DiPlaybackCell,
     /// #785: the arm flags of EVERY render thread still alive for this chain —
     /// this arm's (last) plus any it superseded. Each thread runs while its own
@@ -176,8 +178,9 @@ impl ProjectRuntimeController {
             .unwrap_or(self.sample_rate)
     }
 
-    /// #808: build the DI's OWN cpal output stream on the chain's chosen output
-    /// device, draining `cell`. Fully isolated (invariant #4): the DI never
+    /// #808: build the DI's OWN cpal output stream on the chosen output's
+    /// device — any output of the project, not only the chain's — draining
+    /// `cell`. Fully isolated (invariant #4): the DI never
     /// shares the chain's output stream, so a chain rebuild/edit cannot chop it,
     /// and it plays with or without an active guitar stream. Best-effort — on a
     /// resolve/config failure the DI still renders (heard once an output exists).
@@ -186,12 +189,11 @@ impl ProjectRuntimeController {
     fn build_di_output_stream(
         &self,
         chain: &Chain,
-        output_index: usize,
+        output: &IsolatedOutput,
         cell: &DiPlaybackCell,
     ) -> Option<(cpal::Stream, u32)> {
         use cpal::traits::StreamTrait;
-        let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
-        let out = outputs.get(output_index)?;
+        let out = &output.entry;
         let host = crate::host::get_host();
         // The project's settings for this device, exactly as the chain's own
         // streams resolve them: any other buffer size would re-size the device
@@ -206,7 +208,7 @@ impl ProjectRuntimeController {
         let rate = crate::stream_rates::resolved_output_sample_rate(&resolved);
         let stream = crate::stream_builder::build_output_stream_for_output(
             &chain.id,
-            output_index,
+            output.chain_index,
             resolved,
             Vec::new(), // no chain runtime slots — this stream plays ONLY the DI
             cell.clone(),
@@ -222,7 +224,7 @@ impl ProjectRuntimeController {
     fn build_di_output_stream(
         &self,
         _chain: &Chain,
-        _output_index: usize,
+        _output: &IsolatedOutput,
         _cell: &DiPlaybackCell,
     ) -> Option<(cpal::Stream, u32)> {
         None
@@ -232,14 +234,22 @@ impl ProjectRuntimeController {
     /// runtime off-thread and stream the loop into that output's cell. The
     /// guitar runtime is NEVER touched.
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
-        let output_index =
-            resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
-        self.arm_isolated_stream(chain, IsolatedSource::Di, output_index, pcm, None)
+        let output = self.di_output_of(chain);
+        self.arm_isolated_stream(chain, IsolatedSource::Di, output, pcm, None)
+    }
+
+    /// The output the chain's saved DI choice resolves to.
+    fn di_output_of(&self, chain: &Chain) -> Option<IsolatedOutput> {
+        let saved = chain
+            .di_output
+            .as_ref()
+            .map(|r| (r.binding_id.as_str(), r.endpoint.as_str()));
+        resolve_isolated_output(chain, &self.io_bindings, saved)
     }
 
     /// #323: arm one looper's isolated playback — the SAME pipeline as the DI,
     /// with the looper's live-recorded buffer as the source and its chosen
-    /// output. Independent of the record input: the loop plays out `output_index`
+    /// output. Independent of the record input: the loop plays out `output`
     /// through a routed copy of the chain, isolated (invariant #4). With a
     /// `sync_anchor_ns`, the loop starts on the shared loop timeline whose top
     /// is that host-clock instant, in phase with every other loop.
@@ -247,14 +257,14 @@ impl ProjectRuntimeController {
         &self,
         chain: &Chain,
         uid: u64,
-        output_index: usize,
+        output: Option<IsolatedOutput>,
         pcm: Arc<DiPcm>,
         sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
         self.arm_isolated_stream(
             chain,
             IsolatedSource::Looper(uid),
-            output_index,
+            output,
             pcm,
             sync_anchor_ns,
         )
@@ -266,19 +276,19 @@ impl ProjectRuntimeController {
     }
 
     /// Shared arm: replace any previous playback of this `(chain, source)` and
-    /// stream `pcm` into `output_index`'s cell.
+    /// stream `pcm` to `output`.
     fn arm_isolated_stream(
         &self,
         chain: &Chain,
         source: IsolatedSource,
-        output_index: usize,
+        output: Option<IsolatedOutput>,
         pcm: Arc<DiPcm>,
         sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
         // A fresh arm replaces any previous playback (and retires it off the
         // audio thread) — the listener asked for this one.
         self.disarm_isolated_stream(&chain.id, source);
-        self.spawn_di_stream(chain, source, output_index, pcm, None, sync_anchor_ns)
+        self.spawn_di_stream(chain, source, output, pcm, None, sync_anchor_ns)
     }
 
     /// Spawn the render worker for `chain`. With a `handoff`, the incoming
@@ -288,20 +298,13 @@ impl ProjectRuntimeController {
         &self,
         chain: &Chain,
         source: IsolatedSource,
-        output_index: usize,
+        output: Option<IsolatedOutput>,
         pcm: Arc<DiPcm>,
         handoff: Option<DiHandoff>,
         sync_anchor_ns: Option<u64>,
     ) -> Result<()> {
         let key = (chain.id.clone(), source);
-        let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
-        let dest = outputs
-            .get(output_index)
-            .map(|o| o.channels.clone())
-            .unwrap_or_default();
-        let dest_left = dest.first().copied().unwrap_or(0);
-        let dest_right = dest.get(1).copied().unwrap_or(dest_left);
-
+        let output_index = output.as_ref().map_or(0, |o| o.chain_index);
         let cell = self.isolated_playback_cell(&chain.id, source, output_index);
 
         // #808: the DI's OWN output stream (invariant #4 — never the chain's).
@@ -310,18 +313,33 @@ impl ProjectRuntimeController {
         // output rebuilds it. `remove` (not `insert`) so the reused stream is
         // out of the old handle before it drops.
         let mut prev = self.di_streams.borrow_mut().remove(&key);
-        let same_output = prev
-            .as_ref()
-            .and_then(|h| h.output_stream.as_ref().map(|_| h.output_index))
-            == Some(output_index);
+        let same_output = output.is_some()
+            && prev
+                .as_ref()
+                .is_some_and(|h| h.output_stream.is_some() && h.output == output);
         let output_stream = if same_output {
             prev.as_mut().and_then(|h| h.output_stream.take())
         } else {
             if let Some(h) = prev.as_mut() {
                 h.output_stream = None; // moved output: drop the old stream
             }
-            self.build_di_output_stream(chain, output_index, &cell)
+            output
+                .as_ref()
+                .and_then(|o| self.build_di_output_stream(chain, o, &cell))
         };
+        // The DI's own stream plays on the chosen output's channels; without
+        // one (JACK, or a failed device resolve) the playback is mixed into the
+        // chain's output stream `output_index`, so it takes that stream's.
+        let dest = match (&output_stream, &output) {
+            (Some(_), Some(o)) => o.entry.channels.clone(),
+            _ => resolve_chain_io(chain, &self.io_bindings)
+                .1
+                .get(output_index)
+                .map(|o| o.channels.clone())
+                .unwrap_or_default(),
+        };
+        let dest_left = dest.first().copied().unwrap_or(0);
+        let dest_right = dest.get(1).copied().unwrap_or(dest_left);
         // Render at the rate the DI's own stream consumes; fall back to the
         // controller's resolved rate when there is no dedicated stream (JACK, or
         // a failed device resolve).
@@ -359,7 +377,7 @@ impl ProjectRuntimeController {
         self.di_streams.borrow_mut().insert(
             key,
             DiStreamHandle {
-                output_index,
+                output,
                 cell,
                 workers,
                 pcm,
@@ -440,12 +458,11 @@ impl ProjectRuntimeController {
                 let _ = self.arm_di_stream(chain, pcm);
             }
             Some(handoff) => {
-                let output_index =
-                    resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
+                let output = self.di_output_of(chain);
                 let _ = self.spawn_di_stream(
                     chain,
                     IsolatedSource::Di,
-                    output_index,
+                    output,
                     pcm,
                     Some(handoff),
                     None,
@@ -519,7 +536,12 @@ impl ProjectRuntimeController {
         self.di_streams
             .borrow()
             .get(&(chain_id.clone(), IsolatedSource::Di))
-            .and_then(|h| h.cell.load().is_some().then_some(h.output_index))
+            .and_then(|h| {
+                h.cell
+                    .load()
+                    .is_some()
+                    .then(|| h.output.as_ref().map_or(0, |o| o.chain_index))
+            })
     }
 
     /// Linear `(in, out)` peaks of the DI playback's last mixed window — the

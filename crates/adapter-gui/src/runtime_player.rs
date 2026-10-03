@@ -18,7 +18,7 @@ use anyhow::{bail, Result};
 use engine::player::settings::PlayerSettings;
 use infra_cpal::ProjectRuntimeController;
 
-use crate::metronome_view::{output_endpoints, resolve_output_endpoint, MetronomeOutput};
+use crate::metronome_view::{output_endpoints, resolve_output_endpoint, ProjectOutput};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_pipelines::ensure_runtime;
 use crate::state::ProjectSession;
@@ -102,7 +102,7 @@ pub(crate) fn refresh_player_output(
 }
 
 /// The saved endpoint while it exists, otherwise the project's first.
-fn player_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<MetronomeOutput> {
+fn player_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<ProjectOutput> {
     let bindings = session.io_bindings.borrow();
     resolve_output_endpoint(output_key, &output_endpoints(&bindings, &[]))
 }

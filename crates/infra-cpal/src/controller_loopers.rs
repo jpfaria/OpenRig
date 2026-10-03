@@ -14,7 +14,7 @@ use std::sync::Arc;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 use engine::{DiPcm, LooperState, LooperStatus};
-use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
+use project::binding_discovery::resolve_input_segment;
 use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
@@ -425,8 +425,12 @@ impl ProjectRuntimeController {
                 Some(s) => s,
                 None => continue,
             };
-            let output_index =
-                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let saved = cfg
+                .output
+                .as_ref()
+                .map(|r| (r.binding_id.as_str(), r.endpoint.as_str()));
+            let output =
+                engine::di_output_resolve::resolve_isolated_output(chain, &self.io_bindings, saved);
             let pcm = Arc::new(looper_playback_pcm(samples, self.sample_rate, cfg.speed));
             // #323 phase 2: play through the loop's LINKED preset when the
             // adapter has resolved its blocks — a routed copy of the chain with
@@ -441,7 +445,7 @@ impl ProjectRuntimeController {
                 .borrow()
                 .sync_anchor()
                 .filter(|_| crate::host_clock::MATCHES_STREAM_CLOCK);
-            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm, anchor) {
+            match self.arm_looper_stream(&playback_chain, uid, output, pcm, anchor) {
                 Ok(()) => {
                     LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     self.push_looper_gain(&chain.id, uid);

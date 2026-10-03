@@ -172,7 +172,6 @@ pub use settings::paths::{
 mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
-mod metronome_outputs;
 mod metronome_read;
 mod metronome_view;
 mod metronome_vocabulary;
