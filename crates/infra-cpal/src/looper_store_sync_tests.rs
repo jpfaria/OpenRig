@@ -302,3 +302,23 @@ fn a_take_without_a_capture_time_is_what_was_captured() {
     assert_eq!(status.len_frames, 300);
     assert_eq!(left(&store, &a, 1, 0), 1.0);
 }
+
+#[test]
+fn a_take_whose_tap_never_stamps_a_capture_time_is_what_it_captured() {
+    let (mut store, now) = store();
+    let a = chain("a");
+    store.create(&a, 1);
+    now.store(S, Ordering::Relaxed);
+    store.tap_record(&a, 1);
+    // A backend with no capture time leaves the tap's cell at 0.
+    store.set_recording_stamp(&a, 1, Arc::new(AtomicU64::new(0)));
+    store.record_frames(&a, 1, &frames(1, 128));
+    // The presses are 1 ms apart, but 128 frames arrived: they are the take.
+    now.store(S + MS, Ordering::Relaxed);
+    store.tap_record(&a, 1);
+
+    let status = store.status(&a, 1).unwrap();
+    assert_eq!(status.state, LooperState::Playing);
+    assert_eq!(status.len_frames, 128);
+    assert_eq!(left(&store, &a, 1, 0), 1.0, "nothing is rotated");
+}

@@ -24,11 +24,21 @@ pub(super) struct Take {
     /// When REC opened it.
     open_ns: u64,
     /// When its first sample was captured, set by the audio thread through
-    /// the input tap. `None` when the tap carries no capture time: the take
-    /// is then exactly what was captured.
+    /// the input tap. While it holds no time (`None`, or a cell the backend
+    /// never stamped) the take is exactly what was captured.
     first_capture: Option<Arc<AtomicU64>>,
     /// Set once the take was asked to close.
     close: Option<Close>,
+}
+
+impl Take {
+    /// The capture time of the take's first sample, once the tap stamped it.
+    fn captured_at(&self) -> Option<u64> {
+        self.first_capture
+            .as_ref()
+            .map(|s| s.load(Ordering::Relaxed))
+            .filter(|&ns| ns != 0)
+    }
 }
 
 struct Close {
@@ -132,7 +142,7 @@ impl LooperStore {
             close.then_stop = then_stop;
             return;
         }
-        let raw = if take.first_capture.is_some() {
+        let raw = if take.captured_at().is_some() {
             frames_between(take.open_ns, now, rate) as usize
         } else {
             captured
@@ -182,17 +192,13 @@ impl LooperStore {
             }
             return;
         };
-        let stamped = take.first_capture.is_some();
+        let captured_at = take.captured_at();
+        let stamped = captured_at.is_some();
         if recording && stamped && entry.slot.len_frames() < close.target {
             return;
         }
         let (target, then_stop) = (close.target, close.then_stop);
-        let first_capture = take
-            .first_capture
-            .as_ref()
-            .map(|s| s.load(Ordering::Relaxed))
-            .filter(|&ns| ns != 0)
-            .unwrap_or(take.open_ns);
+        let first_capture = captured_at.unwrap_or(take.open_ns);
         if recording {
             entry.slot.tap_record(None);
             drain_retired(&mut entry.slot);
