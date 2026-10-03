@@ -9,6 +9,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod arc_handoff;
 pub mod audio_alloc_scope;
 mod audio_frame;
 mod audio_processor;
@@ -22,6 +23,7 @@ pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
+pub mod drum_state;
 mod effective_endpoints;
 mod elastic_buffer;
 mod elastic_drift_guard;

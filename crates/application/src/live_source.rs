@@ -139,6 +139,11 @@ pub trait LiveSource {
         None
     }
 
+    /// The drums' live position. `None` means no drums stream runs here.
+    fn drums(&self) -> Option<feature_dsp::drums::DrumPosition> {
+        None
+    }
+
     /// The sample rate THIS chain's streams run at — or would be opened at,
     /// with the rig stopped.
     ///

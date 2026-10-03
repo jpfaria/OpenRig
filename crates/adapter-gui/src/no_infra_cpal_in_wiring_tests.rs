@@ -97,6 +97,7 @@ const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "live_source_block_stream.rs",
     "live_source_chain_rate.rs",
     "live_source_chain_row.rs",
+    "live_source_drums.rs",
     "live_source_gui.rs",
     "live_source_health.rs",
     "live_source_looper.rs",
@@ -167,7 +168,9 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   to the modules below. Someone has to say the type once.
 ///
 /// ── Reads it as the frontend's `LiveSource` ─────────────────────────────────
-/// * `gui_live_source.rs` — the read side of the same seam.
+/// * `gui_live_source.rs` — the read side of the same seam, split by reading
+///   into the `live_source_*.rs` modules (the drum machine's transport in
+///   `live_source_drums.rs`, like the metronome's in `live_source_metronome.rs`).
 /// * `mcp_query_resolver.rs` — builds `GuiLiveSource`, so it names the handle
 ///   type it is handed.
 ///
@@ -294,6 +297,7 @@ const OWNS_THE_RUNTIME: &[&str] = &[
     "live_source_block_stream.rs",
     "live_source_chain_rate.rs",
     "live_source_chain_row.rs",
+    "live_source_drums.rs",
     "live_source_gui.rs",
     "live_source_health.rs",
     "live_source_looper.rs",
