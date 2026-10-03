@@ -91,6 +91,14 @@ jobs:
         with:
           tool: cargo-nextest
 
+      # A failed run saves its cache, and a saved key is never overwritten. Cargo
+      # stops starting new crates at the first compile error, so a red workspace
+      # crate used to save a cache with most dependencies missing, and every run
+      # after it compiled them all again. --keep-going builds every crate the
+      # error does not block, so the saved cache always holds all dependencies.
+      - name: Build tests
+        run: timeout --signal=SIGKILL 1500 cargo test --workspace --no-run --keep-going
+
       - name: Run tests
         run: |
           timeout --signal=SIGKILL 1500 cargo nextest run --workspace --no-fail-fast

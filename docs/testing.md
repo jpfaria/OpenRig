@@ -75,6 +75,9 @@ Details and real cases: `.claude/skills/openrig-code-quality/SKILL.md`.
   Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
   both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
   pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
+  A saved cache key is never overwritten, so the Test Suite builds with
+  `--keep-going` first: a compile error in a workspace crate must not save a cache
+  that is missing dependencies, or every later run compiles them from scratch.
   Instrumentation is what makes long simulations expensive: they run several times
   slower under llvm-cov. A test that simulates minutes
   of audio or sweeps many seeds costs minutes of Coverage.
