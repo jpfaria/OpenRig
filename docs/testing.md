@@ -48,9 +48,9 @@ broken (unused import, needless `mut`, dead code).
 **Pre-PR check.** Before `gh pr create`, and before any push to a branch that
 already has an open PR, commit and run `./scripts/pre-pr-check.sh` until it is
 green. It runs fmt, the static checks and `cargo check --workspace --all-targets`
-on Linux (Docker, the Test Suite job's packages) with warnings as errors:
-`cfg(target_os = "linux")` code and tests never compile on the Mac, so a Mac
-build cannot tell. Green stamps HEAD; `.claude/hooks/pre-pr-gate.sh` refuses the
+on Linux (Docker, the Test Suite job's packages): `cfg(target_os = "linux")`
+code and tests never compile on the Mac, so a Mac build cannot tell. Any error
+fails it, and so does a warning in a file the branch changed. Green stamps HEAD; `.claude/hooks/pre-pr-gate.sh` refuses the
 PR or the push until that stamp matches the commit being sent. Tests still run
 only in CI.
 

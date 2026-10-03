@@ -7,9 +7,12 @@
 # open PR (.claude/hooks/pre-pr-gate.sh enforces it). Checks the committed HEAD:
 #   1. cargo fmt --check
 #   2. the whole-repo static checks (validate.sh, static only)
-#   3. the Linux build of every target with warnings as errors, in Docker with
-#      the Test Suite job's system packages: cfg(target_os = "linux") code and
-#      tests never compile on the Mac, so this is the only place they fail early.
+#   3. the Linux build of every target, in Docker with the Test Suite job's
+#      system packages: cfg(target_os = "linux") code and tests never compile on
+#      the Mac, so this is the only place they fail early. Any error fails, and
+#      so does any warning in a file this branch changed against the PR base
+#      (PRE_PR_BASE, else the open PR's base, else develop); warnings already on
+#      the base are its debt, not this branch's.
 #      cmake is added because the CI runner image ships it and the Debian one does not.
 # Green -> stamps HEAD in .git/pre-pr-check.ok, which the hook reads. Tests are
 # not run here; the PR runs them.
@@ -73,15 +76,27 @@ if ! docker run --rm openrig-pre-pr-linux cargo --version >/dev/null 2>&1; then
     docker run --rm openrig-pre-pr-linux cargo --version >/dev/null
 fi
 
-docker run --rm \
+base="${PRE_PR_BASE:-$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo develop)}"
+git fetch -q origin "$base"
+changed="$(git diff --name-only "$(git merge-base HEAD "origin/$base")" HEAD -- '*.rs')"
+build_log="$(mktemp)"
+trap 'rm -f "$build_log"; quit_docker' EXIT
+if ! docker run --rm \
     -v "$repo:/src" -w /src \
     -v openrig-pre-pr-cargo-registry:/usr/local/cargo/registry \
     -v openrig-pre-pr-target:/target \
     -e CARGO_TARGET_DIR=/target \
-    -e RUSTFLAGS="-D warnings" \
-    -e CARGO_TERM_COLOR=always \
     openrig-pre-pr-linux \
-    cargo check --workspace --all-targets
+    cargo check --workspace --all-targets --message-format short >"$build_log" 2>&1; then
+    grep -E 'error' "$build_log" >&2 || tail -40 "$build_log" >&2
+    exit 1
+fi
+own_warnings="$(grep -F -f <(printf '%s\n' "$changed" | sed '/^$/d; s/$/:/') "$build_log" | grep 'warning' || true)"
+if [ -n "$own_warnings" ]; then
+    echo "warnings in files this branch changed:" >&2
+    echo "$own_warnings" >&2
+    exit 1
+fi
 
 echo "$head" > "$stamp"
 echo "pre-pr check green on $(git rev-parse --short HEAD)"

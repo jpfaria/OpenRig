@@ -39,7 +39,7 @@ fi
 stamp="$(cat "$(git rev-parse --git-dir)/pre-pr-check.ok" 2>/dev/null || true)"
 [ "$stamp" = "$(git rev-parse HEAD)" ] && exit 0
 
-jq -n --arg r "Blocked $gate: scripts/pre-pr-check.sh has not passed on HEAD $(git rev-parse --short HEAD). Commit, run ./scripts/pre-pr-check.sh until it is green, then retry. It runs what the PR's CI would fail on (fmt, static checks, the Linux build with warnings as errors)." '{
+jq -n --arg r "Blocked $gate: scripts/pre-pr-check.sh has not passed on HEAD $(git rev-parse --short HEAD). Commit, run ./scripts/pre-pr-check.sh until it is green, then retry. It runs what the PR's CI would fail on (fmt, static checks, the Linux build)." '{
   hookSpecificOutput: {
     hookEventName: "PreToolUse",
     permissionDecision: "deny",
