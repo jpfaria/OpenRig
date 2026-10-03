@@ -11,7 +11,10 @@
 # `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or the push unless HEAD
 # carries that stamp. It runs on macOS: a failure that only exists on Linux
 # (a `cfg(target_os = "linux")` path, the JACK backend) still shows up in CI
-# only. PRE_PR_GATE_SUITE replaces the checks (tests only).
+# only. With cargo-nextest installed the tests run through it (every test
+# binary in parallel) plus `cargo test --doc`, which nextest does not run;
+# without it, plain `cargo test`. PRE_PR_GATE_SUITE replaces the checks (tests
+# only).
 set -euo pipefail
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -28,7 +31,12 @@ if [ -n "${PRE_PR_GATE_SUITE:-}" ]; then
 else
   cargo fmt --all -- --check
   VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
-  cargo test --workspace --no-fail-fast
+  if cargo nextest --version >/dev/null 2>&1; then
+    cargo nextest run --workspace --no-fail-fast
+    cargo test --workspace --doc
+  else
+    cargo test --workspace --no-fail-fast
+  fi
 fi
 
 if [ "$(git rev-parse HEAD)" != "$head" ]; then

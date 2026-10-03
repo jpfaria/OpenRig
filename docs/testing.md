@@ -224,8 +224,11 @@ tests of your change (`cargo test -p <crate> <filter>`).
 
 Before `gh pr create`, and before every push to a branch whose PR is open, run
 `./scripts/pre-pr-gate.sh` on the committed HEAD. It runs what CI runs (fmt,
-the whole-repo static checks, `cargo test --workspace`) and stamps the commit it
-passed on; the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
+the whole-repo static checks, the workspace tests) and stamps the commit it
+passed on. Tests run through `cargo nextest run --workspace` (every test binary
+in parallel) plus `cargo test --workspace --doc`, in CI and in the gate, which
+falls back to `cargo test` when nextest is not installed
+(`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
 the push unless HEAD carries the stamp, so commit first and push in a command of
 its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
 failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK

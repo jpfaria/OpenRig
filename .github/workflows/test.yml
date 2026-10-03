@@ -84,8 +84,17 @@ jobs:
       # when it is absent; they never hard-fail CI. See issue #793.
       # A hard timeout keeps a hung test from wedging the runner for hours
       # (see issue #693 FIFO tests, fixed to never block the test thread).
+      # nextest runs every test binary in parallel; it skips doctests, so
+      # `cargo test --doc` runs them after. scripts/pre-pr-gate.sh runs the same.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Run tests
-        run: timeout --signal=SIGKILL 1500 cargo test --workspace
+        run: |
+          timeout --signal=SIGKILL 1500 cargo nextest run --workspace --no-fail-fast
+          timeout --signal=SIGKILL 600 cargo test --workspace --doc
 
   # #974: after develop's own tests pass, move the vendored NeuralAmpModelerCore
   # to the newest upstream release. The new version is tested here, in its own
