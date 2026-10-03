@@ -198,6 +198,8 @@ mod memory_wiring;
 #[cfg(any(target_os = "macos", test))]
 mod memory_wiring_pass;
 #[cfg(any(target_os = "macos", test))]
+mod memory_wiring_release;
+#[cfg(any(target_os = "macos", test))]
 mod memory_wiring_report;
 mod metronome_stream;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
