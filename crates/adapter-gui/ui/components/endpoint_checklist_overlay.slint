@@ -77,7 +77,7 @@ export component EndpointChecklistOverlay inherits Rectangle {
                     width: parent.width;
                     channels: ChainGraphOverlayState.checklist-items;
                     empty-hint: @tr("hint-endpoints-empty");
-                    total-caption: @tr("label-endpoints-total", ChainGraphOverlayState.checklist-items.length);
+                    show-total: false;
                     toggled(row, on) => {
                         ChainGraphOverlayState.checklist-toggled(ChainGraphOverlayState.checklist-chain-index, ChainGraphOverlayState.checklist-node, row, on);
                     }

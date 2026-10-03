@@ -207,10 +207,6 @@ msgstr "关闭"
 msgid "hint-endpoints-empty"
 msgstr "此链的 E/S 没有此节点的端点。"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} 个端点"
-
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
 msgid "graph-node-split"

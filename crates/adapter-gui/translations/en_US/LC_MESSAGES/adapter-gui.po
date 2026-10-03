@@ -210,10 +210,6 @@ msgstr "Close"
 msgid "hint-endpoints-empty"
 msgstr "This chain's E/S has no endpoints for this node."
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} endpoints"
-
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
 msgid "graph-node-split"

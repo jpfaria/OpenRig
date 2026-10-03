@@ -207,10 +207,6 @@ msgstr "닫기"
 msgid "hint-endpoints-empty"
 msgstr "이 체인의 E/S에는 이 노드용 엔드포인트가 없습니다."
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "엔드포인트 {}개"
-
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
 msgid "graph-node-split"

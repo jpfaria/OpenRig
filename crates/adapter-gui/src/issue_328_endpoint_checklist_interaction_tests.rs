@@ -147,7 +147,9 @@ fn the_card_shows_only_the_title_and_the_rows() {
     assert!(
         !labels.iter().any(|l| l.contains("hint-endpoint-checklist")
             || l.starts_with("Unchecked endpoints")
-            || l.starts_with("Endpoints desmarcados")),
-        "no explanatory text under the title: {labels:?}"
+            || l.starts_with("Endpoints desmarcados")
+            || l.ends_with(" endpoints")
+            || l.ends_with(" endpoint")),
+        "no explanatory text and no endpoint count: {labels:?}"
     );
 }
