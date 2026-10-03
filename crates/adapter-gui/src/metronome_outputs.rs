@@ -13,6 +13,10 @@ pub struct MetronomeOutput {
     pub label: String,
     pub device_id: String,
     pub channels: Vec<usize>,
+    /// Keys of the other endpoints that route to these same device channels.
+    /// They are not listed again, but a key saved for one of them still
+    /// resolves here.
+    pub aliases: Vec<String>,
 }
 
 /// The key that identifies an output endpoint. The unit separator keeps it
@@ -21,19 +25,31 @@ pub fn endpoint_key(binding_id: &str, endpoint_name: &str) -> String {
     format!("{binding_id}\u{1f}{endpoint_name}")
 }
 
-/// Every output endpoint the project's bindings expose, in registry order.
+/// Every physical output the project's bindings expose, in registry order.
+/// Endpoints of different bindings that route to the same device channels are
+/// one output: the first one names it, the others become its aliases.
 pub fn output_endpoints(bindings: &[infra_filesystem::IoBinding]) -> Vec<MetronomeOutput> {
-    bindings
-        .iter()
-        .flat_map(|binding| {
-            binding.outputs.iter().map(move |endpoint| MetronomeOutput {
-                key: endpoint_key(&binding.id, &endpoint.name),
-                label: format!("{} · {}", binding.name, endpoint.name),
-                device_id: endpoint.device_id.0.clone(),
-                channels: endpoint.channels.clone(),
-            })
-        })
-        .collect()
+    let mut outputs: Vec<MetronomeOutput> = Vec::new();
+    for binding in bindings {
+        for endpoint in &binding.outputs {
+            let key = endpoint_key(&binding.id, &endpoint.name);
+            let device_id = endpoint.device_id.0.as_str();
+            match outputs
+                .iter_mut()
+                .find(|o| o.device_id == device_id && o.channels == endpoint.channels)
+            {
+                Some(existing) => existing.aliases.push(key),
+                None => outputs.push(MetronomeOutput {
+                    key,
+                    label: format!("{} · {}", binding.name, endpoint.name),
+                    device_id: device_id.to_string(),
+                    channels: endpoint.channels.clone(),
+                    aliases: Vec::new(),
+                }),
+            }
+        }
+    }
+    outputs
 }
 
 /// Resolve the saved endpoint key to a concrete output: the saved one while it
@@ -45,6 +61,11 @@ pub fn resolve_output_endpoint(
     endpoints: &[MetronomeOutput],
 ) -> Option<MetronomeOutput> {
     saved
-        .and_then(|key| endpoints.iter().find(|o| o.key == key).cloned())
+        .and_then(|key| {
+            endpoints
+                .iter()
+                .find(|o| o.key == key || o.aliases.iter().any(|a| a == key))
+                .cloned()
+        })
         .or_else(|| endpoints.first().cloned())
 }

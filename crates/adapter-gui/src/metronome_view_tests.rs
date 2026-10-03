@@ -176,3 +176,73 @@ fn resolve_output_endpoint_is_none_without_any_output() {
     assert!(resolve_output_endpoint(Some("main::x"), &[]).is_none());
     assert!(resolve_output_endpoint(None, &[]).is_none());
 }
+
+#[test]
+fn output_endpoints_lists_each_physical_output_once() {
+    // Several bindings routing to the same device channels are one output.
+    let bindings = vec![
+        binding(
+            "g1",
+            "Guitar 1",
+            vec![
+                endpoint("MAIN", "dev:hd8", vec![0, 1]),
+                endpoint("FRFR", "dev:hd8", vec![24, 25]),
+            ],
+        ),
+        binding(
+            "g2",
+            "Guitar 2",
+            vec![
+                endpoint("MAIN", "dev:hd8", vec![0, 1]),
+                endpoint("FRFR", "dev:hd8", vec![24, 25]),
+            ],
+        ),
+        binding(
+            "dflt",
+            "Default",
+            vec![endpoint("Out1", "dev:hd8", vec![0, 1])],
+        ),
+    ];
+    let outs = output_endpoints(&bindings);
+    assert_eq!(outs.len(), 2, "two physical outputs, not five endpoints");
+    assert_eq!(
+        outs[0].label, "Guitar 1 · MAIN",
+        "the first binding names it"
+    );
+    assert_eq!(outs[0].channels, vec![0, 1]);
+    assert_eq!(outs[1].channels, vec![24, 25]);
+}
+
+#[test]
+fn output_endpoints_keeps_the_same_channels_on_another_device() {
+    let bindings = vec![
+        binding("a", "A", vec![endpoint("Out", "dev:a", vec![0, 1])]),
+        binding("b", "B", vec![endpoint("Out", "dev:b", vec![0, 1])]),
+    ];
+    assert_eq!(output_endpoints(&bindings).len(), 2);
+}
+
+#[test]
+fn a_saved_key_of_a_merged_duplicate_still_resolves_to_its_output() {
+    // A key saved before the merge points at an endpoint the list no longer
+    // shows; it must land on the same channels, never on the first output.
+    let bindings = vec![
+        binding(
+            "g1",
+            "Guitar 1",
+            vec![endpoint("SYN", "dev:hd8", vec![4, 5])],
+        ),
+        binding(
+            "g2",
+            "Guitar 2",
+            vec![
+                endpoint("MAIN", "dev:hd8", vec![0, 1]),
+                endpoint("SYN", "dev:hd8", vec![4, 5]),
+            ],
+        ),
+    ];
+    let outs = output_endpoints(&bindings);
+    let saved = crate::metronome_outputs::endpoint_key("g2", "SYN");
+    let picked = resolve_output_endpoint(Some(&saved), &outs).expect("resolves");
+    assert_eq!(picked.channels, vec![4, 5]);
+}

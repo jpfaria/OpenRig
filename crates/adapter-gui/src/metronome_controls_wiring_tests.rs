@@ -6,6 +6,7 @@ fn output(key: &str, label: &str) -> MetronomeOutput {
         label: label.into(),
         device_id: "dev:x".into(),
         channels: vec![0, 1],
+        aliases: vec![],
     }
 }
 
