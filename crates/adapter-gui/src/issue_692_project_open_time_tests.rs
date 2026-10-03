@@ -147,6 +147,7 @@ fn write_fixture_rig(dir: &Path) -> PathBuf {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         );
     }

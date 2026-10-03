@@ -110,7 +110,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             volume: preset.scene_volume(input.active_scene),
             io_binding_ids: input.io_binding_ids.clone(),
             blocks,
-            di_output: None,
+            di_output: input.di_output.clone(),
             loopers: input.loopers.clone(),
             // #328: the input's checklists ride on the chain its graph edits.
             disabled_endpoints,

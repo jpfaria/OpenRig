@@ -104,6 +104,10 @@ pub struct RigInput {
     /// as `loopers` — the projected chain is rebuilt from the rig.
     #[serde(default, skip_serializing_if = "crate::chain::ChainMix::is_unity")]
     pub mix: crate::chain::ChainMix,
+    /// #324: the output this input's DI plays to, persisted here for the
+    /// same reason as `loopers` — the projected chain is rebuilt from the rig.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub di_output: Option<crate::endpoint_ref::DiOutputRef>,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

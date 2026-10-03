@@ -43,6 +43,7 @@ pub(super) fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     }
 }
 

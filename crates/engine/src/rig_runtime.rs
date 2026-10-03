@@ -257,3 +257,7 @@ mod chain_order_tests;
 #[cfg(test)]
 #[path = "rig_instrument_roundtrip_tests.rs"]
 mod instrument_roundtrip_tests;
+
+#[cfg(test)]
+#[path = "rig_di_output_roundtrip_tests.rs"]
+mod di_output_roundtrip_tests;
