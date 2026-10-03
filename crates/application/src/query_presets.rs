@@ -42,17 +42,12 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
         let label = preset
             .and_then(|p| p.name.clone())
             .unwrap_or_else(|| preset_key.clone());
-        // The preset's own tempo, `null` when it follows the global one.
-        let bpm = preset
-            .and_then(|p| p.bpm)
-            .map_or_else(|| "null".to_string(), |bpm| bpm.to_string());
         let _ = write!(
             slots,
-            "{{\"index\":{},\"name\":{},\"key\":{},\"bpm\":{}}}",
+            "{{\"index\":{},\"name\":{},\"key\":{}}}",
             idx,
             json_string(&label),
-            json_string(preset_key),
-            bpm
+            json_string(preset_key)
         );
     }
     slots.push(']');

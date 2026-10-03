@@ -91,6 +91,7 @@ fn a_stale_row_resolves_to_no_chain() {
 /// A rig whose only input is playing the preset named here.
 fn rig_playing(preset_id: &str) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([(
             "guitar".to_string(),
@@ -120,7 +121,6 @@ fn rig_playing(preset_id: &str) -> RigProject {
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),
                 volume: 100.0,
-                bpm: None,
             },
         )]),
         midi: None,

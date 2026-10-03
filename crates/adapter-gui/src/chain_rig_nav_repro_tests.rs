@@ -39,6 +39,7 @@ fn rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: Some("p".into()),
         inputs,
         outputs: BTreeMap::new(),

@@ -26,7 +26,6 @@ fn every_drums_control_dispatches_its_command() {
     bridge.invoke_toggle_enabled(true);
     bridge.invoke_toggle_enabled(false);
     bridge.invoke_fill();
-    bridge.invoke_set_bpm(132.0);
     bridge.invoke_set_volume(0.25);
     bridge.invoke_pick_kit(SharedString::from("black-pearl"));
     bridge.invoke_pick_groove(SharedString::from("rock-02"));
@@ -37,7 +36,6 @@ fn every_drums_control_dispatches_its_command() {
             format!("{:?}", DrumsCommand::PlayDrums),
             format!("{:?}", DrumsCommand::SetDrumsEnabled { enabled: false }),
             format!("{:?}", DrumsCommand::TriggerDrumFill),
-            format!("{:?}", DrumsCommand::SetDrumsBpm { bpm: 132.0 }),
             format!("{:?}", DrumsCommand::SetDrumsVolume { volume: 0.25 }),
             format!(
                 "{:?}",

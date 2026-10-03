@@ -23,6 +23,7 @@ impl LocalDispatcher {
     /// which delegates here.
     pub(crate) fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
         *self.rig.borrow_mut() = Some(rig);
+        self.adopt_project_tempo();
     }
 
     /// #555: configure the preset library directory. Called by the

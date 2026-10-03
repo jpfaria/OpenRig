@@ -118,7 +118,6 @@ fn fixture_preset(id: &str) -> RigPreset {
         scene_params,
         scenes,
         volume: 100.0,
-        bpm: None,
     }
 }
 
@@ -162,6 +161,7 @@ fn write_fixture_rig(dir: &Path) -> PathBuf {
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: Some("issue-692 fixture".to_string()),
         inputs,
         outputs,

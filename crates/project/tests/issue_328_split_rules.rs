@@ -92,6 +92,7 @@ fn split(id: &str, end: SplitEnd, a: Vec<AudioBlock>) -> AudioBlock {
 
 fn rig(blocks: Vec<AudioBlock>) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([(
             "g".to_string(),

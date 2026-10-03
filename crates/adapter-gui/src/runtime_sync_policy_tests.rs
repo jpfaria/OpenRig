@@ -76,8 +76,4 @@ fn tempo_events_do_not_rebuild() {
     assert!(!event_requires_runtime_sync(&Event::ChainTempoRetimed {
         chain: chain()
     }));
-    assert!(!event_requires_runtime_sync(&Event::RigPresetBpmChanged {
-        chain: chain(),
-        bpm: Some(90.0),
-    }));
 }

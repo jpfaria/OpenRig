@@ -35,8 +35,6 @@ pub(crate) struct RigNavRow {
     pub(crate) scene: usize,
     /// Scenes the active preset exposes (≥ 1; grows on demand).
     pub(crate) scene_count: usize,
-    /// The active preset's own tempo, `None` when it follows the global.
-    pub(crate) preset_bpm: Option<f32>,
 }
 
 /// Translate a preset ComboBox **positional** index into the rig
@@ -96,7 +94,6 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 active_index,
                 scene: input.active_scene,
                 scene_count,
-                preset_bpm: active.and_then(|p| p.bpm),
             }
         })
         .collect()

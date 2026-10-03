@@ -67,6 +67,7 @@ fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

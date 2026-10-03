@@ -273,17 +273,6 @@ pub enum Event {
     /// The backing-track player changed. It is its own stream, never a chain.
     Player(crate::player_event::PlayerEvent),
 
-    /// The "use global tempo" lock changed.
-    GlobalTempoLockChanged {
-        enabled: bool,
-    },
-
-    /// The tempo stored on the chain's active rig preset changed.
-    RigPresetBpmChanged {
-        chain: ChainId,
-        bpm: Option<f32>,
-    },
-
     /// Tempo-synced params of this chain were rewritten for a new BPM.
     /// The dispatcher already synced the runtime; a frontend only refreshes.
     ChainTempoRetimed {

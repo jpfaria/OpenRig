@@ -35,7 +35,7 @@ fn with_no_project_there_is_no_drum_machine_to_read() {
 fn with_no_project_a_command_is_dropped() {
     assert!(!dispatch_drums(
         &closed(),
-        DrumsCommand::SetDrumsBpm { bpm: 120.0 }
+        DrumsCommand::SetDrumsVolume { volume: 0.25 }
     ));
 }
 
@@ -44,18 +44,18 @@ fn an_accepted_command_reaches_the_dispatchers_state() {
     let session = open();
     assert!(dispatch_drums(
         &session,
-        DrumsCommand::SetDrumsBpm { bpm: 133.0 }
+        DrumsCommand::SetDrumsVolume { volume: 0.25 }
     ));
-    assert_eq!(drums_snapshot(&session).unwrap().bpm, 133.0);
+    assert_eq!(drums_snapshot(&session).unwrap().volume, 0.25);
 }
 
 #[test]
 fn the_panel_view_draws_the_dispatchers_state() {
     let session = open();
-    dispatch_drums(&session, DrumsCommand::SetDrumsBpm { bpm: 133.0 });
+    dispatch_drums(&session, DrumsCommand::SetDrumsVolume { volume: 0.25 });
     let (snapshot, view) = drums_panel_view(&session).unwrap();
-    assert_eq!(snapshot.bpm, 133.0);
-    assert_eq!(view.bpm, 133.0);
+    assert_eq!(snapshot.volume, 0.25);
+    assert_eq!(view.volume, 0.25);
 }
 
 #[test]

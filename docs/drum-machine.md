@@ -61,15 +61,16 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
 
 - **Commands** (`DrumsCommand`, so the GUI, MCP and MIDI share them):
   `SetDrumsEnabled`, `PlayDrums`, `StopDrums`, `ToggleDrums`,
-  `TriggerDrumFill`, `SetDrumsBpm`, `SetDrumsVolume`, `SelectDrumKit`,
+  `TriggerDrumFill`, `SetDrumsVolume`, `SelectDrumKit`,
   `SelectDrumGroove`, `SetDrumsOutput`. Play opens the output when it is
   closed; Stop only stops the transport; `SetDrumsEnabled { false }` closes
   the output. A fill while stopped is an error.
 - **Read**: `QueryKind::DrumsState`, served on MCP as `openrig://drums`
   (settings, kit and groove lists, live bar and beat).
 - **MIDI** slots: `toggle_drums`, `drum_fill`.
-- **Persistence**: BPM, volume, kit, groove and output go in the machine's
-  `config.yaml` under `drums:`.
+- **Persistence**: volume, kit, groove and output go in the machine's
+  `config.yaml` under `drums:`. The tempo is the project's (`bpm` in
+  `project.yaml`), the same one the metronome plays.
 - **Output**: the drums open their own cpal stream on the chosen output
   endpoint (the first the drums offer when none is saved), like the metronome.
   Only Play may create the audio runtime, so the drums sound with no chain
@@ -89,7 +90,7 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
 - **What**: POWER, an LCD with a lamp per beat of the groove's bar, the tempo,
   the bar and FILL while a fill plays; KIT and GROOVE pickers (grooves under a
   header per genre, in library order); the FILL footswitch (only while
-  playing); BPM (the engine's range) and VOLUME knobs; OUTPUT.
+  playing); the VOLUME knob; OUTPUT. The tempo is shown, not set here.
   Every picker list opens with a search box that narrows it as you type
   (`drums_picker_filter.rs`; a genre header stays while a groove under it
   matches, and typing the genre keeps the whole genre).

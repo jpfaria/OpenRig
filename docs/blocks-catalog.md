@@ -88,8 +88,8 @@ Every native delay has a `time_sync` select and every native modulation with a
 select: `off`, `1/1`, `1/2`, `1/2.`, `1/2T`, `1/4`, `1/4.`, `1/4T`, `1/8`,
 `1/8.`, `1/8T`, `1/16`, `1/16.`, `1/16T` (`.` dotted, `T` triplet). Default `off`.
 
-- With a note value picked, `time_ms` / `rate_hz` follow the **global tempo** (the
-  metronome's BPM): a delay repeats once per note value, a modulation completes one
+- With a note value picked, `time_ms` / `rate_hz` follow the **project tempo** (the
+  top bar's BPM, also the metronome's): a delay repeats once per note value, a modulation completes one
   cycle per note value. The value is clamped to the model's own range (a whole note
   at 30 BPM cannot exceed a delay's 2000 ms).
 - The dispatcher writes the derived number into the block on the control thread

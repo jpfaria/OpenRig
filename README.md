@@ -236,7 +236,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Global mixer — one fader and mute per input/output endpoint, over GUI, MCP and MIDI control surfaces ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [x] Built-in drum machine — sampled kits, grooves grouped by genre, fills, tempo and its own output, from the top bar or the Compact Chain View ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
-- [x] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [x] One tempo per project in the top bar, with tap ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Built-in drum machine — play-along drums ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))

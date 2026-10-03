@@ -202,21 +202,6 @@ export component DrumsPanel inherits Rectangle {
             }
 
             ControlCell {
-                caption: @tr("label-bpm");
-                value: Math.round(DrumsBridge.bpm);
-                PanelKnob {
-                    x: (parent.width - 64px) / 2; y: 20px;
-                    width: 64px; height: 64px;
-                    value: DrumsBridge.bpm;
-                    min-val: DrumsBridge.bpm-min;
-                    max-val: DrumsBridge.bpm-max;
-                    step: 1.0;
-                    path: "drums.bpm";
-                    changed(p, v) => { DrumsBridge.set-bpm(v); }
-                }
-            }
-
-            ControlCell {
                 caption: @tr("label-click-volume");
                 value: Math.round(DrumsBridge.volume * 100) + "%";
                 PanelKnob {

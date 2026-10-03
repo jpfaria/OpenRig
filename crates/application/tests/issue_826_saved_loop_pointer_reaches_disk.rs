@@ -72,6 +72,7 @@ fn rig_with_a_looper() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

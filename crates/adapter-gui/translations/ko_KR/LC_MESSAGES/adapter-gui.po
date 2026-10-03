@@ -1233,41 +1233,13 @@ msgstr "반주 트랙"
 msgid "label-backing-tracks-path"
 msgstr "반주 트랙"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
-msgid "Tempo"
-msgstr "템포"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Slower"
 msgstr "느리게"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Faster"
 msgstr "빠르게"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
-msgid "Preset tempo"
-msgstr "프리셋 템포"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
-msgid "{} BPM"
-msgstr "{} BPM"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Not set"
-msgstr "설정 안 됨"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
-msgid "Clear"
-msgstr "지우기"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save to preset"
-msgstr "프리셋에 저장"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
-msgid "Use global tempo"
-msgstr "글로벌 템포 사용"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"
@@ -1314,7 +1286,3 @@ msgstr "검색"
 
 msgid "status-drums-no-match"
 msgstr "일치하는 항목이 없습니다"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint
-msgid "Global tempo"
-msgstr "글로벌 템포"

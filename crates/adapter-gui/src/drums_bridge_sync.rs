@@ -25,8 +25,6 @@ pub(crate) fn set_drums_view(bridge: &DrumsBridge, view: &DrumsView) {
     bridge.set_enabled(view.enabled);
     bridge.set_playing(view.playing);
     bridge.set_bpm(view.bpm);
-    bridge.set_bpm_min(view.bpm_min);
-    bridge.set_bpm_max(view.bpm_max);
     bridge.set_volume(view.volume);
     bridge.set_beats_per_bar(view.beats_per_bar);
     let query = bridge.get_query();

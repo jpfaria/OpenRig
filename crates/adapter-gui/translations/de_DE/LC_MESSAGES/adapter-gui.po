@@ -1242,41 +1242,13 @@ msgstr "Backing-Tracks"
 msgid "label-backing-tracks-path"
 msgstr "Backing-Tracks"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
-msgid "Tempo"
-msgstr "Tempo"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Slower"
 msgstr "Langsamer"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Faster"
 msgstr "Schneller"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
-msgid "Preset tempo"
-msgstr "Preset-Tempo"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
-msgid "{} BPM"
-msgstr "{} BPM"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Not set"
-msgstr "Nicht gesetzt"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
-msgid "Clear"
-msgstr "Löschen"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save to preset"
-msgstr "Im Preset speichern"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
-msgid "Use global tempo"
-msgstr "Globales Tempo verwenden"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"
@@ -1323,7 +1295,3 @@ msgstr "Suchen"
 
 msgid "status-drums-no-match"
 msgstr "Keine Treffer"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint
-msgid "Global tempo"
-msgstr "Globales Tempo"

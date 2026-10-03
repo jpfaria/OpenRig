@@ -66,6 +66,7 @@ fn rig(active_scene: usize) -> RigProject {
         ),
     ]);
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([(
             "g".to_string(),
