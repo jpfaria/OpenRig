@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::asset_paths::AssetPaths;
+use crate::drums_config::DrumsConfig;
 use crate::gui_settings::GuiAudioDeviceSettings;
 use crate::io_bindings::IoBinding;
 use crate::metronome_config::MetronomeConfig;
@@ -76,6 +77,10 @@ pub struct AppConfig {
     /// Per-machine backing-track player settings (ADR 0003).
     #[serde(default)]
     pub player: PlayerConfig,
+    /// Per-machine drum machine settings (ADR 0003). The transport is absent
+    /// on purpose — see [`DrumsConfig`].
+    #[serde(default)]
+    pub drums: DrumsConfig,
 }
 
 fn default_true() -> bool {

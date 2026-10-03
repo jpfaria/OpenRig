@@ -106,6 +106,9 @@ pub enum QueryKind {
     /// [`crate::query_player::player_state_json`]; MCP serves it as
     /// `openrig://player`.
     PlayerState,
+    /// The drum machine: its settings, the installed kits and grooves, and
+    /// the live bar and beat. Serialized by [`crate::query_drums`].
+    DrumsState,
     /// #923: what each output ROUTE's device stream pulled — callbacks
     /// served, empty pops, and the loudest sample since the previous read,
     /// per (chain, runtime group, route). The per-chain meters say what a

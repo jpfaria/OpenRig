@@ -7,7 +7,7 @@ import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, MetronomePanel, MetronomeBridge, MixerPanel, MixerBridge, PlayerPanel, PlayerBridge } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, MetronomePanel, MetronomeBridge, MixerPanel, MixerBridge, PlayerPanel, PlayerBridge, DrumsPanel, DrumsBridge } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component DesktopMain inherits Rectangle {
@@ -246,6 +246,13 @@ export component DesktopMain inherits Rectangle {
 
         // #1007: fullscreen inline mixer (windowed mode uses MixerWindow).
         if root.fullscreen && MixerBridge.show : MixerPanel {
+            width: parent.width;
+            height: parent.height;
+            show-close-button: true;
+        }
+
+        // Inline drum machine; windowed desktop uses DrumsWindow.
+        if root.fullscreen && DrumsBridge.show : DrumsPanel {
             width: parent.width;
             height: parent.height;
             show-close-button: true;

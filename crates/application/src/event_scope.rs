@@ -90,6 +90,11 @@ impl Event {
             | Event::PlayerSeeked { .. }
             | Event::PlayerSettingsChanged { .. }
             | Event::PlayerOutputChanged { .. }
+            | Event::DrumsTransportChanged { .. }
+            | Event::DrumFillTriggered
+            | Event::DrumsSettingsChanged { .. }
+            | Event::DrumsContentChanged { .. }
+            | Event::DrumsOutputChanged { .. }
             // #1007: mixer strips are system-level endpoints, never a chain.
             | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }

@@ -1,6 +1,6 @@
 //! Responsibility: wires the top-bar features to the windows they open.
 //!
-//! Tuner, spectrum analyzer, metronome, backing-track player, mixer and the per-chain latency probe. Each
+//! Tuner, spectrum analyzer, metronome, drums, backing-track player, mixer and the per-chain latency probe. Each
 //! is powered through the analyzer sessions / live sources — the windows only
 //! render, so a MIDI footswitch or an MCP client starts the very same feature
 //! the button does (#127).
@@ -12,7 +12,9 @@ use slint::{Timer, VecModel};
 
 use crate::latency_probe;
 use crate::state::ProjectSession;
-use crate::{AppWindow, MetronomeWindow, MixerWindow, PlayerWindow, SpectrumWindow, TunerWindow};
+use crate::{
+    AppWindow, DrumsWindow, MetronomeWindow, MixerWindow, PlayerWindow, SpectrumWindow, TunerWindow,
+};
 
 pub(crate) struct TopBarWindows<'a> {
     pub window: &'a AppWindow,
@@ -21,6 +23,9 @@ pub(crate) struct TopBarWindows<'a> {
     pub metronome_window: &'a MetronomeWindow,
     pub mixer_window: &'a MixerWindow,
     pub player_window: &'a PlayerWindow,
+    pub drums_window: &'a DrumsWindow,
+    /// The drums' read seam the beat lamps draw from.
+    pub drums_live: Rc<dyn application::live_source::LiveSource>,
 }
 
 pub(crate) fn wire(
@@ -67,4 +72,10 @@ pub(crate) fn wire(
         player_live,
     );
     crate::mixer_wiring::wire_mixer(windows.window, windows.mixer_window, project_session);
+    crate::drums_wiring::wire_drums(
+        windows.window,
+        windows.drums_window,
+        project_session,
+        windows.drums_live,
+    );
 }

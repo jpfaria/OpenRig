@@ -30,6 +30,7 @@ use crate::command::{
 };
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
@@ -233,6 +234,7 @@ impl CommandDispatcher for LocalDispatcher {
 
             Command::Metronome(_) => self.handle_metronome(cmd),
             Command::Player(_) => self.handle_player(cmd),
+            Command::Drums(_) => self.handle_drums(cmd),
 
             // #1007: a chain's own faders live in the project, not the
             // system mixer state.
@@ -471,6 +473,18 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn player_library(&self) -> PlayerLibraryDirs {
         self.player_state().borrow().library()
+    }
+
+    fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        LocalDispatcher::attach_drums_state(self, state)
+    }
+
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        LocalDispatcher::drums_snapshot(self)
+    }
+
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        LocalDispatcher::drums_library(self)
     }
 
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {

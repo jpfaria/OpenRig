@@ -170,6 +170,17 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetPlayerSpeed",
     "SetPlayerVolume",
     "StopPlayer",
+    // The drum machine.
+    "PlayDrums",
+    "SelectDrumGroove",
+    "SelectDrumKit",
+    "SetDrumsBpm",
+    "SetDrumsEnabled",
+    "SetDrumsOutput",
+    "SetDrumsVolume",
+    "StopDrums",
+    "ToggleDrums",
+    "TriggerDrumFill",
 ];
 
 #[test]

@@ -22,6 +22,7 @@ use crate::bridge::EventSink;
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::{LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
@@ -162,6 +163,18 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn player_library(&self) -> PlayerLibraryDirs {
         self.inner.player_library()
+    }
+
+    fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        self.inner.attach_drums_state(state)
+    }
+
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        self.inner.drums_snapshot()
+    }
+
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        self.inner.drums_library()
     }
 
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {

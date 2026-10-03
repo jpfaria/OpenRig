@@ -39,11 +39,12 @@ use project::chain::Chain;
 
 use crate::active_runtime::DspWorkerHandle;
 use crate::cpu_affinity::{detect_big_cores, pin_thread_to_cpus};
-use crate::jack_client_open::{open_jack_client, resolve_jack_server};
+use crate::jack_client_open::open_jack_client;
 use crate::jack_handlers::{
     JackProcessHandler, JackRouteOutput, JackShutdownHandler, SpscRingBuffer,
 };
 use crate::jack_route_ports::route_ports;
+use crate::jack_server_resolve::resolve_jack_server;
 use crate::resolved::MAX_JACK_FRAMES;
 use crate::usb_proc::detect_all_usb_audio_cards;
 
@@ -63,6 +64,7 @@ pub(crate) fn build_jack_direct_chain(
     // Determine which named JACK server this chain should connect to.
     let cards = detect_all_usb_audio_cards();
     let server_name = resolve_jack_server(
+        &cards,
         resolved_inputs
             .iter()
             .map(|entry| entry.device_id.0.as_str()),

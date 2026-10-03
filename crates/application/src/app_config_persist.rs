@@ -14,7 +14,7 @@
 use std::path::PathBuf;
 
 use infra_filesystem::{
-    AppConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig, PlayerConfig,
+    AppConfig, DrumsConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig, PlayerConfig,
 };
 
 use crate::mixer_persist_coalesce::{pending_strips, Settle};
@@ -83,6 +83,18 @@ pub fn persist_player(
             mutate(&mut config.player)
         }) {
             log::error!("persist player failed: {e}");
+        }
+    });
+}
+
+/// Read-modify-write the drums section of `config.yaml` on the persist worker.
+/// Only callers holding an attached config path reach this.
+pub fn persist_drums(config_path: PathBuf, mutate: impl FnOnce(&mut DrumsConfig) + Send + 'static) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.drums)
+        }) {
+            log::error!("persist drums failed: {e}");
         }
     });
 }

@@ -30,5 +30,6 @@ impl ProjectRuntimeController {
             || !self.di_streams.borrow().is_empty()
             || self.metronome_active()
             || self.player_active()
+            || self.drums_active()
     }
 }

@@ -1,5 +1,6 @@
 //! Responsibility: routes the filesystem crate's public surface.
 
+pub mod drums_config;
 pub mod io_bindings;
 pub mod metronome_config;
 pub mod midi_device;
@@ -8,6 +9,7 @@ pub mod midi_paths;
 pub mod midi_profile;
 pub mod mixer_config;
 pub mod player_config;
+pub use drums_config::DrumsConfig;
 pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
 pub use metronome_config::MetronomeConfig;
 pub use midi_device::{MidiDeviceSelection, MidiPortKey};

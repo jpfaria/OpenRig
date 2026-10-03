@@ -72,6 +72,7 @@ fn all_kinds() -> Vec<QueryKind> {
         },
         QueryKind::MetronomeState,
         QueryKind::PlayerState,
+        QueryKind::DrumsState,
         QueryKind::OutputRoutes,
         QueryKind::MixerState,
         QueryKind::ChainMixer { chain },

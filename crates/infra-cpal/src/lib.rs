@@ -52,6 +52,9 @@ mod jack_handlers;
 #[cfg(any(test, all(target_os = "linux", feature = "jack")))]
 mod jack_route_ports;
 
+#[cfg(any(test, all(target_os = "linux", feature = "jack")))]
+mod drums_jack_ports;
+
 mod active_runtime;
 
 mod aux_output;
@@ -83,7 +86,11 @@ mod issue_967_insert_toggle_streams_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+mod drums_jack_stream;
+#[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_server_resolve;
 
 mod control_worker;
 pub use control_worker::ControlWorker;
@@ -188,6 +195,8 @@ mod input_evidence;
 pub use input_evidence::{
     CycleRecord, InputEvidenceSnapshot, InputStreamIdentity, SteppedInputEvidence, StreamEvidence,
 };
+mod drums_callback;
+mod drums_stream;
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 mod input_evidence_registry;
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]

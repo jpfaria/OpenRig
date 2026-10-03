@@ -43,6 +43,16 @@ jobs:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
+      # The debug test binaries of the whole workspace outgrow the runner's
+      # free disk: lld then dies with SIGBUS (signal 7) while writing the
+      # adapter-gui test binary. Drop the preinstalled toolchains this job
+      # never uses before building.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h /
+
       - uses: actions/checkout@v4
         with:
           # #974: LFS carries the vendored NeuralAmpModelerCore archive.
@@ -95,6 +105,10 @@ jobs:
         run: |
           timeout --signal=SIGKILL 1500 cargo nextest run --workspace --no-fail-fast
           timeout --signal=SIGKILL 600 cargo test --workspace --doc
+
+      - name: Disk left after the build
+        if: always()
+        run: df -h /
 
   # #974: after develop's own tests pass, move the vendored NeuralAmpModelerCore
   # to the newest upstream release. The new version is tested here, in its own

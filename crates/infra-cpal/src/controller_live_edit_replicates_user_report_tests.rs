@@ -191,6 +191,7 @@ pub(super) fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeContr
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
+        drums: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -425,6 +426,7 @@ pub(super) fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeCont
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
+        drums: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

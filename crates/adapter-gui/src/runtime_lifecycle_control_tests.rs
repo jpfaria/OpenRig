@@ -121,6 +121,7 @@ fn a_control_whose_session_is_gone_is_a_silent_no_op() {
             analyzers: crate::runtime_analyzers::AnalyzerSessions::detached(),
             runtime: Rc::clone(&project_runtime),
             session: SessionHandle::mirror(&session),
+            drum_kit: Default::default(),
         }
     };
     use application::runtime_control::RuntimeControl;
@@ -297,6 +298,7 @@ fn the_whole_graph_rebuild_never_starts_the_audio_runtime() {
         analyzers: crate::runtime_analyzers::AnalyzerSessions::detached(),
         runtime: Rc::clone(&project_runtime),
         session: SessionHandle::mirror(&session),
+        drum_kit: Default::default(),
     };
 
     control

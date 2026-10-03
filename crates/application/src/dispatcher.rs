@@ -27,6 +27,7 @@ use project::rig::RigProject;
 
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::ToneDoctorInput;
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
@@ -146,6 +147,19 @@ pub trait CommandDispatcher {
     /// The folders the player's library is listed from.
     fn player_library(&self) -> PlayerLibraryDirs {
         PlayerLibraryDirs::default()
+    }
+
+    /// Hand the dispatcher the drum machine state it owns.
+    fn attach_drums_state(&self, _state: Rc<RefCell<DrumsControlState>>) {}
+
+    /// The drum machine's control-plane state, for a frontend to render.
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        DrumsSnapshot::default()
+    }
+
+    /// The kits and grooves installed on this machine.
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        crate::drums::DrumLibrary::default()
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

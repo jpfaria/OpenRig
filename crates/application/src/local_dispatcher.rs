@@ -37,6 +37,7 @@ use project::project::Project;
 use project::rig::RigProject;
 
 use crate::di_loader::DiLoopSource;
+use crate::drums_state::DrumsControlState;
 use crate::event::Event;
 use crate::metronome_state::MetronomeControlState;
 use crate::mixer_state::MixerControlState;
@@ -167,6 +168,9 @@ pub struct LocalDispatcher {
     /// #1007: the global mixer's faders and mutes. Same handle shape and
     /// same #701 guard as the metronome: unattached ⇒ nothing persists.
     pub(crate) mixer: RefCell<Rc<RefCell<MixerControlState>>>,
+    /// The drum machine's state, attached by the frontend; unattached means
+    /// an empty library and nothing persisted.
+    pub(crate) drums: RefCell<Rc<RefCell<DrumsControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -221,6 +225,7 @@ impl LocalDispatcher {
             metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
             mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
             player: RefCell::new(Rc::new(RefCell::new(PlayerControlState::default()))),
+            drums: RefCell::new(Rc::new(RefCell::new(DrumsControlState::default()))),
         }
     }
 
@@ -270,6 +275,11 @@ impl LocalDispatcher {
     /// [`Self::metronome_state`]).
     pub(crate) fn player_state(&self) -> Rc<RefCell<PlayerControlState>> {
         self.player.borrow().clone()
+    }
+
+    /// Adopt the drum machine state the frontend built for this session.
+    pub fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        *self.drums.borrow_mut() = state;
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

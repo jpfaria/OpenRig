@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use application::dispatcher::CommandDispatcher;
+use application::drums::{bundled_drum_dir, scan_drum_library, user_drum_dir};
+use application::drums_state::DrumsControlState;
 use application::local_dispatcher::LocalDispatcher;
 use application::metronome_state::MetronomeControlState;
 use infra_filesystem::FilesystemStorage;
@@ -114,6 +116,7 @@ impl ProjectSession {
         dispatcher.attach_io_bindings(Rc::clone(&io_bindings));
         attach_metronome_state(dispatcher.as_ref());
         crate::player_session::attach_player_state(dispatcher.as_ref());
+        attach_drums_state(dispatcher.as_ref());
         Self {
             project,
             dispatcher,
@@ -140,11 +143,24 @@ fn attach_metronome_state(dispatcher: &dyn CommandDispatcher) {
     let config = FilesystemStorage::load_app_config().unwrap_or_default();
     dispatcher.attach_metronome_state(Rc::new(RefCell::new(MetronomeControlState::restored(
         &config.metronome,
-        metronome_config_path(),
+        machine_config_path(),
     ))));
 }
 
-/// Where the metronome's settings persist: the machine's `config.yaml`.
+/// Same for the drum machine: its settings from `config.yaml`, and the kits
+/// and grooves shipped with the app plus the user's own drum folder.
+fn attach_drums_state(dispatcher: &dyn CommandDispatcher) {
+    let config = FilesystemStorage::load_app_config().unwrap_or_default();
+    let library = scan_drum_library(&[bundled_drum_dir(), user_drum_dir()]);
+    dispatcher.attach_drums_state(Rc::new(RefCell::new(DrumsControlState::restored(
+        &config.drums,
+        library,
+        machine_config_path(),
+    ))));
+}
+
+/// Where the metronome's and the drums' settings persist: the machine's
+/// `config.yaml`.
 ///
 /// **`None` in a test build, structurally** (#701). A session dispatching
 /// `SetMetronomeBpm` writes this file, and a test that built a `ProjectSession`
@@ -154,12 +170,12 @@ fn attach_metronome_state(dispatcher: &dyn CommandDispatcher) {
 /// however it builds its session. `ProjectSession` is `pub(crate)`, so an
 /// integration test cannot construct one and slip past the `cfg`.
 #[cfg(not(test))]
-fn metronome_config_path() -> Option<PathBuf> {
+fn machine_config_path() -> Option<PathBuf> {
     FilesystemStorage::app_config_path().ok()
 }
 
 #[cfg(test)]
-fn metronome_config_path() -> Option<PathBuf> {
+fn machine_config_path() -> Option<PathBuf> {
     None
 }
 

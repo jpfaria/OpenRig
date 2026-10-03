@@ -172,6 +172,7 @@ fn controller_with_single_runtime(
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
+        drums: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

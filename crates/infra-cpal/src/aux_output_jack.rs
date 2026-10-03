@@ -14,9 +14,11 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 
 use crate::aux_output::{AuxOutputLayout, AuxRender};
-use crate::jack_client_open::{open_jack_client, resolve_jack_server};
+use crate::jack_client_open::open_jack_client;
 use crate::jack_handlers::JackShutdownHandler;
+use crate::jack_server_resolve::resolve_jack_server;
 use crate::resolved::MAX_JACK_FRAMES;
+use crate::usb_proc::detect_all_usb_audio_cards;
 
 /// An open auxiliary JACK client. Dropping it deactivates and closes it.
 pub(crate) struct AuxOutputHandle {
@@ -70,7 +72,7 @@ pub(crate) fn open_aux_output(
     label: &str,
     make_render: impl FnOnce(&AuxOutputLayout) -> AuxRender,
 ) -> Result<AuxOutputHandle> {
-    let server_name = resolve_jack_server([device_id]);
+    let server_name = resolve_jack_server(&detect_all_usb_audio_cards(), [device_id]);
     let client_name = format!("openrig_aux_{label}");
     let client = open_jack_client(&server_name, &client_name)?;
     let playback: Vec<usize> = if targets.is_empty() {

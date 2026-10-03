@@ -12,8 +12,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    AppWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow, MetronomeWindow, MixerWindow,
-    PlayerWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow, TunerWindow,
+    AppWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow, DrumsWindow, MetronomeWindow,
+    MixerWindow, PlayerWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow,
+    TunerWindow,
 };
 
 pub(crate) struct DesktopWindows {
@@ -26,6 +27,7 @@ pub(crate) struct DesktopWindows {
     pub metronome_window: MetronomeWindow,
     pub mixer_window: MixerWindow,
     pub player_window: PlayerWindow,
+    pub drums_window: DrumsWindow,
     /// Built on demand by the chain editor's open callback.
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
     /// Built on demand when a plugin's info panel is opened.
@@ -77,6 +79,8 @@ pub(crate) fn create() -> Result<DesktopWindows> {
 
     let player_window = PlayerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     crate::Locale::get(&player_window).set_font_family(boot_font.into());
+    let drums_window = DrumsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    crate::Locale::get(&drums_window).set_font_family(boot_font.into());
 
     Ok(DesktopWindows {
         window,
@@ -88,6 +92,7 @@ pub(crate) fn create() -> Result<DesktopWindows> {
         metronome_window,
         mixer_window,
         player_window,
+        drums_window,
         chain_editor_window: Rc::new(RefCell::new(None)),
         plugin_info_window: Rc::new(RefCell::new(None)),
     })

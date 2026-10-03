@@ -15,6 +15,9 @@
 pub(crate) use crate::live_source_block_stream::block_stream_live_source;
 pub(crate) use crate::live_source_chain_rate::chain_rate_live_source;
 pub(crate) use crate::live_source_chain_row::chain_row_live_source;
+pub(crate) use crate::live_source_drums::drums_live_source;
+#[cfg(test)]
+pub(crate) use crate::live_source_drums::drums_position;
 pub(crate) use crate::live_source_gui::GuiLiveSource;
 pub(crate) use crate::live_source_health::health_live_source;
 pub(crate) use crate::live_source_looper::looper_live_source;

@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod block;
 pub mod chain;
+pub mod drums;
 pub mod io_binding;
 pub mod looper;
 pub mod metronome;
@@ -36,6 +37,7 @@ pub mod tone_doctor;
 
 pub use block::BlockCommand;
 pub use chain::ChainCommand;
+pub use drums::DrumsCommand;
 pub use io_binding::IoBindingCommand;
 pub use looper::LooperCommand;
 pub use metronome::MetronomeCommand;
@@ -86,6 +88,8 @@ pub enum Command {
     Mixer(MixerCommand),
     /// The backing-track player: load, transport, speed, pitch, loop, output.
     Player(PlayerCommand),
+    /// The built-in drum machine — transport, tempo, kit, groove and output.
+    Drums(DrumsCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.

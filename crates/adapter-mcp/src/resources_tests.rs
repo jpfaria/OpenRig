@@ -20,6 +20,7 @@ fn every_query_kind() -> Vec<QueryKind> {
         QueryKind::OutputRoutes,
         QueryKind::MetronomeState,
         QueryKind::PlayerState,
+        QueryKind::DrumsState,
         QueryKind::MixerState,
         QueryKind::ChainMixer {
             chain: ChainId("rig:input-1".into()),

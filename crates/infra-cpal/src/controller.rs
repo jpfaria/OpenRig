@@ -142,6 +142,8 @@ pub struct ProjectRuntimeController {
     /// The backing-track player's own output stream, worker and shared state.
     /// Like the metronome it never shares a chain stream.
     pub(crate) player: crate::player_stream::PlayerSlot,
+    /// The drum machine's own output stream and the state it shares with it.
+    pub(crate) drums: crate::drums_stream::DrumsHost,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -189,6 +191,7 @@ impl ProjectRuntimeController {
                 Default::default(),
             )),
             player: Default::default(),
+            drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -239,6 +242,7 @@ impl ProjectRuntimeController {
                 Default::default(),
             )),
             player: Default::default(),
+            drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
