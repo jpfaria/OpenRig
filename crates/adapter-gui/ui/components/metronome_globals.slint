@@ -33,6 +33,8 @@ export global MetronomeBridge {
     in-out property <[SelectOption]> output-options;
     in-out property <string> output-key;
     in-out property <string> output-label;
+    // "Use global tempo": a preset load never changes the BPM.
+    in-out property <bool> global-tempo-lock;
 
     // ── Intent, routed to the dispatcher by the wiring ──
     callback close-metronome();
@@ -44,6 +46,7 @@ export global MetronomeBridge {
     callback set-timbre(int);
     callback set-volume(float);
     callback set-count-in(bool);
+    callback set-global-tempo-lock(bool);
     callback pick-output(string);
     callback output-opened();
     callback output-query(string);

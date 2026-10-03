@@ -47,7 +47,10 @@ impl LocalDispatcher {
     /// No attached config path ⇒ no write. That is the whole guard against
     /// #701: a dispatcher a test built has nowhere to persist to, so it can
     /// never reach the user's real config.
-    fn persist_metronome_field(&self, mutate: impl FnOnce(&mut MetronomeConfig) + Send + 'static) {
+    pub(crate) fn persist_metronome_field(
+        &self,
+        mutate: impl FnOnce(&mut MetronomeConfig) + Send + 'static,
+    ) {
         let path = self.metronome_state().borrow().config_path();
         if path.is_some() {
             persist_metronome(path, mutate);
@@ -109,7 +112,10 @@ impl LocalDispatcher {
                     .update_settings(|settings| settings.bpm = bpm);
                 self.persist_metronome_field(move |config| config.bpm = bpm);
                 self.push_metronome_settings();
-                Ok(vec![Event::MetronomeBpmChanged { bpm }])
+                let mut events = vec![Event::MetronomeBpmChanged { bpm }];
+                // The global tempo drives every synced delay/mod.
+                events.extend(self.retime_chains(bpm)?);
+                Ok(events)
             }
 
             MetronomeCommand::SetMetronomeTimeSignature { beats_per_bar } => {
@@ -208,6 +214,10 @@ impl LocalDispatcher {
                     ))?);
                 }
                 Ok(events)
+            }
+
+            MetronomeCommand::SetGlobalTempoLock { enabled } => {
+                self.handle_set_global_tempo_lock(enabled)
             }
         }
     }

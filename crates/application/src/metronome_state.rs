@@ -64,6 +64,8 @@ pub struct MetronomeSnapshot {
     pub output_key: Option<String>,
     /// Whether POWER is on. Not persisted — the app always boots silent.
     pub running: bool,
+    /// "use global tempo" — a rig preset load never changes the BPM.
+    pub global_tempo_lock: bool,
 }
 
 /// The dispatcher's metronome state: the snapshot plus the tap history that
@@ -120,6 +122,7 @@ impl MetronomeControlState {
             count_in: config.count_in,
         };
         self.snapshot.output_key = config.output_device.clone();
+        self.snapshot.global_tempo_lock = config.global_tempo_lock;
     }
 
     pub fn snapshot(&self) -> MetronomeSnapshot {
@@ -144,6 +147,10 @@ impl MetronomeControlState {
 
     pub fn set_output_key(&mut self, key: Option<String>) {
         self.snapshot.output_key = key;
+    }
+
+    pub fn set_global_tempo_lock(&mut self, enabled: bool) {
+        self.snapshot.global_tempo_lock = enabled;
     }
 
     /// Edit the settings in place and hand back the new value, so a caller

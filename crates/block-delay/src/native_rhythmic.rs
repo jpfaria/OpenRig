@@ -57,6 +57,7 @@ pub fn model_schema() -> ModelParameterSchema {
                 1.0,
                 ParameterUnit::Milliseconds,
             ),
+            block_core::tempo_sync::time_sync_parameter(),
             float_parameter(
                 "feedback",
                 "Feedback",

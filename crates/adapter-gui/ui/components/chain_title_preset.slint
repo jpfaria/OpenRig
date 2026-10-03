@@ -9,6 +9,9 @@
 import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 import { PresetSelect } from "preset_select.slint";
+import { TempoChip } from "tempo_chip.slint";
+import { TempoPanel } from "tempo_panel_globals.slint";
+import { MetronomeBridge } from "metronome_globals.slint";
 
 // Small square icon button (press to fire). Mirrors the chain action
 // icons; own copy so this file has no chain_row dependency.
@@ -117,6 +120,10 @@ export component ChainTitlePreset inherits Rectangle {
     in property <string> title;
     in property <ChainRigNav> nav;
     in property <bool> fullscreen: false;
+    // The tempo chip shows only where its panel's overlay is hosted (the
+    // chain list); `chain-index` names the chain its panel stores to.
+    in property <bool> show-tempo: false;
+    in property <int> chain-index: -1;
     callback open-compact();
     // preset-picked(slot): slot >= 0 selects that combo entry; the
     // sentinel -1 means "add a new preset". scene-picked(s): s >= 1
@@ -156,7 +163,7 @@ export component ChainTitlePreset inherits Rectangle {
         // width (eliding) before the row runs under the header's action
         // cluster in a narrow window (#1007).
         Rectangle {
-            min-width: 120px;
+            min-width: 96px;
             preferred-width: 220px;
             max-width: 220px;
             horizontal-stretch: 1;
@@ -236,12 +243,32 @@ export component ChainTitlePreset inherits Rectangle {
         }
 
         // Preset select — empty placeholder when no rig yet.
+        // Shrinks (eliding its label) before the row runs under the action
+        // cluster, so the tempo chip and the scene bar keep their place.
         PresetSelect {
-            width: 220px;
+            min-width: 120px;
+            preferred-width: 220px;
+            max-width: 220px;
+            horizontal-stretch: 1;
             labels: root.nav.preset-labels;
             active-index: root.nav.active-preset-index;
             picked(i) => {
                 root.preset-picked(i);
+            }
+        }
+
+        // The global tempo; the panel it opens stores it on this preset.
+        if root.show-tempo : VerticalLayout {
+            alignment: center;
+            TempoChip {
+                bpm: MetronomeBridge.bpm;
+                preset-tempo: root.nav.has-preset-bpm;
+                clicked => {
+                    TempoPanel.chain-index = root.chain-index;
+                    TempoPanel.x = self.absolute-position.x;
+                    TempoPanel.y = self.absolute-position.y + self.height + 6px;
+                    TempoPanel.open = true;
+                }
             }
         }
 

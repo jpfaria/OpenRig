@@ -159,6 +159,7 @@ fn metronome_state(ctx: &ReadContext<'_>) -> String {
         "volume": settings.volume,
         "count_in": settings.count_in,
         "output": snapshot.output_key,
+        "global_tempo_lock": snapshot.global_tempo_lock,
         "bar": live.as_ref().map_or(0, |m| m.bar),
         "beat": live.as_ref().map_or(0, |m| m.beat),
         "tick": live.as_ref().map_or(0, |m| m.tick),

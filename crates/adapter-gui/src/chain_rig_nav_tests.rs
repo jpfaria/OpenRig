@@ -15,6 +15,7 @@ fn rig() -> RigProject {
                 scene_params: vec![],
                 scenes: BTreeMap::new(),
                 volume: 100.0,
+                bpm: None,
             },
         );
     }
@@ -107,6 +108,7 @@ fn preset_slot_at_maps_combobox_position_to_real_bank_key() {
             scene_params: vec![],
             scenes: BTreeMap::new(),
             volume: 100.0,
+            bpm: None,
         },
     );
     r.inputs
@@ -534,4 +536,17 @@ fn legacy_preset_without_name_shows_humanized_label_not_raw_slug() {
         label, "Studio Clean Compressor",
         "preset antigo sem name deve exibir o id humanizado, não o slug cru"
     );
+}
+
+// The chain header shows the active preset's own tempo, if it has one.
+#[test]
+fn nav_row_exposes_the_active_preset_bpm() {
+    let mut r = rig();
+    r.presets.get_mut("drive").unwrap().bpm = Some(96.0);
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].preset_bpm, Some(96.0), "active preset 2 = drive");
+
+    switch_and_project_input(&mut r, "input-1", Some(1), None).expect("switch to clean");
+    let rows = rig_nav_rows(&r, &rig_to_legacy_project(&r, &BTreeSet::new()));
+    assert_eq!(rows[0].preset_bpm, None, "clean has no tempo of its own");
 }

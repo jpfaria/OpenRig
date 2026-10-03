@@ -47,6 +47,7 @@ pub mod rig_nav;
 pub mod rig_sync;
 pub mod rig_validate;
 pub mod rig_write_back;
+pub mod tempo_retime;
 pub mod vst3_editor;
 
 #[cfg(test)]
