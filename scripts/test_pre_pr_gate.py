@@ -92,7 +92,7 @@ def gate(cwd: Path, suite: str) -> subprocess.CompletedProcess:
         cwd=cwd,
         capture_output=True,
         text=True,
-        env={**os.environ, "PRE_PR_GATE_SUITE": suite, "PRE_PR_GATE_LOCK": str(cwd.parent / "gate.lock")},
+        env={**os.environ, "PRE_PR_GATE_SUITE": suite, "OPENRIG_BUILD_LOCK": str(cwd.parent / "gate.lock")},
     )
 
 
@@ -188,7 +188,7 @@ def test_the_gate_waits_while_another_gate_holds_the_lock(tmp_path):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        env={**os.environ, "PRE_PR_GATE_SUITE": f"touch {marker}", "PRE_PR_GATE_LOCK": str(lock)},
+        env={**os.environ, "PRE_PR_GATE_SUITE": f"touch {marker}", "OPENRIG_BUILD_LOCK": str(lock)},
     )
     time.sleep(2)
     assert proc.poll() is None and not marker.exists()
@@ -212,7 +212,7 @@ def test_a_lock_left_by_a_dead_gate_is_taken_over(tmp_path):
         capture_output=True,
         text=True,
         timeout=10,
-        env={**os.environ, "PRE_PR_GATE_SUITE": "true", "PRE_PR_GATE_LOCK": str(lock)},
+        env={**os.environ, "PRE_PR_GATE_SUITE": "true", "OPENRIG_BUILD_LOCK": str(lock)},
     )
     assert result.returncode == 0
     assert not lock.exists()
