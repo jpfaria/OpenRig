@@ -19,6 +19,7 @@
 //!   `stream_count` / `set_output_muted` — small queries the UI calls
 //!   on each frame or close handler.
 
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use domain::ids::ChainId;
@@ -185,6 +186,18 @@ impl ProjectRuntimeController {
         stream_index: usize,
         capacity_per_channel: usize,
     ) -> Option<Arc<engine::spsc::SpscRing<f32>>> {
+        self.subscribe_stream_input_tap_stamped(chain_id, stream_index, capacity_per_channel)
+            .map(|(ring, _)| ring)
+    }
+
+    /// [`Self::subscribe_stream_input_tap`], plus the cell the audio thread
+    /// stamps with the host capture time of the first sample it delivers.
+    pub fn subscribe_stream_input_tap_stamped(
+        &self,
+        chain_id: &ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<(Arc<engine::spsc::SpscRing<f32>>, Arc<AtomicU64>)> {
         let mut remaining = stream_index;
         for runtime in self.runtime_graph.runtimes_for(chain_id) {
             let local_count = runtime.stream_count();
@@ -192,13 +205,13 @@ impl ProjectRuntimeController {
                 let (cpal_input_index, total_channels, device_channels) =
                     runtime.input_routing_for_stream(remaining)?;
                 let first_channel = *device_channels.first()?;
-                let mut rings = runtime.subscribe_input_tap(
+                let (mut rings, stamp) = runtime.subscribe_input_tap_stamped(
                     cpal_input_index,
                     total_channels,
                     &[first_channel],
                     capacity_per_channel,
                 );
-                return rings.pop();
+                return rings.pop().map(|ring| (ring, stamp));
             }
             remaining -= local_count;
         }

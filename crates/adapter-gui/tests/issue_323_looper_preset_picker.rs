@@ -82,7 +82,7 @@ fn the_preset_button_opens_the_modal_and_picking_an_option_fires_the_callback() 
 
     // The modal is closed until the preset button is pressed.
     assert_eq!(
-        count_id(&w, "LooperOverlay::opt-ta"),
+        count_id(&w, "LooperPresetPicker::opt-ta"),
         0,
         "the picker modal is closed by default"
     );
@@ -93,13 +93,13 @@ fn the_preset_button_opens_the_modal_and_picking_an_option_fires_the_callback() 
         "the preset button must be hittable"
     );
     assert_eq!(
-        count_id(&w, "LooperOverlay::opt-ta"),
+        count_id(&w, "LooperPresetPicker::opt-ta"),
         2,
         "the modal lists the chain's two bank presets"
     );
 
     // Pick the SECOND bank preset (Lead Drive) → option index 2 (0 = follow).
-    assert!(click_id(&w, "LooperOverlay::opt-ta", 1));
+    assert!(click_id(&w, "LooperPresetPicker::opt-ta", 1));
     assert_eq!(
         *picked.borrow(),
         vec![(0, 7, 2)],
@@ -119,6 +119,6 @@ fn the_follow_option_clears_the_link_with_option_zero() {
 
     assert!(click_id(&w, "LooperRow::preset-ta", 0), "open the modal");
     // The "follow the chain" row clears the fixed link → option index 0.
-    assert!(click_id(&w, "LooperOverlay::follow-ta", 0));
+    assert!(click_id(&w, "LooperPresetPicker::follow-ta", 0));
     assert_eq!(*picked.borrow(), vec![(0, 7, 0)]);
 }

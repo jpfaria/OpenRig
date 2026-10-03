@@ -67,7 +67,7 @@ pub(crate) fn looper_playback_pcm(
         LooperSpeed::Normal => sample_rate,
         LooperSpeed::Double => sample_rate.saturating_mul(2),
     };
-    DiPcm::new(samples, read_rate.max(1), 2)
+    DiPcm::new(samples, read_rate.max(1), 2).without_seam_crossfade()
 }
 
 #[cfg(test)]
@@ -348,10 +348,12 @@ impl ProjectRuntimeController {
         };
         for (uid, input) in to_arm {
             let seg = resolve_input_segment(chain, &self.io_bindings, input.as_ref());
-            if let Some(ring) = self.subscribe_stream_input_tap(&chain.id, seg, RECORD_RING_CAP) {
-                self.looper_store
-                    .borrow_mut()
-                    .set_recording_rings(&chain.id, uid, vec![ring]);
+            if let Some((ring, stamp)) =
+                self.subscribe_stream_input_tap_stamped(&chain.id, seg, RECORD_RING_CAP)
+            {
+                let mut store = self.looper_store.borrow_mut();
+                store.set_recording_rings(&chain.id, uid, vec![ring]);
+                store.set_recording_stamp(&chain.id, uid, stamp);
             }
         }
         // Drain every recording loop.
@@ -432,7 +434,14 @@ impl ProjectRuntimeController {
             // (invariant #4). No linked preset ⇒ the chain's current blocks.
             let linked = self.looper_store.borrow().playback_blocks(&chain.id, uid);
             let playback_chain = looper_playback_chain(chain, linked);
-            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm) {
+            // Every loop of the project plays on the one shared timeline, when
+            // the stream clock can be lined up with the presses.
+            let anchor = self
+                .looper_store
+                .borrow()
+                .sync_anchor()
+                .filter(|_| crate::host_clock::MATCHES_STREAM_CLOCK);
+            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm, anchor) {
                 Ok(()) => {
                     LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     self.push_looper_gain(&chain.id, uid);

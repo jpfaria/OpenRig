@@ -1,0 +1,6 @@
+# nextest runs every test binary in parallel. A test that measures CPU cost
+# or a deadline on the clock reads the other tests' load as its own, so this
+# binary takes every thread and runs alone.
+[[profile.default.overrides]]
+filter = 'binary(issue_617_uniform_block_cost)'
+threads-required = 'num-cpus'

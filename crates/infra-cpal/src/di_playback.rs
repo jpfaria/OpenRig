@@ -15,6 +15,8 @@ use arc_swap::ArcSwapOption;
 use engine::runtime_dsp::output_limiter;
 use engine::spsc::SpscRing;
 
+use crate::di_playback_timing::PlaybackTiming;
+
 /// Ring capacity in FRAMES (interleaved L,R — 2 slots per frame). ~740 ms at
 /// 44.1 kHz: rides out interactive-session preemption bursts (the owner's
 /// live probe showed 200-300 ms starvation dips at normal priority) while
@@ -47,6 +49,8 @@ pub(crate) struct DiPlayback {
     /// the worker (raw loop), `out` by the callback (mixed frames).
     in_peak_bits: AtomicU32,
     out_peak_bits: AtomicU32,
+    /// When the first frame is due on the host clock, and what is owed since.
+    timing: PlaybackTiming,
 }
 
 /// Per-output-stream slot the callback loads wait-free. `None` = no DI parked.
@@ -77,7 +81,15 @@ impl DiPlayback {
             gain_bits: AtomicU32::new(1.0f32.to_bits()),
             in_peak_bits: AtomicU32::new(0),
             out_peak_bits: AtomicU32::new(0),
+            timing: PlaybackTiming::untimed(loop_len),
         }
+    }
+
+    /// Due at host-clock instant `start_at_ns` (`rate` = the output's frames
+    /// per second): silent before it, in phase after it. 0 keeps it untimed.
+    pub(crate) fn at_host_time(mut self, start_at_ns: u64, rate: u32) -> Self {
+        self.timing = PlaybackTiming::at(start_at_ns, rate, self.loop_len);
+        self
     }
 
     /// The loop position the listener is currently hearing.
@@ -126,13 +138,28 @@ impl DiPlayback {
 }
 
 /// Sum the parked DI stream into `out` (interleaved, `output_total_channels`
-/// wide). Pops whole frames only (no L/R skew); an under-filled ring leaves
-/// the remaining frames untouched (the worker is catching up). No-op when
-/// the cell is empty. Runs on the output audio callback — zero alloc/lock.
+/// wide), starting it at once. See [`mix_di_playback_at`].
+#[cfg(test)]
 pub(crate) fn mix_di_playback(
     cell: &DiPlaybackCell,
     out: &mut [f32],
     output_total_channels: usize,
+) {
+    mix_di_playback_at(cell, out, output_total_channels, None);
+}
+
+/// Sum the parked DI stream into `out`, heard from host-clock `playback_ns`
+/// (`None` when the backend does not say). Pops whole frames only (no L/R
+/// skew). An untimed playback leaves the frames an under-filled ring cannot
+/// serve untouched; a timed one stays silent until its start instant and owes
+/// what it could not serve, dropping it later so it stays on the timeline.
+/// No-op when the cell is empty. Runs on the output audio callback — zero
+/// alloc/lock.
+pub(crate) fn mix_di_playback_at(
+    cell: &DiPlaybackCell,
+    out: &mut [f32],
+    output_total_channels: usize,
+    playback_ns: Option<u64>,
 ) {
     let guard = cell.load();
     let Some(playback) = guard.as_ref() else {
@@ -141,9 +168,21 @@ pub(crate) fn mix_di_playback(
     if output_total_channels == 0 {
         return;
     }
-    let mut out_peak = 0.0f32;
+    let frames = out.len() / output_total_channels;
+    let Some(skip) = playback.timing.begin(playback_ns, frames) else {
+        return;
+    };
     let mut popped = 0u64;
-    for frame in out.chunks_mut(output_total_channels) {
+    let mut debt = playback.timing.take_debt();
+    while debt > 0 && playback.ring.len() >= 2 {
+        let _ = (playback.ring.pop(), playback.ring.pop());
+        debt -= 1;
+        popped += 1;
+    }
+    playback.timing.owe(debt);
+    let mut out_peak = 0.0f32;
+    let mut served = skip;
+    for frame in out.chunks_mut(output_total_channels).skip(skip) {
         // A whole frame (2 samples) or stop — the producer pushes whole
         // frames, so fewer than 2 readable samples means "mid-push"; leave
         // it for the next callback rather than skewing channels.
@@ -153,6 +192,7 @@ pub(crate) fn mix_di_playback(
         let (Some(l), Some(r)) = (playback.ring.pop(), playback.ring.pop()) else {
             break;
         };
+        served += 1;
         let gain = f32::from_bits(playback.gain_bits.load(Ordering::Relaxed));
         let (l, r) = (l * gain, r * gain);
         out_peak = out_peak.max(l.abs()).max(r.abs());
@@ -168,6 +208,7 @@ pub(crate) fn mix_di_playback(
             }
         }
     }
+    playback.timing.owe(frames.saturating_sub(served) as u64);
     playback.consumed.fetch_add(popped, Ordering::Relaxed);
     playback
         .out_peak_bits
@@ -177,3 +218,7 @@ pub(crate) fn mix_di_playback(
 #[cfg(test)]
 #[path = "di_playback_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "di_playback_sync_tests.rs"]
+mod sync_tests;

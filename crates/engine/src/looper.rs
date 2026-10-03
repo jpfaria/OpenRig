@@ -243,6 +243,21 @@ impl LooperSlot {
         self.content_rev += 1;
     }
 
+    /// Move the material `frames` later in the loop, wrapping the tail to the
+    /// top, so a take lands at its place on the shared loop timeline. No-op
+    /// on an empty loop or a whole-loop rotation.
+    pub fn rotate_right(&mut self, frames: usize) {
+        let len = self.len_frames;
+        if len == 0 || frames % len == 0 {
+            return;
+        }
+        let by = (frames % len) * 2;
+        for layer in &mut self.layers[..self.active] {
+            layer[..len * 2].rotate_right(by);
+        }
+        self.content_rev += 1;
+    }
+
     /// #323 loop-sync: restart playback from the top and force a re-arm, so the
     /// chain's synced loops all begin the bar together (phase-aligned). No-op on
     /// an empty loop.
