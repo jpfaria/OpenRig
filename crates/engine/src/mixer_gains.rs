@@ -55,8 +55,9 @@ pub fn endpoint_gain_target(direction: MixerDirection, device_id: &str, channels
     endpoint_gain(direction, device_id, channels).target()
 }
 
-/// The shared scalar a route / input state of that endpoint reads.
-pub(crate) fn endpoint_gain(
+/// The shared scalar a route / input state of that endpoint reads. Takes the
+/// table lock: call it when a stream is built, never from its callback.
+pub fn endpoint_gain(
     direction: MixerDirection,
     device_id: &str,
     channels: &[usize],

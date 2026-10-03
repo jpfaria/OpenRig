@@ -330,14 +330,15 @@ impl ProjectRuntimeController {
         // The DI's own stream plays on the chosen output's channels; without
         // one (JACK, or a failed device resolve) the playback is mixed into the
         // chain's output stream `output_index`, so it takes that stream's.
-        let dest = match (&output_stream, &output) {
-            (Some(_), Some(o)) => o.entry.channels.clone(),
+        let (dest_device, dest) = match (&output_stream, &output) {
+            (Some(_), Some(o)) => (o.entry.device_id.0.clone(), o.entry.channels.clone()),
             _ => resolve_chain_io(chain, &self.io_bindings)
                 .1
                 .get(output_index)
-                .map(|o| o.channels.clone())
+                .map(|o| (o.device_id.0.clone(), o.channels.clone()))
                 .unwrap_or_default(),
         };
+        let fader = crate::output_fader::OutputFader::of(&dest_device, &dest);
         let dest_left = dest.first().copied().unwrap_or(0);
         let dest_right = dest.get(1).copied().unwrap_or(dest_left);
         // Render at the rate the DI's own stream consumes; fall back to the
@@ -366,6 +367,7 @@ impl ProjectRuntimeController {
             output_rate,
             dest_left,
             dest_right,
+            fader,
             cell: cell.clone(),
             armed: Arc::clone(&armed),
             failed: Arc::clone(&failed),

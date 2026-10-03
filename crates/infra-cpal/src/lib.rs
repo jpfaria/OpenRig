@@ -142,6 +142,7 @@ mod host_clock;
 mod live_io_reuse;
 mod loop_sync;
 pub mod looper_store;
+mod output_fader;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;
 pub use device_cache::{

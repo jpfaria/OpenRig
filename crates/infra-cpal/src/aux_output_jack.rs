@@ -97,7 +97,12 @@ pub(crate) fn open_aux_output(
     let handler = AuxJackHandler {
         interleaved: vec![0.0; MAX_JACK_FRAMES * playback.len()],
         ports,
-        render: make_render(&layout),
+        render: crate::output_fader::faded_render(
+            device_id,
+            &playback,
+            &layout,
+            make_render(&layout),
+        ),
     };
     let shutdown = JackShutdownHandler {
         shutdown_flag: Arc::new(AtomicBool::new(false)),

@@ -78,6 +78,8 @@ pub(crate) struct DiWorkerSpec {
     pub(crate) output_rate: u32,
     pub(crate) dest_left: usize,
     pub(crate) dest_right: usize,
+    /// The global mixer fader of the endpoint the playback lands on.
+    pub(crate) fader: crate::output_fader::OutputFader,
     pub(crate) cell: DiPlaybackCell,
     pub(crate) armed: Arc<Mutex<bool>>,
     pub(crate) failed: Arc<AtomicBool>,
@@ -130,6 +132,7 @@ fn run(spec: DiWorkerSpec) {
         output_rate,
         dest_left,
         dest_right,
+        fader,
         cell,
         armed,
         failed,
@@ -178,7 +181,8 @@ fn run(spec: DiWorkerSpec) {
     };
     let playback = Arc::new(
         DiPlayback::starting_at(dest_left, dest_right, routed.loop_len, start_pos)
-            .at_host_time(start_at_ns, output_rate),
+            .at_host_time(start_at_ns, output_rate)
+            .with_fader(fader),
     );
     routed.runtime.set_di_loop_pos(start_pos);
     let ring = playback.ring();

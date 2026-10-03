@@ -56,7 +56,8 @@ pub(crate) fn open_aux_output(
         targets: targets.to_vec(),
         max_frames: AUX_MAX_FRAMES,
     };
-    let mut render = make_render(&layout);
+    let mut render =
+        crate::output_fader::faded_render(device_id, targets, &layout, make_render(&layout));
     let error_label = format!("{label}:{device_id}");
     let stream = device.build_output_stream(
         &config,

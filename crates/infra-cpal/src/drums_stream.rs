@@ -82,12 +82,14 @@ impl ProjectRuntimeController {
         let error_label = device_id.to_string();
         let targets = target_channels.to_vec();
         let callback_targets = targets.clone();
+        let fader = crate::output_fader::OutputFader::of(device_id, target_channels);
 
         let stream = device.build_output_stream(
             &config,
             move |out: &mut [f32], _| {
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     callback.fill(&shared, out, channels, &callback_targets);
+                    fader.apply(out, channels, &callback_targets);
                 }));
             },
             move |err| log::error!("[drums:{error_label}] output stream error: {err}"),

@@ -53,7 +53,7 @@ pub mod metronome_state;
 #[cfg(test)]
 mod mixer_gain_tests;
 pub mod mixer_gains;
-mod mixer_ramp;
+pub mod mixer_ramp;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;

@@ -113,3 +113,22 @@ fn the_playback_gain_scales_what_the_callback_writes() {
         "the callback writes the take at the level that is set"
     );
 }
+
+#[test]
+fn playback_obeys_the_global_fader_of_its_endpoint() {
+    engine::mixer_gains::set_endpoint_gain(
+        domain::mixer_strip::MixerDirection::Output,
+        "di-fader-test",
+        &[0, 1],
+        0.0,
+    );
+    let fader = crate::output_fader::OutputFader::of("di-fader-test", &[0, 1]);
+    let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0).with_fader(fader));
+    push_frames(&ring, &[[0.5, 0.5]; 4]);
+    let mut out = vec![0.0f32; 4 * 2];
+    mix_di_playback(&cell, &mut out, 2);
+    assert!(
+        out.iter().all(|s| *s == 0.0),
+        "fader at minimum mutes the loop, got {out:?}"
+    );
+}

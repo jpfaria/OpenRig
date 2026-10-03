@@ -1130,6 +1130,11 @@ an output declared in four bindings is one fader). On the audio path:
   `read_input_frame`, before the chain's blocks (loop and silence feeds are not
   scaled). An output fader scales the route's frames together with the chain
   volume, before the output limiter.
+- **Everything on the output obeys it.** The pipelines that open their own
+  stream — metronome, backing-track player, drums, DI and looper playback —
+  read the same endpoint fader through `infra-cpal/src/output_fader.rs`, so
+  pulling a physical output down turns down everything that plays there, not
+  only the chains.
 - **Isolation.** Each endpoint has one lock-free `AtomicU32` target
   (`engine/mixer_gains.rs`). A graph build hands each route / input pipeline an
   `Arc` to its endpoint's scalar; the audio thread only loads it. Nothing is
