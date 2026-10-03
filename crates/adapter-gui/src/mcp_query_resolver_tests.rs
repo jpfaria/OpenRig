@@ -71,6 +71,7 @@ fn all_kinds() -> Vec<QueryKind> {
             chain: chain.clone(),
         },
         QueryKind::MetronomeState,
+        QueryKind::PlayerState,
         QueryKind::DrumsState,
         QueryKind::OutputRoutes,
         QueryKind::MixerState,

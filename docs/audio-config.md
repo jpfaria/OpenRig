@@ -1125,7 +1125,24 @@ There is no ring and no worker thread, unlike the DI: the click is synthesized, 
 
 Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is not persisted, so the app always starts with the click off.
 
-On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
+On the Linux JACK build the click opens its own JACK client instead of a cpal stream (see "Auxiliary outputs on JACK" below).
+
+## Backing-track player output stream
+
+The backing-track player is a third independent pipeline beside the chains and the metronome: its **own** output stream on the chosen endpoint's device, summed by the backend, with nothing added to the guitar's audio path.
+
+```
+guitar:     [in] -> [chain] -> [out dev A]  \
+                                             > backend sums
+player:  [worker] -> ring -> [out dev A]    /
+```
+
+- **Decoding, resampling and time-stretching run on a worker thread at normal priority**, never on the audio thread and never in the realtime class, so the player cannot take CPU time from a chain's callback. The file is decoded once (symphonia) and resampled once to the device rate; speed and pitch go through a pitch-preserving stretcher (signalsmith-stretch). At 1.0× and 0 semitones the track is copied untouched.
+- The worker keeps a short queue ahead in a lock-free SPSC ring; the output callback only drains it, applies the level and short fades on start, pause and seek, and writes the endpoint's channels. Transport and settings reach both sides through atomics (`engine/player/shared.rs`): the callback neither locks nor allocates (invariant #8).
+- An A–B loop wraps with a short equal-power crossfade, so the seam never clicks. The position the GUI shows is what was *heard*, not what the worker rendered ahead.
+- A chain rebuild, a live block edit or a chain failure does not touch the player's stream; stopping the player closes it.
+
+**Auxiliary outputs on JACK.** The metronome and the player open through one auxiliary-output opener (`infra-cpal/aux_output.rs`): a cpal output stream on cpal builds, and on the Linux JACK build a JACK client of its own with one port per target channel, connected to the matching `system:playback_N`, so JACK sums it at the playback port. The metronome used to be silent on JACK; it now uses the same opener.
 
 ## Global mixer gain
 
@@ -1137,6 +1154,12 @@ an output declared in four bindings is one fader). On the audio path:
   `read_input_frame`, before the chain's blocks (loop and silence feeds are not
   scaled). An output fader scales the route's frames together with the chain
   volume, before the output limiter.
+- **Everything on the output obeys it.** The pipelines that open their own
+  stream — metronome, backing-track player, drums — read the same endpoint
+  fader through `infra-cpal/src/output_fader.rs`, so pulling a physical output
+  down turns down everything that plays there, not only the chains. DI and
+  looper playback already get it from the chain output route their render
+  runs through, so their playback must not apply it a second time.
 - **Isolation.** Each endpoint has one lock-free `AtomicU32` target
   (`engine/mixer_gains.rs`). A graph build hands each route / input pipeline an
   `Arc` to its endpoint's scalar; the audio thread only loads it. Nothing is

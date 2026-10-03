@@ -14,7 +14,7 @@
 use std::path::PathBuf;
 
 use infra_filesystem::{
-    AppConfig, DrumsConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig,
+    AppConfig, DrumsConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig, PlayerConfig,
 };
 
 use crate::mixer_persist_coalesce::{pending_strips, Settle};
@@ -67,6 +67,22 @@ pub fn persist_metronome(
             mutate(&mut config.metronome)
         }) {
             log::error!("persist metronome failed: {e}");
+        }
+    });
+}
+
+/// Read-modify-write only the player section of `config.yaml` on the persist
+/// worker, against the path the caller bound. Only a dispatcher holding an
+/// attached config path reaches this, so tests never touch the real config.
+pub fn persist_player(
+    config_path: PathBuf,
+    mutate: impl FnOnce(&mut PlayerConfig) + Send + 'static,
+) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.player)
+        }) {
+            log::error!("persist player failed: {e}");
         }
     });
 }

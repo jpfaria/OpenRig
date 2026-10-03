@@ -36,7 +36,7 @@ use crate::metronome_controls_wiring::{
     refresh_metronome_outputs, wire_controls, wire_output_select,
 };
 use crate::metronome_events::{dispatch, render_settings};
-use crate::metronome_view::MetronomeOutput;
+use crate::metronome_view::ProjectOutput;
 use crate::state::ProjectSession;
 use crate::{AppWindow, MetronomeBridge, MetronomeWindow};
 
@@ -61,7 +61,7 @@ pub(crate) struct MetronomeCtx {
     pub(crate) main_window: slint::Weak<AppWindow>,
     /// The project's output endpoints as published to the select, cached so
     /// each keystroke filters the list instead of re-reading the bindings.
-    pub(crate) outputs: Rc<RefCell<Vec<MetronomeOutput>>>,
+    pub(crate) outputs: Rc<RefCell<Vec<ProjectOutput>>>,
     /// The snapshot the knobs currently show. The lamp timer re-renders only
     /// when it differs, so mirroring a change made on another transport costs
     /// one comparison per frame instead of a full label rebuild.
@@ -275,6 +275,6 @@ pub(crate) fn snapshot(ctx: &MetronomeCtx) -> Option<MetronomeSnapshot> {
 }
 
 /// Re-read the project's endpoints, keeping the select's cache in step.
-pub(crate) fn outputs(ctx: &MetronomeCtx) -> Vec<MetronomeOutput> {
+pub(crate) fn outputs(ctx: &MetronomeCtx) -> Vec<ProjectOutput> {
     refresh_metronome_outputs(&ctx.project_session, &ctx.outputs)
 }

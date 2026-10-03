@@ -7,7 +7,7 @@
 //! no allocation, no lock, no added latency.
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct GainGlide {
+pub struct GainGlide {
     from: f32,
     to: f32,
     frames: usize,
@@ -16,7 +16,7 @@ pub(crate) struct GainGlide {
 impl GainGlide {
     /// `None` when the stream sits at unity and stays there.
     #[inline]
-    pub(crate) fn begin(current: f32, target: f32, frames: usize) -> Option<Self> {
+    pub fn begin(current: f32, target: f32, frames: usize) -> Option<Self> {
         if current == 1.0 && target == 1.0 {
             return None;
         }
@@ -29,7 +29,7 @@ impl GainGlide {
 
     /// Gain for frame `i` of the callback; the last frame lands on target.
     #[inline]
-    pub(crate) fn gain_at(&self, i: usize) -> f32 {
+    pub fn gain_at(&self, i: usize) -> f32 {
         if self.from == self.to || i + 1 >= self.frames {
             return self.to;
         }

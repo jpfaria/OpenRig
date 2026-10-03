@@ -1144,6 +1144,99 @@ msgstr "Port"
 msgid "⌨"
 msgstr "⌨"
 
+msgid "action-choose-file"
+msgstr "Choisir un fichier…"
+
+msgid "action-loop-clear"
+msgstr "Couper la boucle"
+
+msgid "action-loop-end"
+msgstr "Boucle B"
+
+msgid "action-loop-start"
+msgstr "Boucle A"
+
+msgid "action-pause"
+msgstr "Pause"
+
+msgid "action-play"
+msgstr "Lecture"
+
+msgid "action-stop"
+msgstr "Stop"
+
+msgid "label-backing-tracks"
+msgstr "Pistes d'accompagnement"
+
+msgid "label-loop-range"
+msgstr "Boucle {}"
+
+msgid "label-player-output"
+msgstr "Sortie de la piste"
+
+msgid "label-player-position"
+msgstr "Position dans la piste"
+
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Rythmique"
+
+msgid "label-category-bass"
+msgstr "Basse"
+
+msgid "label-category-acoustic"
+msgstr "Acoustique"
+
+msgid "label-category-other"
+msgstr "Autres"
+
+msgid "label-track-library"
+msgstr "Pistes"
+
+msgid "label-track-delete"
+msgstr "Supprimer la piste"
+
+msgid "label-track-delete-confirm"
+msgstr "Supprimer ?"
+
+msgid "label-track-pitch"
+msgstr "Hauteur"
+
+msgid "label-track-speed"
+msgstr "Vitesse"
+
+msgid "label-track-volume"
+msgstr "Volume"
+
+msgid "label-user-tracks-folder"
+msgstr "Vos pistes : {}"
+
+msgid "placeholder-player-output"
+msgstr "Choisir la sortie"
+
+msgid "status-no-backing-tracks"
+msgstr "Aucune piste. Déposez des fichiers audio dans votre dossier de pistes ou choisissez un fichier."
+
+msgid "status-no-track"
+msgstr "Aucune piste chargée"
+
+msgid "status-track-failed"
+msgstr "Impossible de lire ce fichier"
+
+msgid "status-track-loading"
+msgstr "Chargement…"
+
+msgid "title-window-player"
+msgstr "OpenRig · Pistes d'accompagnement"
+
+msgid "tooltip-backing-tracks"
+msgstr "Pistes d'accompagnement"
+
+msgid "label-backing-tracks-path"
+msgstr "Pistes d'accompagnement"
+
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
 msgid "Tempo"
 msgstr "Tempo"

@@ -23,6 +23,7 @@
 //! doors read the project through is `runtime_session_handle`.
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -36,6 +37,7 @@ use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
 use engine::metronome_state::MetronomeSettings;
+use engine::player::settings::PlayerSettings;
 use engine::{DiPcm, LoopPcm};
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
@@ -44,7 +46,9 @@ use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
-use crate::{runtime_devices, runtime_loopers, runtime_pipelines, runtime_teardown};
+use crate::{
+    runtime_devices, runtime_loopers, runtime_pipelines, runtime_player, runtime_teardown,
+};
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
 /// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
@@ -180,6 +184,50 @@ impl RuntimeControl for GuiRuntimeControl {
             return Ok(());
         };
         runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
+    }
+
+    // The backing-track player: same rules as the click, bodies in
+    // `runtime_player`.
+
+    fn load_player_track(&self, path: &Path) -> Result<()> {
+        runtime_player::load_player_track(&self.runtime, path);
+        Ok(())
+    }
+
+    fn start_player(
+        &self,
+        track: &Path,
+        settings: PlayerSettings,
+        output_key: Option<&str>,
+    ) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        let (runtime, analyzers) = (&self.runtime, &self.analyzers);
+        runtime_player::start_player(runtime, analyzers, &session, track, settings, output_key)
+    }
+
+    fn pause_player(&self) {
+        runtime_player::pause_player(&self.runtime);
+    }
+
+    fn stop_player(&self) {
+        runtime_player::stop_player(&self.runtime);
+    }
+
+    fn seek_player(&self, seconds: f64) {
+        runtime_player::seek_player(&self.runtime, seconds);
+    }
+
+    fn set_player_settings(&self, settings: PlayerSettings) {
+        runtime_player::push_player_settings(&self.runtime, settings);
+    }
+
+    fn refresh_player_output(&self, output_key: Option<&str>) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        runtime_player::refresh_player_output(&self.runtime, &session, output_key)
     }
 
     /// The drum machine, an independent pipeline; body in `runtime_drums`.

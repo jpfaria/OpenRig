@@ -22,6 +22,7 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     inputs.insert(
@@ -39,6 +40,7 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {

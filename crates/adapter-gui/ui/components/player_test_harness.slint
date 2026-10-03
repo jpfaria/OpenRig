@@ -1,0 +1,18 @@
+// Responsibility: hosts the backing-track player panel for a test.
+// TEST-ONLY harness: hosts PlayerPanel in a real Window so the headless
+// interaction tests can dispatch real pointer events at its controls.
+// Imported by app-window.slint purely so slint-build emits the Rust type;
+// never shown in the running app.
+
+import { PlayerPanel } from "../pages/player_window.slint";
+
+export component PlayerHarness inherits Window {
+    width: 600px;
+    height: 760px;
+
+    PlayerPanel {
+        width: 100%;
+        height: 100%;
+        show-close-button: true;
+    }
+}

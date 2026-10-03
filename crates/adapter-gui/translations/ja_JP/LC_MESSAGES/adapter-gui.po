@@ -1143,6 +1143,99 @@ msgstr "ポート"
 msgid "⌨"
 msgstr "⌨"
 
+msgid "action-choose-file"
+msgstr "ファイルを選択…"
+
+msgid "action-loop-clear"
+msgstr "ループ解除"
+
+msgid "action-loop-end"
+msgstr "ループ B"
+
+msgid "action-loop-start"
+msgstr "ループ A"
+
+msgid "action-pause"
+msgstr "一時停止"
+
+msgid "action-play"
+msgstr "再生"
+
+msgid "action-stop"
+msgstr "停止"
+
+msgid "label-backing-tracks"
+msgstr "バッキングトラック"
+
+msgid "label-loop-range"
+msgstr "ループ {}"
+
+msgid "label-player-output"
+msgstr "トラック出力"
+
+msgid "label-player-position"
+msgstr "再生位置"
+
+msgid "label-category-solo"
+msgstr "ソロ"
+
+msgid "label-category-rhythm"
+msgstr "リズム"
+
+msgid "label-category-bass"
+msgstr "ベース"
+
+msgid "label-category-acoustic"
+msgstr "アコースティック"
+
+msgid "label-category-other"
+msgstr "その他"
+
+msgid "label-track-library"
+msgstr "トラック"
+
+msgid "label-track-delete"
+msgstr "トラックを削除"
+
+msgid "label-track-delete-confirm"
+msgstr "削除？"
+
+msgid "label-track-pitch"
+msgstr "ピッチ"
+
+msgid "label-track-speed"
+msgstr "速度"
+
+msgid "label-track-volume"
+msgstr "音量"
+
+msgid "label-user-tracks-folder"
+msgstr "マイトラック: {}"
+
+msgid "placeholder-player-output"
+msgstr "出力を選択"
+
+msgid "status-no-backing-tracks"
+msgstr "トラックがありません。トラックフォルダに音声ファイルを置くか、ファイルを選択してください。"
+
+msgid "status-no-track"
+msgstr "トラック未読み込み"
+
+msgid "status-track-failed"
+msgstr "このファイルを読み込めません"
+
+msgid "status-track-loading"
+msgstr "読み込み中…"
+
+msgid "title-window-player"
+msgstr "OpenRig · バッキングトラック"
+
+msgid "tooltip-backing-tracks"
+msgstr "バッキングトラック"
+
+msgid "label-backing-tracks-path"
+msgstr "バッキングトラック"
+
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
 msgid "Tempo"
 msgstr "テンポ"

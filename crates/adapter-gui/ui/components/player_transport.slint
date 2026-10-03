@@ -1,0 +1,51 @@
+// Responsibility: renders the backing-track player's transport buttons.
+// Icons, as on any audio deck: stop, play and pause in the middle, the A-B
+// loop on the right (A, then B, then off). The button for the current state
+// is lit.
+import { LooperIconButton } from "looper_controls.slint";
+import { PlayerBridge } from "player_globals.slint";
+
+export component PlayerTransport inherits Rectangle {
+    private property <bool> loaded: PlayerBridge.track-path != "";
+    private property <color> lit: #ccaa6640;
+    private property <color> lit-icon: #ccaa66;
+
+    height: 40px;
+
+    stop-btn := LooperIconButton {
+        x: (parent.width - 136px) / 2; y: 0;
+        icon: @image-url("../assets/stop.svg");
+        label: @tr("action-stop");
+        is-enabled: root.loaded;
+        clicked => { PlayerBridge.stop(); }
+    }
+
+    play-btn := LooperIconButton {
+        x: (parent.width - 40px) / 2; y: 0;
+        icon: @image-url("../assets/play.svg");
+        label: @tr("action-play");
+        is-enabled: root.loaded;
+        tint: PlayerBridge.playing ? root.lit-icon : #e6ebf5;
+        active-background: PlayerBridge.playing ? root.lit : transparent;
+        clicked => { PlayerBridge.set-playing(true); }
+    }
+
+    pause-btn := LooperIconButton {
+        x: (parent.width + 56px) / 2; y: 0;
+        icon: @image-url("../assets/pause.svg");
+        label: @tr("action-pause");
+        is-enabled: PlayerBridge.playing;
+        clicked => { PlayerBridge.set-playing(false); }
+    }
+
+    loop-btn := LooperIconButton {
+        x: parent.width - 40px; y: 0;
+        icon: @image-url("../assets/loop.svg");
+        label: PlayerBridge.loop-mark >= 0 ? @tr("action-loop-end")
+            : PlayerBridge.loop-active ? @tr("action-loop-clear") : @tr("action-loop-start");
+        is-enabled: PlayerBridge.duration > 0;
+        tint: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0 ? root.lit-icon : #e6ebf5;
+        active-background: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0 ? root.lit : transparent;
+        clicked => { PlayerBridge.mark-loop(); }
+    }
+}

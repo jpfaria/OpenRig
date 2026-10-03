@@ -97,6 +97,7 @@ pub(crate) fn open_project_at(
         ctx.project_chains,
         &session.project.borrow(),
         &session.io_bindings.borrow(),
+        &infra_cpal::list_output_device_descriptors().unwrap_or_default(),
     );
     let snapshot = project_session_snapshot(&session).ok();
     *ctx.project_session.borrow_mut() = Some(session);

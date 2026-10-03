@@ -137,3 +137,41 @@ fn set_plugins_path_none_resets_to_default_and_still_emits() {
         assert_eq!(events, vec![Event::PathsSaved]);
     });
 }
+
+#[test]
+fn set_backing_tracks_path_persists_and_moves_the_player_library() {
+    with_tmp_home("backing-tracks", || {
+        let dispatcher = LocalDispatcher::new(empty_project_rc());
+        let path = PathBuf::from("/tmp/openrig-test-backing-tracks");
+
+        let events = dispatcher
+            .dispatch(Command::Settings(SettingsCommand::SetBackingTracksPath {
+                path: Some(path.clone()),
+            }))
+            .unwrap();
+
+        assert_eq!(events, vec![Event::PathsSaved]);
+        assert_eq!(dispatcher.player_library().user, Some(path.clone()));
+        crate::persist_worker::flush();
+        let saved = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert_eq!(saved.paths.backing_tracks_path, Some(path));
+    });
+}
+
+#[test]
+fn clearing_the_backing_tracks_path_falls_back_to_the_default_folder() {
+    with_tmp_home("backing-tracks-none", || {
+        let dispatcher = LocalDispatcher::new(empty_project_rc());
+
+        dispatcher
+            .dispatch(Command::Settings(SettingsCommand::SetBackingTracksPath {
+                path: None,
+            }))
+            .unwrap();
+
+        assert_eq!(
+            dispatcher.player_library().user,
+            Some(infra_filesystem::default_backing_tracks_path())
+        );
+    });
+}

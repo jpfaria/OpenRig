@@ -53,6 +53,7 @@ fn bound_chain_drops_legacy_io_blocks_on_load() {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     let rig = RigProject {

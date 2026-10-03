@@ -1,0 +1,53 @@
+// Responsibility: renders the tabs that pick which part the library lists.
+import { PlayerBridge } from "player_globals.slint";
+
+// One part a player can practise over: solo, rhythm, bass, acoustic.
+component PlayerCategoryTab inherits Rectangle {
+    in property <string> key;
+    in property <bool> active;
+    callback pick();
+
+    min-width: 0;
+    horizontal-stretch: 1;
+    border-radius: 5px;
+    background: root.active ? #ccaa6640 : (ta.has-hover ? #1b2230 : transparent);
+    border-width: 1px;
+    border-color: root.active ? #ccaa66 : #2b3340;
+
+    Text {
+        x: 6px;
+        width: parent.width - 12px;
+        height: parent.height;
+        text: root.key == "solo" ? @tr("label-category-solo")
+            : root.key == "rhythm" ? @tr("label-category-rhythm")
+            : root.key == "bass" ? @tr("label-category-bass")
+            : root.key == "acoustic" ? @tr("label-category-acoustic")
+            : @tr("label-category-other");
+        color: root.active ? #ccaa66 : #c4ccd8;
+        font-family: "Bebas Neue";
+        font-size: 18px;
+        letter-spacing: 1.4px;
+        overflow: elide;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.pick(); }
+    }
+    accessible-role: tab;
+    accessible-label: root.key;
+}
+
+export component PlayerCategoryTabs inherits Rectangle {
+    height: 38px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        for key in PlayerBridge.categories : PlayerCategoryTab {
+            key: key;
+            active: key == PlayerBridge.category;
+            pick => { PlayerBridge.pick-category(key); }
+        }
+    }
+}

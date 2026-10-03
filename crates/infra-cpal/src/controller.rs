@@ -135,10 +135,13 @@ pub struct ProjectRuntimeController {
     /// metronome is on. Never shares a chain stream — the backend sums it on
     /// the device (invariant #4), so a chain rebuild cannot chop the click and
     /// the click can never reach the guitar's buffers.
-    pub(crate) metronome_stream: RefCell<Option<crate::metronome_stream::MetronomeStreamHandle>>,
+    pub(crate) metronome_stream: RefCell<Option<crate::aux_output::AuxOutputHandle>>,
     /// Issue #14: lock-free settings/position shared with that stream's
     /// callback. Outlives the stream so settings survive a stop/start.
     pub(crate) metronome_shared: engine::metronome_state::MetronomeCell,
+    /// The backing-track player's own output stream, worker and shared state.
+    /// Like the metronome it never shares a chain stream.
+    pub(crate) player: crate::player_stream::PlayerSlot,
     /// The drum machine's own output stream and the state it shares with it.
     pub(crate) drums: crate::drums_stream::DrumsHost,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
@@ -187,6 +190,7 @@ impl ProjectRuntimeController {
             metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
                 Default::default(),
             )),
+            player: Default::default(),
             drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
@@ -237,6 +241,7 @@ impl ProjectRuntimeController {
             metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
                 Default::default(),
             )),
+            player: Default::default(),
             drums: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(

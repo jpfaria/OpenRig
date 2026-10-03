@@ -55,6 +55,7 @@ fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {

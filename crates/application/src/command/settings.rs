@@ -56,6 +56,12 @@ pub enum SettingsCommand {
     /// on `Event::PathsSaved`.
     SetEvaluationsPath { path: Option<PathBuf> },
 
+    /// Persist the folder holding the user's own backing tracks. `None`
+    /// resets to the OS default
+    /// ([`infra_filesystem::default_backing_tracks_path`]). The tracks bundled
+    /// with the app are listed whatever this is.
+    SetBackingTracksPath { path: Option<PathBuf> },
+
     /// #712: master switch for the MCP server, persisted into
     /// `config.yaml` (`mcp_enabled`). Same per-machine, restart-to-apply
     /// contract as [`Command::SetMidiEnabled`].

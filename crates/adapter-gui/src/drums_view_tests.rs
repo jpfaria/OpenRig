@@ -5,7 +5,7 @@ use application::drums_state::DrumsSnapshot;
 use feature_dsp::drums::{DrumPattern, Groove, MAX_BPM, MIN_BPM};
 
 use super::*;
-use crate::metronome_view::MetronomeOutput;
+use crate::metronome_view::ProjectOutput;
 
 fn kit(id: &str, name: &str) -> DrumKitEntry {
     DrumKitEntry {
@@ -27,13 +27,15 @@ fn groove(id: &str, name: &str, genre: &str, beats_per_bar: u32) -> Groove {
     }
 }
 
-fn output(key: &str, label: &str) -> MetronomeOutput {
-    MetronomeOutput {
+fn output(key: &str, label: &str) -> ProjectOutput {
+    ProjectOutput {
+        binding_id: "b".into(),
+        endpoint: "e".into(),
         key: key.into(),
         label: label.into(),
         device_id: "dev".into(),
         channels: vec![0, 1],
-        aliases: vec![],
+        aliases: Vec::new(),
     }
 }
 

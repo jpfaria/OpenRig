@@ -13,7 +13,8 @@ use std::rc::Rc;
 
 use crate::{
     AppWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow, DrumsWindow, MetronomeWindow,
-    MixerWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow, TunerWindow,
+    MixerWindow, PlayerWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow,
+    TunerWindow,
 };
 
 pub(crate) struct DesktopWindows {
@@ -25,6 +26,7 @@ pub(crate) struct DesktopWindows {
     pub spectrum_window: SpectrumWindow,
     pub metronome_window: MetronomeWindow,
     pub mixer_window: MixerWindow,
+    pub player_window: PlayerWindow,
     pub drums_window: DrumsWindow,
     /// Built on demand by the chain editor's open callback.
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
@@ -45,10 +47,7 @@ pub(crate) fn create() -> Result<DesktopWindows> {
     crate::i18n::apply_bundled_translation(persisted_language.as_deref());
     window
         .window()
-        .set_size(slint::WindowSize::Logical(slint::LogicalSize {
-            width: 1100.0,
-            height: 620.0,
-        }));
+        .set_size(crate::main_window_size::initial_size());
 
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -75,6 +74,8 @@ pub(crate) fn create() -> Result<DesktopWindows> {
     let mixer_window = MixerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     crate::Locale::get(&mixer_window).set_font_family(boot_font.into());
 
+    let player_window = PlayerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    crate::Locale::get(&player_window).set_font_family(boot_font.into());
     let drums_window = DrumsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     crate::Locale::get(&drums_window).set_font_family(boot_font.into());
 
@@ -87,6 +88,7 @@ pub(crate) fn create() -> Result<DesktopWindows> {
         spectrum_window,
         metronome_window,
         mixer_window,
+        player_window,
         drums_window,
         chain_editor_window: Rc::new(RefCell::new(None)),
         plugin_info_window: Rc::new(RefCell::new(None)),

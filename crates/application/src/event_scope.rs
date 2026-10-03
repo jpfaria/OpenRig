@@ -86,6 +86,8 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            // The backing-track player is its own stream, never a chain.
+            | Event::Player(_)
             | Event::GlobalTempoLockChanged { .. }
             | Event::DrumsTransportChanged { .. }
             | Event::DrumFillTriggered

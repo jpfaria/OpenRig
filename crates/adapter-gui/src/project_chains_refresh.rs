@@ -19,6 +19,12 @@ pub(crate) fn replace_project_chains(
     output_devices: &[AudioDeviceDescriptor],
     io_bindings: &[IoBinding],
 ) {
+    // #324: the DI and looper output selects list every output of the project.
+    let project_output_labels: Vec<SharedString> =
+        project::project_outputs::output_endpoints(io_bindings, output_devices)
+            .into_iter()
+            .map(|o| SharedString::from(o.label))
+            .collect();
     let items = project
         .chains
         .iter()
@@ -122,19 +128,13 @@ pub(crate) fn replace_project_chains(
                 },
                 // #771: the DI panel's output select — the chain's bound
                 // output endpoints + the persisted pick.
-                di_loop_outputs: {
-                    let (labels, _) =
-                        crate::di_output_options::output_labels_and_index(chain, io_bindings);
-                    ModelRc::from(Rc::new(VecModel::from(
-                        labels
-                            .into_iter()
-                            .map(SharedString::from)
-                            .collect::<Vec<_>>(),
-                    )))
-                },
+                di_loop_outputs: ModelRc::from(Rc::new(VecModel::from(
+                    project_output_labels.clone(),
+                ))),
                 di_output_selected_index: crate::di_output_options::output_labels_and_index(
                     chain,
                     io_bindings,
+                    output_devices,
                 )
                 .1,
                 // Issue #670: no overload until the meter timer observes
@@ -269,16 +269,9 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
-                looper_output_options: {
-                    let (_, outputs) =
-                        project::chain_endpoint_options::chain_endpoint_labels(chain, io_bindings);
-                    ModelRc::from(Rc::new(VecModel::from(
-                        outputs
-                            .into_iter()
-                            .map(SharedString::from)
-                            .collect::<Vec<_>>(),
-                    )))
-                },
+                looper_output_options: ModelRc::from(Rc::new(VecModel::from(
+                    project_output_labels.clone(),
+                ))),
                 // #323 phase 2: filled by the meter tick (needs the rig's bank);
                 // the initial seed is empty ⇒ the picker shows just "follow".
                 looper_preset_options: ModelRc::default(),

@@ -1,5 +1,4 @@
 //! Responsibility: names every observable change a dispatch can emit.
-//! Typed `Event` enum — every observable change emitted by the dispatcher.
 //!
 //! Variants mirror the spec's "Shared Architecture / Types" section.
 //!
@@ -15,8 +14,7 @@ use crate::command::{BlockId, ChainId};
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum Event {
-    /// The project has been mutated in some way (coarse-grained notification).
-    /// Subscribers that need to fully re-render can react to this.
+    /// The project changed in some way; subscribers re-render everything.
     ProjectMutated,
 
     /// The entire chain was rebuilt (e.g. blocks reordered, preset loaded).
@@ -271,6 +269,9 @@ pub enum Event {
     /// #14: the tap-tempo button was tapped. The adapter owns the tap history
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
+
+    /// The backing-track player changed. It is its own stream, never a chain.
+    Player(crate::player_event::PlayerEvent),
 
     /// The "use global tempo" lock changed.
     GlobalTempoLockChanged {
@@ -545,10 +546,7 @@ pub enum Event {
         param: crate::command::LooperParam,
     },
 
-    /// #717 Task 3: the chain's chosen DI output endpoint was persisted.
-    ///
-    /// The adapter-gui reacts to this event to refresh any UI showing the
-    /// selected DI output. The new value can be read back from the project via
+    /// #717: the chain's DI output endpoint was persisted; read it back from
     /// `chain.di_output`.
     ChainDiLoopOutputChanged {
         chain: ChainId,

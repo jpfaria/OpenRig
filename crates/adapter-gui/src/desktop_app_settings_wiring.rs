@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{Global, ModelRc, Timer, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, Timer, VecModel};
 
 use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::{AppWindow, ProjectSettingsWindow};
@@ -159,4 +159,31 @@ pub(crate) fn wire(
     );
     crate::settings::paths::seed_initial(window);
     crate::settings::paths::seed_initial_secondary(project_settings_window);
+    install_backing_tracks_path(window, project_settings_window, &project_session);
+}
+
+/// The backing-tracks folder row, on both Settings roots, seeded from config.
+fn install_backing_tracks_path(
+    window: &AppWindow,
+    project_settings_window: &ProjectSettingsWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+) {
+    use crate::settings::paths_backing_tracks::{configured_label, install};
+    let configured = configured_label();
+    let main = crate::SettingsBridge::get(window);
+    main.set_backing_tracks_path(configured.clone().into());
+    let weak = window.as_weak();
+    install(&main, project_session.clone(), move |label| {
+        if let Some(w) = weak.upgrade() {
+            crate::SettingsBridge::get(&w).set_backing_tracks_path(label.into());
+        }
+    });
+    let secondary = crate::SettingsBridge::get(project_settings_window);
+    secondary.set_backing_tracks_path(configured.into());
+    let weak = project_settings_window.as_weak();
+    install(&secondary, project_session.clone(), move |label| {
+        if let Some(w) = weak.upgrade() {
+            crate::SettingsBridge::get(&w).set_backing_tracks_path(label.into());
+        }
+    });
 }

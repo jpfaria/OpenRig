@@ -10,7 +10,7 @@ use project::rig::{RigInput, RigPreset, RigProject};
 use crate::rig_runtime::rig_to_legacy_project;
 use project::rig_sync::sync_synthetic_into_rig;
 
-fn simple_rig() -> RigProject {
+pub(super) fn simple_rig() -> RigProject {
     RigProject {
         name: Some("Test".into()),
         inputs: [(
@@ -28,6 +28,7 @@ fn simple_rig() -> RigProject {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         )]
         .into_iter()

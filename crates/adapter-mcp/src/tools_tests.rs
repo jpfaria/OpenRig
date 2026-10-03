@@ -79,9 +79,15 @@ use application::command_schema::command_variant_names;
 /// with any number of paths.
 /// #1021 bumped to 116 with `DeleteLooperTake` — removing a saved take from
 /// the library, so a headless client can prune it as the DI panel's trash does.
-/// Bumped to 128: the drum machine's ten `DrumsCommand` leaves plus
-/// `SetGlobalTempoLock`/`SetRigPresetBpm` (the tempo lock and a preset's own BPM).
-const COMMAND_VARIANT_COUNT: usize = 128;
+/// The backing-track player bumped to 127 with the ten `PlayerCommand` leaves
+/// (`LoadPlayerTrack`/`SetPlayerPlaying`/`StopPlayer`/`SeekPlayer`/
+/// `SetPlayerVolume`/`Speed`/`Semitones`/`Loop`/`ClearPlayerLoop`/
+/// `SetPlayerOutput`) and `SetBackingTracksPath`, then to 128 with
+/// `DeletePlayerTrack` — the trash on the user's own tracks. The drum machine
+/// adds its ten `DrumsCommand` leaves (play, stop, toggle, enable, kit, groove,
+/// fill, bpm, volume, output).
+/// The tempo lock and a preset's own BPM add `SetGlobalTempoLock`/`SetRigPresetBpm`.
+const COMMAND_VARIANT_COUNT: usize = 140;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

@@ -36,6 +36,7 @@ fn is_healthy_returns_true_when_no_chains_active() {
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
@@ -70,6 +71,7 @@ fn is_running_returns_false_when_no_chains() {
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
@@ -123,6 +125,7 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
@@ -184,6 +187,7 @@ fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
@@ -282,6 +286,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),

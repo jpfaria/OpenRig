@@ -5,7 +5,7 @@ use application::drums_state::DrumsSnapshot;
 
 use feature_dsp::drums::{MAX_BPM, MIN_BPM};
 
-use crate::metronome_view::{resolve_output_endpoint, MetronomeOutput};
+use crate::metronome_view::{resolve_output_endpoint, ProjectOutput};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DrumPick {
@@ -39,7 +39,7 @@ pub(crate) struct DrumsView {
 pub(crate) fn drums_view(
     snapshot: &DrumsSnapshot,
     library: &DrumLibrary,
-    endpoints: &[MetronomeOutput],
+    endpoints: &[ProjectOutput],
 ) -> DrumsView {
     let kit = library
         .kits

@@ -69,6 +69,7 @@ fn asset_paths_serde_roundtrip_preserves_values() {
         presets_path: None,
         plugins_path: None,
         evaluations_path: None,
+        backing_tracks_path: None,
     };
     let yaml = serde_yaml::to_string(&paths).unwrap();
     let restored: AssetPaths = serde_yaml::from_str(&yaml).unwrap();
@@ -91,6 +92,7 @@ fn resolve_asset_paths_absolute_left_unchanged() {
         presets_path: None,
         plugins_path: None,
         evaluations_path: None,
+        backing_tracks_path: None,
     };
     let resolved = resolve_asset_paths(paths.clone());
     assert_eq!(resolved.thumbnails, "/absolute/thumbs");
