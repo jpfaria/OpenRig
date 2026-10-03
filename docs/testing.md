@@ -452,6 +452,24 @@ OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
 
+## Looking at the dev build the owner has open
+
+A build started with `cargo run` (or from RustRover) has no bundle id, so the
+computer-use tools, which grant apps by bundle, cannot see or click it. Drive it
+from the shell instead:
+
+- window geometry: `osascript -e 'tell application "System Events" to tell
+  (first process whose unix id is <pid>) to get {name, position, size} of every
+  window'` (`pgrep -fl adapter-gui` gives the pid);
+- picture: `screencapture -x -R<x>,<y>,<w>,<h> shot.png` with that geometry;
+- click: a few lines of Swift posting `CGEvent` mouse down/up at screen
+  coordinates (`swiftc -O click.swift -o click`), the window origin plus the
+  point read off the picture.
+
+Re-read the geometry before each click: the owner may resize the window while
+you work. Only open lists and close them again; picking an entry or saving
+changes his rig.
+
 ## Agent builds take the build lock
 
 Agent sessions build in their own clones but share one machine; two builds at
