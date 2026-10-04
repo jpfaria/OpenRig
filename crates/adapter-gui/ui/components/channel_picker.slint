@@ -94,6 +94,8 @@ export component ChannelPicker inherits Rectangle {
     // #328: the endpoint checklist reuses this list; it counts endpoints, not
     // channels. Default is the channel wording every existing picker shows.
     in property <string> total-caption: @tr("label-channels-total", root.channels.length);
+    // The endpoint checklist hides the count: its rows already say it.
+    in property <bool> show-total: true;
     callback toggled(int /* index */, bool /* selected */);
 
     private property <length> row-height: 34px;
@@ -102,7 +104,8 @@ export component ChannelPicker inherits Rectangle {
         : root.channels.length * root.row-height;
     // Header + capped list + padding. Pinned so the picker never grows with the
     // channel count and never stretches to fill its row.
-    private property <length> box-height: 22px + root.list-height + 20px;
+    private property <length> header-height: root.show-total ? 22px : 0px;
+    private property <length> box-height: root.header-height + root.list-height + (root.show-total ? 20px : 16px);
 
     // Explicit height: layouts read it as a fixed constraint, and an
     // absolutely-positioned instance (the insert editor) needs it too —
@@ -119,8 +122,8 @@ export component ChannelPicker inherits Rectangle {
         spacing: 4px;
 
         // How many channels the device has; the checkboxes already show the pick.
-        header := HorizontalLayout {
-            height: 22px;
+        if root.show-total : HorizontalLayout {
+            height: root.header-height;
             padding-left: 4px;
             spacing: 0px;
             Rectangle { horizontal-stretch: 1; }

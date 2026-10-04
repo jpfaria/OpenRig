@@ -39,7 +39,8 @@ pub(crate) fn set_endpoint_enabled(
     let Some(NodeRef::Endpoints(node)) = resolve_node(&chain, node_id) else {
         return Err(GestureError::NotApplicable);
     };
-    let endpoint = endpoint_rows(&chain, &s.io_bindings.borrow(), &node)
+    // The row's label is not read here; only its aliases are switched.
+    let endpoint = endpoint_rows(&chain, &s.io_bindings.borrow(), &[], &node)
         .into_iter()
         .nth(row)
         .ok_or(GestureError::NotApplicable)?;

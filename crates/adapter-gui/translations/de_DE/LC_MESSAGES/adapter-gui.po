@@ -203,18 +203,9 @@ msgstr "GLOBAL"
 msgid "btn-close"
 msgstr "Schließen"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr ""
-"Abgewählte Endpunkte bleiben gelistet, sind aber von diesem Knoten getrennt."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "Die E/A dieser Kette hat keine Endpunkte für diesen Knoten."
-
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} Endpunkte"
 
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
