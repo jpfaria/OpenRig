@@ -70,7 +70,13 @@ fn current_rows(
     };
     let borrowed = checklist.ctx.project_session.borrow();
     let registry = borrowed.as_ref()?.io_bindings.borrow().clone();
-    let rows = endpoint_rows(&chain, &registry, &node);
+    let devices = match node {
+        EndpointNode::Input => checklist.ctx.input_chain_devices.borrow(),
+        EndpointNode::Output | EndpointNode::PathOutput(_) => {
+            checklist.ctx.output_chain_devices.borrow()
+        }
+    };
+    let rows = endpoint_rows(&chain, &registry, &devices, &node);
     Some((node, rows))
 }
 
