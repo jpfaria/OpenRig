@@ -149,7 +149,9 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
   stream starts while an input callback is reallocating for the new size).
   So a chain's streams and an isolated loop/DI playback resolve their device
   through the same resolver, with the project's `device_settings` for that
-  device.
+  device, and the auxiliary outputs (backing-track player, metronome, drums)
+  open it with the same rate and buffer (`aux_stream_format`) — never a fixed
+  size of their own.
 
 ### Why these rules (invariants 4 / 5 / 10)
 

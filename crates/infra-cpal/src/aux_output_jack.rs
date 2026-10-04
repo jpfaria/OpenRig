@@ -67,6 +67,7 @@ impl jack::ProcessHandler for AuxJackHandler {
 /// Opens and activates a JACK client for one pipeline, with one port per
 /// target channel (the first two playback ports when `targets` is empty).
 pub(crate) fn open_aux_output(
+    _device_settings: &[project::device::DeviceSettings],
     device_id: &str,
     targets: &[usize],
     label: &str,
