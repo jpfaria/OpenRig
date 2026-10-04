@@ -39,6 +39,7 @@ pub mod looper;
 pub mod midi;
 pub mod migrate;
 pub mod param;
+pub mod physical_endpoint_label;
 pub mod project;
 pub mod project_disable_unavailable;
 pub mod project_outputs;

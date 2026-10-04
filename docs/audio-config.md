@@ -419,8 +419,11 @@ activation of the other chains. The rig runtime (`RigRuntime::build` /
 
 In the chains screen (desktop), clicking a chain graph's input node — or its output node, or on a
 chain with Y leaves a leaf's own output node — opens this checklist as a root-level panel: every input (or
-output) endpoint of the chain's E/S, checked unless that node leaves it out. Each click dispatches
-`SetChainEndpointEnabled` for that node and that endpoint and resyncs the chain; an unchecked
+output) endpoint of the chain's E/S, checked unless that node leaves it out. Bindings that overlap
+repeat the same physical endpoint (device + channels); it is listed once, named by device and
+1-based channels like the output pickers ("Quantum HD 8 · Out 1/2", a device the host no longer
+lists shows its id), and is checked while any binding copy still plays. Each click dispatches
+`SetChainEndpointEnabled` for that node and every binding copy of that endpoint and resyncs the chain; an unchecked
 endpoint stays listed so it can be checked again. The node's label names its checked endpoints
 (`None` when every one is off).
 

@@ -29,7 +29,7 @@ pub(crate) fn drums_panel_view(session: &SessionCell) -> Option<(DrumsSnapshot, 
     let s = borrowed.as_ref()?;
     let snapshot = s.dispatcher.drums_snapshot();
     let library = s.dispatcher.drums_library();
-    let devices = infra_cpal::list_output_device_descriptors().unwrap_or_default();
+    let devices = crate::device_refresh_list::list_output_devices();
     let outputs = output_endpoints(&s.io_bindings.borrow(), &devices);
     let view = drums_view(&snapshot, &library, &outputs);
     Some((snapshot, view))

@@ -70,6 +70,8 @@ pub(crate) fn replace_project_chains(
             let io_labels = crate::endpoint_checklist_items::io_labels(
                 chain,
                 io_bindings,
+                input_devices,
+                output_devices,
                 &input_label,
                 &output_label,
             );
