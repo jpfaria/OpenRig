@@ -144,7 +144,7 @@ pub(crate) fn refresh_metronome_outputs(
         .borrow()
         .as_ref()
         .map(|session| {
-            let devices = infra_cpal::list_output_device_descriptors().unwrap_or_default();
+            let devices = crate::device_refresh_list::list_output_devices();
             output_endpoints(&session.io_bindings.borrow(), &devices)
         })
         .unwrap_or_default();

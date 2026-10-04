@@ -203,18 +203,9 @@ msgstr "グローバル"
 msgid "btn-close"
 msgstr "閉じる"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr ""
-"チェックを外したエンドポイントは一覧に残りますが、このノードからは外れます。"
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "このチェーンのE/Sには、このノード用のエンドポイントがありません。"
-
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} 個のエンドポイント"
 
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55

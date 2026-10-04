@@ -81,7 +81,7 @@ pub fn start_meter_polling(
         // (offline, no stream needed), so refresh EVERY chain — active or not —
         // else a DI-only chain (never enabled) shows no output select. Device
         // names come from the cached enumeration (never blocks the tick).
-        let output_devices = infra_cpal::list_output_device_descriptors().unwrap_or_default();
+        let output_devices = crate::device_refresh_list::list_output_devices();
         crate::di_output_options::apply_di_outputs_to_rows(
             &project_chains,
             &project,

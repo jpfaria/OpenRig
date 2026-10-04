@@ -9,10 +9,12 @@
 //! Part 1) — nothing is added to or removed from the E/S.
 
 use domain::distinct_endpoints::distinct_endpoints;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::IoBinding;
 use project::block::{y_leaves, PathRef};
 use project::chain::Chain;
 use project::endpoint_disables::{EndpointNode, EndpointRef};
+use project::physical_endpoint_label::physical_endpoint_label;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EndpointRow {
@@ -26,12 +28,18 @@ pub(crate) struct EndpointRow {
 
 /// One row per physical endpoint (`domain::distinct_endpoints`): bindings
 /// that overlap repeat the same device + channels, and the row stands for
-/// every copy. It is checked while any copy still plays.
+/// every copy. It is checked while any copy still plays. A row is named by
+/// device and channels ("Quantum HD 8 · Out 1/2"), like the output pickers.
 pub(crate) fn endpoint_rows(
     chain: &Chain,
     registry: &[IoBinding],
+    devices: &[AudioDeviceDescriptor],
     node: &EndpointNode,
 ) -> Vec<EndpointRow> {
+    let direction = match node {
+        EndpointNode::Input => "In",
+        EndpointNode::Output | EndpointNode::PathOutput(_) => "Out",
+    };
     let listed = chain
         .io_binding_ids
         .iter()
@@ -60,7 +68,12 @@ pub(crate) fn endpoint_rows(
                     .any(|alias| chain.disabled_endpoints.is_enabled(node, alias)),
                 io: distinct.binding_id,
                 endpoint: distinct.endpoint,
-                label: distinct.label,
+                label: physical_endpoint_label(
+                    direction,
+                    &distinct.device_id.0,
+                    &distinct.channels,
+                    devices,
+                ),
                 aliases,
             }
         })
@@ -107,12 +120,18 @@ impl IoLabels {
 pub(crate) fn io_labels(
     chain: &Chain,
     registry: &[IoBinding],
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
     fallback_input: &str,
     fallback_output: &str,
 ) -> IoLabels {
     let none = rust_i18n::t!("label-endpoints-none").to_string();
     let label = |node: &EndpointNode, fallback: &str| {
-        let rows = endpoint_rows(chain, registry, node);
+        let devices = match node {
+            EndpointNode::Input => input_devices,
+            EndpointNode::Output | EndpointNode::PathOutput(_) => output_devices,
+        };
+        let rows = endpoint_rows(chain, registry, devices, node);
         if rows.is_empty() {
             fallback.to_string()
         } else {

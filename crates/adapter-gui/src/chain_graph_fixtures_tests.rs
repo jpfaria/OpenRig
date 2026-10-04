@@ -125,6 +125,15 @@ pub(crate) fn endpoint_at(name: &str, channels: Vec<usize>) -> IoEndpoint {
     }
 }
 
+/// The fixture device as the host lists it.
+pub(crate) fn devices() -> Vec<domain::AudioDeviceDescriptor> {
+    vec![domain::AudioDeviceDescriptor {
+        id: "dev".into(),
+        name: "Quantum HD 8".into(),
+        channels: 8,
+    }]
+}
+
 /// `main` ("Scarlett"): inputs In 1, In 2 — output Out L/R.
 /// `aux` ("AUX"): output Out L/R (same endpoint name as main's, other channels).
 pub(crate) fn registry() -> Vec<IoBinding> {
