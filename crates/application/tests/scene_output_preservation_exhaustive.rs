@@ -101,6 +101,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {

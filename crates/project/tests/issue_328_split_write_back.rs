@@ -82,6 +82,7 @@ fn rig(active_scene: usize) -> RigProject {
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
+                di_output: None,
             },
         )]),
         outputs: BTreeMap::new(),

@@ -68,6 +68,7 @@ fn a_checklist_edit_on_the_projected_chain_is_captured_into_the_rig_input() {
                 io_binding_ids: vec!["io".into()],
                 loopers: Vec::new(),
                 disabled_endpoints: EndpointDisables::default(),
+                di_output: None,
             },
         )]),
         outputs: BTreeMap::new(),

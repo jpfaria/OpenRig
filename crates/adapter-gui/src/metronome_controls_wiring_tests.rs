@@ -1,7 +1,9 @@
 use super::*;
 
-fn output(key: &str, label: &str) -> MetronomeOutput {
-    MetronomeOutput {
+fn output(key: &str, label: &str) -> ProjectOutput {
+    ProjectOutput {
+        binding_id: String::new(),
+        endpoint: String::new(),
         key: key.into(),
         label: label.into(),
         device_id: "dev:x".into(),
@@ -10,7 +12,7 @@ fn output(key: &str, label: &str) -> MetronomeOutput {
     }
 }
 
-fn outputs() -> Vec<MetronomeOutput> {
+fn outputs() -> Vec<ProjectOutput> {
     vec![
         output("main\u{1f}Out 1-2", "Scarlett 2i2 · Out 1-2"),
         output("monitor\u{1f}Phones", "Headphones · Phones"),
@@ -18,7 +20,7 @@ fn outputs() -> Vec<MetronomeOutput> {
     ]
 }
 
-fn labels(filtered: Vec<&MetronomeOutput>) -> Vec<&str> {
+fn labels(filtered: Vec<&ProjectOutput>) -> Vec<&str> {
     filtered.iter().map(|o| o.label.as_str()).collect()
 }
 

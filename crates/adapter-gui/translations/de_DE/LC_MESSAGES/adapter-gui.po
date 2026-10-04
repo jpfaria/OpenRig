@@ -1140,6 +1140,99 @@ msgstr "Port"
 msgid "⌨"
 msgstr "⌨"
 
+msgid "action-choose-file"
+msgstr "Datei wählen…"
+
+msgid "action-loop-clear"
+msgstr "Schleife aus"
+
+msgid "action-loop-end"
+msgstr "Loop B"
+
+msgid "action-loop-start"
+msgstr "Loop A"
+
+msgid "action-pause"
+msgstr "Pause"
+
+msgid "action-play"
+msgstr "Abspielen"
+
+msgid "action-stop"
+msgstr "Stopp"
+
+msgid "label-backing-tracks"
+msgstr "Backing-Tracks"
+
+msgid "label-loop-range"
+msgstr "Loop {}"
+
+msgid "label-player-output"
+msgstr "Track-Ausgang"
+
+msgid "label-player-position"
+msgstr "Track-Position"
+
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Rhythmus"
+
+msgid "label-category-bass"
+msgstr "Bass"
+
+msgid "label-category-acoustic"
+msgstr "Akustik"
+
+msgid "label-category-other"
+msgstr "Andere"
+
+msgid "label-track-library"
+msgstr "Tracks"
+
+msgid "label-track-delete"
+msgstr "Track löschen"
+
+msgid "label-track-delete-confirm"
+msgstr "Löschen?"
+
+msgid "label-track-pitch"
+msgstr "Tonhöhe"
+
+msgid "label-track-speed"
+msgstr "Tempo"
+
+msgid "label-track-volume"
+msgstr "Lautstärke"
+
+msgid "label-user-tracks-folder"
+msgstr "Eigene Tracks: {}"
+
+msgid "placeholder-player-output"
+msgstr "Ausgang wählen"
+
+msgid "status-no-backing-tracks"
+msgstr "Noch keine Tracks. Lege Audiodateien in deinen Track-Ordner oder wähle eine Datei."
+
+msgid "status-no-track"
+msgstr "Kein Track geladen"
+
+msgid "status-track-failed"
+msgstr "Diese Datei konnte nicht gelesen werden"
+
+msgid "status-track-loading"
+msgstr "Wird geladen…"
+
+msgid "title-window-player"
+msgstr "OpenRig · Backing-Tracks"
+
+msgid "tooltip-backing-tracks"
+msgstr "Backing-Tracks"
+
+msgid "label-backing-tracks-path"
+msgstr "Backing-Tracks"
+
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
 msgid "Tempo"
 msgstr "Tempo"

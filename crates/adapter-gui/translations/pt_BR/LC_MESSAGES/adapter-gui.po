@@ -1142,6 +1142,99 @@ msgstr "Porta"
 msgid "⌨"
 msgstr "⌨"
 
+msgid "action-choose-file"
+msgstr "Escolher arquivo…"
+
+msgid "action-loop-clear"
+msgstr "Desligar loop"
+
+msgid "action-loop-end"
+msgstr "Loop B"
+
+msgid "action-loop-start"
+msgstr "Loop A"
+
+msgid "action-pause"
+msgstr "Pausar"
+
+msgid "action-play"
+msgstr "Tocar"
+
+msgid "action-stop"
+msgstr "Parar"
+
+msgid "label-backing-tracks"
+msgstr "Backing tracks"
+
+msgid "label-loop-range"
+msgstr "Loop {}"
+
+msgid "label-player-output"
+msgstr "Saída da faixa"
+
+msgid "label-player-position"
+msgstr "Posição na faixa"
+
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Base"
+
+msgid "label-category-bass"
+msgstr "Baixo"
+
+msgid "label-category-acoustic"
+msgstr "Violão"
+
+msgid "label-category-other"
+msgstr "Outras"
+
+msgid "label-track-library"
+msgstr "Faixas"
+
+msgid "label-track-delete"
+msgstr "Excluir faixa"
+
+msgid "label-track-delete-confirm"
+msgstr "Excluir?"
+
+msgid "label-track-pitch"
+msgstr "Tom"
+
+msgid "label-track-speed"
+msgstr "Velocidade"
+
+msgid "label-track-volume"
+msgstr "Volume"
+
+msgid "label-user-tracks-folder"
+msgstr "Suas faixas: {}"
+
+msgid "placeholder-player-output"
+msgstr "Selecione a saída"
+
+msgid "status-no-backing-tracks"
+msgstr "Nenhuma faixa ainda. Coloque arquivos de áudio na sua pasta de faixas ou escolha um arquivo."
+
+msgid "status-no-track"
+msgstr "Nenhuma faixa carregada"
+
+msgid "status-track-failed"
+msgstr "Não foi possível ler este arquivo"
+
+msgid "status-track-loading"
+msgstr "Carregando…"
+
+msgid "title-window-player"
+msgstr "OpenRig · Backing tracks"
+
+msgid "tooltip-backing-tracks"
+msgstr "Backing tracks"
+
+msgid "label-backing-tracks-path"
+msgstr "Backing tracks"
+
 #: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
 msgid "Tempo"
 msgstr "Andamento"

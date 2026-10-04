@@ -60,6 +60,7 @@ project:
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
 | `inputs.<name>.disabled_endpoints` | `EndpointDisables` | The graph's endpoint checklists: `{ inputs, outputs, path_outputs }`. `inputs`/`outputs` are lists of `{ io, endpoint }` (binding id + endpoint name) left out of that node; `path_outputs` holds one `{ split, path, disabled }` per Y leaf with something unchecked. Absent = every endpoint checked. Older files' `path_a_outputs`/`path_b_outputs` are read and moved onto the chain's Y. |
+| `inputs.<name>.di_output` | `Option<DiOutputRef>` | The output the chain's DI plays to: `{ binding_id, endpoint }`. Absent = the chain's own outputs. |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
 | `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | Chain split: `{ end: mix \| y, params, paths: [[blocks], …] }`, at least two paths. Path blocks are full `AudioBlock`s with their own ids. |

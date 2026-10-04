@@ -18,8 +18,7 @@ use anyhow::{bail, Result};
 use application::drums_runtime::{DrumsRuntime, DrumsSetup};
 use engine::drum_state::{DrumSettings, DrumsCell, Groove};
 
-use crate::drums_outputs::drums_output_endpoints;
-use crate::metronome_view::{resolve_output_endpoint, MetronomeOutput};
+use crate::metronome_view::{output_endpoints, resolve_output_endpoint, ProjectOutput};
 use crate::runtime_lifecycle::GuiRuntimeControl;
 use crate::runtime_pipelines::ensure_runtime;
 use crate::state::ProjectSession;
@@ -156,9 +155,9 @@ fn spawn_kit_load(shared: DrumsCell, dir: PathBuf, rate: u32) {
 
 /// The endpoint the drums play through: the saved one while it exists,
 /// otherwise the first the drums offer.
-fn drums_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<MetronomeOutput> {
+fn drums_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<ProjectOutput> {
     let bindings = session.io_bindings.borrow();
-    resolve_output_endpoint(output_key, &drums_output_endpoints(&bindings))
+    resolve_output_endpoint(output_key, &output_endpoints(&bindings, &[]))
 }
 
 #[cfg(test)]

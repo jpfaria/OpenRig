@@ -8,8 +8,7 @@
 //!    `hw:<N>` lookup against the USB cards, or first running named
 //!    server fallback).
 //! 2. Open a `jack::Client` against that server with retry-200ms × 5 to
-//!    ride out the libjack "shm not yet up" race documented in #294 /
-//!    #308.
+//!    ride out the libjack "shm not yet up" race.
 //! 3. Register one input port per max(device_in_ch, chain's selected
 //!    channels) and, per output route of the runtime (#328), one output
 //!    port per max(device_out_ch, …) so the AsyncClient port shape stays
@@ -40,14 +39,14 @@ use project::chain::Chain;
 
 use crate::active_runtime::DspWorkerHandle;
 use crate::cpu_affinity::{detect_big_cores, pin_thread_to_cpus};
-use crate::drums_jack_ports::jack_server_for_device;
 use crate::jack_client_open::open_jack_client;
 use crate::jack_handlers::{
     JackProcessHandler, JackRouteOutput, JackShutdownHandler, SpscRingBuffer,
 };
 use crate::jack_route_ports::route_ports;
+use crate::jack_server_resolve::resolve_jack_server;
 use crate::resolved::MAX_JACK_FRAMES;
-use crate::usb_proc::{detect_all_usb_audio_cards, jack_server_is_running_for};
+use crate::usb_proc::detect_all_usb_audio_cards;
 
 pub(crate) fn build_jack_direct_chain(
     chain_id: &ChainId,
@@ -64,23 +63,12 @@ pub(crate) fn build_jack_direct_chain(
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     // Determine which named JACK server this chain should connect to.
     let cards = detect_all_usb_audio_cards();
-    let server_name = resolved_inputs
-        .iter()
-        .find_map(|entry| {
-            jack_server_for_device(&entry.device_id.0, |hw_num| {
-                cards
-                    .iter()
-                    .find(|c| c.card_num == hw_num)
-                    .map(|c| c.server_name.clone())
-            })
-        })
-        .or_else(|| {
-            cards
-                .iter()
-                .find(|c| jack_server_is_running_for(&c.server_name))
-                .map(|c| c.server_name.clone())
-        })
-        .unwrap_or_else(|| "default".to_string());
+    let server_name = resolve_jack_server(
+        &cards,
+        resolved_inputs
+            .iter()
+            .map(|entry| entry.device_id.0.as_str()),
+    );
 
     log::info!(
         "build_jack_direct_chain: chain '{}' → JACK server '{}'",

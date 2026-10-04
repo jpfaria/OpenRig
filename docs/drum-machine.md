@@ -96,9 +96,9 @@ one in `assets/drums/` (licenses in `assets/drums/README.md`).
 - **POWER** is the one transport switch: on sends `PlayDrums` (opens the
   output and plays), off sends `SetDrumsEnabled { false }` (stops and closes
   it), and it is lit while the groove plays.
-- **Outputs**: only the endpoints of output-only bindings (no inputs), since
-  an in+out binding repeats an output another binding already names; with no
-  output-only binding, every output (`drums_outputs.rs`).
+- **Outputs**: every output of the project, from the same listing the
+  metronome, the player, the looper and the DI use
+  (`project::project_outputs::output_endpoints`).
 - **Wiring**: `drums_intents.rs` maps each control to its `DrumsCommand`;
   `drums_view.rs` builds what the panel shows from the snapshot, the library
   and the project's output endpoints; `drums_ctx.rs` redraws the window

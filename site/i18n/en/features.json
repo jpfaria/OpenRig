@@ -1,7 +1,7 @@
 {
   "features.eyebrow": "Everything you need",
   "features.h2": "More than<br>a rig.",
-  "features.lede": "Looper, tuner, metronome, a drum machine with grooves by genre to play along with, spectrum analyzer and a tone diagnosis, all built in. You never leave the app to check or fix the sound.",
+  "features.lede": "Looper, tuner, metronome, a drum machine with grooves by genre to play along with, backing tracks, spectrum analyzer and a tone diagnosis, all built in. You never leave the app to check or fix the sound.",
   "features.f1.h3": "Looper",
   "features.f1.p": "Up to 8 loops per chain, layer over layer — undo, reverse, play at half or double speed.",
   "features.f2.h3": "DI loop",
@@ -14,6 +14,8 @@
   "features.f5.p": "Real-time spectrum per input, left and right — you can see what you're playing.",
   "features.f6.h3": "Tone Doctor",
   "features.f6.p": "Points out fizz, mud and boom against a genre reference, and tells you how to fix it.",
+  "features.more.backing.b": "Backing tracks",
+  "features.more.backing.p": "49 rock, blues and funk jams in several keys, split by what you play — solo, rhythm, bass, acoustic — or your own file. Slow it to 0.5× without changing the key, transpose ±12 semitones, loop the bar you're learning.",
   "features.more.presets.b": "Presets",
   "features.more.presets.p": "Your whole board, saved. Call it back from the screen, a footswitch or Claude.",
   "features.more.scenes.b": "Scenes",

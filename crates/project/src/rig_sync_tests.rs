@@ -25,6 +25,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         );
         presets.insert(

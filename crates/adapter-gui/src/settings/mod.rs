@@ -21,6 +21,7 @@ pub mod language;
 pub mod midi_devices;
 pub mod paths;
 pub(crate) mod paths_apply;
+pub(crate) mod paths_backing_tracks;
 pub(crate) mod paths_overrides;
 pub(crate) mod paths_seed;
 pub mod project_meta;

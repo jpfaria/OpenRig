@@ -33,6 +33,8 @@ use crate::local_dispatcher::ToneDoctorInput;
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
 use crate::mixer_state::MixerControlState;
 use crate::mixer_view::MixerStripView;
+use crate::player_library::PlayerLibraryDirs;
+use crate::player_state::{PlayerControlState, PlayerSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -131,6 +133,20 @@ pub trait CommandDispatcher {
     /// RENDERS it. The dispatcher owns the truth; a window mirrors it.
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         MetronomeSnapshot::default()
+    }
+
+    /// Hand the dispatcher the backing-track player state it owns. A
+    /// dispatcher nobody attaches one to keeps a private, unpersisted state.
+    fn attach_player_state(&self, _state: Rc<RefCell<PlayerControlState>>) {}
+
+    /// The player's control-plane state, for the frontend that renders it.
+    fn player_snapshot(&self) -> PlayerSnapshot {
+        PlayerSnapshot::default()
+    }
+
+    /// The folders the player's library is listed from.
+    fn player_library(&self) -> PlayerLibraryDirs {
+        PlayerLibraryDirs::default()
     }
 
     /// Hand the dispatcher the drum machine state it owns.

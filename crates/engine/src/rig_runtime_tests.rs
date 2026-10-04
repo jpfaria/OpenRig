@@ -91,6 +91,7 @@ pub(super) fn input(binding_id: &str, bank: &[(usize, &str)], active: usize) -> 
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     }
 }
 

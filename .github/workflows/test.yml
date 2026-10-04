@@ -91,7 +91,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
@@ -176,7 +176,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
@@ -226,7 +226,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext

@@ -71,7 +71,7 @@ jobs:
               {
                 apt-get update -qq
                 apt-get install -y -qq --no-install-recommends \
-                  libasound2-dev libudev-dev pkg-config \
+                  libasound2-dev libudev-dev pkg-config clang libclang-dev \
                   libfontconfig1-dev libseat-dev libxkbcommon-dev \
                   libinput-dev libgbm-dev libjack-jackd2-dev
               } >&2

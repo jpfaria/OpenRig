@@ -28,6 +28,7 @@ pub(crate) type DrumsJackClient = jack::AsyncClient<(), DrumsJackProcess>;
 pub(crate) struct DrumsJackProcess {
     callback: DrumsCallback,
     shared: Arc<DrumsShared>,
+    fader: crate::output_fader::OutputFader,
     ports: Vec<jack::Port<jack::AudioOut>>,
     /// Interleaved across `ports`, sized for MAX_JACK_FRAMES so a larger
     /// JACK buffer never reallocates on the audio thread.
@@ -42,6 +43,8 @@ impl jack::ProcessHandler for DrumsJackProcess {
             let scratch = &mut self.scratch[..frames * channels];
             self.callback
                 .fill(&self.shared, scratch, channels, &PORT_CHANNELS[..channels]);
+            self.fader
+                .apply(scratch, channels, &PORT_CHANNELS[..channels]);
             for (ch, port) in self.ports.iter_mut().enumerate() {
                 let out = port.as_mut_slice(ps);
                 for (sample, frame) in out.iter_mut().zip(scratch.chunks(channels)) {
@@ -85,6 +88,7 @@ pub(crate) fn open_drums_jack(
     let process = DrumsJackProcess {
         callback: DrumsCallback::new(shared, sample_rate, MAX_JACK_FRAMES),
         shared: Arc::clone(shared),
+        fader: crate::output_fader::OutputFader::of(device_id, target_channels),
         scratch: vec![0.0; MAX_JACK_FRAMES * ports.len()],
         ports,
     };

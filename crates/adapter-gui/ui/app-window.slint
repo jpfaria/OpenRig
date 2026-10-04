@@ -35,12 +35,13 @@ import { SplitEditorHarness } from "components/split_editor_test_harness.slint";
 import { EndpointChecklistOverlay } from "components/endpoint_checklist_overlay.slint";
 import { EndpointChecklistHarness } from "components/endpoint_checklist_test_harness.slint";
 import { MixerHarness } from "components/mixer_test_harness.slint";
+import { PlayerHarness } from "components/player_test_harness.slint";
 import { ProjectChainsHarness } from "components/project_chains_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, ProjectChainsHarness }
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, PlayerHarness, ProjectChainsHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MixerWindow, MixerBridge, MixerStripRow, DrumsWindow, DrumsBridge, DrumPickRow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MixerWindow, MixerBridge, MixerStripRow, PlayerWindow, PlayerBridge, PlayerTrackRow, DrumsWindow, DrumsBridge, DrumPickRow } from "pages/pages.slint";
 import { RootModalOverlays } from "components/root_modal_overlays.slint";
 import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
@@ -48,9 +49,9 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 export { AppUpdate } from "components/app_update_globals.slint";
 export { ChainMixerBridge } from "components/chain_mixer_globals.slint"; export { ChainMixerPanel } from "components/chain_mixer_panel_globals.slint"; export { TempoPanel } from "components/tempo_panel_globals.slint";
-export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs, MixerBridge, MixerStripRow, DrumsBridge, DrumPickRow }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs, MixerBridge, MixerStripRow, PlayerBridge, PlayerTrackRow, DrumsBridge, DrumPickRow }
 export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge, ChainGraphBridge, ChainGraphOverlayState }
-export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow, MixerWindow, DrumsWindow }
+export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow, MixerWindow, PlayerWindow, DrumsWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
 
@@ -217,7 +218,7 @@ export component AppWindow inherits Window {
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
-    preferred-width: 1100px;
+    preferred-width: 1324px;
     preferred-height: 640px;
     background: #040708;
     if !touch-optimized : DesktopMain {

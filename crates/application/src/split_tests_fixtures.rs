@@ -153,6 +153,7 @@ pub(crate) fn rig_with_presets(presets: Vec<(&str, Vec<AudioBlock>)>) -> RigProj
         io_binding_ids: vec!["io-main".to_string()],
         loopers: Vec::new(),
         disabled_endpoints: EndpointDisables::default(),
+        di_output: None,
     };
     RigProject {
         name: None,

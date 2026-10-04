@@ -1,5 +1,7 @@
 //! Responsibility: runs the metronome's own output stream.
-//! Issue #14 — the metronome's OWN cpal output stream.
+//!
+//! The stream is an auxiliary output: a cpal stream, or its own JACK client on
+//! JACK builds, so the click sounds on every backend.
 //!
 //! The metronome never joins a chain, a segment or another stream's callback:
 //! it opens its own output on the device the user picked and the backend sums
@@ -15,21 +17,8 @@ use anyhow::Result;
 
 use engine::metronome_state::{MetronomeGenerator, MetronomeSettings, MetronomeShared};
 
+use crate::aux_output::open_aux_output;
 use crate::ProjectRuntimeController;
-
-/// A live metronome stream, plus the device it was opened on so a device
-/// change can tell "already running there" from "must reopen".
-// The JACK build never opens this stream (`start_metronome` is a stub there), so
-// the handle is never constructed and its fields go unread on that target only.
-#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
-pub(crate) struct MetronomeStreamHandle {
-    pub(crate) device_id: String,
-    /// The endpoint channels this stream routes the click to. Kept so a re-open
-    /// on the same device but a DIFFERENT output endpoint rebuilds the stream.
-    pub(crate) targets: Vec<usize>,
-    #[allow(dead_code)] // Dropping the handle is what stops the stream.
-    stream: cpal::Stream,
-}
 
 /// Render one callback's worth of metronome into `out` (interleaved,
 /// `channels` wide).
@@ -40,9 +29,6 @@ pub(crate) struct MetronomeStreamHandle {
 /// `last_generation` is the callback's own copy of the settings version: the
 /// settings are only re-read when the control side actually changed something,
 /// which on the overwhelming majority of buffers is never.
-// On the JACK build no cpal stream drives this from production (the tests still
-// exercise it), so the lib target sees it unused on that target only.
-#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn fill_metronome_buffer(
     generator: &mut MetronomeGenerator,
     shared: &MetronomeShared,
@@ -125,78 +111,43 @@ impl ProjectRuntimeController {
     /// over silence until the app was restarted. The cost is at most one buffer
     /// where both endpoints carry the click, which only a real output change
     /// can reach.
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     pub fn start_metronome(&self, device_id: &str, target_channels: &[usize]) -> Result<()> {
-        use cpal::traits::{DeviceTrait, StreamTrait};
-
         if self
             .metronome_stream
             .borrow()
             .as_ref()
-            .is_some_and(|h| h.device_id == device_id && h.targets == target_channels)
+            .is_some_and(|h| h.serves(device_id, target_channels))
         {
             return Ok(());
         }
 
-        let host = crate::host::get_host();
-        let device = crate::find_output_device_by_id(host, device_id)?
-            .ok_or_else(|| anyhow::anyhow!("metronome output device '{device_id}' not found"))?;
-        let supported = device.default_output_config()?;
-        let sample_rate = supported.sample_rate();
-        let channels = supported.channels() as usize;
-        let buffer_frames = 512u32;
-        let config = crate::stream_config::build_stream_config(
-            supported.channels(),
-            sample_rate,
-            buffer_frames,
-        );
-
         let shared = std::sync::Arc::clone(&self.metronome_shared);
-        let mut generator =
-            MetronomeGenerator::new(sample_rate as f32, self.metronome_shared.settings());
-        // Pre-allocated here, at build time — the callback only ever grows it.
-        let mut scratch: Vec<f32> = vec![0.0; buffer_frames as usize];
-        let mut last_generation = shared.generation();
-        let error_label = device_id.to_string();
-        let targets = target_channels.to_vec();
-        let callback_targets = targets.clone();
-
-        let stream = device.build_output_stream(
-            &config,
-            move |out: &mut [f32], _| {
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    fill_metronome_buffer(
-                        &mut generator,
-                        &shared,
-                        &mut scratch,
-                        out,
-                        channels,
-                        &callback_targets,
-                        &mut last_generation,
-                    );
-                }));
-            },
-            move |err| log::error!("[metronome:{error_label}] output stream error: {err}"),
-            None,
-        )?;
-        stream.play()?;
+        let handle = open_aux_output(device_id, target_channels, "metronome", |layout| {
+            let mut generator =
+                MetronomeGenerator::new(layout.sample_rate as f32, shared.settings());
+            // Pre-allocated here, at build time — the callback only ever grows it.
+            let mut scratch: Vec<f32> = vec![0.0; layout.max_frames];
+            let mut last_generation = shared.generation();
+            let channels = layout.channels;
+            let targets = layout.targets.clone();
+            Box::new(move |out: &mut [f32]| {
+                fill_metronome_buffer(
+                    &mut generator,
+                    &shared,
+                    &mut scratch,
+                    out,
+                    channels,
+                    &targets,
+                    &mut last_generation,
+                );
+            })
+        })?;
 
         // Only now does the click that was playing go: the previous handle is
         // swapped out and dropped OUTSIDE the borrow, so the stream it owns is
         // closed with nothing else held.
-        let previous = self.metronome_stream.replace(Some(MetronomeStreamHandle {
-            device_id: device_id.to_string(),
-            targets,
-            stream,
-        }));
+        let previous = self.metronome_stream.replace(Some(handle));
         drop(previous);
-        Ok(())
-    }
-
-    /// JACK build (Orange Pi) does not open a dedicated cpal stream; the
-    /// metronome stays silent there until the JACK path is wired.
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    pub fn start_metronome(&self, _device_id: &str, _target_channels: &[usize]) -> Result<()> {
         Ok(())
     }
 

@@ -77,11 +77,11 @@ fn strings(
 }
 
 #[test]
-fn the_row_offers_the_chains_bound_endpoints_without_a_running_stream() {
+fn the_row_offers_its_endpoints_without_a_running_stream() {
     let project = project(vec![LooperConfig::new(1)]);
     let model = rows_for(&project);
 
-    apply_looper_endpoints_to_rows(&model, &project, &[binding()]);
+    apply_looper_endpoints_to_rows(&model, &project, &[binding()], &[]);
 
     let inputs = strings(&model, |r| {
         r.looper_input_options
@@ -99,9 +99,47 @@ fn the_row_offers_the_chains_bound_endpoints_without_a_running_stream() {
         inputs.iter().any(|s| s.contains("Guitar In")),
         "the record-from picker lists the chain's bound input — got {inputs:?}"
     );
-    assert!(
-        outputs.iter().any(|s| s.contains("Main Out")),
-        "the play-to picker lists the chain's bound output — got {outputs:?}"
+    assert_eq!(
+        outputs,
+        vec!["dev-out · Out 1/2"],
+        "the play-to picker names the output by device and channels"
+    );
+}
+
+/// #324: Play-to lists every output of the project — the same list the DI,
+/// the backing-track player and the metronome offer — not only the chain's.
+#[test]
+fn play_to_lists_outputs_outside_the_chain() {
+    let project = project(vec![LooperConfig::new(1)]);
+    let model = rows_for(&project);
+    let other = IoBinding {
+        id: "other".into(),
+        name: "Other".into(),
+        inputs: vec![],
+        outputs: vec![IoEndpoint {
+            name: "FRFR".into(),
+            device_id: DeviceId("dev-out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![24, 25],
+        }],
+    };
+    let devices = [domain::AudioDeviceDescriptor {
+        id: "dev-out".into(),
+        name: "Quantum HD 8".into(),
+        channels: 32,
+    }];
+
+    apply_looper_endpoints_to_rows(&model, &project, &[binding(), other], &devices);
+
+    let outputs = strings(&model, |r| {
+        r.looper_output_options
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    });
+    assert_eq!(
+        outputs,
+        vec!["Quantum HD 8 · Out 1/2", "Quantum HD 8 · Out 25/26"]
     );
 }
 
@@ -111,7 +149,7 @@ fn a_chain_with_no_binding_offers_no_endpoints() {
     p.chains[0].io_binding_ids.clear();
     let model = rows_for(&p);
 
-    apply_looper_endpoints_to_rows(&model, &p, &[binding()]);
+    apply_looper_endpoints_to_rows(&model, &p, &[binding()], &[]);
 
     assert!(strings(&model, |r| r
         .looper_input_options

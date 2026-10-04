@@ -115,6 +115,7 @@ impl ProjectSession {
         let io_bindings = Rc::new(RefCell::new(Vec::new()));
         dispatcher.attach_io_bindings(Rc::clone(&io_bindings));
         attach_metronome_state(dispatcher.as_ref());
+        crate::player_session::attach_player_state(dispatcher.as_ref());
         attach_drums_state(dispatcher.as_ref());
         Self {
             project,

@@ -76,6 +76,8 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             rig_input.disabled_endpoints = chain.disabled_endpoints.clone();
             // #1007: the chain's own faders are project data too.
             rig_input.mix = chain.mix.clone();
+            // #324: the DI output pick is chain configuration too.
+            rig_input.di_output = chain.di_output.clone();
         }
     }
     sync_chain_order(rig, project);

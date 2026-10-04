@@ -27,6 +27,10 @@ pub struct ResolvedPaths {
     /// ([`infra_filesystem::default_looper_takes_path`]). Not configurable;
     /// reported so a client can find a saved take and hand it to the DI.
     pub looper_takes_path: String,
+    /// The user's backing-track folder: the override when set in
+    /// `config.yaml`, otherwise
+    /// [`infra_filesystem::default_backing_tracks_path`].
+    pub backing_tracks_path: String,
 }
 
 impl ResolvedPaths {
@@ -58,6 +62,12 @@ impl ResolvedPaths {
                 .into_owned(),
             evaluations_path: evaluations.to_string_lossy().into_owned(),
             looper_takes_path: infra_filesystem::default_looper_takes_path()
+                .to_string_lossy()
+                .into_owned(),
+            backing_tracks_path: paths
+                .backing_tracks_path
+                .clone()
+                .unwrap_or_else(infra_filesystem::default_backing_tracks_path)
                 .to_string_lossy()
                 .into_owned(),
         }

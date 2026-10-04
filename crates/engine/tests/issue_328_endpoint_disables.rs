@@ -35,6 +35,7 @@ fn input(disabled_endpoints: EndpointDisables) -> RigInput {
         io_binding_ids: vec!["shared".into()],
         loopers: Vec::new(),
         disabled_endpoints,
+        di_output: None,
     }
 }
 

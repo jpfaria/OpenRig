@@ -64,6 +64,7 @@ fn rig_with_active_preset(input: &str, preset_name: &str) -> RigProject {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         )]),
         outputs: BTreeMap::new(),

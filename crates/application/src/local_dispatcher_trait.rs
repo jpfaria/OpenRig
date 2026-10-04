@@ -36,6 +36,8 @@ use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
 use crate::mixer_state::MixerControlState;
 use crate::mixer_view::MixerStripView;
+use crate::player_library::PlayerLibraryDirs;
+use crate::player_state::{PlayerControlState, PlayerSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
@@ -235,6 +237,7 @@ impl CommandDispatcher for LocalDispatcher {
             ) => self.handle_diagnostic_enabled(cmd),
 
             Command::Metronome(_) => self.handle_metronome(cmd),
+            Command::Player(_) => self.handle_player(cmd),
             Command::Drums(_) => self.handle_drums(cmd),
 
             // #1007: a chain's own faders live in the project, not the
@@ -270,7 +273,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::Settings(
                 SettingsCommand::SetPresetsPath { .. }
                 | SettingsCommand::SetPluginsPath { .. }
-                | SettingsCommand::SetEvaluationsPath { .. },
+                | SettingsCommand::SetEvaluationsPath { .. }
+                | SettingsCommand::SetBackingTracksPath { .. },
             ) => self.handle_paths_system(cmd),
 
             // #561: hot-reload the plugin catalog (no payload).
@@ -461,6 +465,18 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         LocalDispatcher::metronome_snapshot(self)
+    }
+
+    fn attach_player_state(&self, state: Rc<RefCell<PlayerControlState>>) {
+        LocalDispatcher::attach_player_state(self, state)
+    }
+
+    fn player_snapshot(&self) -> PlayerSnapshot {
+        self.player_state().borrow().snapshot()
+    }
+
+    fn player_library(&self) -> PlayerLibraryDirs {
+        self.player_state().borrow().library()
     }
 
     fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
