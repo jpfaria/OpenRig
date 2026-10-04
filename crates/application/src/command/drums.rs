@@ -26,9 +26,6 @@ pub enum DrumsCommand {
     /// Play the groove's next fill; it lands on the next bar.
     TriggerDrumFill,
 
-    /// Set the tempo. Clamped by the dispatcher to the supported range.
-    SetDrumsBpm { bpm: f32 },
-
     /// Drums level, `0.0..=1.0`, independent of any chain volume.
     SetDrumsVolume { volume: f32 },
 

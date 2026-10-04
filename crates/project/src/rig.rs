@@ -47,6 +47,11 @@ pub struct RigProject {
     /// `chain-order:` to match `active-preset`, `scene-params`, etc.
     #[serde(default, rename = "chain-order", skip_serializing_if = "Vec::is_empty")]
     pub chain_order: Vec<String>,
+    /// The project's one tempo (#1050): every synced block, the metronome
+    /// and the drums run at it. `None` for a project saved before it had
+    /// one — it opens at the default tempo. Travels with the file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bpm: Option<f32>,
 }
 
 /// One project input: a numbered preset bank + the I/O binding(s) it reads
@@ -199,11 +204,6 @@ pub struct RigPreset {
     /// so master gain is unchanged (CLAUDE.md invariant). Default 100.0.
     #[serde(default = "default_preset_volume")]
     pub volume: f32,
-    /// The preset's own tempo. Loading the preset sets the global BPM
-    /// to it unless the machine's "use global tempo" lock is on. `None` ⇒
-    /// the preset follows whatever tempo is running.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bpm: Option<f32>,
 }
 
 impl RigPreset {
@@ -220,7 +220,6 @@ impl RigPreset {
             scene_params: Vec::new(),
             scenes: BTreeMap::new(),
             volume,
-            bpm: None,
         }
     }
 

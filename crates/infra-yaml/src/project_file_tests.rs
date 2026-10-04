@@ -248,7 +248,6 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
         scene_params: Vec::new(),
         scenes: BTreeMap::from([(1, RigScene::default()), (2, RigScene::default())]),
         volume: 100.0,
-        bpm: None,
     };
     preset_a.scenes.entry(1).or_default();
     let preset_b = RigPreset {
@@ -258,7 +257,6 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
         scene_params: Vec::new(),
         scenes: BTreeMap::from([(1, RigScene::default())]),
         volume: 100.0,
-        bpm: None,
     };
 
     let mut presets = BTreeMap::new();
@@ -285,6 +283,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

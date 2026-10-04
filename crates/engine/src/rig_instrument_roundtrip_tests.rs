@@ -12,6 +12,7 @@ use project::rig_sync::sync_synthetic_into_rig;
 
 pub(super) fn simple_rig() -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Test".into()),
         inputs: [(
             "input-1".to_string(),

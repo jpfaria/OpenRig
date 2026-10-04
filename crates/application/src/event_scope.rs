@@ -57,8 +57,7 @@ impl Event {
             // #1007: a chain's own mixer faders.
             | Event::ChainMixerStripChanged { chain, .. }
             | Event::ChainDiFaderChanged { chain, .. }
-            // A preset tempo and a retime both belong to one chain.
-            | Event::RigPresetBpmChanged { chain, .. }
+            // A retime belongs to one chain.
             | Event::ChainTempoRetimed { chain } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
@@ -88,7 +87,6 @@ impl Event {
             | Event::MetronomeTapped
             // The backing-track player is its own stream, never a chain.
             | Event::Player(_)
-            | Event::GlobalTempoLockChanged { .. }
             | Event::DrumsTransportChanged { .. }
             | Event::DrumFillTriggered
             | Event::DrumsSettingsChanged { .. }

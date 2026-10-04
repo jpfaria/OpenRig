@@ -22,9 +22,8 @@ export global DrumsBridge {
     // ── Display state, mirrored from the dispatcher by the wiring ──
     in-out property <bool> enabled;
     in-out property <bool> playing;
-    in-out property <float> bpm: 100;
-    in-out property <float> bpm-min: 20;
-    in-out property <float> bpm-max: 400;
+    // The project tempo the drums run at; set from the top bar.
+    in-out property <float> bpm: 120;
     in-out property <float> volume: 0.8;
     in-out property <int> beats-per-bar: 4;
     // Live position, from the drums' own stream.
@@ -47,7 +46,6 @@ export global DrumsBridge {
     // POWER: true plays, false stops and closes the output.
     callback toggle-enabled(bool);
     callback fill();
-    callback set-bpm(float);
     callback set-volume(float);
     callback pick-kit(string);
     callback pick-groove(string);

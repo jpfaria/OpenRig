@@ -105,6 +105,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

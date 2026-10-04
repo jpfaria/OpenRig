@@ -36,11 +36,11 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
                 scene_params: Vec::new(),
                 scenes: BTreeMap::new(),
                 volume: 100.0,
-                bpm: None,
             });
     }
     inputs.insert(input_name.to_string(), input);
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

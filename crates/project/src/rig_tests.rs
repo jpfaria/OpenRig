@@ -49,6 +49,7 @@ pub(super) fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
 
 pub(super) fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()
@@ -68,7 +69,6 @@ pub(super) fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> R
                         scene_params: vec![],
                         scenes: BTreeMap::new(),
                         volume: 100.0,
-                        bpm: None,
                     },
                 )
             })
@@ -164,7 +164,6 @@ fn scene_or_default_empty_preset_returns_default_for_slot_1() {
         scene_params: vec![],
         scenes: BTreeMap::new(),
         volume: 100.0,
-        bpm: None,
     };
     assert_eq!(p.scene_or_default(1), RigScene::default());
 }
@@ -184,7 +183,6 @@ fn scene_or_default_returns_present_scene() {
         scene_params: vec![],
         scenes: BTreeMap::from([(2, scene.clone())]),
         volume: 100.0,
-        bpm: None,
     };
     assert_eq!(p.scene_or_default(2), scene);
 }
@@ -233,7 +231,6 @@ fn preset_with(
         scene_params: marked.iter().map(|s| s.to_string()).collect(),
         scenes: scenes.into_iter().collect(),
         volume: 100.0,
-        bpm: None,
     }
 }
 
@@ -404,4 +401,23 @@ fn replace_preset_blocks_detects_same_id_model_swap_as_structural() {
         base_model, "klon",
         "model swap must be written into the preset base block, not dropped"
     );
+}
+
+#[test]
+fn the_project_tempo_round_trips_in_yaml() {
+    let mut rig = project_with(vec![("gtr", input(&[(1, "p1")], 1))], &["p1"]);
+    rig.bpm = Some(97.0);
+    let yaml = serde_yaml::to_string(&rig).expect("serialize");
+    assert!(yaml.contains("bpm: 97"), "{yaml}");
+    let back: RigProject = serde_yaml::from_str(&yaml).expect("parse");
+    assert_eq!(back.bpm, Some(97.0));
+}
+
+#[test]
+fn a_project_yaml_without_a_tempo_parses_with_none() {
+    let rig = project_with(vec![("gtr", input(&[(1, "p1")], 1))], &["p1"]);
+    let yaml = serde_yaml::to_string(&rig).expect("serialize");
+    assert!(!yaml.contains("bpm"), "{yaml}");
+    let back: RigProject = serde_yaml::from_str(&yaml).expect("parse");
+    assert_eq!(back.bpm, None);
 }

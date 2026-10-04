@@ -142,7 +142,6 @@ fn no_drum_command_but_play_starts_the_audio_runtime() {
     attach(&runtime, &session);
 
     for command in [
-        DrumsCommand::SetDrumsBpm { bpm: 90.0 },
         DrumsCommand::SetDrumsVolume { volume: 0.5 },
         DrumsCommand::SetDrumsOutput {
             output_key: Some("io-1\u{1f}Main Out".into()),

@@ -99,6 +99,7 @@ fn fresh_rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

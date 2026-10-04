@@ -1,9 +1,9 @@
 //! Responsibility: describes the metronome settings a machine keeps for itself.
 //! Per-machine metronome settings (#14).
 //!
-//! ADR 0003 puts these in the SYSTEM `config.yaml`: a practice tempo belongs
-//! to the person at the machine, not to the rig, so it must not travel inside
-//! a `project.yaml`.
+//! ADR 0003 puts these in the SYSTEM `config.yaml`: how the click sounds
+//! belongs to the person at the machine. The tempo is not here — it belongs
+//! to the project and travels in `project.yaml` (#1050).
 //!
 //! There is deliberately no `enabled` field. The metronome always boots off,
 //! and leaving the flag out of the persisted shape means no code path can
@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 /// Defaults mirror `feature_dsp::metronome::MetronomeSettings::default()`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetronomeConfig {
-    #[serde(default = "default_bpm")]
-    pub bpm: f32,
     #[serde(default = "default_beats_per_bar")]
     pub beats_per_bar: u32,
     /// `off` | `eighths` | `triplets` | `sixteenths`.
@@ -39,14 +37,6 @@ pub struct MetronomeConfig {
     /// predates #14, when this held a raw device id.)
     #[serde(default)]
     pub output_device: Option<String>,
-    /// "use global tempo" — when on, loading a rig preset never
-    /// changes the tempo, even if the preset carries its own BPM.
-    #[serde(default)]
-    pub global_tempo_lock: bool,
-}
-
-fn default_bpm() -> f32 {
-    120.0
 }
 
 fn default_beats_per_bar() -> u32 {
@@ -68,14 +58,12 @@ fn default_volume() -> f32 {
 impl Default for MetronomeConfig {
     fn default() -> Self {
         Self {
-            bpm: default_bpm(),
             beats_per_bar: default_beats_per_bar(),
             subdivision: default_subdivision(),
             timbre: default_timbre(),
             volume: default_volume(),
             count_in: false,
             output_device: None,
-            global_tempo_lock: false,
         }
     }
 }

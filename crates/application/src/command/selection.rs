@@ -26,10 +26,6 @@ pub enum SelectionCommand {
     /// dispatcher (owning the rig) writes `RigPreset.name`.
     RenameRigPreset { chain: ChainId, name: String },
 
-    /// Store (`Some`) or clear (`None`) the tempo of the chain's ACTIVE
-    /// rig preset. Loading that preset later sets the global BPM to it.
-    SetRigPresetBpm { chain: ChainId, bpm: Option<f32> },
-
     // ── Active chain / block cursor ───────────────────────────────────────────
     /// #436: select a block on a chain (the cursor MIDI/MCP can move).
     /// Was GUI-only state; now dispatcher-owned so it is reachable.

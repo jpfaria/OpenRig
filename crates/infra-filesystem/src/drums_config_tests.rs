@@ -7,14 +7,12 @@ use crate::AppConfig;
 fn an_old_config_without_drums_opens_with_defaults() {
     let config: AppConfig = serde_yaml::from_str("recent_projects: []\n").expect("parse");
     assert_eq!(config.drums, DrumsConfig::default());
-    assert_eq!(config.drums.bpm, 120.0);
     assert!(config.drums.kit.is_none());
 }
 
 #[test]
 fn round_trips_through_yaml() {
     let drums = DrumsConfig {
-        bpm: 92.5,
         volume: 0.6,
         kit: Some("black-pearl".into()),
         groove: Some("funk-03".into()),
@@ -32,4 +30,10 @@ fn has_no_playing_flag() {
         !yaml.contains("playing") && !yaml.contains("enabled"),
         "the drums always boot stopped, so the transport is never persisted"
     );
+}
+
+#[test]
+fn an_old_config_with_a_drums_tempo_still_opens() {
+    let config: DrumsConfig = serde_yaml::from_str("bpm: 92.5\nvolume: 0.6\n").expect("parse");
+    assert_eq!(config.volume, 0.6);
 }

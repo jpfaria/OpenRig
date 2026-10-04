@@ -41,6 +41,7 @@ fn input(disabled_endpoints: EndpointDisables) -> RigInput {
 
 fn rig(g1: EndpointDisables, g2: EndpointDisables) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([("g1".to_string(), input(g1)), ("g2".to_string(), input(g2))]),
         outputs: BTreeMap::new(),

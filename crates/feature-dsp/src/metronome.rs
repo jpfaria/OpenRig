@@ -14,6 +14,8 @@
 pub const BPM_MIN: f32 = 30.0;
 /// Fastest supported tempo.
 pub const BPM_MAX: f32 = 300.0;
+/// The tempo a project without one starts at.
+pub const BPM_DEFAULT: f32 = 120.0;
 
 /// Extra clicks between the beats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -137,7 +139,7 @@ pub struct MetronomeSettings {
 impl Default for MetronomeSettings {
     fn default() -> Self {
         Self {
-            bpm: 120.0,
+            bpm: BPM_DEFAULT,
             beats_per_bar: 4,
             subdivision: Subdivision::Off,
             timbre: Timbre::Click,

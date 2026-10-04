@@ -6,11 +6,11 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use feature_dsp::drums::{DrumPattern, DrumSettings, Groove, MAX_BPM};
+use feature_dsp::drums::{DrumPattern, DrumSettings, Groove};
 use infra_filesystem::DrumsConfig;
 use project::project::Project;
 
-use crate::command::{Command, DrumsCommand};
+use crate::command::{Command, DrumsCommand, MetronomeCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::drums::{DrumKitEntry, DrumLibrary};
 use crate::drums_runtime::{DrumsRuntime, DrumsSetup};
@@ -151,14 +151,12 @@ fn restored_state_takes_the_saved_kit_and_groove() {
     let config = DrumsConfig {
         kit: Some("two".into()),
         groove: Some("funk-01".into()),
-        bpm: 88.0,
         ..DrumsConfig::default()
     };
     let state = DrumsControlState::restored(&config, library(), None);
     let snapshot = state.snapshot();
     assert_eq!(snapshot.kit.as_deref(), Some("two"));
     assert_eq!(snapshot.groove.as_deref(), Some("funk-01"));
-    assert_eq!(snapshot.bpm, 88.0);
     assert!(!snapshot.enabled && !snapshot.playing, "drums boot stopped");
 }
 
@@ -279,22 +277,26 @@ fn a_fill_needs_the_drums_playing() {
 }
 
 #[test]
-fn tempo_is_clamped_and_reaches_the_runtime() {
+fn the_project_tempo_reaches_the_drums_runtime() {
     let (dispatcher, calls) = dispatcher();
-    let events = run(&dispatcher, DrumsCommand::SetDrumsBpm { bpm: 9_999.0 }).expect("bpm");
+    let events = set_project_bpm(&dispatcher, 140.0);
 
-    assert_eq!(dispatcher.drums_snapshot().bpm, MAX_BPM);
-    assert_eq!(
-        *calls.borrow(),
-        vec![format!("settings bpm={MAX_BPM} vol=0.8")]
-    );
-    assert_eq!(
-        events,
-        vec![Event::DrumsSettingsChanged {
-            bpm: MAX_BPM,
-            volume: 0.8
-        }]
-    );
+    assert_eq!(dispatcher.drums_snapshot().bpm, 140.0);
+    assert!(calls
+        .borrow()
+        .contains(&"settings bpm=140 vol=0.8".to_string()));
+    assert!(events.contains(&Event::DrumsSettingsChanged {
+        bpm: 140.0,
+        volume: 0.8
+    }));
+}
+
+fn set_project_bpm(dispatcher: &LocalDispatcher, bpm: f32) -> Vec<Event> {
+    dispatcher
+        .dispatch(Command::Metronome(MetronomeCommand::SetMetronomeBpm {
+            bpm,
+        }))
+        .expect("bpm")
 }
 
 #[test]
@@ -388,7 +390,7 @@ fn drum_commands_never_touch_a_chain() {
     let (dispatcher, calls) = dispatcher();
     run(&dispatcher, DrumsCommand::PlayDrums).expect("play");
     run(&dispatcher, DrumsCommand::TriggerDrumFill).expect("fill");
-    run(&dispatcher, DrumsCommand::SetDrumsBpm { bpm: 90.0 }).expect("bpm");
+    set_project_bpm(&dispatcher, 90.0);
     run(&dispatcher, DrumsCommand::StopDrums).expect("stop");
     assert!(calls.borrow().iter().all(|c| !c.starts_with("sync chain")));
 }
@@ -403,7 +405,7 @@ fn without_a_runtime_the_commands_still_record_their_state() {
     ))));
 
     run(&dispatcher, DrumsCommand::PlayDrums).expect("play");
-    run(&dispatcher, DrumsCommand::SetDrumsBpm { bpm: 140.0 }).expect("bpm");
+    set_project_bpm(&dispatcher, 140.0);
 
     let snapshot = dispatcher.drums_snapshot();
     assert!(snapshot.playing);

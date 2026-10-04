@@ -27,8 +27,6 @@ pub(crate) fn wire_drums_intents(bridge: &DrumsBridge, dispatch: DrumsDispatch) 
     let d = dispatch.clone();
     bridge.on_fill(move || d(DrumsCommand::TriggerDrumFill));
     let d = dispatch.clone();
-    bridge.on_set_bpm(move |bpm| d(DrumsCommand::SetDrumsBpm { bpm }));
-    let d = dispatch.clone();
     bridge.on_set_volume(move |volume| d(DrumsCommand::SetDrumsVolume { volume }));
     let d = dispatch.clone();
     bridge.on_pick_kit(move |kit| {

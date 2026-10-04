@@ -52,6 +52,7 @@ fn rig_with_chain() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

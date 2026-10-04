@@ -3,8 +3,6 @@
 use application::drums::DrumLibrary;
 use application::drums_state::DrumsSnapshot;
 
-use feature_dsp::drums::{MAX_BPM, MIN_BPM};
-
 use crate::metronome_view::{resolve_output_endpoint, ProjectOutput};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,8 +18,6 @@ pub(crate) struct DrumsView {
     pub playing: bool,
     pub bpm: f32,
     pub volume: f32,
-    pub bpm_min: f32,
-    pub bpm_max: f32,
     pub kits: Vec<DrumPick>,
     pub grooves: Vec<DrumPick>,
     pub outputs: Vec<DrumPick>,
@@ -55,8 +51,6 @@ pub(crate) fn drums_view(
         playing: snapshot.playing,
         bpm: snapshot.bpm,
         volume: snapshot.volume,
-        bpm_min: MIN_BPM,
-        bpm_max: MAX_BPM,
         kits: library
             .kits
             .iter()

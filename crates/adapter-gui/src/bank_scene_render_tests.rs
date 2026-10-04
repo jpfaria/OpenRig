@@ -44,6 +44,7 @@ fn rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs,
         outputs: BTreeMap::new(),
@@ -88,6 +89,7 @@ fn render_tracks_selection_change() {
 #[test]
 fn render_empty_project_is_empty() {
     let state = BankSceneState::from_project(&RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

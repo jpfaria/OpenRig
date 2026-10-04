@@ -91,15 +91,6 @@ pub(crate) fn wire_controls(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
             );
         });
     }
-    {
-        let ctx = ctx.clone_ctx();
-        bridge.on_set_global_tempo_lock(move |enabled| {
-            dispatch(
-                &ctx,
-                Command::Metronome(MetronomeCommand::SetGlobalTempoLock { enabled }),
-            );
-        });
-    }
 }
 
 // ── output device select ────────────────────────────────────────────────

@@ -1,6 +1,5 @@
-//! One global tempo drives every synced delay/modulation, a
-//! rig preset may carry its own BPM, and the "use global tempo" lock keeps a
-//! preset load from changing it.
+//! The project has one tempo: it drives every synced delay/modulation and
+//! the drums, travels in `project.yaml`, and a preset load never changes it.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -49,20 +48,22 @@ fn input(bank: &[(usize, &str)]) -> RigInput {
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     }
 }
 
-/// Input `a`: presets `a1` (synced 1/4 delay, no BPM) and `a2` (synced, 90
-/// BPM). Input `b`: preset `b1` with a free (unsynced) delay.
+/// Input `a`: presets `a1` and `a2` (both a synced 1/4 delay). Input `b`:
+/// preset `b1` with a free (unsynced) delay.
 fn rig() -> RigProject {
     let mut presets = BTreeMap::new();
     presets.insert(
         "a1".to_string(),
         RigPreset::from_legacy_blocks(vec![delay("da1", "1/4")], 100.0),
     );
-    let mut a2 = RigPreset::from_legacy_blocks(vec![delay("da2", "1/4")], 100.0);
-    a2.bpm = Some(90.0);
-    presets.insert("a2".to_string(), a2);
+    presets.insert(
+        "a2".to_string(),
+        RigPreset::from_legacy_blocks(vec![delay("da2", "1/4")], 100.0),
+    );
     presets.insert(
         "b1".to_string(),
         RigPreset::from_legacy_blocks(vec![delay("db1", "off")], 100.0),
@@ -77,6 +78,7 @@ fn rig() -> RigProject {
         presets,
         midi: None,
         chain_order: Vec::new(),
+        bpm: None,
     }
 }
 
@@ -148,8 +150,8 @@ fn global_bpm(f: &Fixture) -> f32 {
 #[test]
 fn changing_the_global_bpm_retimes_synced_delays() {
     let f = fixture();
-    let events = set_bpm(&f, 120.0);
-    assert!((time_ms(&f, &chain_a(), "da1") - 500.0).abs() < 1e-3);
+    let events = set_bpm(&f, 100.0);
+    assert!((time_ms(&f, &chain_a(), "da1") - 600.0).abs() < 1e-3);
     assert!(events.contains(&Event::ChainTempoRetimed { chain: chain_a() }));
 }
 
@@ -230,73 +232,68 @@ fn turning_the_time_knob_by_hand_turns_sync_off() {
 }
 
 #[test]
-fn loading_a_preset_with_a_bpm_sets_the_global_tempo() {
+fn changing_the_bpm_stores_it_in_the_project() {
     let f = fixture();
-    set_bpm(&f, 120.0);
-    let events = f
-        .dispatcher
-        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
-            chain: chain_a(),
-            kind: RigNavKind::Preset(1),
-        }))
-        .expect("switch to a2");
-    assert_eq!(global_bpm(&f), 90.0);
-    assert!(events.contains(&Event::MetronomeBpmChanged { bpm: 90.0 }));
-    // 1/4 at 90 BPM.
-    assert!((time_ms(&f, &chain_a(), "da2") - 60000.0 / 90.0).abs() < 1e-2);
+    let events = set_bpm(&f, 97.0);
+    assert_eq!(f.rig.borrow().bpm, Some(97.0));
+    assert!(events.contains(&Event::ProjectMutated));
 }
 
 #[test]
-fn loading_a_preset_without_a_bpm_keeps_the_global_tempo_and_retimes() {
+fn the_drums_follow_the_project_bpm() {
     let f = fixture();
-    f.dispatcher
-        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
-            chain: chain_a(),
-            kind: RigNavKind::Preset(1),
-        }))
-        .expect("switch to a2");
+    set_bpm(&f, 97.0);
+    assert_eq!(f.dispatcher.drums_snapshot().bpm, 97.0);
+}
+
+#[test]
+fn attaching_a_project_with_a_bpm_sets_the_tempo() {
+    let mut loaded = rig();
+    loaded.bpm = Some(90.0);
+    let rig = Rc::new(RefCell::new(loaded));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+    assert_eq!(dispatcher.metronome_snapshot().settings.bpm, 90.0);
+    assert_eq!(dispatcher.drums_snapshot().bpm, 90.0);
+    let f = Fixture {
+        dispatcher,
+        project,
+        rig,
+    };
+    assert!((time_ms(&f, &chain_a(), "da1") - 60000.0 / 90.0).abs() < 1e-2);
+}
+
+#[test]
+fn a_project_without_a_bpm_starts_at_the_default_tempo() {
+    let f = fixture();
+    assert_eq!(global_bpm(&f), feature_dsp::metronome::BPM_DEFAULT);
+}
+
+#[test]
+fn loading_a_preset_keeps_the_project_tempo_and_retimes() {
+    let f = fixture();
     set_bpm(&f, 150.0);
-    f.dispatcher
-        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
-            chain: chain_a(),
-            kind: RigNavKind::Preset(0),
-        }))
-        .expect("back to a1");
-    assert_eq!(global_bpm(&f), 150.0);
-    assert!((time_ms(&f, &chain_a(), "da1") - 400.0).abs() < 1e-3);
-}
-
-#[test]
-fn the_global_tempo_lock_keeps_a_preset_from_changing_the_bpm() {
-    let f = fixture();
-    set_bpm(&f, 120.0);
     let events = f
         .dispatcher
-        .dispatch(Command::Metronome(MetronomeCommand::SetGlobalTempoLock {
-            enabled: true,
-        }))
-        .expect("lock");
-    assert!(events.contains(&Event::GlobalTempoLockChanged { enabled: true }));
-    assert!(f.dispatcher.metronome_snapshot().global_tempo_lock);
-    f.dispatcher
         .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_a(),
             kind: RigNavKind::Preset(1),
         }))
         .expect("switch to a2");
-    assert_eq!(global_bpm(&f), 120.0);
-    assert!((time_ms(&f, &chain_a(), "da2") - 500.0).abs() < 1e-3);
+    assert_eq!(global_bpm(&f), 150.0);
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, Event::MetronomeBpmChanged { .. })));
+    assert!((time_ms(&f, &chain_a(), "da2") - 400.0).abs() < 1e-3);
 }
 
 #[test]
-fn a_scene_switch_never_applies_the_preset_bpm() {
+fn a_scene_switch_keeps_the_project_tempo() {
     let f = fixture();
-    f.dispatcher
-        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
-            chain: chain_a(),
-            kind: RigNavKind::Preset(1),
-        }))
-        .expect("switch to a2");
     set_bpm(&f, 140.0);
     f.dispatcher
         .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
@@ -305,70 +302,4 @@ fn a_scene_switch_never_applies_the_preset_bpm() {
         }))
         .expect("scene 1");
     assert_eq!(global_bpm(&f), 140.0);
-}
-
-#[test]
-fn set_rig_preset_bpm_stores_the_tempo_on_the_active_preset() {
-    let f = fixture();
-    let events = f
-        .dispatcher
-        .dispatch(Command::Selection(SelectionCommand::SetRigPresetBpm {
-            chain: chain_a(),
-            bpm: Some(101.0),
-        }))
-        .expect("store bpm");
-    assert_eq!(f.rig.borrow().presets["a1"].bpm, Some(101.0));
-    assert!(events.contains(&Event::RigPresetBpmChanged {
-        chain: chain_a(),
-        bpm: Some(101.0),
-    }));
-    // Storing the active preset's tempo makes it the current tempo.
-    assert_eq!(global_bpm(&f), 101.0);
-}
-
-#[test]
-fn clearing_the_rig_preset_bpm_removes_it() {
-    let f = fixture();
-    f.dispatcher
-        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
-            chain: chain_a(),
-            kind: RigNavKind::Preset(1),
-        }))
-        .expect("switch to a2");
-    f.dispatcher
-        .dispatch(Command::Selection(SelectionCommand::SetRigPresetBpm {
-            chain: chain_a(),
-            bpm: None,
-        }))
-        .expect("clear bpm");
-    assert_eq!(f.rig.borrow().presets["a2"].bpm, None);
-}
-
-#[test]
-fn the_metronome_query_reports_the_lock() {
-    let f = fixture();
-    f.dispatcher
-        .dispatch(Command::Metronome(MetronomeCommand::SetGlobalTempoLock {
-            enabled: true,
-        }))
-        .expect("lock");
-    let project = f.project.borrow();
-    let ctx = crate::read::ReadContext {
-        project: &project,
-        rig: None,
-        io_bindings: &[],
-        dispatcher: &f.dispatcher,
-        live: &crate::live_source::NoLiveSource,
-    };
-    let json = crate::read::resolve(&crate::query_kind::QueryKind::MetronomeState, &ctx)
-        .expect("metronome read");
-    assert!(json.contains("\"global_tempo_lock\":true"), "{json}");
-}
-
-#[test]
-fn the_chain_presets_query_reports_each_preset_bpm() {
-    let f = fixture();
-    let json = crate::query::list_chain_presets(&f.rig.borrow(), &chain_a()).expect("ok");
-    assert!(json.contains("\"bpm\":90"), "{json}");
-    assert!(json.contains("\"bpm\":null"), "{json}");
 }

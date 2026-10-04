@@ -31,7 +31,7 @@ impl LocalDispatcher {
 
     /// The drums state, cloned out of its `RefCell` so no borrow of the
     /// dispatcher outlives a call into the frontend.
-    fn drums_state(&self) -> Rc<RefCell<DrumsControlState>> {
+    pub(crate) fn drums_state(&self) -> Rc<RefCell<DrumsControlState>> {
         self.drums.borrow().clone()
     }
 
@@ -86,7 +86,7 @@ impl LocalDispatcher {
         }]
     }
 
-    fn settings_event(&self) -> Vec<Event> {
+    pub(crate) fn settings_event(&self) -> Vec<Event> {
         let settings = self.drums_state().borrow().settings();
         if let Some(control) = self.runtime_control() {
             if let Some(drums) = control.drums() {
@@ -148,11 +148,6 @@ impl LocalDispatcher {
                 }
                 self.with_drums_runtime(|drums| drums.trigger_drum_fill());
                 Ok(vec![Event::DrumFillTriggered])
-            }
-            DrumsCommand::SetDrumsBpm { bpm } => {
-                let bpm = self.drums_state().borrow_mut().set_bpm(bpm);
-                self.persist_drums_field(move |config| config.bpm = bpm);
-                Ok(self.settings_event())
             }
             DrumsCommand::SetDrumsVolume { volume } => {
                 let volume = self.drums_state().borrow_mut().set_volume(volume);
