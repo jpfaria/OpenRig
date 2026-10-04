@@ -6,12 +6,11 @@ use anyhow::Result;
 use cpal::traits::{DeviceTrait, StreamTrait};
 
 use crate::aux_output::{AuxOutputLayout, AuxRender};
+use crate::aux_stream_format::aux_stream_format;
 
-/// Frames per buffer the stream asks the device for.
-const AUX_BUFFER_FRAMES: u32 = 512;
 /// Largest buffer a device may hand back regardless of the request; the render
 /// pre-allocates for it so the callback never grows a buffer.
-const AUX_MAX_FRAMES: usize = 8192;
+pub(crate) const AUX_MAX_FRAMES: usize = 8192;
 
 /// An open auxiliary stream. Dropping it closes the stream.
 pub(crate) struct AuxOutputHandle {
@@ -33,8 +32,10 @@ impl AuxOutputHandle {
 }
 
 /// Opens and starts an output on `device_id` whose callback is the render
-/// `make_render` builds for the stream's real layout.
+/// `make_render` builds for the stream's real layout, with the project's
+/// settings for that device.
 pub(crate) fn open_aux_output(
+    device_settings: &[project::device::DeviceSettings],
     device_id: &str,
     targets: &[usize],
     label: &str,
@@ -44,11 +45,12 @@ pub(crate) fn open_aux_output(
     let device = crate::find_output_device_by_id(host, device_id)?
         .ok_or_else(|| anyhow::anyhow!("{label} output device '{device_id}' not found"))?;
     let supported = device.default_output_config()?;
-    let sample_rate = supported.sample_rate();
+    let format = aux_stream_format(device_settings, device_id, supported.sample_rate());
+    let sample_rate = format.sample_rate;
     let config = crate::stream_config::build_stream_config(
         supported.channels(),
         sample_rate,
-        AUX_BUFFER_FRAMES,
+        format.buffer_frames,
     );
     let layout = AuxOutputLayout {
         sample_rate,
