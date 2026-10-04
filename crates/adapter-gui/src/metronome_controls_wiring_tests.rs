@@ -63,3 +63,22 @@ fn the_query_reads_the_label_not_the_key() {
     // Keys are opaque; the user types what they see.
     assert!(filter_outputs(&outputs(), "\u{1f}").is_empty());
 }
+
+#[test]
+fn refreshing_lists_the_projects_outputs_on_the_hosts_devices_and_caches_them() {
+    let session = crate::chain_graph_fixtures_tests::session_with(vec![]);
+    let cache = Rc::new(RefCell::new(outputs()));
+
+    let refreshed = refresh_metronome_outputs(&session, &cache);
+
+    let expected = output_endpoints(
+        &crate::chain_graph_fixtures_tests::registry(),
+        &crate::device_refresh_list::list_output_devices(),
+    );
+    assert_eq!(refreshed, expected);
+    assert_eq!(
+        *cache.borrow(),
+        expected,
+        "the cache holds what was returned"
+    );
+}
