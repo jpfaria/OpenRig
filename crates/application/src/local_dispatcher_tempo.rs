@@ -39,15 +39,8 @@ impl LocalDispatcher {
 
     /// A project was attached: run everything at its tempo (the default for
     /// a project saved without one).
-    pub(crate) fn adopt_project_tempo(&self) {
-        let Some(rig) = self.rig.borrow().clone() else {
-            return;
-        };
-        let bpm = rig
-            .borrow()
-            .bpm
-            .unwrap_or(BPM_DEFAULT)
-            .clamp(BPM_MIN, BPM_MAX);
+    pub(crate) fn adopt_project_tempo(&self, saved: Option<f32>) {
+        let bpm = saved.unwrap_or(BPM_DEFAULT).clamp(BPM_MIN, BPM_MAX);
         self.run_clocks_at(bpm);
         let _ = self.retime_chains(bpm);
     }

@@ -411,3 +411,10 @@ fn without_a_runtime_the_commands_still_record_their_state() {
     assert!(snapshot.playing);
     assert_eq!(snapshot.bpm, 140.0);
 }
+
+#[test]
+fn a_tempo_that_is_not_a_number_falls_back_to_the_default() {
+    let config = DrumsConfig::default();
+    let mut state = DrumsControlState::restored(&config, library(), None);
+    assert_eq!(state.set_bpm(f32::NAN), feature_dsp::metronome::BPM_DEFAULT);
+}
