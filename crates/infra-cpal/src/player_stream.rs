@@ -12,12 +12,13 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
-use engine::player::output::{fill_player_buffer, PlayerOutputState, PLAYER_RING_SAMPLES};
+use engine::player::output::PLAYER_RING_SAMPLES;
 use engine::player::settings::PlayerSettings;
 use engine::player::shared::PlayerCell;
 use engine::spsc::SpscRing;
 
 use crate::aux_output::{open_aux_output, AuxOutputHandle};
+use crate::player_render::player_render;
 use crate::player_worker::{spawn_player_worker, PlayerDecoder, PlayerRequest, PlayerWorkerHandle};
 use crate::ProjectRuntimeController;
 
@@ -120,29 +121,8 @@ impl ProjectRuntimeController {
             return Ok(());
         }
         let ring = Arc::new(SpscRing::new(PLAYER_RING_SAMPLES, 0.0));
-        let shared = Arc::clone(&self.player.shared);
-        let callback_ring = Arc::clone(&ring);
-        let handle = open_aux_output(
-            &self.device_settings,
-            device_id,
-            targets,
-            "player",
-            |layout| {
-                let mut state = PlayerOutputState::default();
-                let channels = layout.channels;
-                let targets = layout.targets.clone();
-                Box::new(move |out: &mut [f32]| {
-                    fill_player_buffer(
-                        &mut state,
-                        &shared,
-                        &callback_ring,
-                        out,
-                        channels,
-                        &targets,
-                    );
-                })
-            },
-        )?;
+        let render = player_render(Arc::clone(&self.player.shared), Arc::clone(&ring));
+        let handle = open_aux_output(&self.device_settings, device_id, targets, "player", render)?;
         let sample_rate = handle.sample_rate();
         // The previous stream goes only now, dropped outside the borrow.
         let previous = self.player.output.replace(Some(handle));

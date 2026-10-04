@@ -214,7 +214,9 @@ mod memory_wiring_pass;
 mod memory_wiring_release;
 #[cfg(any(target_os = "macos", test))]
 mod memory_wiring_report;
+mod metronome_render;
 mod metronome_stream;
+mod player_render;
 mod player_stream;
 mod player_worker;
 pub use player_worker::PlayerDecoder;
