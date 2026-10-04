@@ -94,6 +94,7 @@ fn rig_with_two_presets_two_scenes() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

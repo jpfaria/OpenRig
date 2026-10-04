@@ -60,6 +60,7 @@ pub(super) fn rig(
     presets: Vec<(&str, Vec<AudioBlock>)>,
 ) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()

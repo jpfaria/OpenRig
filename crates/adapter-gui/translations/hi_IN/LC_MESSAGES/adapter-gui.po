@@ -1222,45 +1222,13 @@ msgstr "बैकिंग ट्रैक"
 msgid "label-backing-tracks-path"
 msgstr "बैकिंग ट्रैक"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
-msgid "Tempo"
-msgstr "टेम्पो"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Slower"
 msgstr "धीमा"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Faster"
 msgstr "तेज़"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
-msgid "Preset tempo"
-msgstr "प्रीसेट टेम्पो"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
-msgid "{} BPM"
-msgstr "{} BPM"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Follows the global tempo"
-msgstr "ग्लोबल टेम्पो का पालन करता है"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
-msgid "Clear"
-msgstr "साफ़ करें"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save {} BPM to preset"
-msgstr "{} BPM प्रीसेट में सहेजें"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
-msgid "Use global tempo"
-msgstr "ग्लोबल टेम्पो उपयोग करें"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
-msgid "Loading a preset never changes the tempo"
-msgstr "प्रीसेट लोड करने से टेम्पो कभी नहीं बदलता"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"

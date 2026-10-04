@@ -1,7 +1,8 @@
-//! Responsibility: applies the global tempo to the tempo-synced blocks of the project.
-//! One global tempo (the metronome's BPM) drives every synced delay
-//! and modulation; a rig preset may carry its own BPM, and the per-machine
-//! "use global tempo" lock keeps a preset load from changing it.
+//! Responsibility: applies the project tempo to the tempo-synced blocks of the project.
+//! The project has one tempo (#1050), like a band: it drives every synced
+//! delay and modulation, the metronome and the drums, and it is saved in
+//! `project.yaml`. A preset never carries one, so a preset load never
+//! changes it.
 //!
 //! Retiming happens here, on the control thread: the synced `time_ms` /
 //! `rate_hz` values are rewritten in the project and each changed chain is
@@ -13,67 +14,52 @@ use anyhow::Result;
 use block_core::tempo_sync::{sync_path_for_value, SYNC_OFF};
 use domain::ids::ChainId;
 use domain::value_objects::ParameterValue;
-use feature_dsp::metronome::{BPM_MAX, BPM_MIN};
+use feature_dsp::metronome::{BPM_DEFAULT, BPM_MAX, BPM_MIN};
 use project::block::{AudioBlock, AudioBlockKind};
 use project::tempo_retime::retime_blocks;
 
-use crate::command::{Command, MetronomeCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    pub(crate) fn handle_set_global_tempo_lock(&self, enabled: bool) -> Result<Vec<Event>> {
-        self.metronome_state()
-            .borrow_mut()
-            .set_global_tempo_lock(enabled);
-        self.persist_metronome_field(move |config| config.global_tempo_lock = enabled);
-        Ok(vec![Event::GlobalTempoLockChanged { enabled }])
+    /// Set the project tempo: the metronome and the drums run at it, it is
+    /// stored in the attached rig (so it saves with the project) and every
+    /// synced block is retimed.
+    pub(crate) fn set_project_bpm(&self, bpm: f32) -> Result<Vec<Event>> {
+        let bpm = bpm.clamp(BPM_MIN, BPM_MAX);
+        let mut events = vec![Event::MetronomeBpmChanged { bpm }];
+        events.extend(self.run_clocks_at(bpm));
+        if let Some(rig) = self.rig.borrow().clone() {
+            rig.borrow_mut().bpm = Some(bpm);
+            events.push(Event::ProjectMutated);
+        }
+        events.extend(self.retime_chains(bpm)?);
+        Ok(events)
     }
 
-    /// Store (`Some`) or clear (`None`) the tempo of the chain's active rig
-    /// preset. Storing it also makes it the current tempo, unless the lock
-    /// says the global one wins.
-    pub(crate) fn handle_set_rig_preset_bpm(
-        &self,
-        chain: ChainId,
-        bpm: Option<f32>,
-    ) -> Result<Vec<Event>> {
-        let Some(input) = chain.0.strip_prefix("rig:") else {
-            return Ok(vec![]);
-        };
+    /// A project was attached: run everything at its tempo (the default for
+    /// a project saved without one).
+    pub(crate) fn adopt_project_tempo(&self) {
         let Some(rig) = self.rig.borrow().clone() else {
-            return Ok(vec![]);
+            return;
         };
-        let bpm = bpm.map(|bpm| bpm.clamp(BPM_MIN, BPM_MAX));
-        {
-            let mut rig = rig.borrow_mut();
-            let Some(key) = rig
-                .inputs
-                .get(input)
-                .and_then(|ri| ri.bank.get(&ri.active_preset).cloned())
-            else {
-                return Ok(vec![]);
-            };
-            let Some(preset) = rig.presets.get_mut(&key) else {
-                return Ok(vec![]);
-            };
-            preset.bpm = bpm;
-        }
-        let mut events = vec![
-            Event::RigPresetBpmChanged {
-                chain: chain.clone(),
-                bpm,
-            },
-            Event::ProjectMutated,
-        ];
-        if let Some(bpm) = bpm {
-            if !self.metronome_snapshot().global_tempo_lock {
-                events.extend(self.handle_metronome(Command::Metronome(
-                    MetronomeCommand::SetMetronomeBpm { bpm },
-                ))?);
-            }
-        }
-        Ok(events)
+        let bpm = rig
+            .borrow()
+            .bpm
+            .unwrap_or(BPM_DEFAULT)
+            .clamp(BPM_MIN, BPM_MAX);
+        self.run_clocks_at(bpm);
+        let _ = self.retime_chains(bpm);
+    }
+
+    /// The metronome and the drums both tick at `bpm`.
+    fn run_clocks_at(&self, bpm: f32) -> Vec<Event> {
+        self.metronome_state()
+            .borrow_mut()
+            .update_settings(|settings| settings.bpm = bpm);
+        self.push_metronome_settings();
+        self.drums_state().borrow_mut().set_bpm(bpm);
+        self.settings_event()
     }
 
     /// Rewrite the synced params of every chain to `bpm` and sync each chain
@@ -95,24 +81,11 @@ impl LocalDispatcher {
         Ok(events)
     }
 
-    /// After a rig nav reloaded `chain`: a loaded preset with its own tempo
-    /// sets the global one (lock off), and the reloaded chain is retimed in
-    /// place — its `ChainReloaded` rebuild carries the new values, so it is
+    /// After a rig nav reloaded `chain`, retime it in place at the project
+    /// tempo — its `ChainReloaded` rebuild carries the new values, so it is
     /// not synced a second time here.
-    pub(crate) fn apply_tempo_after_nav(
-        &self,
-        chain: &ChainId,
-        input: &str,
-        loads_preset: bool,
-    ) -> Result<Vec<Event>> {
-        let snapshot = self.metronome_snapshot();
-        let preset_bpm = if loads_preset && !snapshot.global_tempo_lock {
-            self.active_preset_bpm(input)
-        } else {
-            None
-        }
-        .map(|bpm| bpm.clamp(BPM_MIN, BPM_MAX));
-        let bpm = preset_bpm.unwrap_or(snapshot.settings.bpm);
+    pub(crate) fn retime_after_nav(&self, chain: &ChainId) {
+        let bpm = self.metronome_snapshot().settings.bpm;
         if let Some(slot) = self
             .project
             .borrow_mut()
@@ -122,24 +95,6 @@ impl LocalDispatcher {
         {
             retime_blocks(&mut slot.blocks, bpm);
         }
-        match preset_bpm {
-            Some(bpm) if bpm != snapshot.settings.bpm => {
-                self.handle_metronome(Command::Metronome(MetronomeCommand::SetMetronomeBpm {
-                    bpm,
-                }))
-            }
-            _ => Ok(vec![]),
-        }
-    }
-
-    fn active_preset_bpm(&self, input: &str) -> Option<f32> {
-        let rig = self.rig.borrow().clone()?;
-        let rig = rig.borrow();
-        let key = rig
-            .inputs
-            .get(input)
-            .and_then(|ri| ri.bank.get(&ri.active_preset))?;
-        rig.presets.get(key)?.bpm
     }
 }
 

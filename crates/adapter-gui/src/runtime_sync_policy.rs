@@ -64,9 +64,8 @@ pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
             // again, and for every footswitch press.
             | Event::BlockEnabledChanged { .. }
             // A retime already synced each changed chain from the
-            // dispatcher, and a preset's stored tempo is data, not graph.
+            // dispatcher.
             | Event::ChainTempoRetimed { .. }
-            | Event::RigPresetBpmChanged { .. }
     )
 }
 

@@ -37,11 +37,11 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 blocks: Vec::new(),
                 scenes: BTreeMap::new(),
                 scene_params: Vec::new(),
-                bpm: None,
             },
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

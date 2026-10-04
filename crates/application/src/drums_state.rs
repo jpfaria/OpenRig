@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use feature_dsp::drums::{DrumSettings, Groove, MAX_BPM, MIN_BPM};
+use feature_dsp::metronome::BPM_DEFAULT;
 use infra_filesystem::DrumsConfig;
 
 use crate::drums::{DrumKitEntry, DrumLibrary};
@@ -33,7 +34,7 @@ impl Default for DrumsSnapshot {
         Self {
             enabled: false,
             playing: false,
-            bpm: config.bpm,
+            bpm: BPM_DEFAULT,
             volume: config.volume,
             kit: None,
             groove: None,
@@ -64,7 +65,7 @@ impl DrumsControlState {
         let snapshot = DrumsSnapshot {
             enabled: false,
             playing: false,
-            bpm: clamp_bpm(config.bpm),
+            bpm: BPM_DEFAULT,
             volume: clamp_volume(config.volume),
             kit,
             groove,
@@ -164,7 +165,7 @@ fn clamp_bpm(bpm: f32) -> f32 {
     if bpm.is_finite() {
         bpm.clamp(MIN_BPM, MAX_BPM)
     } else {
-        DrumsConfig::default().bpm
+        BPM_DEFAULT
     }
 }
 

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::{Command, DrumsCommand};
+use application::command::{Command, DrumsCommand, MetronomeCommand};
 use application::live_source::LiveSource;
 use feature_dsp::drums::DrumPosition;
 use project::project::Project;
@@ -52,19 +52,19 @@ fn ctx(session: &SessionCell, live: Option<DrumPosition>) -> (DrumsWindow, Drums
 fn a_command_redraws_the_panel_with_the_new_state() {
     let session = open();
     let (w, c) = ctx(&session, None);
-    c.dispatch(DrumsCommand::SetDrumsBpm { bpm: 133.0 });
-    assert_eq!(DrumsBridge::get(&w).get_bpm(), 133.0);
+    c.dispatch(DrumsCommand::SetDrumsVolume { volume: 0.25 });
+    assert_eq!(DrumsBridge::get(&w).get_volume(), 0.25);
 }
 
 #[test]
 fn with_no_project_the_panel_is_left_alone() {
     let session: SessionCell = Rc::new(RefCell::new(None));
     let (w, c) = ctx(&session, None);
-    DrumsBridge::get(&w).set_bpm(77.0);
-    c.dispatch(DrumsCommand::SetDrumsBpm { bpm: 133.0 });
+    DrumsBridge::get(&w).set_volume(0.77);
+    c.dispatch(DrumsCommand::SetDrumsVolume { volume: 0.25 });
     c.render();
     c.tick();
-    assert_eq!(DrumsBridge::get(&w).get_bpm(), 77.0);
+    assert_eq!(DrumsBridge::get(&w).get_volume(), 0.77);
 }
 
 #[test]
@@ -77,7 +77,9 @@ fn the_poll_redraws_a_change_made_behind_the_panels_back() {
         .as_ref()
         .unwrap()
         .dispatcher
-        .dispatch(Command::Drums(DrumsCommand::SetDrumsBpm { bpm: 150.0 }))
+        .dispatch(Command::Metronome(MetronomeCommand::SetMetronomeBpm {
+            bpm: 150.0,
+        }))
         .unwrap();
     c.tick();
     assert_eq!(DrumsBridge::get(&w).get_bpm(), 150.0);

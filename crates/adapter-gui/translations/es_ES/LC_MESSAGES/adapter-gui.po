@@ -1228,45 +1228,13 @@ msgstr "Pistas de acompañamiento"
 msgid "label-backing-tracks-path"
 msgstr "Pistas de acompañamiento"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:38
-msgid "Tempo"
-msgstr "Tempo"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:54
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Slower"
 msgstr "Más lento"
 
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:84
+#: crates/adapter-gui/ui/components/project_tempo.slint
 msgid "Faster"
 msgstr "Más rápido"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:127
-msgid "Preset tempo"
-msgstr "Tempo del preset"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:137
-msgid "{} BPM"
-msgstr "{} BPM"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:138
-msgid "Follows the global tempo"
-msgstr "Sigue el tempo global"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:155
-msgid "Clear"
-msgstr "Borrar"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:178
-msgid "Save {} BPM to preset"
-msgstr "Guardar {} BPM en el preset"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:197
-msgid "Use global tempo"
-msgstr "Usar tempo global"
-
-#: crates/adapter-gui/ui/components/tempo_panel_view.slint:232
-msgid "Loading a preset never changes the tempo"
-msgstr "Cargar un preset nunca cambia el tempo"
 
 #: crates/adapter-gui/ui/pages/drums_window.slint
 msgid "label-drums"

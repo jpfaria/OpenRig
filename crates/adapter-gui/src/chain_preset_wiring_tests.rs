@@ -105,7 +105,6 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
             scene_params: Vec::new(),
             scenes: BTreeMap::new(),
             volume: 100.0,
-            bpm: None,
         },
     );
     let mut bank = BTreeMap::new();
@@ -133,6 +132,7 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

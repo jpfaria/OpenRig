@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use application::drums::{DrumKitEntry, DrumLibrary};
 use application::drums_state::DrumsSnapshot;
-use feature_dsp::drums::{DrumPattern, Groove, MAX_BPM, MIN_BPM};
+use feature_dsp::drums::{DrumPattern, Groove};
 
 use super::*;
 use crate::metronome_view::ProjectOutput;
@@ -132,11 +132,10 @@ fn the_bar_has_as_many_lamps_as_the_chosen_groove_has_beats() {
 }
 
 #[test]
-fn transport_tempo_level_and_tempo_range_come_through() {
+fn transport_tempo_and_level_come_through() {
     let view = drums_view(&snapshot(), &library(), &[]);
     assert!(view.enabled && view.playing);
     assert_eq!((view.bpm, view.volume), (96.0, 0.5));
-    assert_eq!((view.bpm_min, view.bpm_max), (MIN_BPM, MAX_BPM));
 }
 
 #[test]

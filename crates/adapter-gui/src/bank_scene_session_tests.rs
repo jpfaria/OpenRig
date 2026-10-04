@@ -48,6 +48,7 @@ fn rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs,
         outputs: BTreeMap::new(),
@@ -188,6 +189,7 @@ fn open_and_create_project_emit_intent_effects_only() {
 #[test]
 fn no_project_state_has_no_inputs() {
     let empty = RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

@@ -74,6 +74,7 @@ fn rig_with_input() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

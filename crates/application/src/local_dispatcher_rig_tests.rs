@@ -59,6 +59,7 @@ fn rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),
@@ -371,6 +372,7 @@ fn two_input_rig() -> RigProject {
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

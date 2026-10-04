@@ -236,7 +236,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] Metrônomo embutido — andamento, fórmula de compasso, subdivisões, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — um fader e um mute por entrada/saída, pela GUI, MCP e superfícies de controle MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [x] Bateria eletrônica embutida — kits sampleados, ritmos agrupados por gênero, viradas, andamento e saída própria, pela barra superior ou pela Compact Chain View ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
-- [x] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [x] Um andamento por projeto na barra do topo, com tap ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Bateria integrada — bateria para tocar junto ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Roteamento paralelo / splits de chain ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))

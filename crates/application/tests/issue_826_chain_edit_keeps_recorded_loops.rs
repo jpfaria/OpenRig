@@ -58,6 +58,7 @@ fn rig_with_a_recorded_loop() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

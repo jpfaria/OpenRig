@@ -7,7 +7,7 @@
   "features.f2.h3": "DI loop",
   "features.f2.p": "Play a dry DI file through the live chain — every pedal and amp treats it exactly like your guitar. Test a tone without picking up the instrument.",
   "features.f3.h3": "Metronome",
-  "features.f3.p": "Tap tempo, time signature, subdivision and its own output. Its BPM times every synced delay and modulation, and each preset can bring its own.",
+  "features.f3.p": "Tap tempo, time signature, subdivision and its own output. It plays the project's one tempo, which also times every synced delay and modulation.",
   "features.f4.h3": "Tuner",
   "features.f4.p": "A chromatic tuner per input, muting the output while you tune.",
   "features.f5.h3": "Spectrum",

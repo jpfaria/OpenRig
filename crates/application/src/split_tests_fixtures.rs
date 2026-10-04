@@ -156,6 +156,7 @@ pub(crate) fn rig_with_presets(presets: Vec<(&str, Vec<AudioBlock>)>) -> RigProj
         di_output: None,
     };
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([("in".to_string(), input)]),
         outputs: BTreeMap::new(),

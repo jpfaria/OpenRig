@@ -25,6 +25,7 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
 
 fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()
@@ -44,7 +45,6 @@ fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
                         scene_params: vec![],
                         scenes: BTreeMap::new(),
                         volume: 100.0,
-                        bpm: None,
                     },
                 )
             })

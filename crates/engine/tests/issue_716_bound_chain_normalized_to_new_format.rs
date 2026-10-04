@@ -57,6 +57,7 @@ fn bound_chain_drops_legacy_io_blocks_on_load() {
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

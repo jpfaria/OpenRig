@@ -84,6 +84,7 @@ fn rig() -> RigProject {
         },
     );
     RigProject {
+        bpm: None,
         name: Some("project".into()),
         inputs,
         presets,

@@ -100,7 +100,6 @@ pub(crate) fn render_settings(ctx: &MetronomeCtx) {
     let label = resolved.map(|o| o.label).unwrap_or_default();
     ctx.for_each_bridge(|bridge| {
         render_settings_from(bridge, &state.settings, &key, &label);
-        bridge.set_global_tempo_lock(state.global_tempo_lock);
     });
     // What the knobs now show, so the lamp timer can tell "changed elsewhere"
     // from "already drawn".

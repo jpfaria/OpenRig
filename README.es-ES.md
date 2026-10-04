@@ -236,7 +236,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Mixer global — un fader y un mute por entrada/salida, desde la GUI, MCP y superficies de control MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [x] Caja de ritmos integrada — kits sampleados, ritmos agrupados por género, redobles, tempo y salida propia, desde la barra superior o la Compact Chain View ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
-- [x] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [x] Un tempo por proyecto en la barra superior, con tap ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Batería integrada — batería para tocar encima ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Routing paralelo / splits de cadena ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
