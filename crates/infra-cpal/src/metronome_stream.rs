@@ -18,6 +18,7 @@ use anyhow::Result;
 use engine::metronome_state::{MetronomeGenerator, MetronomeSettings, MetronomeShared};
 
 use crate::aux_output::open_aux_output;
+use crate::metronome_render::metronome_render;
 use crate::ProjectRuntimeController;
 
 /// Render one callback's worth of metronome into `out` (interleaved,
@@ -121,33 +122,9 @@ impl ProjectRuntimeController {
             return Ok(());
         }
 
-        let shared = std::sync::Arc::clone(&self.metronome_shared);
-        let handle = open_aux_output(
-            &self.device_settings,
-            device_id,
-            target_channels,
-            "metronome",
-            |layout| {
-                let mut generator =
-                    MetronomeGenerator::new(layout.sample_rate as f32, shared.settings());
-                // Pre-allocated here, at build time — the callback only ever grows it.
-                let mut scratch: Vec<f32> = vec![0.0; layout.max_frames];
-                let mut last_generation = shared.generation();
-                let channels = layout.channels;
-                let targets = layout.targets.clone();
-                Box::new(move |out: &mut [f32]| {
-                    fill_metronome_buffer(
-                        &mut generator,
-                        &shared,
-                        &mut scratch,
-                        out,
-                        channels,
-                        &targets,
-                        &mut last_generation,
-                    );
-                })
-            },
-        )?;
+        let render = metronome_render(std::sync::Arc::clone(&self.metronome_shared));
+        let settings = &self.device_settings;
+        let handle = open_aux_output(settings, device_id, target_channels, "metronome", render)?;
 
         // Only now does the click that was playing go: the previous handle is
         // swapped out and dropped OUTSIDE the borrow, so the stream it owns is
