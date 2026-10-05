@@ -111,6 +111,11 @@ frame — not the pedal SHAPE: an amp still looks like an amp head, a cab like a
 cabinet, a rack unit like a rack unit. Keep it uncluttered: no decorative screws,
 scanlines or ticks. UX wins over decoration.
 
+**Lines stay subtle.** The owner wants a fine, quiet look: 1px low-contrast
+dividers, line icons at about 1.5px on a 24px grid, knob arcs and graph wires
+under 2px, fader and slider tracks about 3px, accent bars 2px at most. Heavy
+borders, thick tracks and dark outlines read as coarse.
+
 ## 5. An I/O label is the binding name plus the direction and channels
 
 Any element that says which side of the I/O it is shows the **binding name plus
