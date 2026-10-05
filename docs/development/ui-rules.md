@@ -80,7 +80,11 @@ wide field vs a compact icon); the dropdown does not.
 buttons.** Endpoints, presets, sources: their count and label length come from the
 user's rig, so a segmented row overflows or truncates and reads as a list laid on
 its side. A segmented control is only for a short, fixed set the app defines
-(½× / 1× / 2×). Inside a panel that is itself an overlay, the select's list is a
+(½× / 1× / 2×).
+The reverse holds too: a short, fixed set the app defines (channel mode
+Mono / Stereo / Dual mono, sample rate, buffer size) is a segmented control
+(radio), never a select: a select hides two or three known options behind a
+click for no reason. Inside a panel that is itself an overlay, the select's list is a
 root-level modal (`looper_endpoint_picker.slint`, `looper_preset_picker.slint`).
 
 **An input/output list shows each physical endpoint once.** I/O bindings overlap:
@@ -106,6 +110,11 @@ OpenRig logo or the brand logos in `assets/brands`.
 frame — not the pedal SHAPE: an amp still looks like an amp head, a cab like a
 cabinet, a rack unit like a rack unit. Keep it uncluttered: no decorative screws,
 scanlines or ticks. UX wins over decoration.
+
+**Lines stay subtle.** The owner wants a fine, quiet look: 1px low-contrast
+dividers, line icons at about 1.5px on a 24px grid, knob arcs and graph wires
+under 2px, fader and slider tracks about 3px, accent bars 2px at most. Heavy
+borders, thick tracks and dark outlines read as coarse.
 
 ## 5. An I/O label is the binding name plus the direction and channels
 

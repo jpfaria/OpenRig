@@ -85,9 +85,11 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
             })))
             .build();
     let max_level = logger.filter();
-    // #1060: `error!` becomes a Sentry event, lower levels breadcrumbs.
-    // Without a Sentry client this is a no-op.
-    let logger = sentry_log::SentryLogger::with_dest(logger);
+    // Records reach the crash reporter once `crash_reporting::init` installs one.
+    let logger = crate::crash_log_bridge::ReportingLogger::new(
+        Box::new(logger),
+        crate::crash_reporting::slot(),
+    );
     if log::set_boxed_logger(Box::new(logger)).is_ok() {
         log::set_max_level(max_level);
     }
@@ -108,6 +110,8 @@ pub fn init_logging() {
                 file,
             )));
             log::info!("session log: {}", path.display());
+            // The machine the session ran on, for the file on disk.
+            log::info!("host: {}", crate::crash_context_host::host_context());
         }
         None => init_logging_with_target(Box::new(std::io::stderr())),
     }
