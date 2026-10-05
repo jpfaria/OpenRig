@@ -22,3 +22,11 @@ become breadcrumbs attached to the next event. The DSN comes from the
 Builds without it (local `cargo run`) never send anything.
 
 The audio thread never logs (invariant #8), so none of this touches it.
+
+## Audio faults (#1065)
+
+Audio overload (new xruns or underruns on a chain, detected by the GUI meter
+poll) and an unhealthy audio backend are logged at `error!`, so each one is a
+Sentry event. The overload message is constant per chain (`audio overload on
+chain '<id>' (xrun/underrun)`) so Sentry groups occurrences; the counts ride in
+the `warn!` breadcrumb right before it.
