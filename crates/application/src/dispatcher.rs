@@ -26,6 +26,7 @@ use engine::DiPcm;
 use project::rig::RigProject;
 
 use crate::command::Command;
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
 use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
@@ -110,6 +111,10 @@ pub trait CommandDispatcher {
     /// supply it; a transport that owns no audio keeps the default no-op and
     /// its commands still report their events.
     fn attach_runtime_control(&self, _control: Rc<dyn RuntimeControl>) {}
+
+    /// How the dispatcher asks whether a chain's interface is present
+    /// before switching the chain on. Default: nothing is asked.
+    fn attach_device_presence(&self, _presence: Rc<dyn DevicePresence>) {}
 
     /// #127: hand the dispatcher the metronome state it owns — settings,
     /// chosen output endpoint, POWER, tap history, and where they persist.

@@ -90,6 +90,7 @@ mod compact_routing_pick;
 mod compact_row_address;
 mod compact_split_row;
 mod compact_view_refresh;
+mod device_presence_gui;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;

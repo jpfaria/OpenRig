@@ -28,6 +28,7 @@ use crate::command::{
     BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, MixerCommand,
     PluginCommand, ProjectCommand, SelectionCommand, SettingsCommand,
 };
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::drums_state::{DrumsControlState, DrumsSnapshot};
@@ -449,6 +450,10 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
         LocalDispatcher::attach_runtime_control(self, control)
+    }
+
+    fn attach_device_presence(&self, presence: Rc<dyn DevicePresence>) {
+        LocalDispatcher::attach_device_presence(self, presence)
     }
 
     fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {

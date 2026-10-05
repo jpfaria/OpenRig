@@ -30,6 +30,7 @@
 | `scripts/gui-command-inventory.py` | Inventory of every GUI callback: whether it goes through a `Command`, changes state without one, or is screen-only |
 | `scripts/gui-command-coupling.py` | Counts GUI callbacks that change state without dispatching a `Command`; the number only goes down, the goal is 0 |
 | `scripts/release-downloads.sh` | Download counts of the GitHub releases |
+| `scripts/sentry.py` | Sentry issues and events of release builds (`issues`, `events OPENRIG-N`, `resolve`) |
 
 ## macOS dmg — naming and installing
 
