@@ -43,11 +43,13 @@ pub(super) fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     }
 }
 
 pub(super) fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()
@@ -399,4 +401,23 @@ fn replace_preset_blocks_detects_same_id_model_swap_as_structural() {
         base_model, "klon",
         "model swap must be written into the preset base block, not dropped"
     );
+}
+
+#[test]
+fn the_project_tempo_round_trips_in_yaml() {
+    let mut rig = project_with(vec![("gtr", input(&[(1, "p1")], 1))], &["p1"]);
+    rig.bpm = Some(97.0);
+    let yaml = serde_yaml::to_string(&rig).expect("serialize");
+    assert!(yaml.contains("bpm: 97"), "{yaml}");
+    let back: RigProject = serde_yaml::from_str(&yaml).expect("parse");
+    assert_eq!(back.bpm, Some(97.0));
+}
+
+#[test]
+fn a_project_yaml_without_a_tempo_parses_with_none() {
+    let rig = project_with(vec![("gtr", input(&[(1, "p1")], 1))], &["p1"]);
+    let yaml = serde_yaml::to_string(&rig).expect("serialize");
+    assert!(!yaml.contains("bpm"), "{yaml}");
+    let back: RigProject = serde_yaml::from_str(&yaml).expect("parse");
+    assert_eq!(back.bpm, None);
 }

@@ -18,47 +18,81 @@ fn chain(di_output: Option<DiOutputRef>) -> Chain {
     }
 }
 
-fn registry() -> Vec<IoBinding> {
-    let out = |name: &str, channels: Vec<usize>| IoEndpoint {
+fn out(name: &str, device: &str, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
         name: name.into(),
-        device_id: DeviceId("dev".into()),
+        device_id: DeviceId(device.into()),
         mode: ChannelMode::Stereo,
         channels,
-    };
-    vec![IoBinding {
-        id: "io".into(),
-        name: "IO".into(),
-        inputs: vec![],
-        outputs: vec![out("Main Out", vec![0, 1]), out("FX Out", vec![2, 3])],
+    }
+}
+
+/// The chain's binding `io` plus another binding the chain does not use.
+fn registry() -> Vec<IoBinding> {
+    vec![
+        IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![],
+            outputs: vec![
+                out("Main Out", "dev", vec![0, 1]),
+                out("FX Out", "dev", vec![2, 3]),
+            ],
+        },
+        IoBinding {
+            id: "other".into(),
+            name: "OTHER".into(),
+            inputs: vec![],
+            outputs: vec![out("FRFR", "dev", vec![24, 25])],
+        },
+    ]
+}
+
+fn devices() -> Vec<AudioDeviceDescriptor> {
+    vec![AudioDeviceDescriptor {
+        id: "dev".into(),
+        name: "Quantum HD 8".into(),
+        channels: 32,
     }]
 }
 
 #[test]
-fn options_list_the_chains_bound_output_endpoints_in_flat_order() {
-    let options = build_di_output_options(&chain(None), &registry());
-    assert_eq!(options.len(), 2);
-    assert_eq!(options[0].label, "Main Out");
-    assert_eq!(options[0].di_ref.binding_id, "io");
-    assert_eq!(options[0].di_ref.endpoint, "Main Out");
-    assert_eq!(options[1].label, "FX Out");
-    assert_eq!(options[1].di_ref.endpoint, "FX Out");
+fn options_list_every_output_of_the_project_by_device_and_channels() {
+    let (labels, _) = output_labels_and_index(&chain(None), &registry(), &devices());
+    assert_eq!(
+        labels,
+        vec![
+            "Quantum HD 8 · Out 1/2",
+            "Quantum HD 8 · Out 3/4",
+            "Quantum HD 8 · Out 25/26",
+        ],
+        "the same list the player shows, outputs outside the chain included"
+    );
+}
+
+#[test]
+fn a_picked_row_persists_the_endpoint_it_names() {
+    let outputs = output_endpoints(&registry(), &[]);
+    let picked = di_output_ref(&outputs, 2).expect("row exists");
+    assert_eq!(picked.binding_id, "other");
+    assert_eq!(picked.endpoint, "FRFR");
+    assert!(di_output_ref(&outputs, 3).is_none());
 }
 
 #[test]
 fn no_choice_selects_the_main_output() {
-    let c = chain(None);
-    let options = build_di_output_options(&c, &registry());
-    assert_eq!(di_output_selected_index(&c, &options), 0);
+    let (_, index) = output_labels_and_index(&chain(None), &registry(), &[]);
+    assert_eq!(index, 0);
 }
 
 #[test]
-fn persisted_choice_selects_its_index() {
+fn persisted_choice_selects_its_row_even_outside_the_chain() {
     let c = chain(Some(DiOutputRef {
-        binding_id: "io".into(),
-        endpoint: "FX Out".into(),
+        binding_id: "other".into(),
+        endpoint: "FRFR".into(),
     }));
-    let options = build_di_output_options(&c, &registry());
-    assert_eq!(di_output_selected_index(&c, &options), 1);
+    let (_, index) = output_labels_and_index(&c, &registry(), &[]);
+    assert_eq!(index, 2);
 }
 
 #[test]
@@ -67,15 +101,112 @@ fn stale_choice_falls_back_to_the_main_output() {
         binding_id: "gone".into(),
         endpoint: "x".into(),
     }));
-    let options = build_di_output_options(&c, &registry());
-    assert_eq!(di_output_selected_index(&c, &options), 0);
+    let (_, index) = output_labels_and_index(&c, &registry(), &[]);
+    assert_eq!(index, 0);
 }
 
 #[test]
-fn unbound_chain_yields_no_options() {
+fn unbound_chain_selects_no_row() {
     let mut c = chain(None);
     c.io_binding_ids.clear();
-    let options = build_di_output_options(&c, &registry());
-    assert!(options.is_empty());
-    assert_eq!(di_output_selected_index(&c, &options), -1);
+    let (_, index) = output_labels_and_index(&c, &registry(), &[]);
+    assert_eq!(index, -1);
+}
+
+#[test]
+fn bindings_sharing_device_channels_list_them_once() {
+    // #771 had two interfaces each exposing an "Out 1"; the list now names
+    // outputs by device and channels, so only a real duplicate collapses.
+    let mut registry = registry();
+    registry.push(IoBinding {
+        id: "dup".into(),
+        name: "DUP".into(),
+        inputs: vec![],
+        outputs: vec![out("Main Out", "dev", vec![0, 1])],
+    });
+    let (labels, _) = output_labels_and_index(&chain(None), &registry, &devices());
+    assert_eq!(labels.len(), 3);
+}
+
+/// #808 (owner): "open the project without ever enabling the chain, open the
+/// DI — the output select does not appear; only after I enable the chain the
+/// first time." The select's options are built inside `replace_project_chains`
+/// from its `io_bindings` arg, which every caller passes EMPTY, so the row
+/// opens with no outputs. The refresh that keeps it fresh must populate it
+/// from the real bindings even while the chain is disabled (the options are
+/// offline — invariant #4).
+#[test]
+fn di_output_select_populates_before_the_chain_is_ever_enabled() {
+    let mut disabled = chain(None);
+    disabled.enabled = false;
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![disabled],
+        midi: None,
+    };
+    let model: Rc<VecModel<ProjectChainItem>> = Rc::new(VecModel::default());
+    // Reproduce the open flow: rows built with an EMPTY binding registry.
+    crate::project_view::replace_project_chains(&model, &project, &[], &[], &[]);
+    let before = model.row_data(0).unwrap().di_loop_outputs.iter().count();
+    assert_eq!(
+        before, 0,
+        "precondition: the open flow leaves the DI select empty"
+    );
+
+    // The refresh must fill the select from the real bindings — disabled or not.
+    apply_di_outputs_to_rows(&model, &project, &registry(), &devices());
+
+    let after = model.row_data(0).unwrap().di_loop_outputs.iter().count();
+    assert_eq!(
+        after, 3,
+        "#808: the DI output select must list the project's outputs even though \
+         the chain was never enabled — it stayed empty until the first enable."
+    );
+}
+
+/// Two bindings of the chain both carry MAIN (same device + channels): the
+/// select lists it once, and a choice saved through either copy selects it.
+fn overlapping_registry() -> Vec<IoBinding> {
+    let out = |name: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
+    };
+    vec![
+        IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![],
+            outputs: vec![out("MAIN", vec![0, 1]), out("FRFR", vec![14, 15])],
+        },
+        IoBinding {
+            id: "main".into(),
+            name: "Main".into(),
+            inputs: vec![],
+            outputs: vec![out("MAIN", vec![0, 1])],
+        },
+    ]
+}
+
+#[test]
+fn an_output_shared_by_two_bindings_is_one_option() {
+    let mut c = chain(None);
+    c.io_binding_ids = vec!["io".into(), "main".into()];
+    let outputs = output_endpoints(&overlapping_registry(), &[]);
+    let channels: Vec<&[usize]> = outputs.iter().map(|o| o.channels.as_slice()).collect();
+    assert_eq!(channels, vec![&[0, 1][..], &[14, 15][..]]);
+}
+
+#[test]
+fn a_choice_saved_through_the_other_copy_selects_the_shared_option() {
+    let mut c = chain(Some(DiOutputRef {
+        binding_id: "main".into(),
+        endpoint: "MAIN".into(),
+    }));
+    c.io_binding_ids = vec!["io".into(), "main".into()];
+    let registry = overlapping_registry();
+    let outputs = output_endpoints(&registry, &[]);
+    assert_eq!(di_output_selected_index(&c, &registry, &outputs), 0);
 }

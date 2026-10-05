@@ -66,6 +66,7 @@ fn schema() -> Result<ModelParameterSchema> {
                 0.05,
                 ParameterUnit::Hertz,
             ),
+            block_core::tempo_sync::rate_sync_parameter(),
             float_parameter(
                 "depth",
                 "Depth",

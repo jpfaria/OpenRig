@@ -147,6 +147,7 @@ fn write_fixture_rig(dir: &Path) -> PathBuf {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         );
     }
@@ -160,6 +161,7 @@ fn write_fixture_rig(dir: &Path) -> PathBuf {
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: Some("issue-692 fixture".to_string()),
         inputs,
         outputs,

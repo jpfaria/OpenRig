@@ -32,8 +32,7 @@ export component LooperHarness inherits Window {
     callback decay-changed(int, int);
     callback speed-picked(int, int);
     callback reverse-toggled(int, bool);
-    callback input-picked(int, int);
-    callback output-picked(int, int);
+    callback endpoint-open(int, int, int);
     callback preset-open(int, int);
     callback edit(int);
 
@@ -60,8 +59,7 @@ export component LooperHarness inherits Window {
         decay-changed(uid, v) => { root.decay-changed(uid, v); }
         speed-picked(uid, v) => { root.speed-picked(uid, v); }
         reverse-toggled(uid, v) => { root.reverse-toggled(uid, v); }
-        input-picked(uid, v) => { root.input-picked(uid, v); }
-        output-picked(uid, v) => { root.output-picked(uid, v); }
+        endpoint-open(uid, kind, sel) => { root.endpoint-open(uid, kind, sel); }
         preset-open(uid, sel) => { root.preset-open(uid, sel); }
         edit(uid) => { root.edit(uid); }
     }

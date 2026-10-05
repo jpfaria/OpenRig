@@ -9,8 +9,12 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod arc_handoff;
+pub mod audio_alloc_scope;
 mod audio_frame;
 mod audio_processor;
+pub mod audio_zone_regions;
+pub mod audio_zone_router;
 #[cfg(test)]
 mod chain_mix_gain_tests;
 pub mod chain_mix_gains;
@@ -19,6 +23,7 @@ pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
+pub mod drum_state;
 mod effective_endpoints;
 mod elastic_buffer;
 mod elastic_drift_guard;
@@ -51,10 +56,11 @@ pub mod metronome_state;
 #[cfg(test)]
 mod mixer_gain_tests;
 pub mod mixer_gains;
-mod mixer_ramp;
+pub mod mixer_ramp;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;
+pub mod player;
 pub mod probe;
 mod rig_projection;
 pub mod rig_runtime;
@@ -77,6 +83,7 @@ mod runtime_graph_assemble;
 mod runtime_graph_impl;
 mod runtime_graph_prebuild;
 mod runtime_graph_update;
+mod runtime_input_clock;
 mod runtime_input_seams;
 pub mod runtime_io;
 pub mod runtime_layout;

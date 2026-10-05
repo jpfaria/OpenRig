@@ -36,8 +36,8 @@ pub struct Chain {
     pub io_binding_ids: Vec<String>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
-    /// #717: the chain's chosen DI-loop output endpoint (one of its
-    /// already-bound outputs). The armed DI stream routes here instead of the
+    /// #717: the chain's chosen DI-loop output endpoint (any output of the
+    /// project's bindings, #324). The armed DI stream routes here instead of the
     /// chain's main output. `None` ⇒ the chain's main output (the default;
     /// legacy projects have no field and deserialize to `None`).
     #[serde(default, skip_serializing_if = "Option::is_none")]

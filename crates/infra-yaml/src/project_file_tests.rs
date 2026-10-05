@@ -279,10 +279,11 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
-            disabled_endpoints: Default::default(),
+            di_output: None,
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

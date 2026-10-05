@@ -1,0 +1,9 @@
+# nextest runs every test binary in parallel. A test that measures CPU cost
+# or a deadline on the clock reads the other tests' load as its own, so this
+# binary takes every thread and runs alone. It also reads load from outside
+# the suite (other builds on the machine): a real burst fails every attempt,
+# a busy neighbour fails one, so it gets two retries.
+[[profile.default.overrides]]
+filter = 'binary(issue_617_uniform_block_cost)'
+threads-required = 'num-cpus'
+retries = 2

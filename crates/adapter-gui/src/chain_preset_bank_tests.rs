@@ -45,9 +45,11 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs,
         outputs: BTreeMap::new(),

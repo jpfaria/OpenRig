@@ -48,6 +48,7 @@ pub fn build_rig_for_save(project: &Project, current_rig: Option<&RigProject>) -
     let mut rig_out = match current_rig {
         Some(rig) => rig.clone(),
         None => RigProject {
+            bpm: None,
             name: project.name.clone(),
             inputs: std::collections::BTreeMap::new(),
             outputs: std::collections::BTreeMap::new(),

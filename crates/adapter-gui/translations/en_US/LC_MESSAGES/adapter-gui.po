@@ -206,17 +206,9 @@ msgstr "GLOBAL"
 msgid "btn-close"
 msgstr "Close"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "Unchecked endpoints stay listed but are left out of this node."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "This chain's E/S has no endpoints for this node."
-
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} endpoints"
 
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
@@ -1142,3 +1134,150 @@ msgstr "Port"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "Choose file…"
+
+msgid "action-loop-clear"
+msgstr "Loop off"
+
+msgid "action-loop-end"
+msgstr "Loop B"
+
+msgid "action-loop-start"
+msgstr "Loop A"
+
+msgid "action-pause"
+msgstr "Pause"
+
+msgid "action-play"
+msgstr "Play"
+
+msgid "action-stop"
+msgstr "Stop"
+
+msgid "label-backing-tracks"
+msgstr "Backing tracks"
+
+msgid "label-loop-range"
+msgstr "Loop {}"
+
+msgid "label-player-output"
+msgstr "Track output"
+
+msgid "label-player-position"
+msgstr "Track position"
+
+msgid "label-category-solo"
+msgstr "Solo"
+
+msgid "label-category-rhythm"
+msgstr "Rhythm"
+
+msgid "label-category-bass"
+msgstr "Bass"
+
+msgid "label-category-acoustic"
+msgstr "Acoustic"
+
+msgid "label-category-other"
+msgstr "Other"
+
+msgid "label-track-library"
+msgstr "Tracks"
+
+msgid "label-track-delete"
+msgstr "Delete track"
+
+msgid "label-track-delete-confirm"
+msgstr "Delete?"
+
+msgid "label-track-pitch"
+msgstr "Pitch"
+
+msgid "label-track-speed"
+msgstr "Speed"
+
+msgid "label-track-volume"
+msgstr "Volume"
+
+msgid "label-user-tracks-folder"
+msgstr "Your tracks: {}"
+
+msgid "placeholder-player-output"
+msgstr "Select output"
+
+msgid "status-no-backing-tracks"
+msgstr "No tracks yet. Drop audio files in your tracks folder or choose a file."
+
+msgid "status-no-track"
+msgstr "No track loaded"
+
+msgid "status-track-failed"
+msgstr "This file could not be read"
+
+msgid "status-track-loading"
+msgstr "Loading…"
+
+msgid "title-window-player"
+msgstr "OpenRig · Backing tracks"
+
+msgid "tooltip-backing-tracks"
+msgstr "Backing tracks"
+
+msgid "label-backing-tracks-path"
+msgstr "Backing tracks"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Slower"
+msgstr "Slower"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Faster"
+msgstr "Faster"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums"
+msgstr "DRUMS"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint
+msgid "tooltip-drums"
+msgstr "Drum machine"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "title-window-drums"
+msgstr "Drums"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums-bar"
+msgstr "BAR {}"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "action-drums-fill"
+msgstr "FILL"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-kit"
+msgstr "KIT"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-groove"
+msgstr "GROOVE"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-kit"
+msgstr "Select kit"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-groove"
+msgstr "Select groove"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "status-no-drum-content"
+msgstr "No kits or grooves installed"
+
+msgid "placeholder-drums-search"
+msgstr "Search"
+
+msgid "status-drums-no-match"
+msgstr "Nothing matches"

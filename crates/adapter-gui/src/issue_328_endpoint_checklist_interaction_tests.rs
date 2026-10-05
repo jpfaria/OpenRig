@@ -9,8 +9,8 @@ use slint::{ComponentHandle, Global, LogicalPosition, Model, ModelRc, Timer, Vec
 
 use application::command::{ChainCommand, Command};
 
-use crate::chain_graph_fixtures_tests::{chain, core, recording_session, rows};
-use crate::chain_graph_ids::INPUT_NODE_ID;
+use crate::chain_graph_fixtures_tests::{chain, core, devices, recording_session, rows};
+use crate::chain_graph_ids::{INPUT_NODE_ID, OUTPUT_NODE_ID};
 use crate::endpoint_checklist_wiring::{wire, EndpointChecklistWiringCtx};
 use crate::{ChainGraphOverlayState, ChannelOptionItem, EndpointChecklistHarness};
 
@@ -96,8 +96,8 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         EndpointChecklistWiringCtx {
             project_session: session,
             project_chains: rows(),
-            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
-            output_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            input_chain_devices: Rc::new(RefCell::new(devices())),
+            output_chain_devices: Rc::new(RefCell::new(devices())),
             toast_timer: Rc::new(Timer::default()),
         },
     );
@@ -113,7 +113,10 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         .iter()
         .map(|i| i.label.to_string())
         .collect();
-    assert_eq!(labels, vec!["In 1", "In 2"]);
+    assert_eq!(
+        labels,
+        vec!["Quantum HD 8 · In 1/2", "Quantum HD 8 · In 3/4"]
+    );
 
     state.invoke_checklist_toggled(0, INPUT_NODE_ID.into(), 1, false);
 
@@ -125,5 +128,85 @@ fn opening_the_input_node_lists_the_chains_inputs_and_a_toggle_dispatches() {
         state.get_checklist_items().row_count(),
         2,
         "an unchecked endpoint stays listed"
+    );
+}
+
+#[test]
+fn the_card_shows_only_the_title_and_the_rows() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = EndpointChecklistHarness::new().unwrap();
+    open(&h);
+    h.show().unwrap();
+    let labels: Vec<String> = i_slint_backend_testing::ElementQuery::from_root(&h)
+        .match_descendants()
+        .find_all()
+        .into_iter()
+        .filter_map(|el| el.accessible_label())
+        .map(|s| s.to_string())
+        .collect();
+    assert!(
+        !labels.iter().any(|l| l.contains("hint-endpoint-checklist")
+            || l.starts_with("Unchecked endpoints")
+            || l.starts_with("Endpoints desmarcados")
+            || l.ends_with(" endpoints")
+            || l.ends_with(" endpoint")),
+        "no explanatory text and no endpoint count: {labels:?}"
+    );
+}
+
+#[test]
+fn the_card_closes_with_the_x_button_like_every_panel() {
+    i_slint_backend_testing::init_no_event_loop();
+    let h = EndpointChecklistHarness::new().unwrap();
+    open(&h);
+    h.show().unwrap();
+    let close = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &h,
+        "EndpointChecklistOverlay::close-x",
+    )
+    .next()
+    .expect("the X close button");
+    assert_eq!(
+        close.accessible_role(),
+        Some(i_slint_backend_testing::AccessibleRole::Button)
+    );
+    let worded_close = i_slint_backend_testing::ElementQuery::from_root(&h)
+        .match_descendants()
+        .match_accessible_role(i_slint_backend_testing::AccessibleRole::Text)
+        .find_all()
+        .into_iter()
+        .filter_map(|el| el.accessible_label())
+        .any(|l| l == "Fechar" || l == "Close" || l == "btn-close");
+    assert!(!worded_close, "no worded Close button");
+    click_at(&h, centre(&close));
+    assert!(!ChainGraphOverlayState::get(&h).get_checklist_open());
+}
+
+#[test]
+fn opening_the_output_node_names_its_rows_from_the_output_devices() {
+    i_slint_backend_testing::init_no_event_loop();
+    let app = crate::AppWindow::new().unwrap();
+    let (session, _recorder) = recording_session(vec![chain(vec![core("amp")])]);
+    wire(
+        &app,
+        EndpointChecklistWiringCtx {
+            project_session: session,
+            project_chains: rows(),
+            input_chain_devices: Rc::new(RefCell::new(Vec::new())),
+            output_chain_devices: Rc::new(RefCell::new(devices())),
+            toast_timer: Rc::new(Timer::default()),
+        },
+    );
+    let state = ChainGraphOverlayState::get(&app);
+    state.invoke_open_checklist(0, OUTPUT_NODE_ID.into());
+    assert!(state.get_checklist_open());
+    let labels: Vec<String> = state
+        .get_checklist_items()
+        .iter()
+        .map(|i| i.label.to_string())
+        .collect();
+    assert_eq!(
+        labels,
+        vec!["Quantum HD 8 · Out 1/2", "Quantum HD 8 · Out 3/4"]
     );
 }

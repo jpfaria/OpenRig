@@ -21,8 +21,6 @@ fn take() -> Vec<f32> {
 }
 
 /// Frames the isolated stream reads for one turn of the loop, at its own rate.
-/// `to_loop_at` trims a crossfade off the end, so the meaningful comparison is
-/// against the same take at normal speed, not the raw recorded length.
 fn played_frames(speed: LooperSpeed) -> usize {
     looper_playback_pcm(take(), RATE, speed)
         .to_loop_at(RATE)

@@ -25,6 +25,7 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     }
 }
 
@@ -47,6 +48,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

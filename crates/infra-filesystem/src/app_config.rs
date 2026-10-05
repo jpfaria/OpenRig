@@ -6,11 +6,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::asset_paths::AssetPaths;
+use crate::drums_config::DrumsConfig;
 use crate::gui_settings::GuiAudioDeviceSettings;
 use crate::io_bindings::IoBinding;
 use crate::metronome_config::MetronomeConfig;
 use crate::midi_device::MidiDeviceSelection;
 use crate::mixer_config::MixerStripConfig;
+use crate::player_config::PlayerConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
@@ -72,6 +74,13 @@ pub struct AppConfig {
     /// away from unity or muted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mixer: Vec<MixerStripConfig>,
+    /// Per-machine backing-track player settings (ADR 0003).
+    #[serde(default)]
+    pub player: PlayerConfig,
+    /// Per-machine drum machine settings (ADR 0003). The transport is absent
+    /// on purpose — see [`DrumsConfig`].
+    #[serde(default)]
+    pub drums: DrumsConfig,
 }
 
 fn default_true() -> bool {

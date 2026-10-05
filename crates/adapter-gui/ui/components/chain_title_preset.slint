@@ -156,7 +156,7 @@ export component ChainTitlePreset inherits Rectangle {
         // width (eliding) before the row runs under the header's action
         // cluster in a narrow window (#1007).
         Rectangle {
-            min-width: 120px;
+            min-width: 96px;
             preferred-width: 220px;
             max-width: 220px;
             horizontal-stretch: 1;
@@ -236,8 +236,13 @@ export component ChainTitlePreset inherits Rectangle {
         }
 
         // Preset select — empty placeholder when no rig yet.
+        // Shrinks (eliding its label) before the row runs under the action
+        // cluster, so the scene bar keeps its place.
         PresetSelect {
-            width: 220px;
+            min-width: 120px;
+            preferred-width: 220px;
+            max-width: 220px;
+            horizontal-stretch: 1;
             labels: root.nav.preset-labels;
             active-index: root.nav.active-preset-index;
             picked(i) => {

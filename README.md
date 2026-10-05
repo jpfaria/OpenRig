@@ -78,7 +78,7 @@ The foundation that makes the bigger vision possible already runs on every deskt
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
 - **Practice with a virtual DI.** Loop a dry guitar DI through any chain to shape your tone hands-free — pick a bundled CC0 loop or load your own WAV and hit play; the whole chain (amp, cab, pedals) processes it exactly like a live signal. Per-chain and ephemeral.
-- **Looper, metronome and mixer built in.** Up to 8 multi-layer loopers per chain (overdub with undo/redo, ½×/1×/2× speed, reverse, waveform trim, takes saved to a library), a metronome with its own output, and a global mixer with one fader and one mute per input and output.
+- **Looper, metronome, drum machine, backing tracks and mixer built in.** Up to 8 multi-layer loopers per chain (overdub with undo/redo, ½×/1×/2× speed, reverse, waveform trim, takes saved to a library, every loop of every chain in sync on one cycle), a metronome with its own output whose tempo also drives every tempo-synced delay and modulation (each preset can carry its own BPM), a play-along drum machine (sampled kits, grooves by genre, a fill on demand, its own output), a backing-track player (speed and pitch control, A–B loop) on its own output, and a global mixer with one fader and one mute per input and output.
 - **Footswitch control over MIDI.** MIDI Learn on any knob or switch, MIDI profiles for controllers, BLE-MIDI. An M-Vave Chocolate comes mapped.
 - **Real pedals in the chain.** An Insert block sends the signal out to external gear and back, mid-chain; an Output port placed mid-chain taps the signal at that point.
 - **Tone Doctor.** Flags fizz, mud and boom against a genre reference and names the block responsible.
@@ -231,11 +231,12 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 ### Stage features
 
 - [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
+- [x] Backing tracks / audio player — bundled rock, blues and funk tracks in several keys, split by the part you play (solo, rhythm, bass, acoustic), plus your own files, speed 0.5×–2× with pitch kept, ±12 semitone transpose, A–B loop, its own output ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [x] Global mixer — one fader and mute per input/output endpoint, over GUI, MCP and MIDI control surfaces ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
-- [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
+- [x] Built-in drum machine — sampled kits, grooves grouped by genre, fills, tempo and its own output, from the top bar or the Compact Chain View ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
+- [x] One tempo per project in the top bar, with tap ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Built-in drum machine — play-along drums ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))

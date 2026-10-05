@@ -1,0 +1,93 @@
+# Converted from the Groove MIDI Dataset (Magenta, CC BY 4.0)
+# by tools/drums/gmd_to_grooves.py. Hits: [beat, role, velocity 0-127].
+genre: country
+grooves:
+  - id: country-01
+    name: Country 1
+    beats_per_bar: 4
+    tempo: 78
+    source: drummer7/session2/80
+    beat:
+      beats: 8
+      hits:
+        - [-0.0167, kick, 55]
+        - [0.4646, hat_closed, 72]
+        - [0.9688, snare, 127]
+        - [1.4479, hat_closed, 81]
+        - [1.7250, snare, 26]
+        - [2.1896, snare, 27]
+        - [2.4437, hat_closed, 91]
+        - [2.9625, snare, 127]
+        - [3.5021, hat_closed, 73]
+        - [3.7208, snare, 18]
+        - [3.9688, kick, 53]
+        - [4.4625, hat_closed, 67]
+        - [4.9854, snare, 126]
+        - [5.2979, snare, 13]
+        - [5.4979, hat_closed, 82]
+        - [5.9542, hat_closed, 9]
+        - [6.4521, hat_closed, 82]
+        - [6.9667, snare, 123]
+        - [7.2292, snare, 10]
+        - [7.4583, hat_closed, 69]
+        - [7.7542, snare, 31]
+    fills:
+      - beats: 5
+        hits:
+          - [0.0000, hat_pedal, 57]
+          - [0.4875, snare, 68]
+          - [0.5042, tom_floor, 62]
+          - [0.9583, hat_pedal, 77]
+          - [0.9875, snare, 101]
+          - [1.0021, tom_floor, 96]
+          - [1.2208, snare, 28]
+          - [1.4292, snare, 45]
+          - [1.7229, snare, 31]
+          - [1.7958, snare, 29]
+          - [1.8563, snare, 26]
+          - [1.9083, snare, 18]
+          - [1.9542, hat_pedal, 75]
+          - [1.9667, snare, 13]
+          - [1.9854, snare, 127]
+          - [2.4708, snare, 124]
+          - [2.7146, snare, 64]
+          - [2.9312, hat_pedal, 90]
+          - [2.9896, tom_floor, 49]
+          - [3.2062, tom_high, 127]
+          - [3.4438, tom_floor, 93]
+          - [3.9438, china, 70]
+      - beats: 5
+        hits:
+          - [0.0000, kick, 51]
+          - [0.4125, snare, 7]
+          - [0.4604, hat_open, 71]
+          - [0.9396, hat_pedal, 75]
+          - [0.9813, snare, 127]
+          - [1.4417, snare, 123]
+          - [1.4500, tom_mid, 112]
+          - [1.9062, hat_pedal, 80]
+          - [1.9458, hat_closed, 62]
+          - [2.4458, snare, 127]
+          - [2.4604, tom_mid, 127]
+          - [2.6708, snare, 39]
+          - [2.9188, hat_pedal, 95]
+          - [2.9333, tom_floor, 55]
+          - [3.1792, snare, 127]
+          - [3.4354, tom_floor, 119]
+          - [3.9375, china, 90]
+      - beats: 5
+        hits:
+          - [0.0000, kick, 49]
+          - [0.4688, hat_closed, 69]
+          - [0.9562, snare, 127]
+          - [1.4396, snare, 105]
+          - [1.4583, hat_open, 117]
+          - [1.9479, hat_pedal, 77]
+          - [2.4062, snare, 91]
+          - [2.4625, snare, 127]
+          - [2.6792, snare, 37]
+          - [2.8917, hat_pedal, 77]
+          - [2.9292, snare, 60]
+          - [3.1979, tom_high, 127]
+          - [3.4333, tom_floor, 92]
+          - [3.9708, china, 81]

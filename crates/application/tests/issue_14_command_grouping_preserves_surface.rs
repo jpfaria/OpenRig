@@ -40,6 +40,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetMetronomeTimbre",
     "SetMetronomeTimeSignature",
     "SetMetronomeVolume",
+    // The "use global tempo" lock and a rig preset's own tempo.
     // ── Added by #127 (runtime control on the bus) ────────────────────────
     "SetIoBindings",
     // ── Added on develop (#791 Tone Doctor, #829 device refresh) ──────────
@@ -157,6 +158,29 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "UnloadPlugin",
     "UpdateIoBinding",
     "UpdateProjectName",
+    // The backing-track player.
+    "ClearPlayerLoop",
+    "DeletePlayerTrack",
+    "LoadPlayerTrack",
+    "SeekPlayer",
+    "SetBackingTracksPath",
+    "SetPlayerLoop",
+    "SetPlayerOutput",
+    "SetPlayerPlaying",
+    "SetPlayerSemitones",
+    "SetPlayerSpeed",
+    "SetPlayerVolume",
+    "StopPlayer",
+    // The drum machine.
+    "PlayDrums",
+    "SelectDrumGroove",
+    "SelectDrumKit",
+    "SetDrumsEnabled",
+    "SetDrumsOutput",
+    "SetDrumsVolume",
+    "StopDrums",
+    "ToggleDrums",
+    "TriggerDrumFill",
 ];
 
 #[test]

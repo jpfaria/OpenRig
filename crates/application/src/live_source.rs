@@ -29,6 +29,7 @@ use crate::looper_edit::LoopEditReading;
 use crate::query_analyzers::{SpectrumReading, TunerReading};
 use crate::query_di::DiLoopReading;
 use crate::query_output_routes::OutputRouteReading;
+use crate::query_player::PlayerReading;
 
 /// #14/#127: where the click is in the bar, and whether it is sounding.
 ///
@@ -136,6 +137,18 @@ pub trait LiveSource {
     /// metronome runtime (no project started); the caller answers the
     /// documented silent shape rather than inventing a beat.
     fn metronome(&self) -> Option<MetronomeReading> {
+        None
+    }
+
+    /// The backing-track player's live transport. `None` ⇒ this frontend
+    /// hosts no player; the caller answers from the dispatcher's state with
+    /// the position at the start.
+    fn player(&self) -> Option<PlayerReading> {
+        None
+    }
+
+    /// The drums' live position. `None` means no drums stream runs here.
+    fn drums(&self) -> Option<feature_dsp::drums::DrumPosition> {
         None
     }
 

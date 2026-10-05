@@ -203,17 +203,9 @@ msgstr "글로벌"
 msgid "btn-close"
 msgstr "닫기"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "선택 해제한 엔드포인트는 목록에 남지만 이 노드에서 제외됩니다."
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "이 체인의 E/S에는 이 노드용 엔드포인트가 없습니다."
-
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "엔드포인트 {}개"
 
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
@@ -1139,3 +1131,150 @@ msgstr "포트"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "파일 선택…"
+
+msgid "action-loop-clear"
+msgstr "루프 해제"
+
+msgid "action-loop-end"
+msgstr "루프 B"
+
+msgid "action-loop-start"
+msgstr "루프 A"
+
+msgid "action-pause"
+msgstr "일시정지"
+
+msgid "action-play"
+msgstr "재생"
+
+msgid "action-stop"
+msgstr "정지"
+
+msgid "label-backing-tracks"
+msgstr "반주 트랙"
+
+msgid "label-loop-range"
+msgstr "루프 {}"
+
+msgid "label-player-output"
+msgstr "트랙 출력"
+
+msgid "label-player-position"
+msgstr "재생 위치"
+
+msgid "label-category-solo"
+msgstr "솔로"
+
+msgid "label-category-rhythm"
+msgstr "리듬"
+
+msgid "label-category-bass"
+msgstr "베이스"
+
+msgid "label-category-acoustic"
+msgstr "어쿠스틱"
+
+msgid "label-category-other"
+msgstr "기타"
+
+msgid "label-track-library"
+msgstr "트랙"
+
+msgid "label-track-delete"
+msgstr "트랙 삭제"
+
+msgid "label-track-delete-confirm"
+msgstr "삭제?"
+
+msgid "label-track-pitch"
+msgstr "피치"
+
+msgid "label-track-speed"
+msgstr "속도"
+
+msgid "label-track-volume"
+msgstr "볼륨"
+
+msgid "label-user-tracks-folder"
+msgstr "내 트랙: {}"
+
+msgid "placeholder-player-output"
+msgstr "출력 선택"
+
+msgid "status-no-backing-tracks"
+msgstr "트랙이 없습니다. 트랙 폴더에 오디오 파일을 넣거나 파일을 선택하세요."
+
+msgid "status-no-track"
+msgstr "불러온 트랙 없음"
+
+msgid "status-track-failed"
+msgstr "이 파일을 읽을 수 없습니다"
+
+msgid "status-track-loading"
+msgstr "불러오는 중…"
+
+msgid "title-window-player"
+msgstr "OpenRig · 반주 트랙"
+
+msgid "tooltip-backing-tracks"
+msgstr "반주 트랙"
+
+msgid "label-backing-tracks-path"
+msgstr "반주 트랙"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Slower"
+msgstr "느리게"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Faster"
+msgstr "빠르게"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums"
+msgstr "드럼"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint
+msgid "tooltip-drums"
+msgstr "드럼 머신"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "title-window-drums"
+msgstr "드럼"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums-bar"
+msgstr "마디 {}"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "action-drums-fill"
+msgstr "필인"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-kit"
+msgstr "킷"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-groove"
+msgstr "그루브"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-kit"
+msgstr "킷 선택"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-groove"
+msgstr "그루브 선택"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "status-no-drum-content"
+msgstr "설치된 킷이나 그루브가 없습니다"
+
+msgid "placeholder-drums-search"
+msgstr "검색"
+
+msgid "status-drums-no-match"
+msgstr "일치하는 항목이 없습니다"

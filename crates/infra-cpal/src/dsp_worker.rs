@@ -32,7 +32,7 @@
 //! dropped input), hence the old `record_callback_load` semantics, which the
 //! non-F32 inline paths keep.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub(crate) use crate::budget_tracker::BudgetTracker;
@@ -48,6 +48,8 @@ use crate::worker_promotion::promote_worker;
 struct RingSlot {
     /// Valid sample count in `data` (callbacks may deliver varying sizes).
     len: AtomicUsize,
+    /// Host-clock capture time (ns) of the buffer in `data`; 0 = unknown.
+    capture_ns: AtomicU64,
     data: Box<[f32]>,
 }
 
@@ -73,8 +75,10 @@ impl DspWorkerProducer {
     /// allocation-free, syscall-free. If the ring is full the oldest slot is
     /// overwritten (the worker will skip it); the elastic underrun counter
     /// reports any audible consequence.
+    /// `capture_ns` is when the buffer's first frame was captured (0 when
+    /// unknown); the worker hands it to the chain with the buffer.
     #[inline]
-    pub(crate) fn push(&self, data: &[f32]) {
+    pub(crate) fn push(&self, data: &[f32], capture_ns: u64) {
         let inner = &self.inner;
         let w = inner.write.load(Ordering::Relaxed);
         // Ring full (worker stalled >RING_SLOTS-2 buffers): the oldest slot is
@@ -93,6 +97,7 @@ impl DspWorkerProducer {
             std::ptr::copy_nonoverlapping(data.as_ptr(), dst, n);
         }
         slot.len.store(n, Ordering::Relaxed);
+        slot.capture_ns.store(capture_ns, Ordering::Relaxed);
         inner.write.store(w + 1, Ordering::Release);
     }
 }
@@ -114,10 +119,13 @@ pub(crate) fn spawn(
     max_buffer_samples: usize,
     device_uid: Option<String>,
 ) -> DspWorkerProducer {
+    // The ring the input callback and the worker share: audio memory, wired.
+    let audio = engine::audio_alloc_scope::audio_allocations();
     let inner = Arc::new(Inner {
         slots: (0..RING_SLOTS)
             .map(|_| RingSlot {
                 len: AtomicUsize::new(0),
+                capture_ns: AtomicU64::new(0),
                 data: vec![0.0_f32; max_buffer_samples].into_boxed_slice(),
             })
             .collect(),
@@ -125,6 +133,7 @@ pub(crate) fn spawn(
         read: AtomicUsize::new(0),
         stop: AtomicBool::new(false),
     });
+    drop(audio);
     let worker_inner = Arc::clone(&inner);
     let producer_slot = slot_handle.handle();
 
@@ -136,6 +145,8 @@ pub(crate) fn spawn(
                 * 1_000_000_000
                 / sample_rate.max(1) as u64;
             let rt_period_ns = period_ns.max(500_000);
+            // Whatever a block allocates while it plays is audio memory.
+            engine::audio_alloc_scope::mark_audio_thread();
             // Cold start: the chain's cost is unknown, declare the
             // validated 85% (#670); the BudgetTracker then re-declares
             // from measured cost so concurrent chains fit the RT band
@@ -190,7 +201,11 @@ pub(crate) fn spawn(
                 let slot = &worker_inner.slots[r % RING_SLOTS];
                 let n = slot.len.load(Ordering::Relaxed).min(local.len());
                 local[..n].copy_from_slice(&slot.data[..n]);
+                let capture_ns = slot.capture_ns.load(Ordering::Relaxed);
                 worker_inner.read.store(r + 1, Ordering::Relaxed);
+                slot_handle
+                    .load()
+                    .note_input_capture_ns(input_index, capture_ns);
 
                 // Measure BOTH: thread CPU time (real compute, immune to
                 // preemption — drives the RT budget + load meter) and wall-clock
@@ -258,3 +273,7 @@ pub(crate) fn spawn(
 #[cfg(test)]
 #[path = "dsp_worker_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "dsp_worker_capture_tests.rs"]
+mod capture_tests;

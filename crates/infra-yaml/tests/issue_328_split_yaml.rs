@@ -64,6 +64,7 @@ fn dual_amp_split(id: &str) -> AudioBlock {
 
 fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Split".into()),
         inputs: BTreeMap::from([(
             "g".to_string(),
@@ -80,6 +81,7 @@ fn rig_with(blocks: Vec<AudioBlock>) -> RigProject {
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
+                di_output: None,
             },
         )]),
         outputs: BTreeMap::new(),

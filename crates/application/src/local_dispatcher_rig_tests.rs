@@ -55,9 +55,11 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),
@@ -202,6 +204,7 @@ fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     let rig = Rc::new(RefCell::new(r));
@@ -364,10 +367,12 @@ fn two_input_rig() -> RigProject {
                 loopers: Vec::new(),
                 disabled_endpoints: Default::default(),
                 mix: Default::default(),
+                di_output: None,
             },
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

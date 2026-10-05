@@ -14,7 +14,7 @@ use std::sync::Arc;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 use engine::{DiPcm, LooperState, LooperStatus};
-use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
+use project::binding_discovery::resolve_input_segment;
 use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
@@ -67,7 +67,7 @@ pub(crate) fn looper_playback_pcm(
         LooperSpeed::Normal => sample_rate,
         LooperSpeed::Double => sample_rate.saturating_mul(2),
     };
-    DiPcm::new(samples, read_rate.max(1), 2)
+    DiPcm::new(samples, read_rate.max(1), 2).without_seam_crossfade()
 }
 
 #[cfg(test)]
@@ -348,10 +348,12 @@ impl ProjectRuntimeController {
         };
         for (uid, input) in to_arm {
             let seg = resolve_input_segment(chain, &self.io_bindings, input.as_ref());
-            if let Some(ring) = self.subscribe_stream_input_tap(&chain.id, seg, RECORD_RING_CAP) {
-                self.looper_store
-                    .borrow_mut()
-                    .set_recording_rings(&chain.id, uid, vec![ring]);
+            if let Some((ring, stamp)) =
+                self.subscribe_stream_input_tap_stamped(&chain.id, seg, RECORD_RING_CAP)
+            {
+                let mut store = self.looper_store.borrow_mut();
+                store.set_recording_rings(&chain.id, uid, vec![ring]);
+                store.set_recording_stamp(&chain.id, uid, stamp);
             }
         }
         // Drain every recording loop.
@@ -423,8 +425,12 @@ impl ProjectRuntimeController {
                 Some(s) => s,
                 None => continue,
             };
-            let output_index =
-                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let saved = cfg
+                .output
+                .as_ref()
+                .map(|r| (r.binding_id.as_str(), r.endpoint.as_str()));
+            let output =
+                engine::di_output_resolve::resolve_isolated_output(chain, &self.io_bindings, saved);
             let pcm = Arc::new(looper_playback_pcm(samples, self.sample_rate, cfg.speed));
             // #323 phase 2: play through the loop's LINKED preset when the
             // adapter has resolved its blocks — a routed copy of the chain with
@@ -432,7 +438,14 @@ impl ProjectRuntimeController {
             // (invariant #4). No linked preset ⇒ the chain's current blocks.
             let linked = self.looper_store.borrow().playback_blocks(&chain.id, uid);
             let playback_chain = looper_playback_chain(chain, linked);
-            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm) {
+            // Every loop of the project plays on the one shared timeline, when
+            // the stream clock can be lined up with the presses.
+            let anchor = self
+                .looper_store
+                .borrow()
+                .sync_anchor()
+                .filter(|_| crate::host_clock::MATCHES_STREAM_CLOCK);
+            match self.arm_looper_stream(&playback_chain, uid, output, pcm, anchor) {
                 Ok(()) => {
                     LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     self.push_looper_gain(&chain.id, uid);

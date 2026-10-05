@@ -18,11 +18,11 @@
 //! The beat lamps are NOT driven from here: the wiring's timer reads the click's
 //! position through `LiveSource` — a phase, not a queue of events — so a slow
 //! frame can never lose or double a beat.
-pub use crate::metronome_outputs::{output_endpoints, resolve_output_endpoint, MetronomeOutput};
 pub use crate::metronome_vocabulary::{
     subdivision_index, subdivision_key, subdivision_label, timbre_index, timbre_key, timbre_label,
     time_signature_beats, time_signature_index, time_signature_label,
 };
+pub use project::project_outputs::{output_endpoints, resolve_output_endpoint, ProjectOutput};
 
 #[cfg(test)]
 #[path = "metronome_view_tests.rs"]

@@ -22,6 +22,7 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     inputs.insert(
@@ -39,9 +40,11 @@ fn rig() -> RigProject {
             loopers: Vec::new(),
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs,
         outputs: BTreeMap::new(),
@@ -86,6 +89,7 @@ fn render_tracks_selection_change() {
 #[test]
 fn render_empty_project_is_empty() {
     let state = BankSceneState::from_project(&RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

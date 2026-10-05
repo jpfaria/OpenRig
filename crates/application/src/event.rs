@@ -1,5 +1,4 @@
 //! Responsibility: names every observable change a dispatch can emit.
-//! Typed `Event` enum — every observable change emitted by the dispatcher.
 //!
 //! Variants mirror the spec's "Shared Architecture / Types" section.
 //!
@@ -15,8 +14,7 @@ use crate::command::{BlockId, ChainId};
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum Event {
-    /// The project has been mutated in some way (coarse-grained notification).
-    /// Subscribers that need to fully re-render can react to this.
+    /// The project changed in some way; subscribers re-render everything.
     ProjectMutated,
 
     /// The entire chain was rebuilt (e.g. blocks reordered, preset loaded).
@@ -272,6 +270,41 @@ pub enum Event {
     /// and dispatches the resulting `SetMetronomeBpm`.
     MetronomeTapped,
 
+    /// The backing-track player changed. It is its own stream, never a chain.
+    Player(crate::player_event::PlayerEvent),
+
+    /// Tempo-synced params of this chain were rewritten for a new BPM.
+    /// The dispatcher already synced the runtime; a frontend only refreshes.
+    ChainTempoRetimed {
+        chain: ChainId,
+    },
+
+    /// The drums' output opened or closed, or the groove started or stopped.
+    DrumsTransportChanged {
+        enabled: bool,
+        playing: bool,
+    },
+
+    /// A fill was requested; it plays on the running groove.
+    DrumFillTriggered,
+
+    /// Tempo or level changed, already clamped.
+    DrumsSettingsChanged {
+        bpm: f32,
+        volume: f32,
+    },
+
+    /// The chosen kit or groove changed.
+    DrumsContentChanged {
+        kit: Option<String>,
+        groove: Option<String>,
+    },
+
+    /// The drums' output endpoint changed.
+    DrumsOutputChanged {
+        output_key: Option<String>,
+    },
+
     /// #1007: a global mixer strip moved. Values are the applied ones (the
     /// fader already clamped); a surface echoes them as fader/LED feedback.
     MixerStripChanged {
@@ -502,10 +535,7 @@ pub enum Event {
         param: crate::command::LooperParam,
     },
 
-    /// #717 Task 3: the chain's chosen DI output endpoint was persisted.
-    ///
-    /// The adapter-gui reacts to this event to refresh any UI showing the
-    /// selected DI output. The new value can be read back from the project via
+    /// #717: the chain's DI output endpoint was persisted; read it back from
     /// `chain.di_output`.
     ChainDiLoopOutputChanged {
         chain: ChainId,

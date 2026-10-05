@@ -12,8 +12,8 @@
 //! → range; they are handled in a follow-up sub-phase.
 
 use application::command::{
-    BlockCommand, BlockId, ChainCommand, ChainId, Command, LooperAction, LooperCommand,
-    MetronomeCommand, RigNavKind, SelectionCommand,
+    BlockCommand, BlockId, ChainCommand, ChainId, Command, DrumsCommand, LooperAction,
+    LooperCommand, MetronomeCommand, RigNavKind, SelectionCommand,
 };
 use application::SelectionState;
 
@@ -186,6 +186,10 @@ pub fn slot_to_command(
         // The one stateless slot: every press is a tap, and the adapter turns
         // the tap history into a tempo.
         "metronome_tap" => Some(Command::Metronome(MetronomeCommand::MetronomeTap)),
+        // The dispatcher knows whether the drums play, so the slot just asks
+        // it to flip.
+        "toggle_drums" => Some(Command::Drums(DrumsCommand::ToggleDrums)),
+        "drum_fill" => Some(Command::Drums(DrumsCommand::TriggerDrumFill)),
 
         // --- Chain / block enable on the active selection ---
         "toggle_active_chain_enabled" => Some(Command::Chain(ChainCommand::ToggleChainEnabled {

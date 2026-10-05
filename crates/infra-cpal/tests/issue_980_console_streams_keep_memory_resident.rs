@@ -62,8 +62,11 @@ fn building_a_projects_streams_keeps_the_audio_memory_resident() {
     assert!(streams.is_empty());
     std::thread::sleep(Duration::from_millis(1_500));
 
-    // A reverb's delay line, allocated and written through once.
-    let mut delay_line = vec![0.0_f32; 2 << 20];
+    // A reverb's delay line, allocated for the audio and written through once.
+    let mut delay_line = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        vec![0.0_f32; 2 << 20]
+    };
     for (i, sample) in delay_line.iter_mut().enumerate().step_by(1024) {
         *sample = i as f32;
     }

@@ -74,6 +74,8 @@ pub(crate) fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
+    // Everything the chain's DSP touches is born here: audio memory, wired.
+    let _audio = crate::audio_alloc_scope::audio_allocations();
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -202,6 +204,7 @@ pub(crate) fn assemble_chain_runtime_state(
         probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
         input_taps: ArcSwap::from_pointee(Vec::new()),
+        input_capture_ns: std::array::from_fn(|_| AtomicU64::new(0)),
         stream_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
         // Inicializa com chain.volume (issue #440). Callers que precisarem

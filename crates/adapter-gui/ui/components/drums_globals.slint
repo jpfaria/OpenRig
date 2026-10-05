@@ -1,0 +1,55 @@
+// Responsibility: carries the drum machine panel state.
+// Like `MetronomeBridge`, the panel renders in several places — its own
+// window, inline over the chains page in fullscreen/touch, and laid flat in
+// the compact chain view's DRUMS section — so its state lives on one global
+// the wiring fills per window instead of threading it through each host.
+
+// One row of a picker list. A header row names a genre and is not a choice.
+export struct DrumPickRow {
+    key: string,
+    label: string,
+    header: bool,
+}
+
+export global DrumsBridge {
+    // Whether the inline panel is shown (the standalone window ignores this).
+    in-out property <bool> show;
+    // Which list is open over the panel: 0 none, 1 kit, 2 groove, 3 output.
+    in-out property <int> picker;
+    // What the open list is narrowed to; the wiring republishes the rows.
+    in-out property <string> query;
+
+    // ── Display state, mirrored from the dispatcher by the wiring ──
+    in-out property <bool> enabled;
+    in-out property <bool> playing;
+    // The project tempo the drums run at; set from the top bar.
+    in-out property <float> bpm: 120;
+    in-out property <float> volume: 0.8;
+    in-out property <int> beats-per-bar: 4;
+    // Live position, from the drums' own stream.
+    in-out property <int> current-bar;
+    in-out property <int> current-beat;
+    in-out property <bool> in-fill;
+    in-out property <[DrumPickRow]> kit-rows;
+    in-out property <[DrumPickRow]> groove-rows;
+    in-out property <[DrumPickRow]> output-rows;
+    in-out property <string> kit-key;
+    in-out property <string> kit-label;
+    in-out property <string> groove-key;
+    in-out property <string> groove-label;
+    in-out property <string> output-key;
+    in-out property <string> output-label;
+
+    // ── Intent, routed to the dispatcher by the wiring ──
+    callback open-drums-window();
+    callback close-drums();
+    // POWER: true plays, false stops and closes the output.
+    callback toggle-enabled(bool);
+    callback fill();
+    callback set-volume(float);
+    callback pick-kit(string);
+    callback pick-groove(string);
+    callback pick-output(string);
+    callback output-opened();
+    callback query-changed(string);
+}

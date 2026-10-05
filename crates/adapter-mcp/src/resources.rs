@@ -22,6 +22,10 @@ pub const URI_DI: &str = "openrig://di";
 /// position. Read parity for the metronome commands: a client that can start
 /// the click must be able to see the tempo it runs at and the beat it is on.
 pub const URI_METRONOME: &str = "openrig://metronome";
+/// The backing-track player — track, transport, settings, output and the
+/// library of loadable tracks. Read parity for the player commands.
+pub const URI_PLAYER: &str = "openrig://player";
+pub const URI_DRUMS: &str = "openrig://drums";
 /// #923: what each output route's device stream pulled (callbacks, underruns,
 /// peak since the last read) per (chain, runtime group, route).
 pub const URI_ROUTES: &str = "openrig://routes";
@@ -123,6 +127,20 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(
                 URI_METRONOME,
                 "Metronome state (settings, chosen output, live beat position) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_PLAYER,
+                "Backing-track player state (track, transport, speed, pitch, loop, output, library) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_DRUMS,
+                "Drum machine state (settings, kits, grooves, live bar and beat) — JSON",
             ),
             None,
         ),
@@ -278,6 +296,8 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_SPECTRUM => QueryKind::SpectrumReadings,
             URI_DI => QueryKind::DiLoopState,
             URI_METRONOME => QueryKind::MetronomeState,
+            URI_PLAYER => QueryKind::PlayerState,
+            URI_DRUMS => QueryKind::DrumsState,
             URI_ROUTES => QueryKind::OutputRoutes,
             URI_MIXER => QueryKind::MixerState,
             URI_PRESETS => QueryKind::ListProjectPresets,
@@ -311,6 +331,8 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::SpectrumReadings => URI_SPECTRUM.to_string(),
         QueryKind::DiLoopState => URI_DI.to_string(),
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
+        QueryKind::PlayerState => URI_PLAYER.to_string(),
+        QueryKind::DrumsState => URI_DRUMS.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
         QueryKind::MixerState => URI_MIXER.to_string(),
         QueryKind::ChainMixer { chain } => format!("openrig://chains/{}/mixer", chain.0),

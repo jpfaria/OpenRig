@@ -62,6 +62,7 @@ fn chain_on(binding: &str, blocks: Vec<AudioBlock>) -> Chain {
     }
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn insert_chain() -> Chain {
     chain_on(
         "guitarra-1",

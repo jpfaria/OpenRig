@@ -19,7 +19,7 @@ suite — also forbidden.
    honestly and stop**.
 4. **Only after the RED**, investigate the cause — guided by the failing
    test — and fix until it passes (GREEN).
-5. The full suite + audio invariants run in CI, not locally.
+5. The full suite runs locally only through `./scripts/pre-pr-gate.sh`, before a PR is opened or a branch with an open PR is pushed (see "Full suite").
 
 **Two rounds per delivery, never per micro-step.** A delivery with
 several items does not compile once per item:
@@ -43,7 +43,21 @@ locally (10+ minutes on the owner's Mac; CI runs them). Without
 `./scripts/validate.sh $(git diff --name-only HEAD)` is not a push gate: after
 the commit that diff is empty and it always passes — use
 `VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates`. A warning counts as
-broken (unused import, needless `mut`, dead code).
+broken (unused import, needless `mut`, dead code). CI's Test Suite job builds
+with `RUSTFLAGS=-D warnings`, so a Linux-only warning — a helper left unused
+when its tests are gated `cfg(not(all(target_os = "linux", feature = "jack")))`
+— fails the job; gate the helper with the same `cfg`, or
+`cfg_attr(..., allow(dead_code))` when an ungated test shares the file.
+
+**Push-time compile check: `scripts/pr-check.sh`.** fmt, the static
+`validate.sh`, and `cargo check` of every target CI builds (lib, bins, tests,
+examples), failing on any warning. It compiles on macOS only — nothing Linux
+or Docker runs on the owner's machine; Linux/JACK-only code is checked by CI,
+whose Test Suite builds with `-D warnings`. A push to a branch with an open PR runs it
+by itself: `scripts/solver-setup.sh` sets `core.hooksPath = scripts/hooks`, and
+`scripts/hooks/pre-push` blocks the push when it fails. It only compiles; the
+PR gate that also runs the tests is `./scripts/pre-pr-gate.sh` (see "Full
+suite").
 
 **Do not search the code for the cause before the test exists and fails.**
 Reading the code first produces a biased hypothesis sold as "the cause". The
@@ -75,6 +89,9 @@ Details and real cases: `.claude/skills/openrig-code-quality/SKILL.md`.
   Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
   both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
   pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
+  A saved cache key is never overwritten, so the Test Suite builds with
+  `--keep-going` first: a compile error in a workspace crate must not save a cache
+  that is missing dependencies, or every later run compiles them from scratch.
   Instrumentation is what makes long simulations expensive: they run several times
   slower under llvm-cov. A test that simulates minutes
   of audio or sweeps many seeds costs minutes of Coverage.
@@ -219,8 +236,29 @@ activation is asynchronous.
 ## Full suite
 
 The whole workspace suite runs in CI (the `Test Suite` job of
-`.github/workflows/test.yml`, on Linux). Locally, run only the targeted tests of
-your change (`cargo test -p <crate> <filter>`).
+`.github/workflows/test.yml`, on Linux). While working, run only the targeted
+tests of your change (`cargo test -p <crate> <filter>`).
+
+Before `gh pr create`, and before every push to a branch whose PR is open, run
+`./scripts/pre-pr-gate.sh` on the committed HEAD. It runs fmt and the tests of
+every package the branch can affect, and stamps the commit it passed on. The
+affected packages are the ones owning a file changed since the release branch
+the work was cut from (the nearest `origin/release/*`, or `PRE_PR_GATE_BASE`)
+plus every workspace package depending on them, dev-dependencies included
+(`scripts/pre_pr_gate_packages.py`). A change to the root `Cargo.toml`, the
+lockfile, `.config/` or any file outside every crate (an asset a test reads)
+tests the whole workspace; a change only to docs, the site, CI or scripts runs
+no tests. The static checks (`validate.sh`) are not part of the gate: CI's
+`Static Checks` job runs them. The gate holds the machine-wide build lock
+(see "Agent builds take the build lock" below) for its whole run. Tests
+run through `cargo nextest run` (every test binary in parallel) plus
+`cargo test --doc` for the affected library packages, in CI (whole workspace)
+and in the gate, which falls back to `cargo test` when nextest is not
+installed (`brew install cargo-nextest`); the Claude hook `.claude/hooks/pre-pr-gate-guard.sh` denies the PR or
+the push unless HEAD carries the stamp, so commit first and push in a command of
+its own. Pushes to a branch with no PR are not gated. It runs on macOS: a
+failure that exists only on Linux (a `cfg(target_os = "linux")` path, the JACK
+backend) shows up in CI only.
 
 ## Real-hardware battery
 
@@ -413,3 +451,36 @@ so CI and the parallel suite stay green. They must run single-threaded
 OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
+
+## Looking at the dev build the owner has open
+
+A build started with `cargo run` (or from RustRover) has no bundle id, so the
+computer-use tools, which grant apps by bundle, cannot see or click it. Drive it
+from the shell instead:
+
+- window geometry: `osascript -e 'tell application "System Events" to tell
+  (first process whose unix id is <pid>) to get {name, position, size} of every
+  window'` (`pgrep -fl adapter-gui` gives the pid);
+- picture: `screencapture -x -R<x>,<y>,<w>,<h> shot.png` with that geometry;
+- click: a few lines of Swift posting `CGEvent` mouse down/up at screen
+  coordinates (`swiftc -O click.swift -o click`), the window origin plus the
+  point read off the picture.
+
+Re-read the geometry before each click: the owner may resize the window while
+you work. Only open lists and close them again; picking an entry or saving
+changes his rig.
+
+## Agent builds take the build lock
+
+Agent sessions build in their own clones but share one machine; two builds at
+once slow both several times over and make the clock-bound tests fail. Every
+agent cargo build therefore goes through `scripts/cargo-locked.sh <cargo args>`
+(`scripts/cargo-locked.sh test -p engine`), which waits on the lock directory
+`/tmp/openrig-build.lock` (`OPENRIG_BUILD_LOCK`, `scripts/build-lock.sh`) before
+running cargo; a lock left by a process that died is taken over. `run` builds
+under the lock and starts the program after releasing it. The pre-PR gate holds
+the same lock for its whole run, and its own cargo calls do not wait for it
+(`OPENRIG_BUILD_LOCK_HELD=1`). The Claude hook `.claude/hooks/build-lock-guard.sh`
+denies a bare `cargo build|test|check|run|nextest|clippy|doc|bench`; `cargo fmt`,
+`cargo metadata` and other commands that build nothing pass. Tested by
+`scripts/test_cargo_locked.py`.

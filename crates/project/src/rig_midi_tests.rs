@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 fn empty_project() -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

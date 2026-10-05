@@ -21,11 +21,13 @@ use serde::{Deserialize, Serialize};
 
 pub mod block;
 pub mod chain;
+pub mod drums;
 pub mod io_binding;
 pub mod looper;
 pub mod metronome;
 pub mod midi;
 pub mod mixer;
+pub mod player;
 pub mod plugin;
 pub mod project;
 pub mod selection;
@@ -35,11 +37,13 @@ pub mod tone_doctor;
 
 pub use block::BlockCommand;
 pub use chain::ChainCommand;
+pub use drums::DrumsCommand;
 pub use io_binding::IoBindingCommand;
 pub use looper::LooperCommand;
 pub use metronome::MetronomeCommand;
 pub use midi::MidiCommand;
 pub use mixer::MixerCommand;
+pub use player::PlayerCommand;
 pub use plugin::PluginCommand;
 pub use project::ProjectCommand;
 pub use selection::SelectionCommand;
@@ -82,6 +86,10 @@ pub enum Command {
     Split(SplitCommand),
     /// #1007: the global mixer — one fader and one mute per I/O endpoint.
     Mixer(MixerCommand),
+    /// The backing-track player: load, transport, speed, pitch, loop, output.
+    Player(PlayerCommand),
+    /// The built-in drum machine — transport, tempo, kit, groove and output.
+    Drums(DrumsCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.

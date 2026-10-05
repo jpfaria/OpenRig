@@ -8,6 +8,7 @@ use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 use crate::local_dispatcher_ir_reseed::reseed_ir_output_db;
+use crate::local_dispatcher_tempo::release_sync_on_manual_edit;
 
 impl LocalDispatcher {
     /// Block-parameter commands: set/select a single parameter on a block.
@@ -22,6 +23,7 @@ impl LocalDispatcher {
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_number(b, &path, value)?;
                     reseed_ir_output_db(b, &path);
+                    release_sync_on_manual_edit(b, &path);
                     Ok(())
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
@@ -57,9 +59,13 @@ impl LocalDispatcher {
                 value,
                 index: _,
             }) => {
+                let bpm = self.metronome_snapshot().settings.bpm;
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_option(b, &path, &value)?;
                     reseed_ir_output_db(b, &path);
+                    if block_core::tempo_sync::synced_value_path(&path).is_some() {
+                        project::tempo_retime::retime_block(b, bpm);
+                    }
                     Ok(())
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])

@@ -203,17 +203,9 @@ msgstr "全局"
 msgid "btn-close"
 msgstr "关闭"
 
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:72
-msgid "hint-endpoint-checklist"
-msgstr "取消勾选的端点仍保留在列表中，但不再连接到此节点。"
-
 #: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:86
 msgid "hint-endpoints-empty"
 msgstr "此链的 E/S 没有此节点的端点。"
-
-#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:87
-msgid "label-endpoints-total"
-msgstr "{} 个端点"
 
 #. The split and the mixer carry no host label; their name is translated.
 #: crates/adapter-gui/ui/components/graph_node_card.slint:55
@@ -1135,3 +1127,150 @@ msgstr "端口"
 #: crates/adapter-gui/ui/touch_main.slint:411
 msgid "⌨"
 msgstr "⌨"
+
+msgid "action-choose-file"
+msgstr "选择文件…"
+
+msgid "action-loop-clear"
+msgstr "关闭循环"
+
+msgid "action-loop-end"
+msgstr "循环 B"
+
+msgid "action-loop-start"
+msgstr "循环 A"
+
+msgid "action-pause"
+msgstr "暂停"
+
+msgid "action-play"
+msgstr "播放"
+
+msgid "action-stop"
+msgstr "停止"
+
+msgid "label-backing-tracks"
+msgstr "伴奏音轨"
+
+msgid "label-loop-range"
+msgstr "循环 {}"
+
+msgid "label-player-output"
+msgstr "音轨输出"
+
+msgid "label-player-position"
+msgstr "播放位置"
+
+msgid "label-category-solo"
+msgstr "独奏"
+
+msgid "label-category-rhythm"
+msgstr "节奏"
+
+msgid "label-category-bass"
+msgstr "贝斯"
+
+msgid "label-category-acoustic"
+msgstr "原声"
+
+msgid "label-category-other"
+msgstr "其他"
+
+msgid "label-track-library"
+msgstr "音轨"
+
+msgid "label-track-delete"
+msgstr "删除音轨"
+
+msgid "label-track-delete-confirm"
+msgstr "删除？"
+
+msgid "label-track-pitch"
+msgstr "音高"
+
+msgid "label-track-speed"
+msgstr "速度"
+
+msgid "label-track-volume"
+msgstr "音量"
+
+msgid "label-user-tracks-folder"
+msgstr "我的音轨：{}"
+
+msgid "placeholder-player-output"
+msgstr "选择输出"
+
+msgid "status-no-backing-tracks"
+msgstr "还没有音轨。请将音频文件放入音轨文件夹，或选择一个文件。"
+
+msgid "status-no-track"
+msgstr "未加载音轨"
+
+msgid "status-track-failed"
+msgstr "无法读取此文件"
+
+msgid "status-track-loading"
+msgstr "加载中…"
+
+msgid "title-window-player"
+msgstr "OpenRig · 伴奏音轨"
+
+msgid "tooltip-backing-tracks"
+msgstr "伴奏音轨"
+
+msgid "label-backing-tracks-path"
+msgstr "伴奏音轨"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Slower"
+msgstr "减慢"
+
+#: crates/adapter-gui/ui/components/project_tempo.slint
+msgid "Faster"
+msgstr "加快"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums"
+msgstr "鼓机"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint
+msgid "tooltip-drums"
+msgstr "鼓机"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "title-window-drums"
+msgstr "鼓机"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drums-bar"
+msgstr "小节 {}"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "action-drums-fill"
+msgstr "加花"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-kit"
+msgstr "鼓组"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "label-drum-groove"
+msgstr "节奏型"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-kit"
+msgstr "选择鼓组"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "placeholder-drum-groove"
+msgstr "选择节奏型"
+
+#: crates/adapter-gui/ui/pages/drums_window.slint
+msgid "status-no-drum-content"
+msgstr "未安装鼓组或节奏型"
+
+msgid "placeholder-drums-search"
+msgstr "搜索"
+
+msgid "status-drums-no-match"
+msgstr "没有匹配项"

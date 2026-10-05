@@ -21,7 +21,7 @@ fn input(preset: &str, instrument: &str, io_binding_ids: Vec<String>) -> RigInpu
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
-        disabled_endpoints: Default::default(),
+        di_output: None,
     }
 }
 
@@ -38,6 +38,7 @@ fn preset(id: &str, volume: f32) -> RigPreset {
 
 fn rig(inputs: Vec<(&str, RigInput)>, presets: Vec<RigPreset>) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: inputs
             .into_iter()

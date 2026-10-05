@@ -47,6 +47,11 @@ pub struct RigProject {
     /// `chain-order:` to match `active-preset`, `scene-params`, etc.
     #[serde(default, rename = "chain-order", skip_serializing_if = "Vec::is_empty")]
     pub chain_order: Vec<String>,
+    /// The project's one tempo (#1050): every synced block, the metronome
+    /// and the drums run at it. `None` for a project saved before it had
+    /// one — it opens at the default tempo. Travels with the file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bpm: Option<f32>,
 }
 
 /// One project input: a numbered preset bank + the I/O binding(s) it reads
@@ -104,6 +109,10 @@ pub struct RigInput {
     /// as `loopers` — the projected chain is rebuilt from the rig.
     #[serde(default, skip_serializing_if = "crate::chain::ChainMix::is_unity")]
     pub mix: crate::chain::ChainMix,
+    /// #324: the output this input's DI plays to, persisted here for the
+    /// same reason as `loopers` — the projected chain is rebuilt from the rig.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub di_output: Option<crate::endpoint_ref::DiOutputRef>,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

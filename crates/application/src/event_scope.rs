@@ -56,7 +56,9 @@ impl Event {
             | Event::ChainLooperTakeSaved { chain, .. }
             // #1007: a chain's own mixer faders.
             | Event::ChainMixerStripChanged { chain, .. }
-            | Event::ChainDiFaderChanged { chain, .. } => Some(chain),
+            | Event::ChainDiFaderChanged { chain, .. }
+            // A retime belongs to one chain.
+            | Event::ChainTempoRetimed { chain } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded
@@ -83,6 +85,13 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            // The backing-track player is its own stream, never a chain.
+            | Event::Player(_)
+            | Event::DrumsTransportChanged { .. }
+            | Event::DrumFillTriggered
+            | Event::DrumsSettingsChanged { .. }
+            | Event::DrumsContentChanged { .. }
+            | Event::DrumsOutputChanged { .. }
             // #1007: mixer strips are system-level endpoints, never a chain.
             | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }

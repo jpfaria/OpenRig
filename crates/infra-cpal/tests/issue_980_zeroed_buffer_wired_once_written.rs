@@ -94,7 +94,10 @@ fn a_zeroed_buffer_is_wired_soon_after_its_first_write() {
     std::thread::sleep(Duration::from_millis(1_500));
 
     // A 16 MB delay line allocated zeroed: fresh pages, nothing written yet.
-    let mut delay_line = vec![0.0_f32; 4 << 20];
+    let mut delay_line = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        vec![0.0_f32; 4 << 20]
+    };
     let _slot = LiveRuntimeSlot::new(runtime());
     // The runtime plays: its DSP writes the line after the wake-up pass.
     std::thread::sleep(Duration::from_millis(200));

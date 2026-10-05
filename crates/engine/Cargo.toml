@@ -41,6 +41,10 @@ project = { path = "../project" }
 feature-dsp = { path = "../feature-dsp" }
 vst3-host = { path = "../vst3-host" }
 plugin-loader = { path = "../plugin-loader" }
+# Backing-track player: one-time resample of a decoded track to the output
+# device rate, and pitch-preserving speed/transpose off the audio thread.
+rubato = "5.0.1"
+signalsmith-stretch = "0.1.3"
 
 [dev-dependencies]
 hound = "3.5"

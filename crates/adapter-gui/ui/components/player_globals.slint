@@ -1,0 +1,71 @@
+// Responsibility: carries the backing-track player panel state.
+// The panel shows in the standalone `PlayerWindow` (windowed desktop) and
+// inline over the chains page (fullscreen / touch); both read this one global,
+// which the wiring fills from the dispatcher's snapshot and the live reading.
+import { SelectOption } from "../models.slint";
+
+// One track of the library list.
+export struct PlayerTrackRow {
+    name: string,
+    path: string,
+    // Shipped with OpenRig, as opposed to one the user added.
+    bundled: bool,
+    // The part it leaves for the player: a `TrackCategory` key.
+    category: string,
+}
+
+export global PlayerBridge {
+    // Whether the inline panel is shown (the standalone window ignores this).
+    in-out property <bool> show;
+    in-out property <bool> output-picker-open;
+
+    // ── Display state, mirrored by the wiring ──
+    in-out property <bool> playing;
+    in-out property <bool> loading;
+    in-out property <bool> failed;
+    in-out property <string> track-name;
+    in-out property <string> track-path;
+    in-out property <float> position;
+    in-out property <float> duration;
+    in-out property <string> time-label: "0:00 / 0:00";
+    in-out property <bool> loop-active;
+    in-out property <float> loop-start;
+    in-out property <float> loop-end;
+    // A loop start marked but not closed yet; negative when none.
+    in-out property <float> loop-mark: -1;
+    in-out property <string> loop-label;
+    in-out property <float> volume: 0.8;
+    in-out property <float> speed: 1.0;
+    in-out property <float> semitones: 0.0;
+    in-out property <string> speed-label: "1.00×";
+    in-out property <string> semitones-label: "0";
+    // The tracks of the selected category only.
+    in-out property <[PlayerTrackRow]> library;
+    // Category tab keys, in order, and the selected one.
+    in-out property <[string]> categories;
+    in-out property <string> category: "solo";
+    in-out property <string> user-folder;
+    in-out property <[SelectOption]> output-options;
+    in-out property <string> output-key;
+    in-out property <string> output-label;
+
+    // ── Intent, routed to the dispatcher by the wiring ──
+    callback open-player-window();
+    callback close-player();
+    callback set-playing(bool);
+    callback stop();
+    callback seek(float);
+    callback set-volume(float);
+    callback set-speed(float);
+    callback set-semitones(float);
+    callback mark-loop();
+    callback pick-category(string);
+    callback pick-track(string);
+    // Load the track and start it at once (a double click in the library).
+    callback play-track(string);
+    // Delete one of the user's own tracks from their folder.
+    callback delete-track(string);
+    callback choose-file();
+    callback pick-output(string);
+    callback output-opened();
+}

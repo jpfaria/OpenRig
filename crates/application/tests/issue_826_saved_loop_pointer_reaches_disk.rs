@@ -68,9 +68,11 @@ fn rig_with_a_looper() -> RigProject {
             loopers: vec![LooperConfig::new(1)],
             disabled_endpoints: Default::default(),
             mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

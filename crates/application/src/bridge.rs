@@ -122,6 +122,8 @@ impl CommandBridge {
             | QueryKind::DiLoopState
             | QueryKind::OutputRoutes
             | QueryKind::MetronomeState
+            | QueryKind::PlayerState
+            | QueryKind::DrumsState
             | QueryKind::MixerState
             // #1007: needs the frontend's I/O bindings to name the strips.
             | QueryKind::ChainMixer { .. }

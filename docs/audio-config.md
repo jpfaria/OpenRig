@@ -149,7 +149,9 @@ HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
   stream starts while an input callback is reallocating for the new size).
   So a chain's streams and an isolated loop/DI playback resolve their device
   through the same resolver, with the project's `device_settings` for that
-  device.
+  device, and the auxiliary outputs (backing-track player, metronome, drums)
+  open it with the same rate and buffer (`aux_stream_format`) — never a fixed
+  size of their own.
 
 ### Why these rules (invariants 4 / 5 / 10)
 
@@ -203,6 +205,8 @@ Each `ChainRuntimeState` owns a `LooperBank` — up to 8 loopers, each up to 60 
 **Speed reaches playback through the source rate.** A loop plays on the isolated stream, which sources the store's mixdown. The armed `DiPcm` is built with the take's rate scaled by the factor (`looper_playback_pcm`), which is exactly the classic behaviour — the read cursor steps by the factor and the pitch follows it, no time-stretch — and the speed is part of the re-arm key, so changing it on a playing loop re-renders instead of being ignored.
 
 **Two transport scopes.** A row's play (or stop) is for hearing ONE loop. The panel's global play/stop — `LooperAction::PlayAll` / `StopAll`, so MIDI and MCP reach them too — moves every loop on THAT chain at once, which is what starting a take locked to the same bar needs. The global scope skips what it cannot start: a looper with no take, one still recording or overdubbing (its take would be cut short), and one switched OFF (a disabled looper keeps its recording and its routing — it just sits the transport out). Another chain's loops are never touched.
+
+**One loop timeline for the whole project.** Every looper, on every chain, follows ONE cycle kept by the `LooperStore` (`looper_store_sync.rs`, helpers in `loop_sync.rs`). The first REC pressed over silence sets the anchor — the top of the cycle, in host nanoseconds — and the first take's length is the time between its two presses, not the frames the meter tick happened to drain. Every later take, on any chain, is rounded to whole cycles of the shortest loop already recorded (under half a cycle rounds up to one) and keeps recording until that many frames arrived. The audio thread stamps the input tap with the host capture time of its first sample (`InputTap::first_capture_ns`, fed from the input callback's timestamp through the DSP worker), so the take is rotated to put the top of the cycle at frame 0 — a REC pressed mid-cycle lands where it was played. Closing a take never restarts the loops already playing. Playback is placed on the same clock: a cold arm starts at the loop position the timeline is at (`cold_start`), the output callback holds a timed playback silent until its start instant, starts it on the exact frame inside the buffer that contains it, and drops frames it owes when it starts late or runs dry (`di_playback_timing.rs`). A loop plays back exactly as long as its take — the isolated stream folds no seam crossfade into it (`DiPcm::without_seam_crossfade`), since a playback a few frames short would walk off the cycle every turn. Play from silence restarts the timeline 300 ms ahead so every loop started together begins at the top together; play while anything sounds joins the running timeline. Timed playback needs the stream timestamps on the host clock, so it is on where they are (macOS); elsewhere loops start at once and only the take lengths are synced.
 
 **Isolation.** A bank belongs to exactly ONE runtime. A chain served by several parallel runtimes gets one bank per runtime, each recording its own input with its own buffers — two audio threads never touch the same memory, and a chain-level status reads whichever runtime actually holds material. An off-thread rebuild carries the banks over (`adopt_taps_from`), so a live edit does not wipe a recorded loop; a rebuild that CHANGED the sample rate drops them instead of replaying frames at the wrong speed.
 
@@ -415,8 +419,11 @@ activation of the other chains. The rig runtime (`RigRuntime::build` /
 
 In the chains screen (desktop), clicking a chain graph's input node — or its output node, or on a
 chain with Y leaves a leaf's own output node — opens this checklist as a root-level panel: every input (or
-output) endpoint of the chain's E/S, checked unless that node leaves it out. Each click dispatches
-`SetChainEndpointEnabled` for that node and that endpoint and resyncs the chain; an unchecked
+output) endpoint of the chain's E/S, checked unless that node leaves it out. Bindings that overlap
+repeat the same physical endpoint (device + channels); it is listed once, named by device and
+1-based channels like the output pickers ("Quantum HD 8 · Out 1/2", a device the host no longer
+lists shows its id), and is checked while any binding copy still plays. Each click dispatches
+`SetChainEndpointEnabled` for that node and every binding copy of that endpoint and resyncs the chain; an unchecked
 endpoint stays listed so it can be checked again. The node's label names its checked endpoints
 (`None` when every one is off).
 
@@ -799,7 +806,7 @@ them: 1-4 ms buffers, the output underruns (`underruns == dropped_frames`).
 When the engine starts (`ProjectRuntimeController::start*`, or
 `build_streams_for_project` for the console / headless rig) one ordinary
 thread, `memory-residency` (`infra-cpal/src/memory_residency_keeper.rs`),
-wires the process's private writable memory with `mlock`
+wires the audio's memory with `mlock`
 (`infra-cpal/src/memory_wiring.rs` talks to the kernel;
 `memory_wiring_pass.rs` decides): only regions something already touched, at
 most 256 MB each, each region once, and at most a quarter of the machine's RAM
@@ -816,14 +823,38 @@ allocated zeroed (a delay line has no pages until then), and every 5 s in
 between. The periodic pass alone would let the kernel compress a new chain's
 pages in the first seconds.
 
-Wired pages are never compressed or swapped, so OpenRig keeps its working
-set — ~1.2 GB for two guitars with NAM, a cab IR and two VST3 reverbs on two
-outputs, ~1.5 GB with the app's UI — in RAM for as long as it runs; the rest
-of the machine has that much less. Deliberate costs of wiring whole regions:
-a region with one touched page is wired whole (thread stacks, a looper's
-unused tail), and heap freed inside a wired region stays resident, so the
-wired amount follows the session's peak, not its current use. No latency
-changes. Linux and Windows: not done (not measured there).
+**Only the audio's memory is wired.** Wired pages stay resident even once
+freed, so wiring the whole process kept everything the app ever used — the
+UI, a project load, a rebuild's scratch — in RAM for good (~1.2 GB with one
+chain). The audio's allocations live in their own malloc zone instead:
+`engine::audio_zone_router` registers a router zone ahead of the system one,
+so `malloc` from Rust, C and C++ (NAM, LV2, VST3) alike lands in the **audio
+zone** when the calling thread is marked (`engine::audio_alloc_scope`), in
+the system zone otherwise, and every `free` goes back to the zone that owns
+the pointer. The wiring pass walks only the audio zone's regions
+(`engine::audio_zone_regions`). Marked:
+
+- a chain runtime being built (`assemble_chain_runtime_state`) and every
+  block processor (`build_block_runtime_node`) — delay lines, models, IRs;
+- a DI loop resampled for a runtime (`DiLoop::from_samples`), a looper's
+  recording and loaded layer (`looper_store`), the dsp-worker's ring;
+- the dsp-worker threads for life, so what a block allocates lazily while it
+  plays is audio memory too.
+
+Memory the audio touches must be allocated in one of these; anything else is
+never wired. Under the audio zone's spans the share mode is not asked: a
+wire on part of a VM object makes the kernel report the rest of it as shared,
+and that rest is still the audio's heap.
+
+**Freed audio memory is unwired.** A wire outlives the `free`: the pages of a
+chain turned off go back to the allocator still wired, and the kernel can
+never reclaim them. The keeper records every range it wired; each pass first
+unwires (`munlock`) whatever of those ranges no longer sits under the audio
+zone's spans (`memory_wiring_release.rs`), so turning a chain off returns its
+memory to the system. Only the keeper's own wires are released, never one
+another library holds. If the router cannot be installed the pass falls back
+to the whole process and never unwires. No latency changes.
+Linux and Windows: not done (not measured there).
 
 Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
 owner's interface.
@@ -1099,7 +1130,24 @@ There is no ring and no worker thread, unlike the DI: the click is synthesized, 
 
 Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is not persisted, so the app always starts with the click off.
 
-On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
+On the Linux JACK build the click opens its own JACK client instead of a cpal stream (see "Auxiliary outputs on JACK" below).
+
+## Backing-track player output stream
+
+The backing-track player is a third independent pipeline beside the chains and the metronome: its **own** output stream on the chosen endpoint's device, summed by the backend, with nothing added to the guitar's audio path.
+
+```
+guitar:     [in] -> [chain] -> [out dev A]  \
+                                             > backend sums
+player:  [worker] -> ring -> [out dev A]    /
+```
+
+- **Decoding, resampling and time-stretching run on a worker thread at normal priority**, never on the audio thread and never in the realtime class, so the player cannot take CPU time from a chain's callback. The file is decoded once (symphonia) and resampled once to the device rate; speed and pitch go through a pitch-preserving stretcher (signalsmith-stretch). At 1.0× and 0 semitones the track is copied untouched.
+- The worker keeps a short queue ahead in a lock-free SPSC ring; the output callback only drains it, applies the level and short fades on start, pause and seek, and writes the endpoint's channels. Transport and settings reach both sides through atomics (`engine/player/shared.rs`): the callback neither locks nor allocates (invariant #8).
+- An A–B loop wraps with a short equal-power crossfade, so the seam never clicks. The position the GUI shows is what was *heard*, not what the worker rendered ahead.
+- A chain rebuild, a live block edit or a chain failure does not touch the player's stream; stopping the player closes it.
+
+**Auxiliary outputs on JACK.** The metronome and the player open through one auxiliary-output opener (`infra-cpal/aux_output.rs`): a cpal output stream on cpal builds, and on the Linux JACK build a JACK client of its own with one port per target channel, connected to the matching `system:playback_N`, so JACK sums it at the playback port. The metronome used to be silent on JACK; it now uses the same opener.
 
 ## Global mixer gain
 
@@ -1111,6 +1159,12 @@ an output declared in four bindings is one fader). On the audio path:
   `read_input_frame`, before the chain's blocks (loop and silence feeds are not
   scaled). An output fader scales the route's frames together with the chain
   volume, before the output limiter.
+- **Everything on the output obeys it.** The pipelines that open their own
+  stream — metronome, backing-track player, drums — read the same endpoint
+  fader through `infra-cpal/src/output_fader.rs`, so pulling a physical output
+  down turns down everything that plays there, not only the chains. DI and
+  looper playback already get it from the chain output route their render
+  runs through, so their playback must not apply it a second time.
 - **Isolation.** Each endpoint has one lock-free `AtomicU32` target
   (`engine/mixer_gains.rs`). A graph build hands each route / input pipeline an
   `Arc` to its endpoint's scalar; the audio thread only loads it. Nothing is

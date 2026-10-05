@@ -36,11 +36,30 @@ jobs:
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest -q scripts/test_nam_vendor.py
+      - name: Test the pre-PR gate and its hook
+        run: python3 -m pytest -q scripts/test_pre_pr_gate.py
+      - name: Test the build lock and its hook
+        run: python3 -m pytest -q scripts/test_cargo_locked.py
 
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    # A warning fails the job like an error: Linux-only warnings (a helper
+    # left unused by a `cfg(not(all(target_os = "linux", feature = "jack")))`
+    # test) never show up on the owner's Mac. Job-level, so rust-cache keys on it.
+    env:
+      RUSTFLAGS: -D warnings
     steps:
+      # The debug test binaries of the whole workspace outgrow the runner's
+      # free disk: lld then dies with SIGBUS (signal 7) while writing the
+      # adapter-gui test binary. Drop the preinstalled toolchains this job
+      # never uses before building.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h /
+
       - uses: actions/checkout@v4
         with:
           # #974: LFS carries the vendored NeuralAmpModelerCore archive.
@@ -72,7 +91,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
@@ -82,8 +101,29 @@ jobs:
       # when it is absent; they never hard-fail CI. See issue #793.
       # A hard timeout keeps a hung test from wedging the runner for hours
       # (see issue #693 FIFO tests, fixed to never block the test thread).
+      # nextest runs every test binary in parallel; it skips doctests, so
+      # `cargo test --doc` runs them after. scripts/pre-pr-gate.sh runs the same.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # A failed run saves its cache, and a saved key is never overwritten. Cargo
+      # stops starting new crates at the first compile error, so a red workspace
+      # crate used to save a cache with most dependencies missing, and every run
+      # after it compiled them all again. --keep-going builds every crate the
+      # error does not block, so the saved cache always holds all dependencies.
+      - name: Build tests
+        run: timeout --signal=SIGKILL 1500 cargo build --workspace --tests --keep-going
+
       - name: Run tests
-        run: timeout --signal=SIGKILL 1500 cargo test --workspace
+        run: |
+          timeout --signal=SIGKILL 1500 cargo nextest run --workspace --no-fail-fast
+          timeout --signal=SIGKILL 600 cargo test --workspace --doc
+
+      - name: Disk left after the build
+        if: always()
+        run: df -h /
 
   # #974: after develop's own tests pass, move the vendored NeuralAmpModelerCore
   # to the newest upstream release. The new version is tested here, in its own
@@ -136,7 +176,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
@@ -186,7 +226,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
+            libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext

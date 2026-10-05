@@ -10,6 +10,7 @@ import { LooperPanelView } from "looper_panel.slint";
 import { LooperTakeSaveDialog } from "looper_take_save_dialog.slint";
 import { LooperItem } from "../models.slint";
 import { LooperPresetPicker } from "looper_preset_picker.slint";
+import { LooperEndpointPicker } from "looper_endpoint_picker.slint";
 
 export component LooperOverlay inherits Rectangle {
     // Fed from the host's live chain model, so the panel keeps updating while
@@ -71,8 +72,11 @@ export component LooperOverlay inherits Rectangle {
         decay-changed(uid, v) => { root.decay-changed(LooperPanel.chain-index, uid, v); }
         speed-picked(uid, v) => { root.speed-picked(LooperPanel.chain-index, uid, v); }
         reverse-toggled(uid, v) => { root.reverse-toggled(LooperPanel.chain-index, uid, v); }
-        input-picked(uid, v) => { root.input-picked(LooperPanel.chain-index, uid, v); }
-        output-picked(uid, v) => { root.output-picked(LooperPanel.chain-index, uid, v); }
+        endpoint-open(uid, kind, sel) => {
+            LooperPanel.endpoint-picker-kind = kind;
+            LooperPanel.endpoint-picker-selected = sel;
+            LooperPanel.endpoint-picker-uid = uid;
+        }
         edit(uid) => { root.edit(LooperPanel.chain-index, uid); }
         // #827: a new dialog starts clean — the last save's name and outcome
         // belong to another loop.
@@ -94,6 +98,16 @@ export component LooperOverlay inherits Rectangle {
         width: root.width; height: root.height;
         preset-options: root.preset-options;
         preset-picked(ci, uid, i) => { root.preset-picked(ci, uid, i); }
+    }
+
+    // A row's record-from / play-to list.
+    if LooperPanel.endpoint-picker-uid >= 0 : LooperEndpointPicker {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        input-options: root.input-options;
+        output-options: root.output-options;
+        input-picked(ci, uid, i) => { root.input-picked(ci, uid, i); }
+        output-picked(ci, uid, i) => { root.output-picked(ci, uid, i); }
     }
 
     // #827: the save-take dialog a row's floppy opens — a root-level modal,

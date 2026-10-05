@@ -2,7 +2,8 @@
 //!
 //! #328 (spec §5.3). The row index is the checklist's (`endpoint_rows`); the
 //! command names the endpoint by E/S id and endpoint name, so a reordered
-//! registry never flips the wrong one. Unchecking every endpoint of a node is
+//! registry never flips the wrong one. A row shared by several bindings
+//! switches every copy. Unchecking every endpoint of a node is
 //! allowed — that node's segments are simply not built. The live chain is
 //! resynced (#614): which segments exist just changed.
 
@@ -38,19 +39,22 @@ pub(crate) fn set_endpoint_enabled(
     let Some(NodeRef::Endpoints(node)) = resolve_node(&chain, node_id) else {
         return Err(GestureError::NotApplicable);
     };
-    let endpoint = endpoint_rows(&chain, &s.io_bindings.borrow(), &node)
+    // The row's label is not read here; only its aliases are switched.
+    let endpoint = endpoint_rows(&chain, &s.io_bindings.borrow(), &[], &node)
         .into_iter()
         .nth(row)
         .ok_or(GestureError::NotApplicable)?;
-    s.dispatcher
-        .dispatch(Command::Chain(ChainCommand::SetChainEndpointEnabled {
-            chain: chain.id.clone(),
-            node,
-            io: endpoint.io,
-            endpoint: endpoint.endpoint,
-            enabled,
-        }))
-        .map_err(|e| GestureError::Failed(e.to_string()))?;
+    for alias in endpoint.aliases {
+        s.dispatcher
+            .dispatch(Command::Chain(ChainCommand::SetChainEndpointEnabled {
+                chain: chain.id.clone(),
+                node: node.clone(),
+                io: alias.io,
+                endpoint: alias.endpoint,
+                enabled,
+            }))
+            .map_err(|e| GestureError::Failed(e.to_string()))?;
+    }
     request_chain_sync(s, &chain.id).map_err(|e| GestureError::Failed(e.to_string()))?;
     replace_project_chains(
         rows.model,

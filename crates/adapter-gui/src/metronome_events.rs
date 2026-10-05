@@ -98,7 +98,9 @@ pub(crate) fn render_settings(ctx: &MetronomeCtx) {
     let resolved = resolve_output_endpoint(state.output_key.as_deref(), &endpoints);
     let key = resolved.as_ref().map(|o| o.key.clone()).unwrap_or_default();
     let label = resolved.map(|o| o.label).unwrap_or_default();
-    ctx.for_each_bridge(|bridge| render_settings_from(bridge, &state.settings, &key, &label));
+    ctx.for_each_bridge(|bridge| {
+        render_settings_from(bridge, &state.settings, &key, &label);
+    });
     // What the knobs now show, so the lamp timer can tell "changed elsewhere"
     // from "already drawn".
     *ctx.rendered.borrow_mut() = Some(state);

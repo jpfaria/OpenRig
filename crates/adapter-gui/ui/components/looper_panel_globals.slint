@@ -23,6 +23,11 @@ export global LooperPanel {
     in-out property <int> preset-picker-uid: -1;
     // The open loop's current preset option index, so the modal marks it.
     in-out property <int> preset-picker-selected;
+    // Which looper's record-from / play-to list is open; -1 = none. Kind 0 is
+    // the input list, 1 the output list; selected marks the current endpoint.
+    in-out property <int> endpoint-picker-uid: -1;
+    in-out property <int> endpoint-picker-kind;
+    in-out property <int> endpoint-picker-selected;
 }
 
 // #826 — the waveform editor's own state. Separate from `LooperPanel` because

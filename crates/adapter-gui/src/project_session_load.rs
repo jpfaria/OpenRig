@@ -55,6 +55,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     // against `session.rig`, so missing this leaves the combobox empty
     // until the project is saved and reopened.
     let rig = std::rc::Rc::new(std::cell::RefCell::new(project::rig::RigProject {
+        bpm: None,
         name: None,
         inputs: std::collections::BTreeMap::new(),
         outputs: std::collections::BTreeMap::new(),

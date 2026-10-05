@@ -52,7 +52,22 @@ mod jack_handlers;
 #[cfg(any(test, all(target_os = "linux", feature = "jack")))]
 mod jack_route_ports;
 
+#[cfg(any(test, all(target_os = "linux", feature = "jack")))]
+mod drums_jack_ports;
+
 mod active_runtime;
+
+mod aux_output;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod aux_output_cpal;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod aux_output_jack;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod aux_stream_format;
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod aux_stream_format_tests;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_client_open;
 
 // #127: `AudioDeviceDescriptor` used to be DEFINED here, which meant every UI
 // module that rendered a device name linked this crate. It now lives in
@@ -75,7 +90,11 @@ mod issue_967_insert_toggle_streams_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+mod drums_jack_stream;
+#[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_server_resolve;
 
 mod control_worker;
 pub use control_worker::ControlWorker;
@@ -119,11 +138,15 @@ mod device_probe;
 pub use device_probe::{probe_input_device, DeviceClient, DeviceProbe, ProbedStream, StreamFormat};
 mod device_enum;
 mod di_playback;
+mod di_playback_timing;
 mod di_stream;
 mod di_stream_worker;
+mod host_clock;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod live_io_reuse;
+mod loop_sync;
 pub mod looper_store;
+mod output_fader;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;
 pub use device_cache::{
@@ -177,6 +200,8 @@ mod input_evidence;
 pub use input_evidence::{
     CycleRecord, InputEvidenceSnapshot, InputStreamIdentity, SteppedInputEvidence, StreamEvidence,
 };
+mod drums_callback;
+mod drums_stream;
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 mod input_evidence_registry;
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
@@ -186,8 +211,15 @@ mod memory_wiring;
 #[cfg(any(target_os = "macos", test))]
 mod memory_wiring_pass;
 #[cfg(any(target_os = "macos", test))]
+mod memory_wiring_release;
+#[cfg(any(target_os = "macos", test))]
 mod memory_wiring_report;
+mod metronome_render;
 mod metronome_stream;
+mod player_render;
+mod player_stream;
+mod player_worker;
+pub use player_worker::PlayerDecoder;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -247,6 +279,10 @@ mod render_scheduling_903;
 mod looper_speed;
 
 #[cfg(test)]
+#[path = "looper_playback_length_tests.rs"]
+mod looper_playback_length;
+
+#[cfg(test)]
 #[path = "looper_enabled_tests.rs"]
 mod looper_enabled;
 
@@ -267,14 +303,14 @@ mod looper_level;
 mod looper_transport_scope;
 
 #[cfg(test)]
+#[path = "controller_disable_kills_streams_tests.rs"]
+mod controller_disable_kills_streams_tests;
+#[cfg(test)]
 #[path = "controller_global_transport_tests.rs"]
 mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
-#[cfg(test)]
-#[path = "controller_disable_kills_streams_tests.rs"]
-mod controller_disable_kills_streams_tests;
-#[cfg(test)]
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "controller_drop_nonblocking_tests.rs"]
 mod controller_drop_nonblocking_tests;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

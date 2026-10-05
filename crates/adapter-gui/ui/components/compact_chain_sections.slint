@@ -1,7 +1,7 @@
 // Responsibility: renders the compact view's accordion of chain sections.
-// #1022 — Mixer, DI, Looper, Doctor and Meters stack at the bottom of the
-// compact chain view, each behind a `SectionToggle` header (the mixer's shape,
-// #1007). One section is open at a time; opening another closes it, and a
+// Mixer, DI, Looper, Doctor and Meters stack at the bottom of the
+// compact chain view, each behind a `SectionToggle` header (the mixer's shape).
+// One section is open at a time; opening another closes it, and a
 // second click on the open one closes it. Every section opens collapsed. The
 // bodies are `if`-built, so a closed section leaves nothing in the tree.
 
@@ -180,8 +180,11 @@ export component CompactChainSections inherits Rectangle {
                 decay-changed(uid, v) => { CompactLooper.decay-changed(root.chain-index, uid, v); }
                 speed-picked(uid, v) => { CompactLooper.speed-picked(root.chain-index, uid, v); }
                 reverse-toggled(uid, v) => { CompactLooper.reverse-toggled(root.chain-index, uid, v); }
-                input-picked(uid, v) => { CompactLooper.input-picked(root.chain-index, uid, v); }
-                output-picked(uid, v) => { CompactLooper.output-picked(root.chain-index, uid, v); }
+                endpoint-open(uid, kind, sel) => {
+                    LooperPanel.endpoint-picker-kind = kind;
+                    LooperPanel.endpoint-picker-selected = sel;
+                    LooperPanel.endpoint-picker-uid = uid;
+                }
                 edit(uid) => { CompactLooper.edit(root.chain-index, uid); }
                 // #827: a new dialog starts clean.
                 save-take(uid) => {

@@ -276,6 +276,8 @@ pub(crate) fn build_block_runtime_node(
     content_mono: bool,
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
+    // A block's processor (delay lines, models, IRs) is audio memory, wired.
+    let _audio = crate::audio_alloc_scope::audio_allocations();
     Ok(match &block.kind {
         _ if !block.enabled => bypass_runtime_node(block, input_layout, content_mono),
         AudioBlockKind::Nam(stage) => audio_block_runtime_node(

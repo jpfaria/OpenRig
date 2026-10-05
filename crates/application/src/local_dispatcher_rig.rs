@@ -98,6 +98,8 @@ impl LocalDispatcher {
             }
         }
 
+        // 5. The reloaded chain plays its synced blocks at the project tempo.
+        self.retime_after_nav(&chain);
         Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
     }
 

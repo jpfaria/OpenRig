@@ -35,11 +35,13 @@ fn input(disabled_endpoints: EndpointDisables) -> RigInput {
         io_binding_ids: vec!["shared".into()],
         loopers: Vec::new(),
         disabled_endpoints,
+        di_output: None,
     }
 }
 
 fn rig(g1: EndpointDisables, g2: EndpointDisables) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([("g1".to_string(), input(g1)), ("g2".to_string(), input(g2))]),
         outputs: BTreeMap::new(),

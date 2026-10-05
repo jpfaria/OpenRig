@@ -23,6 +23,7 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
         loopers: Vec::new(),
         disabled_endpoints: Default::default(),
         mix: Default::default(),
+        di_output: None,
     };
     for (idx, name) in bank {
         input.bank.insert(idx, name.to_string());
@@ -39,6 +40,7 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
     }
     inputs.insert(input_name.to_string(), input);
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),
