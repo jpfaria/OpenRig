@@ -242,6 +242,8 @@ mod chain_graph_ids;
 mod chain_graph_models;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
+/// #1060: Sentry client for release builds.
+pub mod crash_reporting;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
@@ -293,6 +295,8 @@ mod live_source_health;
 mod live_source_looper;
 mod live_source_metronome;
 mod live_source_player;
+/// #1060: on-disk session log files.
+pub mod log_file;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
@@ -317,6 +321,10 @@ mod midi_adapter_wiring;
 mod midi_mixer_feedback_wiring;
 pub mod midi_profile_wiring;
 mod midi_selection_mirror;
+/// #1060: panic reports written to the session log.
+pub mod panic_log;
+/// #1060: writes one stream to two sinks.
+pub mod tee_writer;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 #[cfg(test)]

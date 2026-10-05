@@ -13,6 +13,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # #1060: baked into release binaries; empty = crash reporting off.
+  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:

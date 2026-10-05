@@ -18,6 +18,8 @@ fn main() -> anyhow::Result<()> {
     // #693: non-blocking logger — log calls must never stall the GUI
     // thread on a slow stderr consumer.
     adapter_gui::logging::init_logging();
+    // #1060: kept alive for the whole run so queued events flush on exit.
+    let _sentry = adapter_gui::crash_reporting::init();
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.

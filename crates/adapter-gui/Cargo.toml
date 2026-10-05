@@ -33,6 +33,8 @@ rfd = "0.15"
 slint = { workspace = true, features = ["backend-default", "renderer-femtovg"] }
 log.workspace = true
 env_logger.workspace = true
+sentry = { version = "0.49", default-features = false, features = ["backtrace", "contexts", "panic", "debug-images", "ureq", "rustls"] }
+sentry-log = "0.49"
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 webbrowser.workspace = true
