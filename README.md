@@ -102,7 +102,7 @@ Same software in every form factor. The user's tone goes with them — desktop t
 
 <p align="center">
   <img src="docs/assets/sc2.png" alt="Block library — vertical list of pedals and amps with brand-accurate panel art" width="280">&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/sc3.png" alt="Block editor — Marshall JTM45 panel with channel and volume knobs" width="600">
+  <img src="docs/assets/sc3.png" alt="Block editor — Vox AC30 capture with channel, volume, cut, bass, treble and boost knobs" width="600">
 </p>
 
 Left: block library, organized by brand with hardware-faithful panel art. Right: per-block editor on a Marshall JTM45 capture — exact controls, exact response.
