@@ -10,6 +10,8 @@ static AUDIO: Mutex<Option<Value>> = Mutex::new(None);
 
 /// Replace the audio context future events carry. GUI thread only.
 pub fn publish_audio(context: Value) {
+    #[cfg(test)]
+    LAST_ON_THREAD.with(|last| *last.borrow_mut() = Some(context.clone()));
     if let Ok(mut audio) = AUDIO.lock() {
         *audio = Some(context);
     }
@@ -34,4 +36,16 @@ fn as_context(value: Value) -> Context {
         Value::Object(map) => Context::Other(map.into_iter().collect::<BTreeMap<_, _>>()),
         other => Context::Other(BTreeMap::from([("value".to_string(), other)])),
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static LAST_ON_THREAD: std::cell::RefCell<Option<Value>> = const { std::cell::RefCell::new(None) };
+}
+
+/// What this thread published last — unit tests run in parallel and share
+/// `AUDIO`, so they read their own publish here.
+#[cfg(test)]
+pub(crate) fn last_published_on_this_thread() -> Option<Value> {
+    LAST_ON_THREAD.with(|last| last.borrow().clone())
 }

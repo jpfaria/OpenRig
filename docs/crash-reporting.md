@@ -38,4 +38,6 @@ Every event carries two contexts, added by the `before_send` hook:
 - `audio` — `backend` (cpal host or `jack`), `live_sample_rate` (`null` with no runtime), `devices[]` (`device_id`, `sample_rate`, `buffer_size_frames`, `bit_depth`) and `chains[]` (`id`, `description`, `enabled`, `io_bindings[]` with endpoints/channels, `blocks[]` as `<kind>/<model>`). Rebuilt on the GUI thread every time the runtime starts, syncs, upserts, removes a chain or stops — never on the audio thread.
 - `host` — `cpu_brand`, `cpu_cores`, `cpu_physical_cores`, `memory_total_mb`, `process_memory_mb` (RSS) and `process_cpu_percent` (since the previous event), sampled when the event is built.
 
+Covered headless in CI by `crates/adapter-gui/tests/issue_1070_sentry_context.rs` (release options + the real log bridge over sentry's in-memory transport) and `sentry_runtime_publish_tests.rs` (a runtime teardown publishes the session). To check a real event end to end: `OPENRIG_SENTRY_SMOKE_DSN=<dsn> cargo test -p adapter-gui --test issue_1070_sentry_context -- --ignored` sends one event tagged `smoke:issue-1070`; read it with `./scripts/sentry.py issues -q smoke:issue-1070`, then delete that issue.
+
 To read what reached Sentry from a terminal: `./scripts/sentry.py issues`, then `./scripts/sentry.py events OPENRIG-N` (skill `openrig-sentry`).

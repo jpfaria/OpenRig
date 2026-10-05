@@ -1,6 +1,7 @@
 //! Issue #1070 — every Sentry event carries the audio setup that was running
 //! (interface, rate, buffer, chains, blocks) and the host machine (CPU, RAM).
 
+use adapter_gui::crash_reporting;
 use adapter_gui::sentry_audio_context::audio_context;
 use adapter_gui::sentry_event_context::{attach, publish_audio};
 use adapter_gui::sentry_host_context::host_context;
@@ -127,4 +128,67 @@ fn issue_1070_every_event_gets_the_published_audio_and_host_contexts() {
         event.contexts.get("host"),
         Some(Context::Other(_))
     ));
+}
+
+/// End to end, no network: the release client options + the real log bridge.
+/// An `error!` becomes an event that leaves with both contexts filled.
+#[test]
+fn issue_1070_an_error_log_leaves_with_audio_and_host_contexts() {
+    let (project, bindings) = fixture();
+    let events = sentry::test::with_captured_events_options(
+        || {
+            publish_audio(audio_context(&project, &bindings, Some(44_100)));
+            log_error(&sentry_log::SentryLogger::new());
+        },
+        crash_reporting::options(),
+    );
+
+    assert_eq!(events.len(), 1, "{events:?}");
+    let event = &events[0];
+    assert!(event
+        .release
+        .as_deref()
+        .unwrap_or("")
+        .starts_with("openrig@"));
+    let Some(Context::Other(audio)) = event.contexts.get("audio") else {
+        panic!("no audio context: {:?}", event.contexts.keys());
+    };
+    assert_eq!(audio["devices"][0]["buffer_size_frames"], json!(64));
+    assert_eq!(
+        audio["chains"][0]["blocks"][0],
+        json!("nam/nam_vox_ac30_a2")
+    );
+    let Some(Context::Other(host)) = event.contexts.get("host") else {
+        panic!("no host context: {:?}", event.contexts.keys());
+    };
+    assert!(
+        host["memory_total_mb"].as_u64().unwrap_or(0) > 0,
+        "{host:?}"
+    );
+}
+
+/// Sends ONE real event to the Sentry project behind `OPENRIG_SENTRY_SMOKE_DSN`
+/// so its contexts can be read back with `scripts/sentry.py`. Manual only.
+#[test]
+#[ignore = "sends a real event; set OPENRIG_SENTRY_SMOKE_DSN"]
+fn issue_1070_smoke_real_sentry_event() {
+    let dsn = std::env::var("OPENRIG_SENTRY_SMOKE_DSN").expect("OPENRIG_SENTRY_SMOKE_DSN");
+    let (project, bindings) = fixture();
+    let guard = sentry::init((dsn, crash_reporting::options()));
+    sentry::configure_scope(|scope| scope.set_tag("smoke", "issue-1070"));
+    publish_audio(audio_context(&project, &bindings, Some(44_100)));
+    log_error(&sentry_log::SentryLogger::new());
+    assert!(guard.flush(Some(std::time::Duration::from_secs(10))));
+}
+
+fn log_error(logger: &dyn log::Log) {
+    logger.log(
+        &log::Record::builder()
+            .level(log::Level::Error)
+            .target("openrig::issue_1070")
+            .args(format_args!(
+                "issue-1070 smoke: audio overload on chain 'rig:input-4'"
+            ))
+            .build(),
+    );
 }

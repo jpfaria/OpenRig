@@ -18,3 +18,7 @@ pub(crate) fn publish_runtime_context(
     );
     crate::sentry_event_context::publish_audio(context);
 }
+
+#[cfg(test)]
+#[path = "sentry_runtime_publish_tests.rs"]
+mod tests;
