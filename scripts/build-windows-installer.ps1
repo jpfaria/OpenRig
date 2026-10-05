@@ -5,6 +5,8 @@
 .DESCRIPTION
     Responsibility: runs the CI Windows packaging path end to end on one machine.
 
+    Run it with PowerShell 7 (pwsh, winget Microsoft.PowerShell), as CI does:
+    Windows PowerShell 5 misreads the UTF-8 packaging scripts.
     Prerequisites (winget): Rustlang.Rustup, Microsoft.VisualStudio.2022.BuildTools
     (C++ workload), Kitware.CMake, LLVM.LLVM, Git.Git (with Git LFS),
     WiXToolset.WiXToolset, MSYS2.MSYS2 plus
@@ -20,7 +22,7 @@
     OpenRig-plugins checkout (default: ..\OpenRig-plugins next to this repo)
 
 .EXAMPLE
-    .\scripts\build-windows-installer.ps1 0.6.2 -PluginsRoot C:\openrig-plugins
+    pwsh .\scripts\build-windows-installer.ps1 0.6.2 -PluginsRoot C:\openrig-plugins
 #>
 param(
     [string]$Version = "dev",
@@ -46,7 +48,7 @@ try {
 
     Write-Host "==> Linking the plugin tree from $PluginsRoot..."
     $pluginSource = Join-Path $PluginsRoot "plugins\source"
-    if (-not (Test-Path $pluginSource)) { throw "no plugins\source under $PluginsRoot — clone OpenRig-plugins with LFS" }
+    if (-not (Test-Path $pluginSource)) { throw "no plugins\source under $PluginsRoot (clone OpenRig-plugins with LFS)" }
     New-Item -ItemType Directory -Force "plugins" | Out-Null
     if (Test-Path "plugins\source") { (Get-Item "plugins\source").Delete() }
     New-Item -ItemType Junction -Path "plugins\source" -Target $pluginSource | Out-Null
