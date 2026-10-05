@@ -149,6 +149,8 @@ fn chain() -> Chain {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -317,6 +319,7 @@ impl Rig {
 
     /// One HAL cycle whose input buffer is lost to an overload: it never
     /// reaches the worker.
+    #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
     fn cycle_losing_the_input(&mut self) {
         self.cycle_with(false, false, true);
     }

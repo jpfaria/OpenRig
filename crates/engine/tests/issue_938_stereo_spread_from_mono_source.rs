@@ -47,6 +47,7 @@ fn one_block_chain(effect_type: &str, model: &str) -> Chain {
         io_binding_ids: Vec::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         blocks: vec![AudioBlock {
             id: BlockId(format!("issue-938-{model}-block")),
             enabled: true,
@@ -56,6 +57,7 @@ fn one_block_chain(effect_type: &str, model: &str) -> Chain {
                 params,
             }),
         }],
+        mix: Default::default(),
     }
 }
 

@@ -9,45 +9,10 @@
 import { Theme } from "../theme.slint";
 import { LooperEditor } from "looper_panel_globals.slint";
 import { WaveformView } from "waveform_view.slint";
+import { EditorButton } from "editor_button.slint";
 
 // The action a button asks for, as the host's callback spells it.
 export enum LoopEditKind { trim, crop, cut, fit }
-
-component EditorButton inherits Rectangle {
-    in property <string> label;
-    in property <bool> enabled: true;
-    callback clicked();
-
-    // Follows the (translated) label so it is never cut.
-    min-width: max(78px, lbl.preferred-width + 16px);
-    height: max(34px, lbl.preferred-height + 8px);
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
-    background: !root.enabled
-        ? #2a2c3160
-        : (area.has-hover ? #6e8aff28 : #2a2c31);
-
-    accessible-role: button;
-    accessible-label: root.label;
-    accessible-enabled: root.enabled;
-    accessible-action-default => { root.clicked(); }
-
-    lbl := Text {
-        width: parent.width;
-        height: parent.height;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        text: root.label;
-        font-size: Theme.min-font;
-        color: root.enabled ? Theme.palette.text-primary : Theme.palette.text-muted;
-    }
-
-    area := TouchArea {
-        enabled: root.enabled;
-        clicked => { root.clicked(); }
-    }
-}
 
 export component LooperEditorOverlay inherits Rectangle {
     // (chain-index, uid, kind, sel-start, sel-end) — the ratios become frames

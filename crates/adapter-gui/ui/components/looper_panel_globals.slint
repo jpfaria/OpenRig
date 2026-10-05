@@ -23,6 +23,11 @@ export global LooperPanel {
     in-out property <int> preset-picker-uid: -1;
     // The open loop's current preset option index, so the modal marks it.
     in-out property <int> preset-picker-selected;
+    // Which looper's record-from / play-to list is open; -1 = none. Kind 0 is
+    // the input list, 1 the output list; selected marks the current endpoint.
+    in-out property <int> endpoint-picker-uid: -1;
+    in-out property <int> endpoint-picker-kind;
+    in-out property <int> endpoint-picker-selected;
 }
 
 // #826 — the waveform editor's own state. Separate from `LooperPanel` because
@@ -55,4 +60,22 @@ export global LooperEditor {
     // Whether the edit history has anything to step through.
     in-out property <bool> can-undo;
     in-out property <bool> can-redo;
+}
+
+// #827 — the save-take dialog a looper row's floppy opens. Its own global
+// because Rust answers it (the save's outcome) without knowing the panel.
+export global LooperTake {
+    // Which loop the dialog is saving; -1 = closed. The chain is the open
+    // panel's (`LooperPanel.chain-index`) — the dialog covers the panel.
+    in-out property <int> dialog-uid: -1;
+    // The name typed for the take, kept on a refusal so it can be fixed
+    // instead of retyped; Rust clears it once the take is saved.
+    in-out property <string> name;
+    // What the last save did: 0 quiet, 1 saved, 2 name taken, 3 nothing
+    // recorded, 4 could not write, 5 the name has nothing usable. Mapped in
+    // Rust from the typed refusal.
+    in-out property <int> status;
+    // (chain-index, uid, name) — keep this loop as a named take in the
+    // app-wide library, where every chain's DI can pick it.
+    callback save(int, int, string);
 }

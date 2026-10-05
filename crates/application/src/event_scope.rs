@@ -52,7 +52,13 @@ impl Event {
             | Event::ChainLooperAudioFileChanged { chain, .. }
             | Event::ChainLooperInputChanged { chain, .. }
             | Event::ChainLooperOutputChanged { chain, .. }
-            | Event::ChainLooperPresetChanged { chain, .. } => Some(chain),
+            | Event::ChainLooperPresetChanged { chain, .. }
+            | Event::ChainLooperTakeSaved { chain, .. }
+            // #1007: a chain's own mixer faders.
+            | Event::ChainMixerStripChanged { chain, .. }
+            | Event::ChainDiFaderChanged { chain, .. }
+            // A retime belongs to one chain.
+            | Event::ChainTempoRetimed { chain } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded
@@ -66,6 +72,8 @@ impl Event {
             | Event::RecentProjectInvalidated { .. }
             | Event::ChainPresetSaved { .. }
             | Event::ChainPresetDeleted { .. }
+            // The take library is app-wide, listed by every chain.
+            | Event::LooperTakeDeleted { .. }
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
             | Event::MetronomeEnabledChanged { .. }
@@ -77,6 +85,15 @@ impl Event {
             | Event::MetronomeCountInChanged { .. }
             | Event::MetronomeOutputChanged { .. }
             | Event::MetronomeTapped
+            // The backing-track player is its own stream, never a chain.
+            | Event::Player(_)
+            | Event::DrumsTransportChanged { .. }
+            | Event::DrumFillTriggered
+            | Event::DrumsSettingsChanged { .. }
+            | Event::DrumsContentChanged { .. }
+            | Event::DrumsOutputChanged { .. }
+            // #1007: mixer strips are system-level endpoints, never a chain.
+            | Event::MixerStripChanged { .. }
             | Event::CompactViewEnabledChanged { .. }
             | Event::MidiEnabledChanged { .. }
             | Event::McpEnabledChanged { .. }

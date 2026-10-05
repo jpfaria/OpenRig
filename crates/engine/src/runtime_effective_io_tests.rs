@@ -139,6 +139,7 @@ fn build_output_routing_state_mono_single_channel() {
         channels: vec![0],
     };
     let state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,
@@ -161,6 +162,7 @@ fn build_output_routing_state_stereo_two_channels() {
         channels: vec![0, 1],
     };
     let state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,
@@ -183,6 +185,7 @@ fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
         channels: vec![0, 1],
     };
     let _state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,
@@ -226,6 +229,67 @@ fn subscribe_input_tap_receives_pre_fx_samples() {
         received.push(s);
     }
     assert_eq!(received, vec![0.1, 0.2, 0.3, 0.4]);
+}
+
+#[test]
+fn a_stamped_input_tap_keeps_the_capture_time_of_its_first_sample() {
+    let chain = io_passthrough_chain("chain:0");
+    let runtime = Arc::new(
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
+    );
+
+    let (rings, first_capture_ns) = runtime.subscribe_input_tap_stamped(0, 1, &[0], 256);
+    assert_eq!(rings.len(), 1);
+    assert_eq!(
+        first_capture_ns.load(std::sync::atomic::Ordering::Relaxed),
+        0,
+        "nothing captured yet"
+    );
+
+    runtime.note_input_capture_ns(0, 123_456_789);
+    process_input_f32(&runtime, 0, &[0.1, 0.2], 1);
+    assert_eq!(
+        first_capture_ns.load(std::sync::atomic::Ordering::Relaxed),
+        123_456_789,
+        "the tap carries the capture time of the buffer its first sample came in"
+    );
+
+    runtime.note_input_capture_ns(0, 999_999_999);
+    process_input_f32(&runtime, 0, &[0.3, 0.4], 1);
+    assert_eq!(
+        first_capture_ns.load(std::sync::atomic::Ordering::Relaxed),
+        123_456_789,
+        "later buffers do not move it"
+    );
+}
+
+#[test]
+fn an_input_capture_time_belongs_to_its_own_input() {
+    let chain = io_passthrough_chain("chain:0");
+    let runtime = Arc::new(
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
+    );
+
+    let (_rings, first_capture_ns) = runtime.subscribe_input_tap_stamped(0, 1, &[0], 256);
+    runtime.note_input_capture_ns(1, 42);
+    process_input_f32(&runtime, 0, &[0.1, 0.2], 1);
+    assert_eq!(
+        first_capture_ns.load(std::sync::atomic::Ordering::Relaxed),
+        0,
+        "input 1's time never stamps a tap on input 0"
+    );
 }
 
 #[test]

@@ -33,10 +33,12 @@ mod host_utils;
 mod main_thread;
 mod param_changes;
 pub mod param_channel;
+pub mod param_flags;
 pub mod param_registry;
 mod plugin_uid_cache;
 mod processor;
 mod stereo;
+mod value_texts;
 mod vst3_search_paths;
 
 pub use catalog::{

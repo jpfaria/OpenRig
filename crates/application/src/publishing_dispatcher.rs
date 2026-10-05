@@ -22,9 +22,14 @@ use crate::bridge::EventSink;
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::{LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
+use crate::player_library::PlayerLibraryDirs;
+use crate::player_state::{PlayerControlState, PlayerSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -146,6 +151,38 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         self.inner.metronome_snapshot()
+    }
+
+    fn attach_player_state(&self, state: Rc<RefCell<PlayerControlState>>) {
+        self.inner.attach_player_state(state)
+    }
+
+    fn player_snapshot(&self) -> PlayerSnapshot {
+        self.inner.player_snapshot()
+    }
+
+    fn player_library(&self) -> PlayerLibraryDirs {
+        self.inner.player_library()
+    }
+
+    fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        self.inner.attach_drums_state(state)
+    }
+
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        self.inner.drums_snapshot()
+    }
+
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        self.inner.drums_library()
+    }
+
+    fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
+        self.inner.attach_mixer_state(state)
+    }
+
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        self.inner.mixer_strips()
     }
 }
 

@@ -148,6 +148,8 @@ fn a_mid_tap_before_the_cab_is_not_fed_by_the_convolver() {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let rt: Arc<ChainRuntimeState> = Arc::new(
         build_chain_runtime_state(&owner, 48_000.0, &[128, 128, 64], &registry())
@@ -165,5 +167,117 @@ fn a_mid_tap_before_the_cab_is_not_fed_by_the_convolver() {
         tap.buffer.len(),
         0,
         "the tap hears only the drive before the cab — no convolver feeds it"
+    );
+}
+
+// ── #328: a cab inside a split path convolves into the split's routes ──
+
+#[test]
+fn a_cab_inside_a_split_path_counts_as_convolution() {
+    use project::block::split_params::default_split_params;
+    use project::block::{SplitBlock, SplitEnd};
+
+    let split = AudioBlock {
+        id: BlockId("split".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Mix,
+            params: default_split_params(2),
+            paths: vec![
+                vec![core("gain", "fuzz_ge")],
+                vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            ],
+        }),
+    };
+    assert!(
+        block_is_convolution(&split),
+        "path B's cab convolves into the split's output"
+    );
+}
+
+/// #328 — a Y → A/B output hears only the paths that feed it. Path B's cab
+/// must not give the output path A alone feeds the convolution cushion (a
+/// deeper cushion is latency that output never needed); path B's own output
+/// keeps it.
+#[test]
+fn a_y_output_counts_only_the_paths_that_feed_it() {
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::split_params::default_split_params;
+    use project::block::{PathRef, SplitBlock, SplitEnd};
+    use project::chain::Chain;
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+    use super::route_has_convolution;
+    use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io};
+    use crate::runtime_segments::split_chain_into_segments;
+
+    let out = |name: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
+    };
+    let registry = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![IoEndpoint {
+            name: "in".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![out("out-a", vec![0, 1]), out("out-b", vec![2, 3])],
+    }];
+    let off = |name: &str| EndpointRef {
+        io: "main".into(),
+        endpoint: name.into(),
+    };
+    let split = AudioBlock {
+        id: BlockId("split".into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end: SplitEnd::Y,
+            params: default_split_params(2),
+            paths: vec![
+                vec![core("gain", "volume")],
+                vec![core(block_core::EFFECT_TYPE_CAB, "ir_marshall_4x12_v30")],
+            ],
+        }),
+    };
+    let leaf = |path: usize| {
+        EndpointNode::PathOutput(PathRef {
+            split: BlockId("split".into()),
+            path,
+        })
+    };
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(&leaf(0), off("out-b"), false);
+    disabled_endpoints.set_enabled(&leaf(1), off("out-a"), false);
+    let chain = Chain {
+        mix: Default::default(),
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![split],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints,
+    };
+    let (ri, ro) = resolve_chain_io(&chain, &registry);
+    let (ei, ci, sp, eg) = effective_inputs(&chain, &ri, &registry);
+    let eo = effective_outputs(&chain, &ro, &registry);
+    let segments = split_chain_into_segments(&chain, &ei, &ci, &sp, &eg, &eo, &registry);
+
+    assert!(
+        !route_has_convolution(&chain, &segments, 0),
+        "#328: out-a hears path A only — path B's cab must not deepen its cushion"
+    );
+    assert!(
+        route_has_convolution(&chain, &segments, 1),
+        "#328: out-b hears path B's cab — it keeps the convolution cushion"
     );
 }

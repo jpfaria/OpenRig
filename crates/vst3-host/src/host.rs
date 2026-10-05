@@ -154,10 +154,15 @@ pub struct Vst3ParamInfo {
     pub units: String,
     pub step_count: i32,
     pub default_normalized: f64,
+    /// Raw `ParameterInfo.flags` bits (see [`crate::param_flags`]).
+    pub flags: i32,
     /// For a discrete parameter with `step_count >= 2` (a select), one
     /// `(value_percent, label)` per step read from the controller; empty for
     /// continuous knobs and on/off toggles (#780).
     pub enum_options: Vec<(String, String)>,
+    /// For a continuous parameter, the plugin's own display text at each knob
+    /// position (see `value_texts::VALUE_TEXT_POSITIONS`); empty otherwise (#1011).
+    pub value_texts: Vec<String>,
 }
 
 /// A plugin class found in a factory.
@@ -216,6 +221,11 @@ pub struct Vst3Inner {
 
     /// Internal block size.
     block_size: usize,
+
+    /// The processing latency the plugin declared (`getLatencySamples`),
+    /// read once at load so nothing asks the plugin again on the audio
+    /// thread (#328).
+    latency_samples: u32,
 
     /// The host context passed to `initialize`; kept alive so the plugin can
     /// hold a reference to it for its whole lifetime.
@@ -369,6 +379,11 @@ impl Vst3Plugin {
         unsafe { self.controller.getParamNormalized(id) }
     }
 
+    /// Processing latency the plugin declared at load, in samples (#328).
+    pub fn latency_samples(&self) -> usize {
+        self.latency_samples as usize
+    }
+
     /// Get parameter metadata at the given index.
     pub fn param_info(&self, index: i32) -> Result<Vst3ParamInfo> {
         let mut info: ParameterInfo = unsafe { std::mem::zeroed() };
@@ -383,7 +398,9 @@ impl Vst3Plugin {
             units: char16_array_to_string(&info.units),
             step_count: info.stepCount,
             default_normalized: info.defaultNormalizedValue,
+            flags: info.flags,
             enum_options: Vec::new(),
+            value_texts: Vec::new(),
         })
     }
 

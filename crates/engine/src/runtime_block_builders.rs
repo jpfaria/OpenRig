@@ -26,6 +26,12 @@ use crate::runtime_state::{
     BlockRuntimeNode, FadeState, ProcessorBuildOutcome, RuntimeProcessor, SelectRuntimeState,
 };
 
+// Declared here, not in `lib.rs`, to keep the crate router under 100 lines (#328).
+#[path = "runtime_block_reuse.rs"]
+pub(crate) mod reuse;
+
+use reuse::{reuse_pool, try_reuse_block_node};
+
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 /// Whether the signal LEAVING `node` is effectively mono (L == R), given
@@ -40,6 +46,8 @@ fn node_emits_mono_content(node: &BlockRuntimeNode, input_content_mono: bool) ->
         RuntimeProcessor::Audio(_) => false,
         RuntimeProcessor::Bypass => input_content_mono,
         RuntimeProcessor::Select(_) => false,
+        // A split mixes two paths and may pan them apart: stereo content.
+        RuntimeProcessor::Split(_) => false,
     }
 }
 
@@ -71,8 +79,42 @@ pub(crate) fn build_runtime_block_nodes_with(
     sample_rate: f32,
     existing: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
-    mut prebuilt: Option<&mut PrebuiltNodes>,
+    prebuilt: Option<&mut PrebuiltNodes>,
 ) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout)> {
+    let mut reusable_nodes = reuse_pool(existing);
+    // If block_indices is provided, iterate only those blocks; otherwise iterate all
+    let block_iter: Vec<&project::block::AudioBlock> = match block_indices {
+        Some(indices) => indices
+            .iter()
+            .filter_map(|&i| chain.blocks.get(i))
+            .collect(),
+        None => chain.blocks.iter().collect(),
+    };
+    let (blocks, layout, _) = build_nodes_for(
+        chain,
+        &block_iter,
+        input_layout,
+        source_is_mono,
+        sample_rate,
+        &mut reusable_nodes,
+        prebuilt,
+    )?;
+    Ok((blocks, layout))
+}
+
+/// Build the runtime nodes of `block_iter` in order, drawing old nodes from
+/// `reusable_nodes`. Returns the nodes, the layout leaving the last one and
+/// whether that signal is still effectively mono (#588). The chain builder
+/// calls it for the chain's blocks; the split builder calls it per path (#328).
+pub(crate) fn build_nodes_for(
+    chain: &Chain,
+    block_iter: &[&project::block::AudioBlock],
+    input_layout: AudioChannelLayout,
+    source_is_mono: bool,
+    sample_rate: f32,
+    reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
+    mut prebuilt: Option<&mut PrebuiltNodes>,
+) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout, bool)> {
     // A live in-place edit hands its prebuilt nodes in; an initial build never.
     let hand_over = prebuilt.is_some();
     // #987: the live edit's swap runs under the processing lock — no logging.
@@ -84,22 +126,25 @@ pub(crate) fn build_runtime_block_nodes_with(
     // channels). Starts from the source layout and is cleared the moment a
     // block produces genuine stereo.
     let mut content_mono = source_is_mono;
-    let mut reusable_nodes = existing
-        .unwrap_or_default()
-        .into_iter()
-        .map(|node| (node.block_id.clone(), node))
-        .collect::<HashMap<_, _>>();
 
-    // If block_indices is provided, iterate only those blocks; otherwise iterate all
-    let block_iter: Vec<&project::block::AudioBlock> = match block_indices {
-        Some(indices) => indices
-            .iter()
-            .filter_map(|&i| chain.blocks.get(i))
-            .collect(),
-        None => chain.blocks.iter().collect(),
-    };
-
-    for block in block_iter {
+    for &block in block_iter {
+        // #328: a split builds its own node, on or off — a split switched off
+        // must fade out through its real paths, not through an empty shell.
+        if let AudioBlockKind::Split(split) = &block.kind {
+            let node = crate::runtime_split::builder::build_split_runtime_node(
+                chain,
+                block,
+                split,
+                current_layout,
+                content_mono,
+                sample_rate,
+                reusable_nodes,
+            )?;
+            current_layout = node.output_layout;
+            content_mono = node_emits_mono_content(&node, content_mono);
+            blocks.push(node);
+            continue;
+        }
         // Disabled blocks: try to reuse existing node (keeps processor alive
         // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
@@ -145,7 +190,7 @@ pub(crate) fn build_runtime_block_nodes_with(
             continue;
         }
         let replaced = match try_reuse_block_node(
-            &mut reusable_nodes,
+            reusable_nodes,
             block,
             current_layout,
             content_mono,
@@ -221,130 +266,7 @@ pub(crate) fn build_runtime_block_nodes_with(
         }
     }
 
-    Ok((blocks, current_layout))
-}
-
-/// The live node reused for `block`, or — when it cannot be — the node it
-/// replaces (`None` if there is none), which a live edit hands over from.
-fn try_reuse_block_node(
-    reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
-    block: &project::block::AudioBlock,
-    current_layout: AudioChannelLayout,
-    content_mono: bool,
-    sample_rate: f32,
-    quiet: bool,
-) -> Result<BlockRuntimeNode, Option<BlockRuntimeNode>> {
-    let Some(mut node) = reusable_nodes.remove(&block.id) else {
-        return Err(None);
-    };
-    if node.input_layout != current_layout {
-        if !quiet {
-            log::debug!(
-                "[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
-                block.id.0,
-                node.input_layout,
-                current_layout
-            );
-        }
-        return Err(Some(node));
-    }
-    // Issue #588: the mono ↔ dual-mono decision depends on whether the
-    // incoming signal is effectively mono. If that flipped (e.g. an upstream
-    // block now produces stereo), the processor shape is wrong — rebuild.
-    if node.content_mono != content_mono {
-        return Err(Some(node));
-    }
-    // Exact match — reuse as-is
-    if node.block_snapshot == *block {
-        return Ok(node);
-    }
-    // Only enabled changed — reuse processor, update snapshot.
-    // Exception: if the node is a Bypass (block was built while disabled and has no real
-    // processor or stream_handle), enabling it requires a full rebuild.
-    let mut snapshot_without_enabled = node.block_snapshot.clone();
-    snapshot_without_enabled.enabled = block.enabled;
-    if snapshot_without_enabled == *block {
-        if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
-            return Err(Some(node)); // force rebuild so we get a real processor + stream_handle
-        }
-        let was_disabled = !node.block_snapshot.enabled;
-        node.block_snapshot = block.clone();
-        // If block was just enabled, start a fade-in — warmed up first, its
-        // processor sat frozen while the block was off (#987).
-        if was_disabled && block.enabled {
-            node.fade_state = FadeState::FadingIn {
-                frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
-            };
-        }
-        return Ok(node);
-    }
-    // Issue #358 — params changed but kind/effect_type/model unchanged. Try to
-    // retune the existing processor in place (preserves IIR state, smooths
-    // coefficients), avoiding the click that a full rebuild produces. Only
-    // mono / dual-mono variants are supported today; other variants fall
-    // through to the rebuild path.
-    if try_in_place_param_update(&mut node, block, sample_rate) {
-        if !quiet {
-            log::info!(
-                "[engine] in-place param update for block id={} (no rebuild)",
-                block.id.0
-            );
-        }
-        node.block_snapshot = block.clone();
-        return Ok(node);
-    }
-    if !quiet {
-        log::info!(
-            "[engine] cannot reuse block id={}: snapshot differs (params or kind changed)",
-            block.id.0
-        );
-    }
-    Err(Some(node))
-}
-
-/// Attempt to apply the new `block`'s params to `node`'s existing processor
-/// without dropping it. Returns `true` only if the kind/effect_type/model are
-/// unchanged AND the underlying processor accepts an in-place update.
-///
-/// Caller must update `node.block_snapshot` after a successful call so the
-/// next reuse attempt sees the new params as the "current" state.
-fn try_in_place_param_update(
-    node: &mut BlockRuntimeNode,
-    block: &project::block::AudioBlock,
-    sample_rate: f32,
-) -> bool {
-    if !block.enabled || !node.block_snapshot.enabled {
-        return false;
-    }
-    if std::mem::discriminant(&node.block_snapshot.kind) != std::mem::discriminant(&block.kind) {
-        return false;
-    }
-    let (Some(prev), Some(next)) = (node.block_snapshot.model_ref(), block.model_ref()) else {
-        return false;
-    };
-    if prev.effect_type != next.effect_type || prev.model != next.model {
-        return false;
-    }
-    let RuntimeProcessor::Audio(audio) = &mut node.processor else {
-        return false;
-    };
-    match audio {
-        AudioProcessor::Mono(processor) => processor.try_in_place_update(next.params, sample_rate),
-        AudioProcessor::DualMono { left, right } => {
-            // Both channels share the same params — both must accept the update.
-            // If either rejects, abort: the channels would otherwise diverge.
-            let left_ok = left.try_in_place_update(next.params, sample_rate);
-            let right_ok = right.try_in_place_update(next.params, sample_rate);
-            left_ok && right_ok
-        }
-        // Stereo / StereoFromMono retune in place too. This is essential for
-        // VST3 GUI plugins, which must NOT be re-instantiated on a param change
-        // (a reload re-runs createInstance, which fails under the app's
-        // NSApplication after the first instance — #251).
-        AudioProcessor::Stereo(processor) | AudioProcessor::StereoFromMono(processor) => {
-            processor.try_in_place_update(next.params, sample_rate)
-        }
-    }
+    Ok((blocks, current_layout, content_mono))
 }
 
 pub(crate) fn build_block_runtime_node(
@@ -354,6 +276,8 @@ pub(crate) fn build_block_runtime_node(
     content_mono: bool,
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
+    // A block's processor (delay lines, models, IRs) is audio memory, wired.
+    let _audio = crate::audio_alloc_scope::audio_allocations();
     Ok(match &block.kind {
         _ if !block.enabled => bypass_runtime_node(block, input_layout, content_mono),
         AudioBlockKind::Nam(stage) => audio_block_runtime_node(
@@ -383,6 +307,15 @@ pub(crate) fn build_block_runtime_node(
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
             bypass_runtime_node(block, input_layout, content_mono)
         }
+        AudioBlockKind::Split(split) => crate::runtime_split::builder::build_split_runtime_node(
+            chain,
+            block,
+            split,
+            input_layout,
+            content_mono,
+            sample_rate,
+            &mut HashMap::new(),
+        )?,
     })
 }
 

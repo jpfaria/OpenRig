@@ -98,7 +98,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
-            set_selected_block(&window, None, None);
+            set_selected_block(&window, None);
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
             clear_status(&window, &toast_timer);

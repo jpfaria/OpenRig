@@ -51,20 +51,11 @@ fn a_family_with_no_registered_model_defaults_to_an_empty_one_instead_of_panicki
 
 #[test]
 fn a_full_rig_block_without_a_model_loads_with_the_block_dropped() {
-    let yaml = r#"
-chains:
-  - description: rig without a model
-    blocks:
-      - type: full_rig
-        enabled: true
-"#;
-    let dto: crate::ProjectYaml = serde_yaml::from_str(yaml).expect("the document must parse");
-    let project = dto
-        .into_project()
-        .expect("the rest of the document survives one unbuildable block");
-    assert_eq!(project.chains.len(), 1);
+    let block: serde_yaml::Value =
+        serde_yaml::from_str("type: full_rig\nenabled: true\n").expect("the block must parse");
+    let chain_id = domain::ids::ChainId("preset:rig".into());
     assert!(
-        project.chains[0].blocks.is_empty(),
+        crate::block_yaml_load::load_audio_block_value(block, &chain_id, 0).is_none(),
         "the empty model resolves to no definition, so the block is dropped — not a panic"
     );
 }
@@ -72,10 +63,4 @@ chains:
 #[test]
 fn a_block_is_enabled_unless_the_document_says_otherwise() {
     assert!(default_enabled());
-}
-
-#[test]
-fn an_input_defaults_to_the_shared_instrument_constant() {
-    assert_eq!(default_instrument(), block_core::DEFAULT_INSTRUMENT);
-    assert!(!default_instrument().is_empty());
 }

@@ -64,6 +64,8 @@ fn runtime() -> Arc<ChainRuntimeState> {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let runtimes = build_per_input_runtimes(
         &chain,

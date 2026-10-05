@@ -142,7 +142,7 @@ fn reloaded_session_carries_a_rig() {
 fn new_session_already_has_a_rig() {
     // A brand-new project must already have a `RigProject` attached;
     // otherwise the first `SelectionCommand::ApplyRigNav` will be a no-op and the
-    // first save will follow the legacy `.yaml` path (not `.openrig`).
+    // first save will follow the legacy `.yaml` path (not `project.yaml`).
     let s = Sandbox::new();
     let session = s.new_session();
     assert!(

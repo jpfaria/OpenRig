@@ -105,6 +105,8 @@ fn chain(volume_pct: f32) -> Chain {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

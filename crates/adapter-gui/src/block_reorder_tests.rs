@@ -39,6 +39,8 @@ fn chain(ids: &[&str]) -> Chain {
         blocks: ids.iter().map(|id| block(id)).collect(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

@@ -63,6 +63,8 @@ fn two_stream_mono_chain(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -102,6 +104,8 @@ fn single_stream_on_channel_one(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -156,6 +160,7 @@ fn controller_with_single_runtime(
         streams: Default::default(),
         stream_generation: 0,
         sample_rate: 48_000,
+        device_settings: Vec::new(),
         io_bindings: registry.to_vec(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -163,9 +168,11 @@ fn controller_with_single_runtime(
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
+        player: Default::default(),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),
         )),
+        drums: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

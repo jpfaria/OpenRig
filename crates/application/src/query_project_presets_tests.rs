@@ -25,6 +25,7 @@ fn rig_with_pool(presets: Vec<&str>) -> RigProject {
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

@@ -123,6 +123,7 @@ fn a_live_param_edit_does_not_block_on_a_device_resolve() {
             volume: 0.0,
             io_binding_ids: vec!["io-scar".into(), "io-tey".into()],
             blocks,
+            mix: Default::default(),
         }],
         midi: None,
     };

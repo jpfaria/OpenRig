@@ -11,6 +11,8 @@
 //! working unchanged.
 
 pub mod audio_block_methods;
+pub mod block_params;
+pub mod block_walk;
 pub mod core_block_methods;
 mod disk_audio_mode;
 pub mod dispatch;
@@ -22,18 +24,36 @@ pub mod manifest_labels;
 pub mod methods;
 mod nam_schema;
 pub mod param_writer;
+pub mod path_ref;
 pub mod port_duplication;
 pub mod select_block_methods;
+pub mod split_block;
+pub mod split_block_methods;
+mod split_block_record;
+pub mod split_lookup;
+pub mod split_param_keys;
+pub mod split_param_renumber;
+pub mod split_params;
 pub mod types;
 pub mod vst3_model_id;
+mod vst3_param_filter;
+mod vst3_param_label;
 pub mod vst3_schema;
+pub mod y_leaves;
 
+pub use block_params::{block_params, block_params_mut};
+pub use block_walk::{find_block_mut, for_each_block_mut, walk_blocks};
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
+pub use path_ref::{path_letter, PathRef};
 pub use port_duplication::duplicates_chain_binding;
+pub use split_block::{SplitBlock, SplitEnd, MIN_SPLIT_PATHS};
+pub use split_block_methods::validate_split_layout;
+pub use split_lookup::{find_split, find_split_with_end, has_y_split, splits};
 pub use types::{
     AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
     InsertBlock, NamBlock, OutputBlock, SelectBlock,
 };
+pub use y_leaves::y_leaves;
 
 #[cfg(test)]
 #[path = "../block_tests.rs"]

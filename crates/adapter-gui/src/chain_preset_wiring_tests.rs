@@ -126,9 +126,13 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),

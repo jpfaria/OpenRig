@@ -68,6 +68,7 @@ fn session_with_an_amp() -> (Rc<RefCell<Option<ProjectSession>>>, ChainId, Block
             kind: "amp".into(),
             model_id: AMP_MODEL.into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     let amp = session
@@ -116,6 +117,7 @@ impl Harness {
             CompactChainCallbacksCtx {
                 project_session: session.clone(),
                 block_stream_reads: Rc::new(NoLiveSource),
+                looper_live: Rc::new(NoLiveSource),
                 audio_taps: Rc::new(application::audio_taps::NoAudioTaps),
                 project_chains: project_chains.clone(),
                 input_chain_devices: input_chain_devices.clone(),
@@ -175,7 +177,10 @@ impl Harness {
             let session = borrow.as_ref().unwrap();
             drain.drain(session.dispatcher.as_ref(), 32)
         };
-        assert!(!events.is_empty(), "sanity: the command must produce events");
+        assert!(
+            !events.is_empty(),
+            "sanity: the command must produce events"
+        );
         apply_events_to_ui(&self.app, &self.nav_ctx, &events);
     }
 

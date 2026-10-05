@@ -142,4 +142,8 @@ impl StereoProcessor for StereoVst3Processor {
             offset += chunk;
         }
     }
+
+    fn latency_samples(&self) -> usize {
+        self.plugin.latency_samples()
+    }
 }

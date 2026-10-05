@@ -32,12 +32,14 @@
 //! rig-wide — the tuner silences the whole rig — and says so, rather than
 //! pretending to be per-stream.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::player::settings::PlayerSettings;
 use engine::{DiPcm, LoopPcm};
 use feature_dsp::metronome::MetronomeSettings;
 use project::chain::{Chain, EndpointRef};
@@ -257,6 +259,60 @@ pub trait RuntimeControl {
     fn refresh_metronome_output(&self, output_key: Option<&str>) -> Result<()> {
         let _ = output_key;
         Ok(())
+    }
+
+    // ── backing-track player ─────────────────────────────────────────────
+    //
+    // The player is its own pipeline (invariant #4), like the click: its own
+    // worker, its own output stream, summed by the backend. These doors never
+    // address a chain.
+
+    /// Load `path` into the player, paused at its start. The decode runs off
+    /// the dispatching thread; the duration appears once it finishes.
+    fn load_player_track(&self, path: &Path) -> Result<()> {
+        let _ = path;
+        Ok(())
+    }
+
+    /// Play `track` with `settings` on the endpoint `output_key` names
+    /// (`None` = the project's first). May create the audio runtime, as
+    /// [`Self::start_metronome`] may.
+    fn start_player(
+        &self,
+        track: &Path,
+        settings: PlayerSettings,
+        output_key: Option<&str>,
+    ) -> Result<()> {
+        let _ = (track, settings, output_key);
+        Ok(())
+    }
+
+    /// Pause where the track is. Never an error.
+    fn pause_player(&self) {}
+
+    /// Stop, rewind to the start and close the player's stream.
+    fn stop_player(&self) {}
+
+    /// Move to `seconds` of the track, playing or not.
+    fn seek_player(&self, seconds: f64) {
+        let _ = seconds;
+    }
+
+    /// Hand new settings to the player. Never starts anything.
+    fn set_player_settings(&self, settings: PlayerSettings) {
+        let _ = settings;
+    }
+
+    /// Move a PLAYING player to the endpoint `output_key` now names. Never
+    /// creates a runtime.
+    fn refresh_player_output(&self, output_key: Option<&str>) -> Result<()> {
+        let _ = output_key;
+        Ok(())
+    }
+
+    /// The frontend's drum machine, if it hosts one.
+    fn drums(&self) -> Option<&dyn crate::drums_runtime::DrumsRuntime> {
+        None
     }
 
     // ── analyzers (#544/#546/#829) ──────────────────────────────────────
@@ -481,6 +537,19 @@ pub trait RuntimeControl {
     /// (the JACK server), so recovery re-opens the project's streams together.
     /// It changes no project state — only which devices this machine holds.
     fn reconnect_audio(&self) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// #979: restart one chain's streams the way switching it off and on
+    /// does, after [`LiveSource::stepped_input_chains`] reported its input
+    /// stepped. Only that chain is touched.
+    ///
+    /// [`LiveSource::stepped_input_chains`]: crate::live_source::LiveSource::stepped_input_chains
+    ///
+    /// `Ok(true)` ⇒ restarted; `Ok(false)` ⇒ nothing to restart (no runtime,
+    /// or the chain is off). It changes no project state.
+    fn restart_chain_streams(&self, chain_id: &str) -> Result<bool> {
+        let _ = chain_id;
         Ok(false)
     }
 }

@@ -24,6 +24,10 @@ export component LooperPanelView inherits Rectangle {
     // #323 phase 2: the chain's preset options (index 0 = follow the chain).
     in property <[string]> preset-options;
 
+    // Inside a compact-view section the section is the panel: no box of its
+    // own, no title (the section header names it), no inset gutter.
+    in property <bool> embedded: false;
+
     callback add();
     // #903: the panel's global transport — the whole chain at once. A row's
     // own play stays single: the owner wants both, one loop alone or the
@@ -41,29 +45,33 @@ export component LooperPanelView inherits Rectangle {
     callback decay-changed(int, int);
     callback speed-picked(int, int);
     callback reverse-toggled(int, bool);
-    callback input-picked(int, int);
-    callback output-picked(int, int);
+    // (uid, kind, selected) — open a loop's endpoint list; kind 0 is the
+    // record-from list, 1 the play-to list.
+    callback endpoint-open(int, int, int);
     callback preset-open(int, int);
     // #826: open the waveform editor for this loop.
     callback edit(int);
+    // #827: open the save-take dialog for this loop.
+    callback save-take(int);
 
     private property <length> row-height: 60px;
     private property <length> drawer-extra: 222px;
     private property <bool> is-empty: root.loopers.length == 0;
+    private property <length> inset: root.embedded ? 0px : 12px;
 
     width: 600px;
     height: 56px
         + (root.is-empty ? empty-col.preferred-height + 20px : root.loopers.length * (root.row-height + 8px))
         + (root.expanded-uid >= 0 ? root.drawer-extra : 0px)
         + 12px;
-    border-radius: 10px;
-    background: #11141af2;
-    border-width: 1px;
+    border-radius: root.embedded ? 0px : 10px;
+    background: root.embedded ? transparent : #11141af2;
+    border-width: root.embedded ? 0px : 1px;
     border-color: Theme.palette.border-strong;
     clip: true;
 
     // ── header ──────────────────────────────────────────────────────────
-    Image {
+    if !root.embedded : Image {
         x: 14px;
         y: 16px;
         width: 18px;
@@ -73,7 +81,7 @@ export component LooperPanelView inherits Rectangle {
         colorize: Theme.palette.text-secondary;
     }
 
-    Text {
+    if !root.embedded : title := Text {
         x: 40px;
         y: 14px;
         text: @tr("looper-panel-title");
@@ -107,7 +115,7 @@ export component LooperPanelView inherits Rectangle {
 
     add-button := Rectangle {
         // Sized by its label so a longer translation never gets cut (#954).
-        x: parent.width - self.width - 14px;
+        x: parent.width - self.width - root.inset - (root.embedded ? 0px : 2px);
         y: 12px;
         width: add-label.preferred-width + 44px;
         height: 32px;
@@ -154,9 +162,9 @@ export component LooperPanelView inherits Rectangle {
     // wrapped hint's real height instead of a fixed guess (#954).
     empty-col := VerticalLayout {
         visible: root.is-empty;
-        x: 14px;
+        x: root.inset + 2px;
         y: 60px;
-        width: parent.width - 28px;
+        width: parent.width - 2 * root.inset - 4px;
         height: self.preferred-height;
         spacing: 6px;
 
@@ -179,9 +187,9 @@ export component LooperPanelView inherits Rectangle {
 
     // ── rows ────────────────────────────────────────────────────────────
     if !root.is-empty : VerticalLayout {
-        x: 12px;
+        x: root.inset;
         y: 52px;
-        width: parent.width - 24px;
+        width: parent.width - 2 * root.inset;
         spacing: 8px;
 
         for item[index] in root.loopers: LooperRow {
@@ -201,10 +209,11 @@ export component LooperPanelView inherits Rectangle {
             decay-changed(v) => { root.decay-changed(item.uid, v); }
             speed-picked(v) => { root.speed-picked(item.uid, v); }
             reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
-            input-picked(v) => { root.input-picked(item.uid, v); }
-            output-picked(v) => { root.output-picked(item.uid, v); }
+            input-open => { root.endpoint-open(item.uid, 0, item.input_index); }
+            output-open => { root.endpoint-open(item.uid, 1, item.output_index); }
             preset-open => { root.preset-open(item.uid, item.preset_index); }
             edit => { root.edit(item.uid); }
+            save-take => { root.save-take(item.uid); }
         }
     }
 }

@@ -1,6 +1,24 @@
 //! Tests for the chain's stream-topology signature (#743, #881).
 
-use domain::ids::DeviceId;
+use domain::ids::{BlockId, DeviceId};
+use project::block::PathRef;
+use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+/// The checklists of a Y split `split`: `off[i]` are the outputs path `i`
+/// does not feed.
+fn y_disables(split: &str, off: &[Vec<EndpointRef>]) -> EndpointDisables {
+    let mut disables = EndpointDisables::default();
+    for (path, refs) in off.iter().enumerate() {
+        let node = EndpointNode::PathOutput(PathRef {
+            split: BlockId(split.into()),
+            path,
+        });
+        for r in refs {
+            disables.set_enabled(&node, r.clone(), false);
+        }
+    }
+    disables
+}
 
 // ── #881: an insert is part of the chain's stream topology ──────────────────
 
@@ -47,6 +65,8 @@ fn a_bound_insert_adds_its_send_and_return_to_the_signature() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
 
     let (plain_in, plain_out) = super::bound_io_signature(&chain, &registry);
@@ -133,6 +153,8 @@ fn disabling_a_bound_insert_is_not_a_topology_change() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
 
     let (on_in, on_out) = super::bound_io_signature(&chain, &registry);
@@ -173,6 +195,8 @@ fn an_inserts_enable_flag_is_not_part_of_the_chain_structure() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
 
     let on = super::chain_structure_signature(&chain, &[]);
@@ -240,6 +264,8 @@ fn a_switch_that_regroups_the_chains_runtimes_is_a_structural_change() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
 
     assert_ne!(
@@ -304,6 +330,8 @@ fn a_mid_ports_enable_flag_is_part_of_the_chain_structure() {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let on = super::chain_structure_signature(&chain, &[]);
 
@@ -324,4 +352,194 @@ fn a_mid_ports_enable_flag_is_part_of_the_chain_structure() {
              it must read as a structural change"
         );
     }
+}
+
+// ── #328: an endpoint unchecked on the chain graph is a re-bind ─────────────
+
+/// Unchecking an input on a RUNNING chain must read as an I/O change, or the
+/// live-edit path keeps the stream it no longer wants open.
+#[test]
+fn unchecking_an_input_endpoint_changes_the_bound_io_signature() {
+    use domain::ids::ChainId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::chain::Chain;
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("scarlett".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![ep("in 1", 0), ep("in 2", 1)],
+        outputs: vec![ep("out", 0)],
+    }];
+    let chain = |disabled_endpoints: EndpointDisables| Chain {
+        mix: Default::default(),
+        id: ChainId("rig:g".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints,
+    };
+    let mut unchecked = EndpointDisables::default();
+    unchecked.set_enabled(
+        &EndpointNode::Input,
+        EndpointRef {
+            io: "io".into(),
+            endpoint: "in 2".into(),
+        },
+        false,
+    );
+
+    let (all_inputs, _) = super::bound_io_signature(&chain(EndpointDisables::default()), &registry);
+    let (kept_inputs, _) = super::bound_io_signature(&chain(unchecked), &registry);
+    assert_eq!(all_inputs.len(), 2);
+    assert_eq!(
+        kept_inputs,
+        vec![(DeviceId("scarlett".into()), vec![0])],
+        "#328: the unchecked input opens no stream, so a running chain must re-bind"
+    );
+}
+
+// ── #328: which split paths feed each output is part of the structure ─────
+
+/// A Y → A/B chain whose two outputs both stay open: checking path B on the
+/// output path A already feeds opens no new device stream (the I/O signature
+/// is unchanged), yet that output's pipeline now runs both paths. Only the
+/// structure signature can see it; without the row `schedule_chain_activation`
+/// takes the edit for a knob turn instead of giving the chain brand-new
+/// streams (#881, spec §4.2).
+#[test]
+fn a_path_set_change_is_a_structural_change() {
+    use domain::ids::ChainId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::split_params::default_split_params;
+    use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
+    use project::chain::Chain;
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![ep("in", 0)],
+        outputs: vec![ep("out-a", 0), ep("out-b", 1)],
+    }];
+    let off = |name: &str| EndpointRef {
+        io: "main".into(),
+        endpoint: name.into(),
+    };
+    let chain = |path_b_outputs: Vec<EndpointRef>| Chain {
+        mix: Default::default(),
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("split".into()),
+            enabled: true,
+            kind: AudioBlockKind::Split(SplitBlock {
+                end: SplitEnd::Y,
+                params: default_split_params(2),
+                paths: vec![vec![], vec![]],
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints: y_disables("split", &[vec![off("out-b")], path_b_outputs]),
+    };
+    // Path A → out-a. Path B → out-b only, then → out-a too.
+    let before = chain(vec![off("out-a")]);
+    let after = chain(vec![]);
+
+    assert_eq!(
+        super::bound_io_signature(&before, &registry),
+        super::bound_io_signature(&after, &registry),
+        "fixture: both outputs stay open, so the I/O signature cannot tell"
+    );
+    assert_ne!(
+        super::chain_structure_signature(&before, &registry),
+        super::chain_structure_signature(&after, &registry),
+        "#328: out-a now runs path A AND path B — its pipeline changed, so the chain needs new streams (#881)"
+    );
+}
+
+/// The same edit on a chain whose Y sits behind a Split → Mix: the Y is not
+/// the chain's first split, and its path checklist must still reach the
+/// structure signature.
+#[test]
+fn a_y_path_set_change_behind_a_mix_is_a_structural_change() {
+    use domain::ids::ChainId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::split_params::default_split_params;
+    use project::block::{AudioBlock, AudioBlockKind, SplitBlock, SplitEnd};
+    use project::chain::Chain;
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "main".into(),
+        name: "MAIN".into(),
+        inputs: vec![ep("in", 0)],
+        outputs: vec![ep("frfr", 0), ep("syn-5050", 1)],
+    }];
+    let off = |name: &str| EndpointRef {
+        io: "main".into(),
+        endpoint: name.into(),
+    };
+    let split = |id: &str, end: SplitEnd| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Split(SplitBlock {
+            end,
+            params: default_split_params(2),
+            paths: vec![vec![], vec![]],
+        }),
+    };
+    let chain = |path_b_outputs: Vec<EndpointRef>| Chain {
+        mix: Default::default(),
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![split("mix", SplitEnd::Mix), split("y", SplitEnd::Y)],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints: y_disables("y", &[vec![off("syn-5050")], path_b_outputs]),
+    };
+    // Path A → frfr. Path B → syn-5050 only, then → frfr too.
+    let before = chain(vec![off("frfr")]);
+    let after = chain(vec![]);
+
+    assert_eq!(
+        super::bound_io_signature(&before, &registry),
+        super::bound_io_signature(&after, &registry),
+        "fixture: both outputs stay open, so the I/O signature cannot tell"
+    );
+    assert_ne!(
+        super::chain_structure_signature(&before, &registry),
+        super::chain_structure_signature(&after, &registry),
+        "#328: behind a Mix, frfr now runs Y path A AND path B — the chain needs new streams (#881)"
+    );
 }

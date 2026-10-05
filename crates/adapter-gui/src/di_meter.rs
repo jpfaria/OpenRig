@@ -18,6 +18,9 @@ pub fn di_meter_from_peaks(peaks: Option<(f32, f32)>, playing: bool) -> crate::S
         out_dbfs: linear_to_dbfs(out_peak),
         in_label: Default::default(),
         out_label: Default::default(),
+        in_channels: Default::default(),
+        out_channels: Default::default(),
+        in_repeated: false,
     }
 }
 

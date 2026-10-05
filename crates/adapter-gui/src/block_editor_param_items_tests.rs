@@ -66,3 +66,54 @@ fn vst3_block_yields_params_via_the_compact_build_path() {
         model
     );
 }
+
+/// #328: the split editor feeds its own specs (no catalog model) to the same
+/// row builder the block editor uses.
+#[test]
+fn rows_build_from_a_bare_spec_list() {
+    use project::param::{bool_parameter, float_parameter, ParameterSet, ParameterUnit};
+    let specs = vec![
+        bool_parameter("sum", "Sum", None, Some(false)),
+        float_parameter(
+            "level",
+            "Level",
+            None,
+            Some(100.0),
+            0.0,
+            100.0,
+            1.0,
+            ParameterUnit::Percent,
+        ),
+    ];
+    let rows = super::block_parameter_items_for_specs(&specs, &ParameterSet::default());
+    let shape: Vec<(String, String)> = rows
+        .iter()
+        .map(|r| (r.path.to_string(), r.widget_kind.to_string()))
+        .collect();
+    assert_eq!(shape[0], ("sum".to_string(), "bool".to_string()));
+    assert_eq!(shape[1].0, "level");
+    assert_eq!(
+        rows[1].numeric_value, 100.0,
+        "the spec default fills an unset value"
+    );
+}
+
+#[test]
+fn knob_row_carries_the_plugin_value_texts_as_its_labels() {
+    // #1011: a VST3 knob shows the plugin's own text ("2.5 s"), not 0..100.
+    let spec = project::param::float_parameter(
+        "p1",
+        "Decay",
+        None,
+        Some(0.0),
+        0.0,
+        100.0,
+        1.0,
+        project::param::ParameterUnit::Percent,
+    )
+    .with_value_labels(vec!["0.1 s".into(), "2.5 s".into()]);
+    let row = block_parameter_item(&spec, &ParameterSet::default());
+    use slint::Model;
+    let labels: Vec<String> = row.option_labels.iter().map(|l| l.to_string()).collect();
+    assert_eq!(labels, ["0.1 s", "2.5 s"]);
+}

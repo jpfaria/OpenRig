@@ -52,9 +52,13 @@ fn rig_with_a_recorded_loop() -> RigProject {
                 audio_file: Some("rig-in-looper-1.wav".into()),
                 ..LooperConfig::new(1)
             }],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

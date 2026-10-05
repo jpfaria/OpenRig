@@ -8,7 +8,11 @@ import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
+import { MixerBridge } from "../components/mixer_globals.slint";
+import { PlayerBridge } from "../components/player_globals.slint";
+import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
+import { ProjectTempo } from "../components/project_tempo.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -105,8 +109,13 @@ export component ProjectChainsPage inherits Rectangle {
             vertical-alignment: center;
         }
 
+        ProjectTempo {
+            x: parent.width - 400px - 16px - self.width;
+            y: 14px;
+        }
+
         if !root.skip-launcher : HeaderIconAction {
-            x: parent.width - 280px;
+            x: parent.width - 400px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
             tooltip: @tr("tooltip-back");
@@ -114,7 +123,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 240px;
+            x: parent.width - 360px;
             y: 14px;
             icon: @image-url("../assets/spectrum.svg");
             tooltip: @tr("tooltip-spectrum");
@@ -122,7 +131,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 200px;
+            x: parent.width - 320px;
             y: 14px;
             icon: @image-url("../assets/tuner.svg");
             tooltip: @tr("tooltip-tuner");
@@ -130,7 +139,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 160px;
+            x: parent.width - 280px;
             y: 14px;
             icon: @image-url("../assets/metronome.svg");
             // Lit while the click is playing, so a closed metronome is still
@@ -138,6 +147,36 @@ export component ProjectChainsPage inherits Rectangle {
             active: MetronomeBridge.metronome-enabled;
             tooltip: @tr("tooltip-metronome");
             clicked => { root.open-metronome-window(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 240px;
+            y: 14px;
+            icon: @image-url("../assets/drums.svg");
+            // Lit while a groove plays, like the metronome beside it.
+            active: DrumsBridge.playing;
+            tooltip: @tr("tooltip-drums");
+            clicked => { DrumsBridge.open-drums-window(); }
+        }
+
+        // Lit while a backing track plays, so a closed player is still
+        // visibly running from the top bar.
+        HeaderIconAction {
+            x: parent.width - 200px;
+            y: 14px;
+            icon: @image-url("../assets/backing-track.svg");
+            active: PlayerBridge.playing;
+            tooltip: @tr("tooltip-backing-tracks");
+            clicked => { PlayerBridge.open-player-window(); }
+        }
+
+        // #1007: the global mixer.
+        HeaderIconAction {
+            x: parent.width - 160px;
+            y: 14px;
+            icon: @image-url("../assets/mixer-faders.svg");
+            tooltip: @tr("tooltip-mixer");
+            clicked => { MixerBridge.open-mixer-window(); }
         }
 
         HeaderIconAction {
@@ -242,6 +281,8 @@ export component ProjectChainsPage inherits Rectangle {
                 save-chain-preset(index) => { root.save-chain-preset(index); }
                 probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
+                // #1007: kept in the row model, so the rebuild after an edit keeps it.
+                meters-toggled(expanded) => { chain.meters_expanded = expanded; }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 select-chain(chain-index) => { root.select-chain(chain-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

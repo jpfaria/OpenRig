@@ -40,6 +40,10 @@ pub struct Lv2Port {
     /// `pprop:rangeSteps N` — number of discrete positions across the
     /// range. Used for integer/quantised float steppers.
     pub range_steps: Option<u32>,
+    /// `lv2:portProperty lv2:reportsLatency` (or `lv2:designation
+    /// lv2:latency`): this output control port carries the plugin's
+    /// processing latency in samples (#328).
+    pub reports_latency: bool,
 }
 
 /// One labelled value in an enumeration port. Value is stored as `f32`

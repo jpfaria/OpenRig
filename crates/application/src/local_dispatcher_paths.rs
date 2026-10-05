@@ -48,6 +48,16 @@ impl LocalDispatcher {
                 });
                 Ok(vec![Event::PathsSaved])
             }
+            Command::Settings(SettingsCommand::SetBackingTracksPath { path }) => {
+                let folder = path
+                    .clone()
+                    .unwrap_or_else(infra_filesystem::default_backing_tracks_path);
+                self.player_state().borrow_mut().set_user_dir(Some(folder));
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.backing_tracks_path = path;
+                });
+                Ok(vec![Event::PathsSaved])
+            }
             other => {
                 unreachable!("handle_paths_system received non-paths command: {other:?}")
             }

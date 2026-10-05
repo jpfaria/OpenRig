@@ -82,12 +82,11 @@ pub(crate) fn rig_nav_rows(rig: &RigProject, project: &Project) -> Vec<RigNavRow
                 .iter()
                 .position(|&s| s == input.active_preset)
                 .unwrap_or(0);
-            let scene_count = input
+            let active = input
                 .bank
                 .get(&input.active_preset)
-                .and_then(|n| rig.presets.get(n))
-                .map(|p| p.scene_count())
-                .unwrap_or(1);
+                .and_then(|n| rig.presets.get(n));
+            let scene_count = active.map(|p| p.scene_count()).unwrap_or(1);
             RigNavRow {
                 input: name.to_string(),
                 preset_slots,

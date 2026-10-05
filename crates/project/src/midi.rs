@@ -1,6 +1,6 @@
 //! Responsibility: describes the MIDI bindings a project carries.
 //! Project-level MIDI binding data types — owned by [`crate::rig::RigProject`]
-//! so they travel with the `.openrig` file (ADR 0003 / #499).
+//! so they travel with the `project.yaml` file (ADR 0003 / #499).
 //!
 //! Bindings used to live in `adapter-midi` (issue #22). They moved here when
 //! the `midi-map.yaml` single-file model split into a system **device profile**
@@ -27,17 +27,34 @@ use serde_json::Value;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Source {
-    NoteOn { channel: u8, note: u8 },
-    NoteOff { channel: u8, note: u8 },
-    Cc { channel: u8, controller: u8 },
-    ProgramChange { program: u8 },
+    NoteOn {
+        channel: u8,
+        note: u8,
+    },
+    NoteOff {
+        channel: u8,
+        note: u8,
+    },
+    Cc {
+        channel: u8,
+        controller: u8,
+    },
+    ProgramChange {
+        program: u8,
+    },
+    /// A 14-bit fader — what Mackie Control surfaces (e.g. SMC-Mixer) send
+    /// per channel strip (#1007).
+    PitchBend {
+        channel: u8,
+    },
 }
 
 impl Source {
-    /// Continuous sources carry a 0..=127 value that gets scaled into a
-    /// `Command` argument; discrete sources fire a fixed command.
+    /// Continuous sources carry a value (0..=127 CC, 0..=16383 Pitch Bend)
+    /// that gets scaled into a `Command` argument; discrete sources fire a
+    /// fixed command.
     pub fn is_continuous(&self) -> bool {
-        matches!(self, Source::Cc { .. })
+        matches!(self, Source::Cc { .. } | Source::PitchBend { .. })
     }
 }
 
@@ -61,6 +78,22 @@ impl Scale {
         let t = f64::from(raw) / 127.0;
         self.min + t * (self.max - self.min)
     }
+
+    /// Map a normalised `0..=1` position (e.g. a 14-bit Pitch Bend fader)
+    /// linearly into `[min, max]`.
+    pub fn apply_unit(&self, t: f64) -> f64 {
+        self.min + t * (self.max - self.min)
+    }
+
+    /// Inverse of [`Scale::apply_unit`], clamped to `0..=1` — where a motor
+    /// fader has to sit to show `value`.
+    pub fn unit_of(&self, value: f64) -> f64 {
+        let span = self.max - self.min;
+        if span == 0.0 {
+            return 0.0;
+        }
+        ((value - self.min) / span).clamp(0.0, 1.0)
+    }
 }
 
 /// One binding: a source, the `Command` variant name (PascalCase, as in the
@@ -81,7 +114,7 @@ fn value_is_null(v: &Value) -> bool {
 }
 
 /// Project-level MIDI configuration — the `midi:` block inside
-/// `project.openrig`. Holds only the bindings (project layer); the device
+/// `project.yaml`. Holds only the bindings (project layer); the device
 /// profile (which controller to listen to) lives system-side per ADR 0003.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 pub struct RigProjectMidi {

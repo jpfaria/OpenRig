@@ -27,9 +27,14 @@ use project::rig::RigProject;
 
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::ToneDoctorInput;
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
+use crate::player_library::PlayerLibraryDirs;
+use crate::player_state::{PlayerControlState, PlayerSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -130,11 +135,48 @@ pub trait CommandDispatcher {
         MetronomeSnapshot::default()
     }
 
+    /// Hand the dispatcher the backing-track player state it owns. A
+    /// dispatcher nobody attaches one to keeps a private, unpersisted state.
+    fn attach_player_state(&self, _state: Rc<RefCell<PlayerControlState>>) {}
+
+    /// The player's control-plane state, for the frontend that renders it.
+    fn player_snapshot(&self) -> PlayerSnapshot {
+        PlayerSnapshot::default()
+    }
+
+    /// The folders the player's library is listed from.
+    fn player_library(&self) -> PlayerLibraryDirs {
+        PlayerLibraryDirs::default()
+    }
+
+    /// Hand the dispatcher the drum machine state it owns.
+    fn attach_drums_state(&self, _state: Rc<RefCell<DrumsControlState>>) {}
+
+    /// The drum machine's control-plane state, for a frontend to render.
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        DrumsSnapshot::default()
+    }
+
+    /// The kits and grooves installed on this machine.
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        crate::drums::DrumLibrary::default()
+    }
+
     /// #127: share the frontend's per-machine I/O binding registry handle, so
     /// the binding commands mutate the same allocation the frontend renders
     /// from and re-installs on every runtime sync. A transport with no
     /// frontend registry keeps the default no-op.
     fn attach_io_bindings(&self, _registry: Rc<RefCell<Vec<IoBinding>>>) {}
+
+    /// #1007: hand the dispatcher the global mixer state it owns. Attaching
+    /// applies every restored strip to the engine; a transport that hosts no
+    /// audio keeps the default no-op.
+    fn attach_mixer_state(&self, _state: Rc<RefCell<MixerControlState>>) {}
+
+    /// #1007: the global mixer strips with their current settings.
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        Vec::new()
+    }
 }
 
 #[cfg(test)]

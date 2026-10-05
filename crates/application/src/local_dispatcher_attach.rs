@@ -22,7 +22,9 @@ impl LocalDispatcher {
     /// `CommandDispatcher::attach_rig` (see `local_dispatcher_trait.rs`),
     /// which delegates here.
     pub(crate) fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
+        let saved = rig.borrow().bpm;
         *self.rig.borrow_mut() = Some(rig);
+        self.adopt_project_tempo(saved);
     }
 
     /// #555: configure the preset library directory. Called by the
@@ -96,5 +98,12 @@ impl LocalDispatcher {
             }
         }
         loaded
+    }
+
+    /// #827: override where saved looper takes go. `None` ⇒ the OS default
+    /// (`infra_filesystem::default_looper_takes_path`). Production leaves it
+    /// unset; tests attach a temp dir.
+    pub fn attach_looper_takes_path(&self, path: Option<PathBuf>) {
+        *self.looper_takes_path.borrow_mut() = path;
     }
 }

@@ -217,6 +217,13 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperOutputChanged { chain, looper }])
             }
 
+            LooperCommand::DeleteLooperTake { name } => self.delete_looper_take(name),
+            LooperCommand::SaveChainLooperTake {
+                chain,
+                looper,
+                name,
+            } => self.save_looper_take(chain, looper, name),
+
             LooperCommand::SetChainLooperPreset {
                 chain,
                 looper,
@@ -338,7 +345,7 @@ impl LocalDispatcher {
     /// means "this chain's first looper" (uid 0 is never assigned). Any other
     /// value must exist — a transport action for something that does not
     /// exist is a caller bug, never a silent no-op.
-    fn resolve_looper(&self, chain: &domain::ids::ChainId, looper: u64) -> Result<u64> {
+    pub(crate) fn resolve_looper(&self, chain: &domain::ids::ChainId, looper: u64) -> Result<u64> {
         let proj = self.project.borrow();
         let c = proj
             .chains

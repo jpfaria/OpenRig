@@ -23,13 +23,15 @@ use crate::state::ProjectSession;
 /// chain has its meter taps subscribed, polls them, and writes the
 /// per-chain peak dBFS into the matching `ProjectChainItem` rows of
 /// the `project_chains` VecModel. Timer is leaked (lives for the
-/// app's lifetime, like the other polling timers).
+/// app's lifetime, like the other polling timers). `looper_takes_dir` is the
+/// saved-take library every chain's DI picker lists (#827).
 pub fn start_meter_polling(
     taps: std::rc::Rc<dyn AudioTaps>,
     reads: std::rc::Rc<dyn LiveSource>,
     writes: std::rc::Rc<dyn RuntimeControl>,
     project_chains: std::rc::Rc<slint::VecModel<crate::ProjectChainItem>>,
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
+    looper_takes_dir: std::path::PathBuf,
 ) {
     use slint::TimerMode;
     // #715: ~15 Hz, not 30 Hz. The per-frame work of this timer (draining taps,
@@ -62,6 +64,11 @@ pub fn start_meter_polling(
     // cache them here so the per-tick source-list refresh never hits the
     // filesystem.
     let bundled_di_loop_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
+    // #827: the saved looper takes DO change during a session; the catalog
+    // re-lists the folder only when it moved (one stat per tick).
+    let take_catalog = RefCell::new(crate::looper_take_catalog::TakeCatalog::new(
+        looper_takes_dir,
+    ));
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
         let session_borrow = project_session.borrow();
@@ -70,13 +77,25 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
-        // #808: the DI output select lists the chain's bound outputs (offline, no
-        // device needed), so refresh EVERY chain — active or not — else a DI-only
-        // chain (never enabled) shows no output select.
+        // #808/#324: the DI output select lists every output of the project
+        // (offline, no stream needed), so refresh EVERY chain — active or not —
+        // else a DI-only chain (never enabled) shows no output select. Device
+        // names come from the cached enumeration (never blocks the tick).
+        let output_devices = crate::device_refresh_list::list_output_devices();
         crate::di_output_options::apply_di_outputs_to_rows(
             &project_chains,
             &project,
             &session.io_bindings.borrow(),
+            &output_devices,
+        );
+        // #827: the DI source list (bundled loops, saved takes, loaded file)
+        // for every chain too — a DI-only chain is never running.
+        crate::di_source_rows::apply_di_sources_to_rows(
+            &project_chains,
+            &project,
+            |chain| session.dispatcher.di_loop_source_for_chain(chain),
+            &bundled_di_loop_ids,
+            take_catalog.borrow_mut().takes(),
         );
         // #323: same for the looper Record-from / Play-to selects — offline, so
         // a chain that is not started still lists its endpoints.
@@ -84,6 +103,7 @@ pub fn start_meter_polling(
             &project_chains,
             &project,
             &session.io_bindings.borrow(),
+            &output_devices,
         );
         // #323 phase 2: the preset options each looper can play through (the
         // chain's bank), for the drawer's preset picker — offline like the
@@ -154,7 +174,6 @@ pub fn start_meter_polling(
                 writes.as_ref(),
                 &project_chains,
                 &per_stream,
-                &bundled_di_loop_ids,
                 &last_xruns,
                 &last_underruns,
             );
@@ -165,7 +184,7 @@ pub fn start_meter_polling(
 
 /// Refresh a single chain's meter row from the current engine readings.
 /// Computes every per-field delta (aggregate peaks, per-stream rows, DI
-/// playing/meter/sources/outputs, audio overload) and writes the row back
+/// playing/meter/outputs, audio overload) and writes the row back
 /// only when something changed — the timer's per-tick work for one chain,
 /// factored out of `start_meter_polling` so neither is a monolith.
 #[allow(clippy::too_many_arguments)]
@@ -179,7 +198,6 @@ fn refresh_chain_meter_row(
     writes: &dyn RuntimeControl,
     project_chains: &slint::VecModel<crate::ProjectChainItem>,
     per_stream: &[(ChainId, Vec<StreamMeterReading>)],
-    bundled_di_loop_ids: &[String],
     last_xruns: &RefCell<HashMap<ChainId, u64>>,
     last_underruns: &RefCell<HashMap<ChainId, u64>>,
 ) {
@@ -231,6 +249,9 @@ fn refresh_chain_meter_row(
                     || (a.out_dbfs - b.out_dbfs).abs() > 0.05
                     || a.in_label != b.in_label
                     || a.out_label != b.out_label
+                    || a.in_channels != b.in_channels
+                    || a.out_channels != b.out_channels
+                    || a.in_repeated != b.in_repeated
             })
     };
     let aggregate_changed =
@@ -255,40 +276,16 @@ fn refresh_chain_meter_row(
             .map_or(engine::output_meter::SILENT_DBFS, |d| d.out_dbfs),
         in_label: Default::default(),
         out_label: Default::default(),
+        in_channels: Default::default(),
+        out_channels: Default::default(),
+        in_repeated: false,
     };
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
-    // #661: re-derive the loaded source from the dispatcher so the
-    // popup ComboBox (a) lists a user-chosen File as a labelled entry
-    // and (b) highlights the active source when reopened (the popup is
-    // re-instantiated on each show).
-    let loaded_source = session.dispatcher.di_loop_source_for_chain(cid);
-    let bundled_refs: Vec<&str> = bundled_di_loop_ids.iter().map(|s| s.as_str()).collect();
-    let desired_sources = crate::di_loop_ui_sources::build_di_loop_sources_with_loaded(
-        &bundled_refs,
-        loaded_source.as_ref(),
-    );
-    let di_selected_now = loaded_source.as_ref().map_or(-1, |s| {
-        crate::di_loop_ui_sources::di_loop_selected_index(&desired_sources, s)
-    });
-    let di_selected_changed = row.di_loop_selected_index != di_selected_now;
-    let di_sources_changed = {
-        let current: Vec<String> = row.di_loop_sources.iter().map(|s| s.to_string()).collect();
-        current != desired_sources
-    };
-    // #771: keep the DI output select fresh — bindings and the
-    // persisted pick (SetChainDiLoopOutput) both change under the
-    // open panel.
-    let (desired_outputs, di_output_selected_now) =
-        crate::di_output_options::output_labels_and_index(
-            &project.chains[idx],
-            &session.io_bindings.borrow(),
-        );
-    let di_outputs_changed = {
-        let current: Vec<String> = row.di_loop_outputs.iter().map(|s| s.to_string()).collect();
-        current != desired_outputs
-    };
-    let di_output_selected_changed = row.di_output_selected_index != di_output_selected_now;
+    // (the DI source list and its highlighted entry are refreshed for EVERY
+    // chain up front by `di_source_rows::apply_di_sources_to_rows`, #827.)
+    // (the DI output select is refreshed for EVERY chain up front by
+    // `di_output_options::apply_di_outputs_to_rows`, #808.)
     // Issue #670: per-chain audio overload. Catch BOTH failure modes
     // the user hears as crackle — an xrun (the audio callback missed
     // its deadline) or an underrun (the output elastic buffer ran
@@ -357,10 +354,6 @@ fn refresh_chain_meter_row(
         || stream_meters_changed
         || di_changed
         || di_meter_changed
-        || di_selected_changed
-        || di_sources_changed
-        || di_outputs_changed
-        || di_output_selected_changed
         || overload_changed
     {
         row.meter_in_dbfs = in_db;
@@ -373,28 +366,6 @@ fn refresh_chain_meter_row(
         }
         if di_meter_changed {
             row.di_meter = di_meter_now;
-        }
-        if di_sources_changed {
-            row.di_loop_sources = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
-                desired_sources
-                    .into_iter()
-                    .map(slint::SharedString::from)
-                    .collect::<Vec<_>>(),
-            )));
-        }
-        if di_selected_changed {
-            row.di_loop_selected_index = di_selected_now;
-        }
-        if di_outputs_changed {
-            row.di_loop_outputs = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
-                desired_outputs
-                    .into_iter()
-                    .map(slint::SharedString::from)
-                    .collect::<Vec<_>>(),
-            )));
-        }
-        if di_output_selected_changed {
-            row.di_output_selected_index = di_output_selected_now;
         }
         if stream_meters_changed {
             // #715: mutate the existing per-stream model IN PLACE when

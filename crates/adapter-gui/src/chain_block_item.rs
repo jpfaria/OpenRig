@@ -2,7 +2,7 @@
 
 use crate::block_editor::block_parameter_items_for_model;
 use crate::project_view_assets::load_thumbnail_image;
-use project::block::AudioBlockKind;
+use project::block::{AudioBlockKind, SplitEnd};
 use project::catalog::supported_block_type;
 use slint::{ModelRc, VecModel};
 use std::rc::Rc;
@@ -21,6 +21,14 @@ pub(crate) fn chain_block_item_from_block(
             .and_then(|option| option.model_ref())
             .map(|model| (model.effect_type.to_string(), model.model.to_string()))
             .unwrap_or_else(|| ("select".to_string(), "select".to_string())),
+        // #328 (spec §5.4): the split is one chip in the strip and the compact view.
+        AudioBlockKind::Split(split) => (
+            "split".to_string(),
+            match &split.end {
+                SplitEnd::Mix => rust_i18n::t!("picker-split-mix").to_string(),
+                SplitEnd::Y => rust_i18n::t!("picker-split-y").to_string(),
+            },
+        ),
         _ => block
             .model_ref()
             .map(|b| (b.effect_type.to_string(), b.model.to_string()))
@@ -30,10 +38,13 @@ pub(crate) fn chain_block_item_from_block(
     let block_type = supported_block_type(&kind);
     let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
 
-    // I/O and Insert blocks are not registered effect types, so resolve icon_kind/type_label directly
+    // I/O, Insert and Split blocks are not registered effect types, so resolve icon_kind/type_label directly
     let is_io = matches!(
         block.kind,
-        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+        AudioBlockKind::Input(_)
+            | AudioBlockKind::Output(_)
+            | AudioBlockKind::Insert(_)
+            | AudioBlockKind::Split(_)
     );
     let resolved_icon_kind: String = if is_io {
         kind.clone()
@@ -49,6 +60,7 @@ pub(crate) fn chain_block_item_from_block(
             AudioBlockKind::Input(_) => "INPUT",
             AudioBlockKind::Output(_) => "OUTPUT",
             AudioBlockKind::Insert(_) => "INSERT",
+            AudioBlockKind::Split(_) => "SPLIT",
             _ => "BLOCK",
         }
     } else {
@@ -126,3 +138,7 @@ fn collect_block_param_entries(
         })
         .collect()
 }
+
+#[cfg(test)]
+#[path = "chain_block_item_tests.rs"]
+mod tests;

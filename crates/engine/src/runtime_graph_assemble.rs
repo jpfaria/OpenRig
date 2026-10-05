@@ -23,6 +23,7 @@ use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
 use domain::ids::{BlockId, DeviceId};
+use domain::mixer_strip::MixerDirection;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 
 use crate::runtime::{
@@ -73,6 +74,8 @@ pub(crate) fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
+    // Everything the chain's DSP touches is born here: audio memory, wired.
+    let _audio = crate::audio_alloc_scope::audio_allocations();
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -96,6 +99,7 @@ pub(crate) fn assemble_chain_runtime_state(
             segment.output_route_indices.clone(),
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
+            &segment.paths,
             None,
         )?;
         input_states.push(input_state);
@@ -145,7 +149,7 @@ pub(crate) fn assemble_chain_runtime_state(
         if insert_send {
             cushion = cushion.for_an_insert_send();
         }
-        let mut route = build_output_routing_state(output, cushion, route_rate);
+        let mut route = build_output_routing_state(&chain.id, output, cushion, route_rate);
         route.applies_chain_volume = !insert_send;
         output_routes.push(Some(Arc::new(route)));
     }
@@ -200,6 +204,7 @@ pub(crate) fn assemble_chain_runtime_state(
         probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
         input_taps: ArcSwap::from_pointee(Vec::new()),
+        input_capture_ns: std::array::from_fn(|_| AtomicU64::new(0)),
         stream_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
         // Inicializa com chain.volume (issue #440). Callers que precisarem
@@ -221,6 +226,7 @@ pub(crate) fn assemble_chain_runtime_state(
         // Issue #670 — audio-thread deadline accounting, zeroed at build.
         xrun_count: AtomicU64::new(0),
         input_busy_skips: AtomicU64::new(0),
+        input_stepped: std::sync::atomic::AtomicBool::new(false),
         peak_load_ppm: AtomicU64::new(0),
         // Issue #723 — remember the real build rate so the live probe beep
         // is synthesized at the device rate, never a hardcoded 48000.
@@ -237,11 +243,11 @@ pub(crate) fn assemble_chain_runtime_state(
 pub(crate) fn collect_bypass_block_ids(input_states: &[InputProcessingState]) -> HashSet<BlockId> {
     let mut ids = HashSet::new();
     for input_state in input_states {
-        for node in &input_state.blocks {
+        crate::runtime_split::walk::for_each_node(&input_state.blocks, &mut |node| {
             if matches!(node.processor, RuntimeProcessor::Bypass) {
                 ids.insert(node.block_id.clone());
             }
-        }
+        });
     }
     ids
 }
@@ -263,6 +269,7 @@ pub(crate) fn build_input_processing_state(
     output_route_indices: Vec<usize>,
     mid_output_taps: Vec<crate::runtime_segments::SegmentTap>,
     split_mono_sibling_count: Option<usize>,
+    paths: &crate::segment_types::SegmentPaths,
     prebuilt: Option<&mut PrebuiltNodes>,
 ) -> anyhow::Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
@@ -306,8 +313,10 @@ pub(crate) fn build_input_processing_state(
     // effectively mono. A DualMono/Stereo source carries independent
     // channels and is not.
     let source_is_mono = matches!(input_read_layout, AudioChannelLayout::Mono);
+    // #328: every Y split is built as the split THIS segment runs.
+    let segment_chain = split_segment_view::chain_for_segment(chain, paths);
     let (blocks, _output_layout) = build_runtime_block_nodes_with(
-        chain,
+        &segment_chain,
         processing_layout_channel,
         source_is_mono,
         sample_rate,
@@ -316,12 +325,26 @@ pub(crate) fn build_input_processing_state(
         prebuilt,
     )?;
 
+    let mixer_gain = crate::endpoint_fader::EndpointFader::of(
+        &chain.id,
+        MixerDirection::Input,
+        &input.device_id.0,
+        &input.channels,
+    );
+    let mixer_current = mixer_gain.target();
+    let di_gain = crate::chain_mix_gains::chain_di_gain(&chain.id);
+    let di_current = di_gain.target();
     Ok(InputProcessingState {
+        mixer_gain,
+        mixer_current,
+        di_gain,
+        di_current,
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
+        seam_watch: crate::runtime_input_seams::InputSeamWatch::new(&input.channels, sample_rate),
         blocks,
-        frame_buffer: Vec::with_capacity(1024),
+        frame_buffer: Vec::with_capacity(crate::runtime_state::SEGMENT_FRAME_CAPACITY),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
         mid_output_taps,
@@ -390,6 +413,7 @@ pub(crate) fn route_is_written(segments: &[ChainSegment], route_idx: usize) -> b
 }
 
 pub(crate) fn build_output_routing_state(
+    chain_id: &domain::ids::ChainId,
     output: &OutputEntry,
     cushion: crate::route_cushion::RouteCushion,
     sample_rate: f32,
@@ -406,7 +430,16 @@ pub(crate) fn build_output_routing_state(
     }
     // #965: a fresh route is born at its resting cushion (see `route_cushion`).
     buffer.prime(cushion.prime);
+    let mixer_gain = crate::endpoint_fader::EndpointFader::of(
+        chain_id,
+        MixerDirection::Output,
+        &output.device_id.0,
+        &output.channels,
+    );
+    let mixer_current = std::sync::atomic::AtomicU32::new(mixer_gain.target().to_bits());
     OutputRoutingState {
+        mixer_gain,
+        mixer_current,
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
@@ -417,3 +450,7 @@ pub(crate) fn build_output_routing_state(
         applies_chain_volume: true,
     }
 }
+
+// #328: declared here because `lib.rs` is at its router cap.
+#[path = "split_segment_view.rs"]
+pub(crate) mod split_segment_view;

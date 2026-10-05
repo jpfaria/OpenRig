@@ -85,11 +85,15 @@ pub fn migrate_legacy_project(legacy: &Project) -> RigProject {
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
                 loopers: chain.loopers.clone(),
+                disabled_endpoints: chain.disabled_endpoints.clone(),
+                mix: chain.mix.clone(),
+                di_output: chain.di_output.clone(),
             },
         );
     }
 
     RigProject {
+        bpm: None,
         name: legacy.name.clone(),
         inputs,
         outputs,

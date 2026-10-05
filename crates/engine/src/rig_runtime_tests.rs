@@ -60,6 +60,7 @@ pub(super) fn rig(
     presets: Vec<(&str, Vec<AudioBlock>)>,
 ) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()
@@ -89,6 +90,9 @@ pub(super) fn input(binding_id: &str, bank: &[(usize, &str)], active: usize) -> 
         endpoint: String::new(),
         io_binding_ids: vec![binding_id.to_string()],
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
+        di_output: None,
     }
 }
 
@@ -146,6 +150,19 @@ fn bridge_projects_rig_input_loopers_onto_the_chain() {
         }],
         "the rig input's looper must project onto the synthetic chain"
     );
+}
+
+#[test]
+fn bridge_projects_rig_input_mix_onto_the_chain() {
+    // #1007: the chain's own faders live on the RigInput and must come back
+    // on the projected chain, or a reopened project resets them to unity.
+    let mut ri = input("io1", &[(1, "clean")], 1);
+    ri.mix.di_gain_db = -4.5;
+    let r = rig(vec![("input-1", ri)], vec![("clean", vec![fx("d")])]);
+
+    let chains = rig_to_chains(&r);
+
+    assert_eq!(chains[0].mix.di_gain_db, -4.5);
 }
 
 #[test]

@@ -16,6 +16,12 @@ pub(crate) fn invalidate_device_cache() {
     infra_cpal::invalidate_device_cache();
 }
 
+/// The host's output devices, from the cached enumeration: what a wiring
+/// module asks for when it only needs the names, never `infra_cpal` itself.
+pub(crate) fn list_output_devices() -> Vec<AudioDeviceDescriptor> {
+    list_output_device_descriptors().unwrap_or_default()
+}
+
 pub(crate) fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
 ) -> Vec<AudioDeviceDescriptor> {

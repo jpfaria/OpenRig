@@ -65,9 +65,7 @@ pub struct ReadContext<'a> {
 /// Resolve one read into the payload every transport hands back.
 pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String> {
     match kind {
-        QueryKind::ProjectYaml => {
-            infra_yaml::serialize_project(ctx.project).map_err(|e| e.to_string())
-        }
+        QueryKind::ProjectYaml => serde_yaml::to_string(ctx.project).map_err(|e| e.to_string()),
         // The core never enumerates: the list is whatever the frontend that
         // owns an audio host supplies. No host ⇒ an empty listing, not an
         // error — the resource stays addressable. A host that IS there and
@@ -110,6 +108,22 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         }
         QueryKind::ChainToneReport { chain } => Ok(ctx.dispatcher.tone_report_json(chain)),
         QueryKind::MetronomeState => Ok(metronome_state(ctx)),
+        QueryKind::PlayerState => Ok(crate::query_player::player_state_json(
+            &ctx.dispatcher.player_snapshot(),
+            ctx.live.player(),
+            &ctx.dispatcher.player_library(),
+        )),
+        QueryKind::DrumsState => Ok(crate::query_drums::drums_state_json(
+            &ctx.dispatcher.drums_snapshot(),
+            &ctx.dispatcher.drums_library(),
+            ctx.live.drums(),
+        )),
+        QueryKind::MixerState => Ok(crate::query_mixer::mixer_state_json(
+            &ctx.dispatcher.mixer_strips(),
+        )),
+        QueryKind::ChainMixer { chain } => {
+            crate::query_chain_mixer::chain_mixer_json(ctx.project, ctx.io_bindings, chain)
+        }
     }
 }
 

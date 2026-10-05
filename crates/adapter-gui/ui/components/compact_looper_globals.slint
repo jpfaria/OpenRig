@@ -1,0 +1,41 @@
+// Responsibility: carries the compact view's looper section state.
+// #1022 — the compact chain view shows the chain's looper panel inline, in
+// its own window. Rust mirrors the main row's loopers here and forwards every
+// action to the main window's looper callbacks (the same ones the chain row's
+// panel fires), so there is one dispatch path for both views. The first
+// argument of every action is the chain index, the second (where present)
+// the looper uid.
+
+import { LooperItem } from "../models.slint";
+import { LoopEditKind } from "looper_editor_overlay.slint";
+
+export global CompactLooper {
+    in-out property <[LooperItem]> loopers;
+    in-out property <[string]> input-options;
+    in-out property <[string]> output-options;
+    // Index 0 of the picker is "follow the chain"; these are options 1..N.
+    in-out property <[string]> preset-options;
+
+    callback add(int);
+    callback record(int, int);
+    callback play-stop(int, int);
+    callback play-all(int);
+    callback stop-all(int);
+    callback undo(int, int);
+    callback redo(int, int);
+    callback clear(int, int);
+    callback remove(int, int);
+    callback mix-changed(int, int, int);
+    callback decay-changed(int, int, int);
+    callback speed-picked(int, int, int);
+    callback reverse-toggled(int, int, bool);
+    callback input-picked(int, int, int);
+    callback output-picked(int, int, int);
+    callback preset-picked(int, int, int);
+    // #826: the waveform editor, opened in the compact window.
+    callback edit(int, int);
+    callback edit-apply(int, int, LoopEditKind, float, float);
+    callback edit-play-stop(int, int);
+    callback edit-undo(int, int);
+    callback edit-redo(int, int);
+}

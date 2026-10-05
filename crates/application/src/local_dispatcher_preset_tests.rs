@@ -66,6 +66,8 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             blocks: Vec::new(),
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -167,6 +169,8 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             blocks: Vec::new(),
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };
@@ -226,6 +230,8 @@ fn load_chain_preset_rejects_instrument_mismatch() {
             blocks: vec![original_block],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }));
@@ -269,6 +275,8 @@ fn load_chain_preset_accepts_matching_instrument() {
             blocks: Vec::new(),
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }));
@@ -310,6 +318,8 @@ fn load_chain_preset_back_compat_untagged_defaults_to_electric_guitar() {
             blocks: Vec::new(),
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }));

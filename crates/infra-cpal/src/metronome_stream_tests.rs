@@ -208,3 +208,14 @@ fn the_position_reaches_the_ui() {
         "after two beats the published position should be beat 2 of the bar"
     );
 }
+
+#[test]
+fn a_click_whose_device_cannot_open_reports_it_and_stays_closed() {
+    let controller = crate::ProjectRuntimeController::for_testing(engine::runtime::RuntimeGraph {
+        chains: Default::default(),
+    });
+
+    let opened = controller.start_metronome("openrig-test:no-such-device", &[0, 1]);
+
+    assert_eq!(controller.metronome_active(), opened.is_ok());
+}

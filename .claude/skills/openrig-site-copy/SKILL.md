@@ -139,7 +139,7 @@ cd .solvers/issue-N/site && python3 -m http.server 8898
 ```
 
 Then drive it with the Playwright MCP. **Screenshots land in the session's
-working directory — which is the user's main folder, and LEI ZERO forbids
+working directory — which is the user's main folder, and CLAUDE.md law 1 forbids
 writing there.** Pass an absolute `filename` under the scratchpad, and if one
 still lands in the repo root, move it out immediately.
 

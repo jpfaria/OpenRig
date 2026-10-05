@@ -1,0 +1,42 @@
+// Responsibility: renders one labelled button of the loop waveform editor.
+// Split out of looper_editor_overlay.slint (#827) so the save-take dialog can use
+// the same button; the component name is unchanged, so interaction tests that
+// find "EditorButton::area" still address the same controls.
+
+import { Theme } from "../theme.slint";
+
+export component EditorButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    // Follows the (translated) label so it is never cut.
+    min-width: max(78px, lbl.preferred-width + 16px);
+    height: max(34px, lbl.preferred-height + 8px);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
+    background: !root.enabled
+        ? #2a2c3160
+        : (area.has-hover ? #6e8aff28 : #2a2c31);
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.clicked(); }
+
+    lbl := Text {
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        text: root.label;
+        font-size: Theme.min-font;
+        color: root.enabled ? Theme.palette.text-primary : Theme.palette.text-muted;
+    }
+
+    area := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}

@@ -31,40 +31,34 @@ pub(crate) fn wire(
         let project_session = project_session.clone();
         let weak_window = main_weak.clone();
         let toast_timer = toast_timer.clone();
+        // #827: the list carries saved looper takes as well as bundled loops,
+        // so the label resolves through the same parser the chain tile uses.
         compact_win.on_di_loop_source_selected(move |source_str| {
-            let chain_id = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            let source = DiLoopSource::Bundled(source_str.to_string());
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
+            on_source_picked(
+                chain_index,
+                |row| {
+                    crate::di_loop_actions::select_di_loop_source(
+                        &project_session,
+                        row,
+                        &source_str,
+                    )
+                },
+                &weak_window,
+                &toast_timer,
             );
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    if let Some(main_win) = weak_window.upgrade() {
-                        set_status_error(&main_win, &toast_timer, &err.to_string());
-                    }
-                    return;
-                }
-            }
         });
     }
 
     // #771 on_di_loop_output_selected: user picked an output endpoint.
     crate::di_output_select_wiring::wire_compact(compact_win, chain_index, project_session.clone());
+
+    // The DI panel's trash on a saved take.
+    crate::di_take_delete_wiring::wire_compact(
+        compact_win,
+        &project_session,
+        main_weak.clone(),
+        toast_timer.clone(),
+    );
 
     // on_di_loop_choose_file: user picked "Choose file…" — open native dialog.
     {
@@ -158,3 +152,25 @@ pub(crate) fn wire(
         });
     }
 }
+
+/// A DI source picked in the compact window: nothing when the window names no
+/// chain, else `select` for its row; a refusal becomes the main window's toast.
+fn on_source_picked(
+    chain_index: i32,
+    select: impl FnOnce(usize) -> Result<bool, String>,
+    main_weak: &Weak<AppWindow>,
+    toast_timer: &slint::Timer,
+) {
+    if chain_index < 0 {
+        return;
+    }
+    if let Err(err) = select(chain_index as usize) {
+        if let Some(main_win) = main_weak.upgrade() {
+            set_status_error(&main_win, toast_timer, &err);
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "compact_chain_di_callbacks_tests.rs"]
+mod tests;

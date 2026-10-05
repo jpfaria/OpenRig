@@ -118,6 +118,8 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             ],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))
@@ -213,6 +215,8 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             ],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))
@@ -228,6 +232,7 @@ fn move_block_reorders_blocks_and_emits_event() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_2".to_string()),
         new_position: 0,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -261,6 +266,7 @@ fn move_block_past_end_clamps_to_end() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         new_position: 999,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -286,6 +292,7 @@ fn move_block_non_existent_block_returns_err() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         new_position: 0,
+        path: None,
     }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
@@ -315,6 +322,7 @@ fn add_block_inserts_block_and_emits_event() {
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 0,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -347,6 +355,7 @@ fn add_block_past_end_clamps_to_end() {
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 999,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -373,6 +382,7 @@ fn add_block_non_existent_chain_returns_err() {
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 0,
+        path: None,
     }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
@@ -393,6 +403,7 @@ fn add_block_unknown_model_returns_err() {
         kind: "gain".to_string(),
         model_id: "no_such_model".to_string(),
         position: 0,
+        path: None,
     }));
 
     assert!(result.is_err(), "expected Err for unknown model, got Ok");

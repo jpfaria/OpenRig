@@ -6,20 +6,27 @@ use engine::LooperStatus;
 use project::chain::Chain;
 
 /// Populate every chain row's looper Record-from / Play-to endpoint options
-/// from the live bindings — offline, no device needed, so a chain that is not
+/// from the live bindings — offline, no stream needed, so a chain that is not
 /// started still shows its options (mirrors the DI output picker's
-/// `apply_di_outputs_to_rows`). Writes a row back only when its options change.
+/// `apply_di_outputs_to_rows`). Record-from lists the chain's inputs; Play-to
+/// lists every output of the project, named by `devices`. Writes a row back
+/// only when its options change.
 pub fn apply_looper_endpoints_to_rows(
     project_chains: &slint::VecModel<crate::ProjectChainItem>,
     project: &project::project::Project,
     registry: &[domain::io_binding::IoBinding],
+    devices: &[domain::AudioDeviceDescriptor],
 ) {
     use slint::Model;
+    let outputs: Vec<String> = project::project_outputs::output_endpoints(registry, devices)
+        .into_iter()
+        .map(|o| o.label)
+        .collect();
     for (idx, chain) in project.chains.iter().enumerate() {
         let Some(mut row) = project_chains.row_data(idx) else {
             continue;
         };
-        let (inputs, outputs) = project::binding_discovery::chain_endpoint_labels(chain, registry);
+        let (inputs, _) = project::chain_endpoint_options::chain_endpoint_labels(chain, registry);
         let cur_in: Vec<String> = row
             .looper_input_options
             .iter()
@@ -41,7 +48,8 @@ pub fn apply_looper_endpoints_to_rows(
         )));
         row.looper_output_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
             outputs
-                .into_iter()
+                .iter()
+                .cloned()
                 .map(slint::SharedString::from)
                 .collect::<Vec<_>>(),
         )));

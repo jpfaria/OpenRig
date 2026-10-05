@@ -100,6 +100,15 @@ pub enum QueryKind {
     /// to see the tempo it is running at and the beat it is on. Serialized by
     /// [`crate::read`].
     MetronomeState,
+    /// The backing-track player: the track, settings and output the
+    /// dispatcher owns, the live position its stream publishes, and the
+    /// library of tracks it can load. Serialized by
+    /// [`crate::query_player::player_state_json`]; MCP serves it as
+    /// `openrig://player`.
+    PlayerState,
+    /// The drum machine: its settings, the installed kits and grooves, and
+    /// the live bar and beat. Serialized by [`crate::query_drums`].
+    DrumsState,
     /// #923: what each output ROUTE's device stream pulled — callbacks
     /// served, empty pops, and the loudest sample since the previous read,
     /// per (chain, runtime group, route). The per-chain meters say what a
@@ -108,4 +117,15 @@ pub enum QueryKind {
     /// Serialized by [`crate::query_output_routes::output_routes_json`];
     /// MCP serves it as `openrig://routes`.
     OutputRoutes,
+    /// #1007: the global mixer — one strip per configured input and output
+    /// endpoint, with its fader and mute. Read parity for the mixer
+    /// commands. Serialized by [`crate::query_mixer::mixer_state_json`];
+    /// MCP serves it as `openrig://mixer`.
+    MixerState,
+    /// #1007: one chain's own faders — its fader and mute on each strip it
+    /// plays through, plus its DI-loop fader. Read parity for the chain
+    /// mixer commands. Serialized by
+    /// [`crate::query_chain_mixer::chain_mixer_json`]; MCP serves it as
+    /// `openrig://chains/{chain}/mixer`.
+    ChainMixer { chain: domain::ids::ChainId },
 }

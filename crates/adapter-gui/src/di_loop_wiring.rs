@@ -134,8 +134,8 @@ pub fn stop_chain_di_loop(dispatcher: &dyn CommandDispatcher, chain: &ChainId) {
 }
 
 /// #771: the DI panel's OUTPUT select was picked. The index is a position in
-/// the list the panel is showing, so it is resolved against the same options
-/// builder here; the endpoint it names then travels as
+/// the list the panel is showing — every output of the project — so it is
+/// resolved against that same list here; the endpoint it names then travels as
 /// `ChainCommand::SetChainDiLoopOutput`.
 pub fn select_chain_di_output(
     dispatcher: &dyn CommandDispatcher,
@@ -143,15 +143,15 @@ pub fn select_chain_di_output(
     registry: &[domain::io_binding::IoBinding],
     output_index: usize,
 ) {
-    let Some(chain_def) = dispatcher.chain_snapshot(chain) else {
+    if dispatcher.chain_snapshot(chain).is_none() {
         return;
-    };
-    let options = crate::di_output_options::build_di_output_options(&chain_def, registry);
-    let Some(option) = options.get(output_index) else {
+    }
+    let outputs = project::project_outputs::output_endpoints(registry, &[]);
+    let Some(output) = crate::di_output_options::di_output_ref(&outputs, output_index) else {
         return;
     };
     let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopOutput {
         chain: chain.clone(),
-        output: option.di_ref.clone(),
+        output,
     }));
 }

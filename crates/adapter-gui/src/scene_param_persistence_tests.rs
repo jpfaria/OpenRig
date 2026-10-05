@@ -2,7 +2,7 @@
 //! parâmetros na scene". Exercises the same path the GUI follows:
 //! create a chain, add an effect block, switch to scene 2, edit a
 //! param, dispatch CaptureRigEdits (which is what build_rig_for_save
-//! runs before save_rig_project_file), and confirm the rig actually
+//! runs before save_project_file), and confirm the rig actually
 //! holds the override.
 
 use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
@@ -78,6 +78,7 @@ fn setup_one_chain_with_gate(s: &Sandbox) -> (ProjectSession, BlockId) {
             kind: "dynamics".into(),
             model_id: "gate_basic".into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     // Pull the new block id from the project.

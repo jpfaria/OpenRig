@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// #717: a reference to one of a chain's already-bound output endpoints,
 /// identifying the endpoint by its binding id + endpoint name (a name alone is
 /// not unique across the chain's bindings). Used to route the dedicated DI
-/// stream to a chosen output. Travels with the chain in `project.openrig`.
+/// stream to a chosen output. Travels with the chain in `project.yaml`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DiOutputRef {
     pub binding_id: String,

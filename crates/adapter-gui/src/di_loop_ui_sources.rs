@@ -16,7 +16,7 @@
 //! Both functions are pure (no I/O, no Slint). Tested in
 //! `tests/issue_614_di_loop_ui_sources.rs`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use application::di_loader::DiLoopSource;
 
@@ -114,6 +114,50 @@ pub fn di_loop_selected_index(sources: &[String], source: &DiLoopSource) -> i32 
         .map_or(-1, |pos| pos as i32)
 }
 
+/// #827: the ComboBox source list with the saved looper takes.
+///
+/// Bundled ids; then every take of the app-wide library by its
+/// [`di_loop_file_label`]; then a loaded hand-picked File when it is not one
+/// of those (a loaded take is already listed, so it is never doubled); then
+/// [`CHOOSE_FILE_SENTINEL`].
+pub fn build_di_loop_sources_with_takes(
+    bundled_ids: &[&str],
+    takes: &[PathBuf],
+    loaded: Option<&DiLoopSource>,
+) -> Vec<String> {
+    let mut result: Vec<String> = bundled_ids.iter().map(|id| id.to_string()).collect();
+    for take in takes {
+        let label = di_loop_file_label(take);
+        if !result.contains(&label) {
+            result.push(label);
+        }
+    }
+    if let Some(DiLoopSource::File(path)) = loaded {
+        let label = di_loop_file_label(path);
+        if !result.contains(&label) {
+            result.push(label);
+        }
+    }
+    result.push(CHOOSE_FILE_SENTINEL.to_string());
+    result
+}
+
+/// #827: map a picked entry back to a source, saved takes included — a take
+/// is a [`DiLoopSource::File`] pointing into the library, the same source a
+/// hand-picked file is.
+pub fn parse_di_loop_source_with_takes(
+    selected: &str,
+    bundled_ids: &[&str],
+    takes: &[PathBuf],
+) -> Option<DiLoopSource> {
+    parse_di_loop_source(selected, bundled_ids).or_else(|| {
+        takes
+            .iter()
+            .find(|take| di_loop_file_label(take) == selected)
+            .map(|take| DiLoopSource::File(take.clone()))
+    })
+}
+
 /// Map a selected ComboBox entry back to a [`DiLoopSource`].
 ///
 /// Returns `None` for the sentinel or any unknown string so the caller
@@ -126,4 +170,15 @@ pub fn parse_di_loop_source(selected: &str, bundled_ids: &[&str]) -> Option<DiLo
         return Some(DiLoopSource::Bundled(selected.to_string()));
     }
     None
+}
+
+/// Per entry of `sources`, whether it is a saved take of the library —
+/// the only entries the DI panel offers to delete. A bundled loop, a
+/// hand-picked file outside the library and the sentinel never are.
+pub fn di_loop_take_rows(sources: &[String], takes: &[PathBuf]) -> Vec<bool> {
+    let labels: Vec<String> = takes.iter().map(|take| di_loop_file_label(take)).collect();
+    sources
+        .iter()
+        .map(|source| labels.contains(source))
+        .collect()
 }

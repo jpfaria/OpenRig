@@ -1,0 +1,32 @@
+#!/bin/bash
+# Responsibility: blocks a push to a branch with an open PR until scripts/pr-check.sh passes.
+#
+# Installed by scripts/solver-setup.sh (core.hooksPath = scripts/hooks). A push
+# to a branch with no PR goes straight through; `gh` unavailable counts as
+# "maybe a PR", so the check runs. A push whose commits touch only Markdown has
+# nothing to compile and goes through too. GH and PR_CHECK override the tools (tests).
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+gh_bin="${GH:-gh}"
+check="${PR_CHECK:-$repo_root/scripts/pr-check.sh}"
+
+needs_check=0
+# Whether local_sha brings anything but Markdown over remote_sha; unknown ⇒ yes.
+brings_code() {
+    local files
+    files="$(git diff --name-only "$2" "$1" 2>/dev/null)" || return 0
+    printf '%s\n' "$files" | grep -qv '\.md$'
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_ref" = "(delete)" ] && continue
+    brings_code "$local_sha" "$remote_sha" || continue
+    branch="${remote_ref#refs/heads/}"
+    open="$("$gh_bin" pr list --head "$branch" --state open --json number -q length 2>/dev/null)" || open=unknown
+    [ "$open" = 0 ] || needs_check=1
+done
+
+[ "$needs_check" = 1 ] || exit 0
+echo "pre-push: the branch has an open PR, running scripts/pr-check.sh" >&2
+"$check" || { echo "pre-push: pr-check failed, push blocked" >&2; exit 1; }

@@ -24,6 +24,9 @@ fn rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     inputs.insert(
@@ -39,9 +42,13 @@ fn rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs,
         outputs: BTreeMap::new(),
@@ -168,7 +175,7 @@ fn bank_scene_acts_on_selected_input_only_shared_timbre() {
 #[test]
 fn open_and_create_project_emit_intent_effects_only() {
     let mut s = BankSceneState::from_project(&rig());
-    let p = PathBuf::from("/x/project.openrig");
+    let p = PathBuf::from("/x/project.yaml");
     assert_eq!(
         s.apply(BankSceneEvent::OpenProject(p.clone())),
         vec![BankSceneEffect::OpenProject(p.clone())]
@@ -182,6 +189,7 @@ fn open_and_create_project_emit_intent_effects_only() {
 #[test]
 fn no_project_state_has_no_inputs() {
     let empty = RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),

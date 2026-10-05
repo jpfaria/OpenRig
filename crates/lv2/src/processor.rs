@@ -26,6 +26,12 @@ pub struct Lv2Processor {
     _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
+    /// Slot the plugin's latency port writes into (#328), boxed so its
+    /// address stays put while the port is connected to it.
+    latency_out: Box<f32>,
+    /// Latency the plugin published on that port, in samples, read once at
+    /// build (#328). 0 when the plugin declares no latency port.
+    latency: usize,
     /// Dummy atom buffer for MIDI/atom sidechain ports.
     _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
@@ -144,6 +150,8 @@ impl Lv2Processor {
             out_buf,
             _dummy_out_buf: dummy_out_buf,
             control_values,
+            latency_out: Box::new(0.0),
+            latency: 0,
             _atom_buf: atom_buf,
         }
     }
@@ -154,6 +162,32 @@ impl Lv2Processor {
         if control_index < self.control_values.len() {
             self.control_values[control_index] = value;
         }
+    }
+
+    /// Point the plugin's latency port at this processor's own slot, let the
+    /// plugin publish its latency on one silent sample, and keep the value
+    /// (#328). Build time only — never on the audio thread.
+    pub fn with_latency_port(mut self, port_idx: usize) -> Self {
+        unsafe {
+            self.plugin.connect_port(
+                port_idx as u32,
+                &mut *self.latency_out as *mut f32 as *mut c_void,
+            );
+        }
+        self.in_buf[0] = 0.0;
+        self.plugin.run(1);
+        self.latency = latency_from_port(*self.latency_out);
+        self
+    }
+}
+
+/// Samples a plugin's latency-port value stands for (#328): rounded, and 0
+/// for a negative or broken report.
+pub(crate) fn latency_from_port(value: f32) -> usize {
+    if value.is_finite() && value > 0.0 {
+        value.round() as usize
+    } else {
+        0
     }
 }
 
@@ -176,4 +210,12 @@ impl MonoProcessor for Lv2Processor {
         // Copy output back
         buffer[..len].copy_from_slice(&self.out_buf[..len]);
     }
+
+    fn latency_samples(&self) -> usize {
+        self.latency
+    }
 }
+
+#[cfg(test)]
+#[path = "processor_tests.rs"]
+mod tests;

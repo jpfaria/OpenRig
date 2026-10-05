@@ -87,6 +87,24 @@ pub enum LooperCommand {
         file: Option<String>,
     },
 
+    /// #827: keep a looper's recorded mixdown as a named take in the app-wide
+    /// take library (`<data-root>/looper-takes/<name>.wav`), where every
+    /// project sees it and any chain's DI can play it as a
+    /// `DiLoopSource::File`. Refused when the looper holds no audio or a take
+    /// with that name already exists — a take is never overwritten.
+    /// `looper: 0` ⇒ the chain's first looper.
+    SaveChainLooperTake {
+        chain: ChainId,
+        looper: u64,
+        name: String,
+    },
+
+    /// Delete a saved take from the app-wide take library. `name` is
+    /// its file name as the DI picker lists it (`.wav` optional). Every chain
+    /// whose DI has that take loaded stops and unloads it. Refused for a name
+    /// that is not a plain file of the library, or a take that is not there.
+    DeleteLooperTake { name: String },
+
     /// #323 phase 2: link a looper to the preset whose effects it plays through.
     /// The loop records DRY; this id says WHICH preset renders it, so switching
     /// the chain's live preset to solo does not change the loop's tone. Set to

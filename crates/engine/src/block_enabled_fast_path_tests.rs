@@ -78,6 +78,8 @@ fn test_chain() -> Chain {
         blocks: vec![core_block(BLOCK_ID, "reverb", "room")],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

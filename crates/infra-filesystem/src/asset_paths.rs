@@ -50,6 +50,12 @@ pub struct AssetPaths {
     /// lives in `config.yaml`, not the project YAML.
     #[serde(default)]
     pub evaluations_path: Option<PathBuf>,
+    /// User-chosen directory holding the user's own backing tracks. `None`
+    /// keeps the OS default resolved by [`default_backing_tracks_path`]. The
+    /// tracks bundled with the app live apart, in
+    /// [`bundled_backing_tracks_path`].
+    #[serde(default)]
+    pub backing_tracks_path: Option<PathBuf>,
 }
 
 impl Default for AssetPaths {
@@ -61,6 +67,7 @@ impl Default for AssetPaths {
             presets_path: None,
             plugins_path: None,
             evaluations_path: None,
+            backing_tracks_path: None,
         }
     }
 }
@@ -146,6 +153,7 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         presets_path: paths.presets_path,
         plugins_path: paths.plugins_path,
         evaluations_path: paths.evaluations_path,
+        backing_tracks_path: paths.backing_tracks_path,
     }
 }
 
@@ -162,6 +170,25 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
 /// actually write into it.
 pub fn default_evaluations_path() -> PathBuf {
     user_data_root().join("evaluations")
+}
+
+/// #827: OS default for the app-wide library of saved looper takes
+/// (`<user data root>/looper-takes`). Every project sees it; the DI source
+/// picker lists it. Returned without creating it.
+pub fn default_looper_takes_path() -> PathBuf {
+    user_data_root().join("looper-takes")
+}
+
+/// OS default for the user's own backing tracks
+/// (`<user data root>/backing-tracks`). Returned without creating it.
+pub fn default_backing_tracks_path() -> PathBuf {
+    user_data_root().join("backing-tracks")
+}
+
+/// Where the backing tracks bundled with the app live
+/// (`<data root>/assets/backing-tracks`).
+pub fn bundled_backing_tracks_path() -> PathBuf {
+    detect_data_root().join("assets/backing-tracks")
 }
 
 /// #582: OS-specific user data root for OpenRig

@@ -67,9 +67,15 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::ChainQualityReport {
             chain: chain.clone(),
         },
-        QueryKind::ChainToneReport { chain },
+        QueryKind::ChainToneReport {
+            chain: chain.clone(),
+        },
         QueryKind::MetronomeState,
+        QueryKind::PlayerState,
+        QueryKind::DrumsState,
         QueryKind::OutputRoutes,
+        QueryKind::MixerState,
+        QueryKind::ChainMixer { chain },
     ]
 }
 
@@ -107,6 +113,8 @@ fn one_chain_project() -> Project {
                 output: None,
                 preset: None,
             }],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }

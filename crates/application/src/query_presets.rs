@@ -38,9 +38,8 @@ pub fn list_chain_presets(rig: &RigProject, chain_id: &ChainId) -> Result<String
             slots.push(',');
         }
         first = false;
-        let label = rig
-            .presets
-            .get(preset_key)
+        let preset = rig.presets.get(preset_key);
+        let label = preset
             .and_then(|p| p.name.clone())
             .unwrap_or_else(|| preset_key.clone());
         let _ = write!(

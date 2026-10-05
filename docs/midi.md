@@ -1,4 +1,4 @@
-# Control OpenRig with a MIDI controller (#22)
+# Control OpenRig with a MIDI controller
 
 You can drive OpenRig live with **any** MIDI controller — a footswitch,
 a pedalboard, a knob/fader box, an expression pedal, an iPad app. There
@@ -46,19 +46,19 @@ structured object the GUI/MCP produces (can't be a single control).
 | 12 | `MoveChainDown` | Move a chain down | `{ chain: id }` | **Note 73** |
 | 13 | `RemoveChain` | Remove a chain | `{ chain: id }` | **Note 74** |
 | 14 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` | **Note 75** |
-| 15 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` | **Note 76** |
+| 15 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint, path?: object }` | **Note 76** |
 | 16 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` | **Note 77** |
 | 17 | `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` | **Note 78** |
 | 18 | `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` | **Note 79** |
 | 19 | `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` | **Note 80** |
 | 20 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` | **Note 81** |
 | 21 | `UpdateProjectName` | Rename the project | `{ name: text }` | **Note 82** |
-| 22 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` | **Note 83** |
+| 22 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint, path?: object }` | **Note 83** |
 | 23 | `SetChainVolume` | Chain volume (turn a knob) | `{ chain: id }` + `scale: { min: 0, max: 200 }` | **CC 7** |
 | 24 | `SetBlockParameterNumber` | A numeric param (turn a knob) | `{ chain: id, block: id, path: text }` + `scale` | **CC 8** |
 | 25 | `ApplyRigNav` | Jump to a fixed preset position | `{ chain: id, kind: { Preset: n } }` | one Note per `n`, or **Program Change** |
 | 26 | `ApplyRigNav` | Jump to a fixed scene | `{ chain: id, kind: { Scene: n } }` | one Note per `n`, or **Program Change** |
-| 27 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` | — GUI/MCP (structured object) |
+| 27 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint, path?: object }` | — GUI/MCP (structured object) |
 | 28 | `OverwriteBlock` | Replace a block wholesale | `{ chain: id, block: id, replacement: object }` | — GUI/MCP (structured object) |
 | 29 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` | — GUI/MCP (structured object) |
 | 30 | `AddChain` / `ConfigureChain` / `SaveChain` | Add / configure / save a chain | `{ chain: object }` | — GUI/MCP (structured object) |
@@ -80,11 +80,11 @@ ids on the Chains screen (`rig:<input>` for rig chains).
 
 ## Turn it on
 
-Bindings can live in two places after #499 (see ADR 0003 for the rule):
+Bindings can live in two places (see ADR 0003 for the rule):
 
-- **Inside your project** (`project.openrig`, under `midi.bindings`) —
+- **Inside your project** (`project.yaml`, under `midi.bindings`) —
   travels with the rig: the same setlist behaves identically on every
-  machine. Edit via the in-app editor (#493) or by hand.
+  machine. Edit via the in-app editor or by hand.
 - **System-wide fallback** (`midi-bindings.yaml`) — used when the open
   project has no `midi:` field.
 
@@ -103,9 +103,9 @@ The recommended way to create project bindings is the **Settings screen**:
    captured automatically.
 4. Pick a Command from the list and fill in any required arguments.
 5. Repeat for each binding. Bindings are saved to `midi.bindings` inside
-   your `.openrig` project file.
+   your `project.yaml` project file.
 
-Enable MIDI. Two ways (#712):
+Enable MIDI. Two ways:
 
 - **Persistent (recommended):** **Settings → System / Integrations →
   MIDI control surface**. This flips `midi_enabled` in `config.yaml` (a
@@ -135,7 +135,7 @@ silently ignores a binding.
 > | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
 > | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
 
-### Upgrading from a pre-#499 `midi-map.yaml`
+### Upgrading from a legacy `midi-map.yaml`
 
 If you already had `midi-map.yaml` in your config folder, **OpenRig
 migrates it on first launch**: the `input:` field moves to
@@ -148,7 +148,7 @@ going forward.
 ### Per-project bindings
 
 To override the system fallback for a specific rig, add a `midi:` block
-to your `project.openrig`:
+to your `project.yaml`:
 
 ```yaml
 midi:
@@ -172,7 +172,7 @@ human-readable **alias** for each port (e.g. rename "Chocolate MIDI 1" to
 "Lead guitar board") — the alias appears in the MIDI mapping editor when
 you pick a binding source, making it easy to tell devices apart. Aliases
 and enable/disable state are per-machine; they persist to `config.yaml`
-and do not travel with the `.openrig`.
+and do not travel with the `project.yaml`.
 
 ### MIDI device identity and the alias system
 
@@ -245,6 +245,7 @@ it. A map line is always:
 ```
 
 `kind` is `note_on` (button), `cc` (knob — add `scale: { min, max }`),
+`pitch_bend` (a 14-bit fader, e.g. a Mackie Control strip — add `scale`),
 or `program_change`. Below is **the complete list** — `command` is the
 exact name, `args` is what goes in the line.
 
@@ -264,11 +265,11 @@ below is bindable.
 | 5 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` |
 | 6 | `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` |
 | 7 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` |
-| 8 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` |
-| 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` |
+| 8 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint, path?: object }` |
+| 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint, path?: object }` |
 | 10 | `OverwriteBlock` | Replace a block | `{ chain: id, block: id, replacement: object }` |
 | 11 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` |
-| 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` |
+| 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint, path?: object }` |
 | 13 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` |
 | 14 | `AddChain` | Add a chain | `{ chain: object }` |
 | 15 | `ConfigureChain` | Reconfigure a chain | `{ chain: object }` |
@@ -298,9 +299,99 @@ below is bindable.
 `{ StepPreset: int }` (relative, e.g. `-1`/`1`, wraps) ·
 `{ StepScene: int }` (relative, wraps).
 
+`path?` is optional: `{ split: id, path: 0 }` puts the block into path
+`path` (0-based; the GUI shows path 0 as A) of the split whose block id is
+`split`. Leave it out for the chain's top level.
+
+A split's own knobs (`level_to_0`, `mix_pan_1`, `mix_master`, …) are
+mapped like any block parameter: `SetBlockParameterNumber` (or `Bool` /
+`Text`) with `block` = the split's block id. A chain can hold a Mix and
+a Y, so each split's knobs are addressed by that split's own id (listed
+by `openrig://ids`).
+
 That is **all 34 commands** (enum order). The 7 live actions in the
 standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
 ★32 `SelectChainBlock` (block 0/1), ★28 `SetChainVolume` on a knob.
+
+---
+
+## Global mixer strips and control surfaces
+
+Every input and output endpoint of the machine's I/O bindings is a mixer
+strip (see `docs/screens.md` → Mixer). The strip id is the one
+`openrig://mixer` lists, e.g. `in:0@<device>` or `out:0,1@<device>`.
+
+| `command` | What it does | `args` |
+|---|---|---|
+| `SetMixerFader` | Move a strip's fader (dB, `-60..=+12`, 0 = unity) | `{ strip: text, gain_db: num }` — fader via `scale: { min: -60, max: 12, into: gain_db }` |
+| `SetMixerMute` | Mute / unmute a strip | `{ strip: text, muted: bool }` |
+| `ToggleMixerMute` | Flip a strip's mute (a MUTE button) | `{ strip: text }` |
+| `SetMixerSolo` | Solo / unsolo a strip | `{ strip: text, soloed: bool }` |
+| `ToggleMixerSolo` | Flip a strip's solo (a SOLO button) | `{ strip: text }` |
+
+SOLO silences every strip of the **same side** that is not soloed (an input
+solo never touches the outputs, and the other way round). Several solos on
+one side add up; clearing the last one restores the side. A solo never
+moves the stored fader and adds no latency.
+
+A Mackie Control surface (e.g. SMC-Mixer) sends each strip's fader as
+Pitch Bend on channels 1–8, each SOLO button as Note On `8..=15` and each
+MUTE button as Note On `16..=23`:
+
+```yaml
+input: SMC-Mixer
+bindings:
+  - source: { kind: pitch_bend, channel: 1 }
+    command: SetMixerFader
+    args: { strip: "in:0@<device>" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+  - source: { kind: note_on, channel: 1, note: 8 }
+    command: ToggleMixerSolo
+    args: { strip: "in:0@<device>" }
+  - source: { kind: note_on, channel: 1, note: 16 }
+    command: ToggleMixerMute
+    args: { strip: "in:0@<device>" }
+```
+
+**Feedback (motor faders, LEDs).** With a map loaded through
+`--midi=PATH`, OpenRig sends each mixer change back to the controller,
+whoever made it (GUI, MCP, the surface): a `pitch_bend` fader gets its
+14-bit position, a `cc` fader its 0–127 position, a `note_on` mute or
+solo button gets velocity 127 (lit) or 0 (dark). Feedback goes only to the MIDI outputs
+whose name contains the map's `input:` — no `input:`, no feedback, so
+unrelated gear never receives fader bytes. The profile path (`--midi`
+without a path) has no per-strip bindings and sends no feedback; the
+external `mackie-control` bridge drives the mixer through the MCP tools
+and `openrig://mixer` instead.
+
+### A chain's own faders
+
+The compact chain view gives each chain its **own** fader and mute on every
+endpoint it plays through, on top of that endpoint's global strip, plus a
+fader for its DI loop. The chain fader multiplies with the global one and
+never moves it or any other chain. It is project data: it travels with
+`project.yaml`. `strip` is the global strip id of the endpoint.
+
+| `command` | What it does | `args` |
+|---|---|---|
+| `SetChainMixerFader` | Move the chain's fader on one endpoint (dB, `-60..=+12`) | `{ chain: id, strip: text, gain_db: num }` — via `scale: { min: -60, max: 12, into: gain_db }` |
+| `SetChainMixerMute` | Mute / unmute the chain on one endpoint | `{ chain: id, strip: text, muted: bool }` |
+| `ToggleChainMixerMute` | Flip the chain's mute on one endpoint | `{ chain: id, strip: text }` |
+| `SetChainDiFader` | Move the chain's DI-loop fader (dB, `-60..=+12`) | `{ chain: id, gain_db: num }` — via `scale` |
+
+```yaml
+bindings:
+  - source: { kind: cc, channel: 1, controller: 20 }
+    command: SetChainMixerFader
+    args: { chain: "rig:guitar", strip: "out:0,1@<device>" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+```
+
+The chain faders send no controller feedback (only the global strips do).
+
+The compact view's other chain faders map to existing commands: MASTER is
+the chain volume (`SetChainVolume`) and each LOOPER fader is that looper's
+mix (`SetChainLooperParam` with `Mix`).
 
 ---
 

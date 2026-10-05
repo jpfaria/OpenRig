@@ -377,14 +377,13 @@ fn tapping_twice_sets_the_tempo_for_every_transport() {
 }
 
 /// The persisted per-machine settings are the dispatcher's starting point, so
-/// a click started over MCP on a freshly opened app plays the user's tempo and
-/// not a hardcoded 120.
+/// a click started over MCP on a freshly opened app sounds the way the user
+/// left it. The tempo is the project's (#1050), so it starts at the default.
 #[test]
 fn the_persisted_config_seeds_the_dispatchers_settings() {
     let (dispatcher, calls) = spied();
     dispatcher.attach_metronome_state(Rc::new(RefCell::new(MetronomeControlState::restored(
         &MetronomeConfig {
-            bpm: 76.0,
             beats_per_bar: 6,
             subdivision: "eighths".into(),
             timbre: "beep".into(),
@@ -402,7 +401,7 @@ fn the_persisted_config_seeds_the_dispatchers_settings() {
         .expect("SetMetronomeEnabled must succeed");
 
     let expected = describe(MetronomeSettings {
-        bpm: 76.0,
+        bpm: 120.0,
         beats_per_bar: 6,
         subdivision: Subdivision::Eighths,
         timbre: Timbre::Beep,

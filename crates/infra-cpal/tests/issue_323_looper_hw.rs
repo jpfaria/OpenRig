@@ -126,6 +126,8 @@ fn recording_and_overdubbing_on_real_streams_costs_no_xrun() {
             }],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

@@ -8,11 +8,11 @@
 //!    `hw:<N>` lookup against the USB cards, or first running named
 //!    server fallback).
 //! 2. Open a `jack::Client` against that server with retry-200ms × 5 to
-//!    ride out the libjack "shm not yet up" race documented in #294 /
-//!    #308.
+//!    ride out the libjack "shm not yet up" race.
 //! 3. Register one input port per max(device_in_ch, chain's selected
-//!    channels) and one output port per max(device_out_ch, …) so the
-//!    AsyncClient port shape stays stable across channel-toggle edits.
+//!    channels) and, per output route of the runtime (#328), one output
+//!    port per max(device_out_ch, …) so the AsyncClient port shape stays
+//!    stable across channel-toggle edits.
 //! 4. Allocate the SPSC ring + scratch buffers at MAX_JACK_FRAMES so a
 //!    later `jack_set_buffer_size` cannot trigger a realloc on the audio
 //!    thread.
@@ -39,10 +39,14 @@ use project::chain::Chain;
 
 use crate::active_runtime::DspWorkerHandle;
 use crate::cpu_affinity::{detect_big_cores, pin_thread_to_cpus};
-use crate::jack_handlers::{JackProcessHandler, JackShutdownHandler, SpscRingBuffer};
-use crate::jack_supervisor;
+use crate::jack_client_open::open_jack_client;
+use crate::jack_handlers::{
+    JackProcessHandler, JackRouteOutput, JackShutdownHandler, SpscRingBuffer,
+};
+use crate::jack_route_ports::route_ports;
+use crate::jack_server_resolve::resolve_jack_server;
 use crate::resolved::MAX_JACK_FRAMES;
-use crate::usb_proc::{detect_all_usb_audio_cards, jack_server_is_running_for};
+use crate::usb_proc::detect_all_usb_audio_cards;
 
 pub(crate) fn build_jack_direct_chain(
     chain_id: &ChainId,
@@ -59,26 +63,12 @@ pub(crate) fn build_jack_direct_chain(
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     // Determine which named JACK server this chain should connect to.
     let cards = detect_all_usb_audio_cards();
-    let server_name = resolved_inputs
-        .iter()
-        .find_map(|entry| {
-            if let Some(name) = entry.device_id.0.strip_prefix("jack:") {
-                return Some(name.to_string());
-            }
-            if let Some(hw_num) = entry.device_id.0.strip_prefix("hw:") {
-                if let Some(card) = cards.iter().find(|c| c.card_num == hw_num) {
-                    return Some(card.server_name.clone());
-                }
-            }
-            None
-        })
-        .or_else(|| {
-            cards
-                .iter()
-                .find(|c| jack_server_is_running_for(&c.server_name))
-                .map(|c| c.server_name.clone())
-        })
-        .unwrap_or_else(|| "default".to_string());
+    let server_name = resolve_jack_server(
+        &cards,
+        resolved_inputs
+            .iter()
+            .map(|entry| entry.device_id.0.as_str()),
+    );
 
     log::info!(
         "build_jack_direct_chain: chain '{}' → JACK server '{}'",
@@ -87,43 +77,7 @@ pub(crate) fn build_jack_direct_chain(
     );
 
     let client_name = format!("openrig_{}", chain_id.0);
-    // Retry up to 5 times with 200ms between attempts.
-    // The JACK UNIX socket appears before the shm segments are fully initialized,
-    // so the first connection attempt can fail with "Cannot open shm segment".
-    let result =
-        (|| {
-            for attempt in 0..5u32 {
-                let _lock = jack_supervisor::live_backend::JACK_DEFAULT_SERVER_LOCK
-                    .lock()
-                    .unwrap();
-                std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
-                let r = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
-                std::env::remove_var("JACK_DEFAULT_SERVER");
-                drop(_lock);
-                match r {
-                    Ok(ok) => return Ok(ok),
-                    Err(e) => {
-                        if attempt < 4 {
-                            log::warn!(
-                            "JACK client '{}' connect attempt {} failed ({:?}), retrying in 200ms",
-                            client_name, attempt + 1, e
-                        );
-                            std::thread::sleep(std::time::Duration::from_millis(200));
-                        } else {
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            unreachable!()
-        })();
-    let (client, _status) = result.map_err(|e| {
-        anyhow!(
-            "failed to create JACK client for server '{}': {:?}",
-            server_name,
-            e
-        )
-    })?;
+    let client = open_jack_client(&server_name, &client_name)?;
 
     let sample_rate = client.sample_rate() as f32;
     let buf_size = client.buffer_size() as usize;
@@ -188,12 +142,26 @@ pub(crate) fn build_jack_direct_chain(
         input_ports.push(port);
     }
 
-    let mut output_ports = Vec::new();
-    for i in 0..max_out_ch {
-        let port = client
-            .register_port(&format!("out_{}", i + 1), jack::AudioOut::default())
-            .map_err(|e| anyhow!("failed to register JACK output port {}: {:?}", i, e))?;
-        output_ports.push(port);
+    // #328: every output route of the runtime gets its own port set, one
+    // port per device channel (route 0 keeps the historical `out_N` names).
+    // Two routes on one channel are summed by JACK at the playback port.
+    let route_layout = route_ports(runtime.output_route_count(), max_out_ch);
+    let mut outputs = Vec::with_capacity(route_layout.len());
+    for group in &route_layout {
+        let mut ports = Vec::with_capacity(group.ports.len());
+        for port in &group.ports {
+            let registered = client
+                .register_port(&port.name, jack::AudioOut::default())
+                .map_err(|e| {
+                    anyhow!("failed to register JACK output port {}: {:?}", port.name, e)
+                })?;
+            ports.push(registered);
+        }
+        outputs.push(JackRouteOutput {
+            route: group.route,
+            buf: vec![0.0f32; MAX_JACK_FRAMES * ports.len().max(1)],
+            ports,
+        });
     }
 
     // Set up DSP worker thread with ring buffer. Size the slot for the
@@ -215,9 +183,8 @@ pub(crate) fn build_jack_direct_chain(
         // JackProcessHandler::process never reallocates when jackd raises
         // the per-callback `n_frames` via jack_set_buffer_size.
         input_buf: vec![0.0f32; MAX_JACK_FRAMES * input_ports.len().max(1)],
-        output_buf: vec![0.0f32; MAX_JACK_FRAMES * output_ports.len().max(1)],
         input_ports,
-        output_ports,
+        outputs,
         runtime: Arc::clone(&runtime),
         input_ring: Some(Arc::clone(&ring)),
         worker_wake: Some(Arc::clone(&wake)),
@@ -240,6 +207,8 @@ pub(crate) fn build_jack_direct_chain(
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
+            // Whatever a block allocates while it plays is audio memory.
+            engine::audio_alloc_scope::mark_audio_thread();
             // Pin to big cores (A76 on RK3588)
             let big_cores = detect_big_cores();
             if !big_cores.is_empty() {
@@ -348,10 +317,10 @@ pub(crate) fn build_jack_direct_chain(
             log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
         }
     }
-    for i in 0..max_out_ch {
-        let src = format!("{}:out_{}", client_name, i + 1);
-        let dst = format!("system:playback_{}", i + 1);
-        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+    for port in route_layout.iter().flat_map(|group| group.ports.iter()) {
+        let src = format!("{}:{}", client_name, port.name);
+        let dst = &port.playback;
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, dst) {
             log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
         }
     }

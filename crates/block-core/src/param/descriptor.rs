@@ -30,6 +30,9 @@ pub struct BlockParameterDescriptor {
     pub current_value: ParameterValue,
     pub optional: bool,
     pub allow_empty: bool,
+    /// Display label per step of a stepped numeric control (#1011).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub value_labels: Vec<String>,
 }
 
 impl BlockParameterDescriptor {
@@ -44,6 +47,7 @@ impl BlockParameterDescriptor {
             default_value: self.default_value.clone(),
             optional: self.optional,
             allow_empty: self.allow_empty,
+            value_labels: Vec::new(),
         }
         .validate_value(value)
     }

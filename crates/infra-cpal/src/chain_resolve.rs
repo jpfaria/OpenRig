@@ -87,7 +87,7 @@ pub fn resolve_project_chain_sample_rates(
         let sr = meta.sample_rate as f32;
         let mut sample_rates = HashMap::new();
         for chain in &project.chains {
-            if chain.enabled {
+            if engine::runtime_graph::chain_plays(chain, registry) {
                 sample_rates.insert(chain.id.clone(), sr);
             }
         }
@@ -100,7 +100,7 @@ pub fn resolve_project_chain_sample_rates(
         let mut sample_rates = HashMap::new();
 
         for chain in &project.chains {
-            if !chain.enabled {
+            if !engine::runtime_graph::chain_plays(chain, registry) {
                 continue;
             }
             let inputs = resolve_chain_inputs(host, project, chain, registry)?;
@@ -211,15 +211,18 @@ pub(crate) fn resolve_input_device_for_chain_input(
     })
 }
 
+/// Every stream OpenRig opens on a device resolves through here, so they all
+/// open it with the project's settings for that device: the buffer size is a
+/// device-level property, and a stream asking for another one re-sizes the
+/// device under every stream already running on it.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_output_device_for_chain_output(
     host: &cpal::Host,
-    project: &Project,
+    device_settings: &[project::device::DeviceSettings],
     output: &OutputEntry,
     is_asio: bool,
 ) -> Result<ResolvedOutputDevice> {
-    let settings = project
-        .device_settings
+    let settings = device_settings
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
@@ -343,7 +346,9 @@ pub(crate) fn resolve_chain_outputs(
     }
     output_entries
         .iter()
-        .map(|output| resolve_output_device_for_chain_output(host, project, output, is_asio))
+        .map(|output| {
+            resolve_output_device_for_chain_output(host, &project.device_settings, output, is_asio)
+        })
         .collect()
 }
 
@@ -391,7 +396,7 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
     let mut resolved = HashMap::new();
 
     for chain in &project.chains {
-        if !chain.enabled {
+        if !engine::runtime_graph::chain_plays(chain, registry) {
             continue;
         }
 

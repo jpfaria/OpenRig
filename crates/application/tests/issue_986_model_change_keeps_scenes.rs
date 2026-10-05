@@ -38,7 +38,7 @@ const STALE_KEY: &str = "rig:input-7:block:amp.character";
 fn fixture_rig() -> RigProject {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/issue_986_scened_preset.yaml");
-    infra_yaml::load_rig_project_file(&path).expect("load the #986 fixture rig")
+    infra_yaml::load_project_file(&path).expect("load the #986 fixture rig")
 }
 
 fn preset(rig: &RigProject) -> RigPreset {

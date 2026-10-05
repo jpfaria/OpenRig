@@ -303,6 +303,8 @@ impl LocalDispatcher {
                 control.set_io_bindings(bindings);
             }
         }
+        // #1007: a binding edit may change a strip's channel mode.
+        self.apply_all_mixer_strips();
         Ok(vec![Event::IoBindingRegistryChanged])
     }
 }

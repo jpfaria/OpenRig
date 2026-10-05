@@ -50,6 +50,8 @@ fn chain_with_bindings(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         blocks: vec![],
         loopers: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

@@ -1,5 +1,6 @@
 //! #14: the metronome's settings live in the per-machine SYSTEM `config.yaml`
-//! (ADR 0003 — a practice tempo does not travel inside a `.openrig`).
+//! (ADR 0003). The tempo is not one of them: it belongs to the project and
+//! travels in `project.yaml` (#1050).
 //!
 //! Two contracts are pinned here.
 //!
@@ -24,7 +25,6 @@ use infra_filesystem::{FilesystemStorage, MetronomeConfig};
 /// falls back to its default is visible in the assertion.
 fn tuned() -> MetronomeConfig {
     MetronomeConfig {
-        bpm: 92.0,
         beats_per_bar: 7,
         subdivision: "triplets".to_string(),
         timbre: "wood".to_string(),

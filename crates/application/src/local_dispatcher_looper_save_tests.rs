@@ -51,6 +51,7 @@ fn chain_with(uids: &[u64], audio_file: Option<&str>) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
         loopers: uids
             .iter()
             .map(|uid| LooperConfig {
@@ -58,6 +59,7 @@ fn chain_with(uids: &[u64], audio_file: Option<&str>) -> Chain {
                 ..LooperConfig::new(*uid)
             })
             .collect(),
+        mix: Default::default(),
     }
 }
 
@@ -73,7 +75,7 @@ fn dispatcher_saving_into(
         chains: vec![chain],
         midi: None,
     })));
-    dispatcher.attach_project_path(dir.join("song.openrig"));
+    dispatcher.attach_project_path(dir.join("song.yaml"));
     dispatcher.attach_runtime_control(Rc::new(StoreRuntimeControl { loops }));
     dispatcher
 }
@@ -101,13 +103,13 @@ fn saving_the_project_writes_every_recorded_loop_beside_it() {
 
     let name = audio_file_of(&dispatcher, 1)
         .expect("the chain must remember the sidecar the save just wrote");
-    let path = crate::looper_audio::loops_dir(&tmp.path().join("song.openrig")).join(&name);
+    let path = crate::looper_audio::loops_dir(&tmp.path().join("song.yaml")).join(&name);
     assert!(
         path.exists(),
         "an MCP/gRPC save must write the loop wav too — otherwise the project \
          is serialized pointing at audio nobody ever wrote: {path:?}"
     );
-    let (pcm, rate) = crate::looper_audio::read_loop_wav(&tmp.path().join("song.openrig"), &name)
+    let (pcm, rate) = crate::looper_audio::read_loop_wav(&tmp.path().join("song.yaml"), &name)
         .expect("read back");
     assert_eq!(
         (pcm.len(), rate),

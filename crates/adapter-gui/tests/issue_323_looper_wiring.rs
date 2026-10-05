@@ -68,6 +68,7 @@ fn chain_with_looper(id: &str) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
         loopers: vec![LooperConfig {
             output: Some(EndpointRef {
                 binding_id: "io".into(),
@@ -75,6 +76,7 @@ fn chain_with_looper(id: &str) -> Chain {
             }),
             ..LooperConfig::new(UID)
         }],
+        mix: Default::default(),
     }
 }
 

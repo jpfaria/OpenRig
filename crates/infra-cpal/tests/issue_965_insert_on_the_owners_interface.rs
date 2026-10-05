@@ -101,6 +101,8 @@ fn owners_insert_chain(input_id: &str, output_id: &str) -> (Project, ChainId, Ve
             blocks,
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

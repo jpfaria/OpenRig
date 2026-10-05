@@ -52,6 +52,8 @@ fn chain(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -89,6 +91,7 @@ fn a_stale_row_resolves_to_no_chain() {
 /// A rig whose only input is playing the preset named here.
 fn rig_playing(preset_id: &str) -> RigProject {
     RigProject {
+        bpm: None,
         name: None,
         inputs: BTreeMap::from([(
             "guitar".to_string(),
@@ -103,6 +106,9 @@ fn rig_playing(preset_id: &str) -> RigProject {
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
+                disabled_endpoints: Default::default(),
+                mix: Default::default(),
+                di_output: None,
             },
         )]),
         outputs: BTreeMap::new(),

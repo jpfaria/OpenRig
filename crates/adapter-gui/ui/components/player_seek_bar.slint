@@ -1,0 +1,78 @@
+// Responsibility: renders the backing track's seek bar.
+// Position fill, the loop's stretch, a pending loop mark and a thumb. A click
+// asks to jump there; the bar itself never moves until the player reports the
+// new position.
+export component PlayerSeekBar inherits Rectangle {
+    in property <float> position;
+    in property <float> duration;
+    in property <bool> loop-active;
+    in property <float> loop-start;
+    in property <float> loop-end;
+    in property <float> loop-mark: -1;
+    callback seek(float);
+
+    private property <float> span: max(root.duration, 0.001);
+    private property <length> rail-x: 8px;
+    private property <length> rail-w: root.width - 16px;
+
+    height: 32px;
+
+    // Rail.
+    Rectangle {
+        x: root.rail-x; y: (parent.height - 6px) / 2;
+        width: root.rail-w; height: 6px;
+        border-radius: 3px;
+        background: #1c2028;
+    }
+
+    // The loop's stretch, under the fill.
+    if root.loop-active : Rectangle {
+        x: root.rail-x + root.rail-w * clamp(root.loop-start / root.span, 0, 1);
+        y: (parent.height - 14px) / 2;
+        width: root.rail-w * clamp((root.loop-end - root.loop-start) / root.span, 0, 1);
+        height: 14px;
+        border-radius: 3px;
+        background: #946d2255;
+        border-width: 1px;
+        border-color: #d8b268;
+    }
+
+    // Played so far.
+    Rectangle {
+        x: root.rail-x; y: (parent.height - 6px) / 2;
+        width: root.rail-w * clamp(root.position / root.span, 0, 1);
+        height: 6px;
+        border-radius: 3px;
+        background: #ccaa66;
+    }
+
+    if root.loop-mark >= 0 : Rectangle {
+        x: root.rail-x + root.rail-w * clamp(root.loop-mark / root.span, 0, 1) - 1px;
+        y: 4px;
+        width: 2px; height: parent.height - 8px;
+        background: #d8b268;
+    }
+
+    // Thumb.
+    Rectangle {
+        x: root.rail-x + root.rail-w * clamp(root.position / root.span, 0, 1) - 7px;
+        y: (parent.height - 14px) / 2;
+        width: 14px; height: 14px;
+        border-radius: 7px;
+        background: #f1f4f8;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #00000080;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            if (root.duration > 0) {
+                root.seek(clamp((self.mouse-x - root.rail-x) / root.rail-w, 0, 1) * root.duration);
+            }
+        }
+    }
+    accessible-role: slider;
+    accessible-label: @tr("label-player-position");
+    accessible-value: root.position;
+}

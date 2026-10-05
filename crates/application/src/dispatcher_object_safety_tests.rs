@@ -44,4 +44,10 @@ fn gui_surface_is_reachable_through_a_trait_object() {
     // Attach is local session setup: a no-op default, never a panic.
     dispatcher.attach_presets_path(std::path::PathBuf::from("/tmp/presets"));
     assert!(dispatcher.attach_engine_sr(48_000).is_empty());
+    // #1007: a transport that hosts no audio has no mixer; attaching one is
+    // accepted and it still lists no strip.
+    dispatcher.attach_mixer_state(std::rc::Rc::new(std::cell::RefCell::new(
+        crate::mixer_state::MixerControlState::default(),
+    )));
+    assert!(dispatcher.mixer_strips().is_empty());
 }

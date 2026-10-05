@@ -88,6 +88,8 @@ fn project_with_amp_chain() -> Rc<RefCell<Project>> {
             blocks: vec![user_input(), slider_param_block(), user_output()],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }))

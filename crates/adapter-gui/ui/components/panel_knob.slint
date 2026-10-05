@@ -8,7 +8,14 @@ export component PanelKnob inherits Rectangle {
     in property <float> max-val;
     in property <float> step: 1.0;
     in property <string> path;
+    // One display text per step from `min-val` (the plugin's own "2.5 s");
+    // empty shows the number (#1011).
+    in property <[string]> value-labels: [];
     callback changed(string, float);
+
+    private property <int> label-index: root.step > 0.0
+        ? Math.round((root.current-val - root.min-val) / root.step)
+        : -1;
 
     private property <float> current-val: root.preview-active ? root.preview-val : root.value;
     private property <float> norm: root.max-val > root.min-val
@@ -62,7 +69,9 @@ export component PanelKnob inherits Rectangle {
         value-text := Text {
             width: parent.width;
             height: parent.height;
-            text: root.step >= 1.0
+            text: root.label-index >= 0 && root.label-index < root.value-labels.length
+                ? root.value-labels[root.label-index]
+                : root.step >= 1.0
                 ? Math.round(root.current-val) + ""
                 : Math.round(root.current-val * 10) / 10 + "";
             color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;

@@ -24,6 +24,8 @@ fn chain() -> Chain {
             output: None,
             preset: None,
         }],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

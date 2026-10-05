@@ -136,6 +136,8 @@ fn runtime(blocks: Vec<AudioBlock>, outputs: usize) -> Arc<ChainRuntimeState> {
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     Arc::new(
         engine::runtime::build_chain_runtime_state(&chain, RATE, &[64, 64], &registry(outputs))

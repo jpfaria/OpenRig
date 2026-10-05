@@ -138,6 +138,15 @@ impl jack::NotificationHandler for JackShutdownHandler {
     }
 }
 
+/// #328: the JACK output ports of one output route of the chain's runtime,
+/// plus the interleaved scratch that route renders into — preallocated at
+/// MAX_JACK_FRAMES so the callback never allocates.
+pub(crate) struct JackRouteOutput {
+    pub(crate) route: usize,
+    pub(crate) ports: Vec<jack::Port<jack::AudioOut>>,
+    pub(crate) buf: Vec<f32>,
+}
+
 /// Direct JACK process handler — runs in the JACK real-time thread.
 /// Does NO DSP processing — only copies audio data to/from ring buffers.
 /// The heavy DSP work happens in a separate worker thread.
@@ -145,10 +154,11 @@ impl jack::NotificationHandler for JackShutdownHandler {
 /// Buffers are pre-allocated to avoid heap allocation in the RT callback.
 pub(crate) struct JackProcessHandler {
     pub(crate) input_ports: Vec<jack::Port<jack::AudioIn>>,
-    pub(crate) output_ports: Vec<jack::Port<jack::AudioOut>>,
+    /// #328: one entry per output route of the runtime, each with its own
+    /// ports — JACK sums two routes that land on one playback port.
+    pub(crate) outputs: Vec<JackRouteOutput>,
     pub(crate) runtime: Arc<ChainRuntimeState>,
     pub(crate) input_buf: Vec<f32>,
-    pub(crate) output_buf: Vec<f32>,
     /// Ring buffer for offloading DSP to the worker thread.
     /// When Some, the RT callback writes input to this ring and the worker
     /// thread does the processing. When None, processing is done inline
@@ -244,21 +254,33 @@ impl jack::ProcessHandler for JackProcessHandler {
 
         // --- Output: pull from engine, deinterleave into JACK ports ---
         // This is lightweight — just pops from ElasticBuffer, no DSP.
-        let total_out_ports = self.output_ports.len();
-        if total_out_ports > 0 {
-            let needed = n_frames * total_out_ports;
-            if self.output_buf.len() < needed {
-                self.output_buf.resize(needed, 0.0);
+        // #328: every output route of the runtime (a Y → A/B chain's path-B
+        // output, a second output, an insert send) is popped into ITS OWN
+        // ports. Routes are never added together here: two routes on one
+        // playback port are summed by JACK.
+        let runtime = &self.runtime;
+        let di_cells = &self.di_cells;
+        for output in self.outputs.iter_mut() {
+            let total_out_ports = output.ports.len();
+            if total_out_ports == 0 {
+                continue;
             }
-            let buf = &mut self.output_buf[..needed];
+            let needed = n_frames * total_out_ports;
+            if output.buf.len() < needed {
+                output.buf.resize(needed, 0.0);
+            }
+            let buf = &mut output.buf[..needed];
             buf.fill(0.0);
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                process_output_f32(&self.runtime, 0, buf, total_out_ports);
-                for cell in &self.di_cells {
-                    crate::di_playback::mix_di_playback(cell, buf, total_out_ports);
+                process_output_f32(runtime, output.route, buf, total_out_ports);
+                // #771: the DI playback rides route 0's ports, as it always did.
+                if output.route == 0 {
+                    for cell in di_cells {
+                        crate::di_playback::mix_di_playback_at(cell, buf, total_out_ports, None);
+                    }
                 }
             }));
-            for (ch, port) in self.output_ports.iter_mut().enumerate() {
+            for (ch, port) in output.ports.iter_mut().enumerate() {
                 let port_data = port.as_mut_slice(ps);
                 for frame in 0..n_frames {
                     port_data[frame] = buf[frame * total_out_ports + ch];
