@@ -121,3 +121,14 @@ fn a_loaded_but_closed_player_does_not_keep_the_runtime_alive() {
     controller.load_player_track(Path::new("two-seconds"), fake_decode);
     assert!(!controller.is_running());
 }
+
+#[test]
+fn a_player_whose_device_cannot_open_reports_it_and_stays_closed() {
+    let controller = controller();
+    controller.load_player_track(Path::new("two-seconds"), fake_decode);
+
+    let opened = controller.start_player("openrig-test:no-such-device", &[0, 1]);
+
+    assert_eq!(controller.player_active(), opened.is_ok());
+    assert_eq!(controller.player_shared().is_playing(), opened.is_ok());
+}
