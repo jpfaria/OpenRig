@@ -97,3 +97,21 @@ fn process_block_matches_sample_loop() {
         );
     }
 }
+
+/// #328: the look-ahead delays every sample by `lookahead_ms`. A chain split
+/// lines its paths up from what each block reports, so the limiter must report
+/// exactly the delay an impulse comes out with (0.5 is below the threshold,
+/// so the gain is unity and the impulse leaves intact).
+#[test]
+fn reports_the_lookahead_delay_it_adds() {
+    let mut lim = default_limiter();
+    let measured = (0..4096)
+        .map(|n| lim.process_sample(if n == 0 { 0.5 } else { 0.0 }))
+        .position(|out| out.abs() > 0.25)
+        .expect("the impulse comes out");
+    assert_eq!(
+        lim.latency_samples(),
+        measured,
+        "the limiter must report the {measured}-sample look-ahead it adds"
+    );
+}

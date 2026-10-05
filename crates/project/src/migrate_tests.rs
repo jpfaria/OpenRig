@@ -61,6 +61,8 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -270,4 +272,13 @@ fn migrate_carries_chain_description_as_preset_name_and_id() {
         preset.id, key,
         "id must equal the stable pool key the bank references"
     );
+}
+
+#[test]
+fn migrate_carries_the_chain_mix_onto_its_input() {
+    // #1007: a new chain migrated into the rig on save keeps its own faders.
+    let mut c = chain("mixed", 100.0, vec![input_block("i1"), fx("a")]);
+    c.mix.di_gain_db = -6.0;
+    let r = migrate_legacy_project(&legacy(vec![c]));
+    assert_eq!(r.inputs.get("input-1").unwrap().mix.di_gain_db, -6.0);
 }

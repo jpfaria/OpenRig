@@ -461,3 +461,29 @@ fn vibrato_process_produces_non_nan() {
         assert!(!s.is_nan(), "NaN at frame {} for vibrato", i);
     }
 }
+
+// ── Tempo sync ───────────────────────────────────────────────
+
+#[test]
+fn every_native_mod_with_a_rate_has_a_rate_sync_select_defaulting_off() {
+    use block_core::tempo_sync::{RATE_PATH, RATE_SYNC_PATH, SYNC_OFF};
+    let mut seen = 0;
+    for model in supported_models() {
+        let schema = modulation_model_schema(model).expect("schema");
+        if !schema.parameters.iter().any(|p| p.path == RATE_PATH) {
+            continue;
+        }
+        seen += 1;
+        let spec = schema
+            .parameters
+            .iter()
+            .find(|p| p.path == RATE_SYNC_PATH)
+            .unwrap_or_else(|| panic!("{model} has {RATE_PATH} but no {RATE_SYNC_PATH}"));
+        assert_eq!(
+            spec.default_value,
+            Some(ParameterValue::String(SYNC_OFF.to_string())),
+            "{model}: sync must default to off"
+        );
+    }
+    assert!(seen > 0, "at least one native mod exposes {RATE_PATH}");
+}

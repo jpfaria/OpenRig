@@ -78,9 +78,13 @@ fn rig_with_chain() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,
@@ -362,6 +366,8 @@ fn delete_referenced_binding_rejected() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {
@@ -436,6 +442,8 @@ fn delete_unreferenced_binding_ok() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {

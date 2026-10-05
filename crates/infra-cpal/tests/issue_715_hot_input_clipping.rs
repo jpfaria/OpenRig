@@ -140,7 +140,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
         );
         return;
     };
-    let rig = infra_yaml::load_project_any(&project_path).expect("load owner project");
+    let rig = infra_yaml::load_project_file(&project_path).expect("load owner project");
     let enabled: std::collections::BTreeSet<String> = rig.inputs.keys().cloned().collect();
     let project = engine::rig_runtime::rig_to_legacy_project(&rig, &enabled);
 

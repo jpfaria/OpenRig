@@ -55,6 +55,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     // against `session.rig`, so missing this leaves the combobox empty
     // until the project is saved and reopened.
     let rig = std::rc::Rc::new(std::cell::RefCell::new(project::rig::RigProject {
+        bpm: None,
         name: None,
         inputs: std::collections::BTreeMap::new(),
         outputs: std::collections::BTreeMap::new(),
@@ -69,11 +70,11 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     if let Ok(app_config) = FilesystemStorage::load_app_config() {
         *session.io_bindings.borrow_mut() = app_config.io_bindings;
     }
+    crate::session_mixer::restore_mixer_state(session.dispatcher.as_ref());
     session
 }
 
-/// #436 #1: load any project (new `project.openrig` or legacy `*.yaml`,
-/// migrated transparently) through the NEW rig engine, projecting the
+/// #436 #1: load the project `.yaml` through the rig engine, projecting the
 /// enabled inputs onto synthetic legacy chains so the existing GUI and
 /// the proven cpal/runtime path drive the rig with zero new audio code.
 /// Preset/scene switching has no UI yet (front deferred) — the rest
@@ -81,12 +82,11 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
 pub(crate) fn load_rig_and_project(
     project_path: &Path,
 ) -> Result<(project::rig::RigProject, Project)> {
-    // `load_project_any` returns a validated RigProject (legacy `*.yaml`
-    // migrated transparently). Every input is projected as a chain, all
-    // OFF: the user enables what they want at runtime via the existing
-    // per-chain toggle — nothing auto-starts. The RigProject is returned
+    // `load_project_file` returns a validated RigProject. Every input is
+    // projected as a chain, all OFF: the user enables what they want at
+    // runtime via the existing per-chain toggle — nothing auto-starts. The RigProject is returned
     // so the session can keep it for preset/scene switching.
-    let rig = infra_yaml::load_project_any(project_path)?;
+    let rig = infra_yaml::load_project_file(project_path)?;
     let project =
         engine::rig_runtime::rig_to_legacy_project(&rig, &std::collections::BTreeSet::new());
     Ok((rig, project))
@@ -106,9 +106,8 @@ pub(crate) fn load_project_session(
         .presets_path
         .clone()
         .unwrap_or_else(default_presets_path);
-    // #436 #1: the app now runs the new rig engine. Legacy `*.yaml` is
-    // migrated transparently to `project.openrig` on first open. The
-    // `RigProject` is retained in the session so the chains screen can
+    // #436 #1: the app runs the rig engine. The `RigProject` read from the
+    // project `.yaml` is retained in the session so the chains screen can
     // switch preset/scene per input.
     let (rig, mut project) = load_rig_and_project(project_path)?;
 
@@ -154,6 +153,7 @@ pub(crate) fn load_project_session(
             .join(presets_path),
     );
     *session.io_bindings.borrow_mut() = registry_bindings;
+    crate::session_mixer::restore_mixer_state(session.dispatcher.as_ref());
     let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
     // #436: the dispatcher owns the rig so rig-nav goes through Command
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.

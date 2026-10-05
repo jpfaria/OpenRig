@@ -1,130 +1,98 @@
 # Building OpenRig
 
-This guide covers how to build OpenRig from source for development and testing.
+How to build and run OpenRig from source. To just install it, see [Installing OpenRig](../user-guide/installation.md).
+
+Builds work on macOS, Linux and Windows.
 
 ## Prerequisites
 
-- **Rust toolchain** (stable) -- install via [rustup.rs](https://rustup.rs)
-- **cmake** 3.16+
+- **Rust** (stable), via [rustup](https://rustup.rs)
+- **cmake** 3.16 or later
 - **pkg-config**
-- **Git**
-- **Git LFS** (large binary assets -- NAM captures, IRs, and the vendored NeuralAmpModelerCore sources)
+- **Git** and **Git LFS** — LFS holds the vendored NeuralAmpModelerCore archive and the test audio
 
-## Quick Build (GUI only)
+```bash
+# macOS (plus the Xcode command line tools: xcode-select --install)
+brew install cmake pkg-config git-lfs
+
+# Debian / Ubuntu
+sudo apt install build-essential git git-lfs cmake pkg-config libasound2-dev libfontconfig-dev
+
+# Fedora
+sudo dnf install gcc-c++ git git-lfs cmake pkg-config alsa-lib-devel fontconfig-devel
+```
+
+On Windows:
+
+- Visual Studio Build Tools with the C++ workload
+- cmake on the PATH
+- LLVM (`winget install LLVM.LLVM`), with `LIBCLANG_PATH` pointing at its `bin`: the cpal `asio` feature runs bindgen, which needs libclang
+- Optional: point `CPAL_ASIO_DIR` at an extracted ASIO SDK; without it the asio-sys build script downloads the SDK itself
+
+## Build and run
 
 ```bash
 git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
 cargo build --release -p adapter-gui
+./target/release/adapter-gui
 ```
 
-Binary output: `target/release/adapter-gui`
+The NAM engine is C++ and is built by cargo itself: `crates/nam/build.rs` unpacks `deps/NeuralAmpModelerCore.tar.gz` and compiles it with cmake. There is no separate step.
 
-## Platform-Specific Dependencies
+## Plugins (models)
 
-### macOS
+Amps, pedals, cabs, IRs and LV2 plugins live in [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins), not in this repository. Without them the block picker is empty.
 
 ```bash
-brew install cmake pkg-config
+git clone https://github.com/jpfaria/OpenRig-plugins.git
 ```
 
-### Ubuntu / Debian
+Point OpenRig at `OpenRig-plugins/plugins/source`, either in **Settings → Paths → Plugins** or for one run:
 
 ```bash
-sudo apt install build-essential cmake pkg-config libasound2-dev libfontconfig-dev
+OPENRIG_PLUGINS_ROOT=/path/to/OpenRig-plugins/plugins/source ./target/release/adapter-gui
 ```
 
-### Fedora
+Lookup order: `OPENRIG_PLUGINS_ROOT`, then the path set in Settings, then `plugins/` inside the app's data folder.
+
+## Binaries
+
+| Crate | Binary | What it is |
+|---|---|---|
+| `adapter-gui` | `adapter-gui` | The desktop app |
+| `adapter-console` | `adapter-console` | Terminal frontend |
+| `adapter-console-rig` | `adapter-console-rig` | Runs a project headless |
+| `adapter-render` | `openrig-render` | Renders a chain offline to WAV — see [render](../render.md) |
+
+Packages install the GUI as `openrig` and ship the other three next to it as `openrig-console`, `openrig-console-rig` and `openrig-render` (`scripts/lib/console-binaries.tsv`). `adapter-server` (gRPC) and `adapter-vst3` are reserved crates with no product yet. Command-line flags and environment variables: [cli.md](../cli.md).
+
+## Packaging and installing a local build
 
 ```bash
-sudo dnf install cmake pkg-config alsa-lib-devel fontconfig-devel
+OPENRIG_PLUGINS_DIR=/path/to/OpenRig-plugins/plugins/source ./scripts/install-macos-local.sh
 ```
 
-### Windows
+This packages the current checkout as a `.dmg` (`scripts/package-macos.sh`) and installs it to `/Applications`. Every script is listed in [scripts.md](../scripts.md).
 
-- Install Visual Studio Build Tools (C++ workload)
-- Install cmake (add to PATH)
-- Install LLVM (`choco install llvm`): the cpal `asio` feature runs bindgen, which needs libclang
-- Optional: point `CPAL_ASIO_DIR` at an extracted ASIO SDK; without it the asio-sys build script downloads the SDK itself
+## LV2 plugin libraries
 
-## Build Targets
+`scripts/build-lib.sh <plugin|all> [--platform linux-x86_64|linux-aarch64|windows-x64|all]` builds the native LV2 libraries that OpenRig-plugins ships; `--list` shows the plugins. Cross-platform builds run in Docker (`docker/Dockerfile.build-libs`). The app build does not need this.
 
-| Target | Command | Description |
-|--------|---------|-------------|
-| Desktop GUI | `cargo build -p adapter-gui` | Slint-based desktop application |
-| Console | `cargo build -p adapter-console` | CLI interface |
-| Server | `cargo build -p adapter-server` | gRPC remote control server |
-| VST3 Plugin | `cargo build -p adapter-vst3` | VST3/AU plugin for DAWs |
+## CI
 
-## NAM Engine (C++/CMake)
-
-The Neural Amp Modeler engine is a C++ library that must be compiled separately:
-
-```bash
-./scripts/build-lib.sh nam
-```
-
-This builds the NAM shared library for your current platform. The script handles cmake configuration and compilation.
-
-For specific platforms:
-
-```bash
-./scripts/build-lib.sh nam --platform linux-x86_64
-./scripts/build-lib.sh nam --platform linux-arm64
-./scripts/build-lib.sh nam --platform windows-x64
-./scripts/build-lib.sh all --platform all  # Build everything for all platforms
-```
-
-Prebuilt libraries are available on the releases page for convenience.
-
-## Docker Cross-Compilation
-
-For building native libraries across all 5 platforms:
-
-```bash
-docker build -f docker/Dockerfile.build-libs -t openrig-build .
-```
-
-The Docker image (based on Ubuntu 22.04) includes:
-
-- **Build tools:** gcc, cmake, meson, ninja, autoconf
-- **Audio/LV2:** lv2-dev, libsndfile1-dev, libsamplerate0-dev, libfftw3-dev
-- **Cross-compilation:** mingw-w64, llvm-mingw for Windows targets
-
-## CI/CD (GitHub Actions)
-
-Two workflows:
-
-- **build-libs.yml** -- Builds native C++ libraries for all platforms
-- **claude.yml** -- AI-assisted code review on issue comments
+| Workflow | What it does |
+|---|---|
+| `test.yml` | Tests on pushes and PRs to `develop`, `release/**`, `main` |
+| `pr.yml` | The comparative quality gate — see [quality-gate.md](quality-gate.md) |
+| `release.yml` | Builds the macOS `.dmg` and publishes the release on a tag — see [release.md](release.md) |
+| `build-libs.yml` | Builds the LV2 plugin libraries |
+| `pages.yml` | Publishes `site/` to GitHub Pages |
+| `claude.yml` | Runs Claude on `@claude` issue comments |
 
 ## Dependencies
 
-OpenRig has no git submodules. The one C++ dependency the app build needs,
-NeuralAmpModelerCore (with AudioDSPTools, Eigen and nlohmann inside it), is
-vendored as `deps/NeuralAmpModelerCore.tar.gz` (Git LFS) and pinned by
-`deps/NeuralAmpModelerCore.lock`. `crates/nam/build.rs` unpacks it into
-`deps/NeuralAmpModelerCore/` (not versioned) whenever that folder is missing or
-came from another lock (#974). The first build after a `git fetch`/`git pull`
-shows a cargo warning when upstream has a newer release; CI vendors it on
-`develop` after the tests pass. Every other build stays offline — see
-[deps/DEPS.md](../../deps/DEPS.md).
+There are no git submodules. NeuralAmpModelerCore (with AudioDSPTools, Eigen and nlohmann) is vendored as `deps/NeuralAmpModelerCore.tar.gz` and pinned by `deps/NeuralAmpModelerCore.lock`; `crates/nam/build.rs` unpacks it into `deps/NeuralAmpModelerCore/` (not versioned) when that folder is missing or came from another lock. When upstream has a newer release, the first build after a `git fetch` prints a cargo warning; CI vendors it on `develop` after the tests pass. Every other build stays offline — see [deps/DEPS.md](../../deps/DEPS.md).
 
-Key workspace dependencies (Cargo.toml):
-
-- **slint** -- UI framework
-- **cpal** -- Cross-platform audio I/O
-- **tokio** -- Async runtime
-- **tonic/prost** -- gRPC (server mode)
-- **serde/serde_yaml** -- Serialization
-- **anyhow/thiserror** -- Error handling
-
-## Git LFS
-
-Large binary assets (NAM captures, IR files, the vendored NeuralAmpModelerCore archive) are tracked with Git LFS. Ensure LFS is installed:
-
-```bash
-git lfs install
-git lfs pull
-```
+If a build fails with "is a Git LFS pointer", the clone was made without LFS: run `git lfs install && git lfs pull`.

@@ -148,6 +148,7 @@ fn four_binding_cold_start_is_async_and_underrun_free() {
                 "io-b1".into(),
             ],
             blocks,
+            mix: Default::default(),
         }],
         midi: None,
     };

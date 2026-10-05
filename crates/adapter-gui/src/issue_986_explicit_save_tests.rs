@@ -58,9 +58,13 @@ fn rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: Some("project".into()),
         inputs,
         presets,
@@ -131,7 +135,7 @@ fn edit_without_saving(session: &ProjectSession) {
 fn editing_the_project_never_writes_the_project_file() {
     let dir = tempfile::tempdir().expect("temp dir");
     let path = dir.path().join("project.yaml");
-    infra_yaml::save_rig_project_file(&path, &rig()).expect("write the project");
+    infra_yaml::save_project_file(&path, &rig()).expect("write the project");
     let before = on_disk(&path);
     let session = open(&path);
 
@@ -148,7 +152,7 @@ fn editing_the_project_never_writes_the_project_file() {
 fn save_project_writes_the_edits() {
     let dir = tempfile::tempdir().expect("temp dir");
     let path = dir.path().join("project.yaml");
-    infra_yaml::save_rig_project_file(&path, &rig()).expect("write the project");
+    infra_yaml::save_project_file(&path, &rig()).expect("write the project");
     let session = open(&path);
     edit_without_saving(&session);
 
@@ -158,7 +162,7 @@ fn save_project_writes_the_edits() {
         .expect("save");
     application::persist_worker::flush();
 
-    let saved = infra_yaml::load_rig_project_file(&path).expect("reload");
+    let saved = infra_yaml::load_project_file(&path).expect("reload");
     let preset = &saved.presets["p1"];
     assert_eq!(preset.scenes.len(), 2, "the added scene reached disk");
     let model = match &preset.blocks[0].kind {

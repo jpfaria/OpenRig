@@ -22,7 +22,7 @@
 
 use anyhow::{bail, Result};
 
-use feature_dsp::metronome::{Subdivision, Timbre, BPM_MAX, BPM_MIN};
+use feature_dsp::metronome::{Subdivision, Timbre};
 
 use infra_filesystem::MetronomeConfig;
 
@@ -47,7 +47,10 @@ impl LocalDispatcher {
     /// No attached config path ⇒ no write. That is the whole guard against
     /// #701: a dispatcher a test built has nowhere to persist to, so it can
     /// never reach the user's real config.
-    fn persist_metronome_field(&self, mutate: impl FnOnce(&mut MetronomeConfig) + Send + 'static) {
+    pub(crate) fn persist_metronome_field(
+        &self,
+        mutate: impl FnOnce(&mut MetronomeConfig) + Send + 'static,
+    ) {
         let path = self.metronome_state().borrow().config_path();
         if path.is_some() {
             persist_metronome(path, mutate);
@@ -59,7 +62,7 @@ impl LocalDispatcher {
     /// Cheap and idempotent: the shared cell bumps a generation counter and
     /// the audio callback only re-reads when it changed — a tempo edit never
     /// restarts the stream, so a live edit cannot drop audio.
-    fn push_metronome_settings(&self) {
+    pub(crate) fn push_metronome_settings(&self) {
         let settings = self.metronome_state().borrow().settings();
         if let Some(control) = self.runtime_control() {
             control.set_metronome_settings(settings);
@@ -102,15 +105,9 @@ impl LocalDispatcher {
                 Ok(vec![Event::MetronomeEnabledChanged { enabled }])
             }
 
-            MetronomeCommand::SetMetronomeBpm { bpm } => {
-                let bpm = bpm.clamp(BPM_MIN, BPM_MAX);
-                self.metronome_state()
-                    .borrow_mut()
-                    .update_settings(|settings| settings.bpm = bpm);
-                self.persist_metronome_field(move |config| config.bpm = bpm);
-                self.push_metronome_settings();
-                Ok(vec![Event::MetronomeBpmChanged { bpm }])
-            }
+            // The project tempo drives the click, the drums and every
+            // synced delay/mod (#1050).
+            MetronomeCommand::SetMetronomeBpm { bpm } => self.set_project_bpm(bpm),
 
             MetronomeCommand::SetMetronomeTimeSignature { beats_per_bar } => {
                 let beats_per_bar = beats_per_bar.clamp(BEATS_PER_BAR_MIN, BEATS_PER_BAR_MAX);

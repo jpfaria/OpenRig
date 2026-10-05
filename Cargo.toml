@@ -49,7 +49,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "0.5.2"
+version = "0.6.1"
 authors = ["João Paulo"]
 
 [workspace.dependencies]
@@ -86,6 +86,9 @@ schemars = "0.8"
 # fast iteration.
 [profile.dev.package."*"]
 opt-level = 3
+# Line tables keep backtraces readable in dependencies; full debuginfo for
+# third-party crates only makes every test binary slower to link.
+debug = "line-tables-only"
 
 [profile.dev.package.engine]
 opt-level = 3

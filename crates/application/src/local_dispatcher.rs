@@ -36,9 +36,13 @@ use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
+use crate::drums_state::DrumsControlState;
 use crate::event::Event;
 use crate::metronome_state::MetronomeControlState;
+use crate::mixer_state::MixerControlState;
+use crate::player_state::PlayerControlState;
 use crate::runtime_control::RuntimeControl;
 
 /// The rate the dispatcher reports when NO audio stream is running: before the
@@ -75,8 +79,7 @@ pub struct LocalDispatcher {
     /// cleanly until that happens.
     pub(crate) presets_path: RefCell<Option<PathBuf>>,
     /// #555: target path for `Command::SaveProject`. The dispatcher
-    /// writes the `.openrig` (+ legacy `.yaml` sibling when the user-
-    /// facing path is `.yaml`) itself instead of relying on the GUI to
+    /// writes the project `.yaml` itself instead of relying on the GUI to
     /// do `fs::write`. `None` until the session attaches one — preset
     /// dispatcher tests that don't exercise project save keep working
     /// unchanged.
@@ -92,6 +95,10 @@ pub struct LocalDispatcher {
     /// and the per-machine registry must NOT follow it there. `None` ⇒
     /// `FilesystemStorage::app_config_path()`; tests attach a temp path.
     pub(crate) io_config_path: RefCell<Option<PathBuf>>,
+    /// #827: the app-wide looper take library. `None` ⇒
+    /// `infra_filesystem::default_looper_takes_path()`; tests attach a temp
+    /// dir so they never write into the user's real data folder.
+    pub(crate) looper_takes_path: RefCell<Option<PathBuf>>,
     /// #548: which chain / block the user has active on the Chains
     /// screen, plus snapshots of the toggle states. MIDI slots and the
     /// GUI both mutate this through `Command`s; `QueryKind::Selection`
@@ -142,6 +149,9 @@ pub struct LocalDispatcher {
     /// still record their state and emit their events, they just have nothing
     /// to apply the change to.
     pub(crate) runtime_control: RefCell<Option<Rc<dyn RuntimeControl>>>,
+    /// Whether a chain's interface is there before it switches on.
+    /// `None` ⇒ no frontend hosts an audio host here: nothing is asked.
+    pub(crate) device_presence: RefCell<Option<Rc<dyn DevicePresence>>>,
     /// #127/#14: the metronome's settings, chosen output endpoint, POWER state
     /// and tap history. It lived in the GUI, which is why a footswitch or an
     /// MCP client could flip `metronome_enabled` and hear nothing — only the
@@ -155,6 +165,16 @@ pub struct LocalDispatcher {
     /// the tap history start over. A dispatcher nobody attached one to keeps
     /// this private, unpersisted allocation.
     pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
+    /// The backing-track player's loaded track, settings, output and library
+    /// folders. Same handle shape and same persistence guard as the
+    /// metronome: unattached ⇒ nothing persists.
+    pub(crate) player: RefCell<Rc<RefCell<PlayerControlState>>>,
+    /// #1007: the global mixer's faders and mutes. Same handle shape and
+    /// same #701 guard as the metronome: unattached ⇒ nothing persists.
+    pub(crate) mixer: RefCell<Rc<RefCell<MixerControlState>>>,
+    /// The drum machine's state, attached by the frontend; unattached means
+    /// an empty library and nothing persisted.
+    pub(crate) drums: RefCell<Rc<RefCell<DrumsControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -196,6 +216,7 @@ impl LocalDispatcher {
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
             io_config_path: RefCell::new(None),
+            looper_takes_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(REFERENCE_SAMPLE_RATE),
@@ -205,7 +226,11 @@ impl LocalDispatcher {
             tone_doctor_input: RefCell::new(None),
             io_bindings: RefCell::new(None),
             runtime_control: RefCell::new(None),
+            device_presence: RefCell::new(None),
             metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
+            mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
+            player: RefCell::new(Rc::new(RefCell::new(PlayerControlState::default()))),
+            drums: RefCell::new(Rc::new(RefCell::new(DrumsControlState::default()))),
         }
     }
 
@@ -244,6 +269,22 @@ impl LocalDispatcher {
     /// calls into the frontend, which may re-attach on its way back.
     pub(crate) fn metronome_state(&self) -> Rc<RefCell<MetronomeControlState>> {
         self.metronome.borrow().clone()
+    }
+
+    /// Adopt the player state the frontend built for this session. Idempotent.
+    pub fn attach_player_state(&self, state: Rc<RefCell<PlayerControlState>>) {
+        *self.player.borrow_mut() = state;
+    }
+
+    /// The player state, cloned OUT of its `RefCell` (see
+    /// [`Self::metronome_state`]).
+    pub(crate) fn player_state(&self) -> Rc<RefCell<PlayerControlState>> {
+        self.player.borrow().clone()
+    }
+
+    /// Adopt the drum machine state the frontend built for this session.
+    pub fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        *self.drums.borrow_mut() = state;
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

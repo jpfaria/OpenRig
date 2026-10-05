@@ -3,12 +3,14 @@
 // The row owns the card geometry — how many block rows fit at this width, how
 // tall the card has to be for the per-stream meters — and hands each piece to
 // the file that draws it: `chain_row_header`, `chain_row_blocks`,
-// `chain_row_meters`.
+// `chain_row_meters`, `chain_row_mixer`.
 
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav } from "../models.slint";
 import { ChainRowHeader } from "chain_row_header.slint";
 import { ChainRowMeters } from "chain_row_meters.slint";
 import { ChainRowBlocks } from "chain_row_blocks.slint";
+import { ChainRowMixer } from "chain_row_mixer.slint";
+import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
@@ -16,6 +18,8 @@ import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; im
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
+import { ChainRowGraph } from "chain_row_graph.slint";
+import { ChainGraphBridge } from "../chain_graph_globals.slint";
 
 export component ChainRow inherits Rectangle {
     in property <ProjectChainItem> chain;
@@ -57,6 +61,8 @@ export component ChainRow inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback open-compact-chain-view(int);
+    // #1007: the header's meters icon shows (true) or hides the IN/OUT rows.
+    callback meters-toggled(bool);
     // Drag state is SHARED across rows (a chip can be dragged from one chain
     // into another), so the page owns it and each row passes it into its strip.
     in-out property <int> dragging-chain-index: -1;
@@ -66,6 +72,11 @@ export component ChainRow inherits Rectangle {
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
+    // #328 (spec §5.4): desktop draws the chain as a graph — one lane for a
+    // linear chain, two with a split; touch keeps the wrapped pedal strip.
+    property <int> content-row-count: ChainGraphBridge.graph-enabled
+        ? Math.max(1, root.chain.graph_lanes)
+        : root.block-row-count;
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
@@ -97,12 +108,16 @@ export component ChainRow inherits Rectangle {
     // downward from the base meter `y`: every extra stream beyond the
     // first adds one meter row pitch so the card grows and the rows don't bleed
     // into the next chain card (user feedback: "tem que dar espaço").
-    height: 106px + (root.block-row-count * 108px)
-        + (root.chain.stream_meters.length > 1
+    // #1007: the meter rows show only on a running chain whose header meters
+    // icon is on; hidden, the card keeps the single meter slot as its margin.
+    height: 106px + (root.content-row-count * 108px)
+        + (root.meters-shown && root.chain.stream_meters.length > 1
             ? (root.chain.stream_meters.length - 1) * meters.row-pitch
             : 0px)
         // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
-        + (root.chain.di_loop_playing ? meters.row-pitch : 0px);
+        + (root.meters-shown && root.chain.di_loop_playing ? meters.row-pitch : 0px)
+        + mixer.section-height;
+    property <bool> meters-shown: root.chain.enabled && root.chain.meters_expanded;
 
     ChainRowHeader {
         x: 0px;
@@ -128,9 +143,11 @@ export component ChainRow inherits Rectangle {
         move-chain-up(ci) => { root.move-chain-up(ci); }
         move-chain-down(ci) => { root.move-chain-down(ci); }
         remove-chain(ci) => { root.remove-chain(ci); }
+        meters-toggled(shown) => { root.meters-toggled(shown); }
     }
 
     blocks := ChainRowBlocks {
+        visible: !ChainGraphBridge.graph-enabled;
         x: 18px;
         y: 62px;
         width: parent.width - 36px;
@@ -153,12 +170,37 @@ export component ChainRow inherits Rectangle {
         reorder-chain-block(ci, from, before) => { root.reorder-chain-block(ci, from, before); }
     }
 
+    if ChainGraphBridge.graph-enabled : ChainRowGraph {
+        x: 18px;
+        y: 62px;
+        width: parent.width - 36px;
+        height: root.content-row-count * 108px;
+        nodes: root.chain.graph_nodes;
+        edges: root.chain.graph_edges;
+        anchors: root.chain.graph_anchors;
+        columns: root.chain.graph_columns;
+        chain-index: root.chain-index;
+        latency-ms: root.chain.latency_ms;
+        markers-visible: root.midi-selection-active;
+    }
+
+    // The meters sit above the mixer section when it is open.
     meters := ChainRowMeters {
         x: 0px;
         y: 0px;
         width: root.width;
-        height: root.height;
+        height: root.height - mixer.section-height;
         chain: root.chain;
+        visible: root.meters-shown;
+    }
+
+    mixer := ChainRowMixer {
+        x: 0px;
+        y: root.height - self.section-height;
+        width: root.width;
+        height: self.section-height;
+        open: ChainMixerPanel.open && ChainMixerPanel.chain-index == root.chain-index;
+        di-playing: root.chain.di_loop_playing;
     }
 }
 

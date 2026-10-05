@@ -1,8 +1,14 @@
 //! Responsibility: routes the domain crate's public surface.
 
 pub mod audio_device;
+pub mod distinct_endpoints;
 pub mod ids;
 pub mod io_binding;
+pub mod mixer_gain;
+pub mod mixer_solo;
+pub mod mixer_strip;
+pub mod mixer_strip_label;
+pub mod mixer_strips;
 pub mod parameter_value;
 pub mod units;
 pub mod value_objects;
@@ -12,3 +18,7 @@ pub use io_binding::{ChannelMode, IoBinding, IoEndpoint};
 
 #[cfg(test)]
 mod lib_tests;
+#[cfg(test)]
+mod mixer_solo_tests;
+#[cfg(test)]
+mod mixer_tests;

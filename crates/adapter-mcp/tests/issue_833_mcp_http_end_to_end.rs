@@ -58,6 +58,8 @@ fn chain(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         blocks: vec![],
         loopers: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -426,7 +428,7 @@ fn mcp_http_load_project_disables_the_conflicting_chain() {
         "load_project",
         json!({
             "project": serde_json::to_value(&incoming).expect("project serializes"),
-            "path": "/tmp/issue-833-load.openrig",
+            "path": "/tmp/issue-833-load.yaml",
         }),
     );
 

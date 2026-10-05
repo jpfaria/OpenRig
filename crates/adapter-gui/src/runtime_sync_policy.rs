@@ -63,6 +63,9 @@ pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
             // toggle that already took effect — the #740 freeze all over
             // again, and for every footswitch press.
             | Event::BlockEnabledChanged { .. }
+            // A retime already synced each changed chain from the
+            // dispatcher.
+            | Event::ChainTempoRetimed { .. }
     )
 }
 

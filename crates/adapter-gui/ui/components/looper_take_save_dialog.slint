@@ -1,0 +1,95 @@
+// Responsibility: renders the looper's save-take dialog.
+// #827 — the floppy on a looper row opens this: keep that loop as a named take
+// in the app-wide library, where every chain's DI can pick it. A name field,
+// Save, and a status line: the outcome is always said, because a silent Save
+// is indistinguishable from a broken one. A root-level modal, never a
+// PopupWindow (#749/#761), so every control is an in-tree TouchArea.
+
+import { LineEdit } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { LooperPanel, LooperTake } from "looper_panel_globals.slint";
+import { EditorButton } from "editor_button.slint";
+
+export component LooperTakeSaveDialog inherits Rectangle {
+    // Blank ⇒ dead. A name of only spaces is refused by the core (status 5):
+    // what makes a name usable is decided there, not here.
+    private property <bool> can-save: !LooperTake.name.is-empty;
+
+    function submit() {
+        if root.can-save {
+            LooperTake.save(LooperPanel.chain-index, LooperTake.dialog-uid, LooperTake.name);
+        }
+    }
+
+    background: #000000a8;
+
+    // Click-outside closes without saving.
+    TouchArea { clicked => { LooperTake.dialog-uid = -1; } }
+
+    Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(400px, root.width - 32px);
+        height: body.preferred-height;
+        background: #1e1f22;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.palette.border-strong;
+
+        // Swallows clicks on the card so they never reach the backdrop.
+        TouchArea { }
+
+        body := VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
+
+            Text {
+                text: @tr("looper-take-save-title");
+                color: Theme.palette.text-primary;
+                font-size: Theme.min-font;
+                font-weight: 700;
+            }
+
+            name-edit := LineEdit {
+                text <=> LooperTake.name;
+                placeholder-text: @tr("looper-take-name-placeholder");
+                accessible-label: @tr("looper-take-name-placeholder");
+                edited => { LooperTake.status = 0; }
+                accepted => { root.submit(); }
+            }
+
+            Text {
+                min-height: 18px;
+                wrap: word-wrap;
+                text: LooperTake.status == 1 ? @tr("looper-take-saved")
+                    : LooperTake.status == 2 ? @tr("looper-take-name-taken")
+                    : LooperTake.status == 3 ? @tr("looper-take-nothing-recorded")
+                    : LooperTake.status == 4 ? @tr("looper-take-failed")
+                    : LooperTake.status == 5 ? @tr("looper-take-needs-name")
+                    : "";
+                color: LooperTake.status == 1 ? #7bd88f : #ffb454;
+                font-size: Theme.min-font;
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+
+                // Once saved there is nothing to cancel — the same button
+                // just closes.
+                cancel-btn := EditorButton {
+                    label: LooperTake.status == 1 ? @tr("btn-close") : @tr("btn-cancel");
+                    clicked => { LooperTake.dialog-uid = -1; }
+                }
+
+                save-btn := EditorButton {
+                    label: @tr("looper-take-save");
+                    enabled: root.can-save;
+                    clicked => { root.submit(); }
+                }
+            }
+        }
+    }
+
+    init => { name-edit.focus(); }
+}

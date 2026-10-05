@@ -204,7 +204,8 @@ fn digital_clean_schema_returns_expected_params() {
     assert!(param_names.contains(&"time_ms"));
     assert!(param_names.contains(&"feedback"));
     assert!(param_names.contains(&"mix"));
-    assert_eq!(param_names.len(), 3);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 4);
 }
 
 #[test]
@@ -216,7 +217,8 @@ fn analog_warm_schema_returns_expected_params() {
     assert!(param_names.contains(&"feedback"));
     assert!(param_names.contains(&"mix"));
     assert!(param_names.contains(&"tone"));
-    assert_eq!(param_names.len(), 4);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 5);
 }
 
 #[test]
@@ -224,7 +226,8 @@ fn slapback_schema_returns_expected_params() {
     let schema = delay_model_schema("slapback").expect("schema");
     assert_eq!(schema.model, "slapback");
     let param_names: Vec<&str> = schema.parameters.iter().map(|p| p.path.as_str()).collect();
-    assert_eq!(param_names.len(), 3);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 4);
 }
 
 #[test]
@@ -232,7 +235,8 @@ fn reverse_schema_returns_expected_params() {
     let schema = delay_model_schema("reverse").expect("schema");
     assert_eq!(schema.model, "reverse");
     let param_names: Vec<&str> = schema.parameters.iter().map(|p| p.path.as_str()).collect();
-    assert_eq!(param_names.len(), 3);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 4);
 }
 
 #[test]
@@ -245,7 +249,8 @@ fn modulated_delay_schema_returns_expected_params() {
     assert!(param_names.contains(&"mix"));
     assert!(param_names.contains(&"rate_hz"));
     assert!(param_names.contains(&"depth"));
-    assert_eq!(param_names.len(), 5);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 6);
 }
 
 #[test]
@@ -258,7 +263,8 @@ fn tape_vintage_schema_returns_expected_params() {
     assert!(param_names.contains(&"mix"));
     assert!(param_names.contains(&"tone"));
     assert!(param_names.contains(&"flutter"));
-    assert_eq!(param_names.len(), 5);
+    assert!(param_names.contains(&"time_sync"));
+    assert_eq!(param_names.len(), 6);
 }
 
 #[test]
@@ -473,5 +479,41 @@ fn native_delay_process_block_1024_sine_stereo_all_finite() {
             }
             _ => panic!("{model} expected Stereo processor"),
         }
+    }
+}
+
+// ── Tempo sync ───────────────────────────────────────────────
+
+#[test]
+fn native_delay_schema_has_time_sync_select_defaulting_off() {
+    use block_core::tempo_sync::{SYNC_OFF, TIME_SYNC_PATH};
+    for model in native_delay_models() {
+        let schema = delay_model_schema(model).expect("schema");
+        let spec = schema
+            .parameters
+            .iter()
+            .find(|p| p.path == TIME_SYNC_PATH)
+            .unwrap_or_else(|| panic!("{model} schema should contain {TIME_SYNC_PATH}"));
+        assert_eq!(
+            spec.default_value,
+            Some(ParameterValue::String(SYNC_OFF.to_string())),
+            "{model}: sync must default to off"
+        );
+    }
+}
+
+#[test]
+fn native_delay_old_params_without_time_sync_normalize_to_off() {
+    use block_core::tempo_sync::{SYNC_OFF, TIME_SYNC_PATH};
+    for model in native_delay_models() {
+        let schema = delay_model_schema(model).expect("schema");
+        let normalized = ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("defaults normalize");
+        assert_eq!(
+            normalized.get_string(TIME_SYNC_PATH),
+            Some(SYNC_OFF),
+            "{model}"
+        );
     }
 }

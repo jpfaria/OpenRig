@@ -1,20 +1,22 @@
-# Organização de arquivos (issues #194, #873)
+# File organization
 
-God-files surgem quando lógica feature-specific entra em arquivos compartilhados. Regra dura:
+God-files appear when feature-specific logic lands in shared files. The hard rule:
 
-> **Código compartilhado SÓ quando 2+ features usam aquele código.** Lógica feature-specific mora no módulo da feature.
+> **Code is shared ONLY when 2+ features use it.** Feature-specific logic lives in the feature's module.
 
-## A lei: um arquivo, uma responsabilidade
+## The law: one file, one responsibility
 
-**Arquivo de produção faz UMA coisa** — uma responsabilidade é um motivo pra mudar. O teste é verbal: descreva o arquivo em uma frase; precisou de "e", são dois arquivos.
+**A production file does ONE thing** — one responsibility is one reason to change. The test is verbal: describe the file in one sentence; if you need "and", it is two files.
 
-**Só arquivo de teste pode ser grande.** Teste não tem cap de linhas. Produção (`.rs` não-test, `.slint`) tem cap E tem a lei da responsabilidade — e a lei é a que manda: 300 linhas fazendo 4 coisas já viola, mesmo passando no cap.
+**Only test files may be large.** Tests have no line cap. Production files (non-test `.rs`, `.slint`) have a cap AND the responsibility law — and the law is what rules: 300 lines doing 4 things already breaks it, even under the cap.
 
-Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela.
+A new responsibility never goes at the end of an existing file — it is born in its own file. Before adding ANY line to a production file, look at its size and its responsibility.
 
-### A declaração no cabeçalho
+A split always preserves behaviour: it moves code, changes nothing, and no existing test is rewritten to fit the new shape.
 
-Todo arquivo de produção declara sua responsabilidade na primeira dúzia de linhas:
+### The header declaration
+
+Every production file — `.rs`, `.slint`, `build.rs`, examples — opens with a line declaring the ONE thing it does:
 
 ```rust
 //! Responsibility: rebuilds a chain runtime in place
@@ -23,145 +25,100 @@ Todo arquivo de produção declara sua responsabilidade na primeira dúzia de li
 // Responsibility: renders one block tile inside a chain row
 ```
 
-`validate.sh` (check 1) reprova arquivo tocado que não declara, e reprova declaração que precisa de "and"/"+"/vírgula pra ser escrita — isso é o arquivo dizendo que faz duas coisas. Arquivo legado que você não tocou só avisa: a regra entra sem rewrite do repo, e cada arquivo paga a dele quando alguém o edita.
+`validate.sh` (check 1) fails two things:
 
-## Onde mora cada coisa
-
-| Situação | Onde mora |
+| Situation | Result |
 |---|---|
-| Constante/tipo/fn usados por 2+ crates ou 2+ features | crate compartilhado (`block-core`, `domain`, `project`) |
-| Lógica de UM modelo (preset Marshall JCM 800, schema do TS9) | crate do efeito dono |
-| Visual config (cor, fonte, posição de foto) | `adapter-gui/src/visual_config/` — NUNCA no `MODEL_DEFINITION` |
-| Wiring de UM widget Slint | arquivo `*_wiring.rs` próprio |
-| Audio thread hot path | crate `engine` (split por responsabilidade) |
+| Production file without the line | ❌ FAIL |
+| Declaration with a conjunction or a list (`and`, `+`, `,`, `/`) | ❌ FAIL — the file is confessing it does two things |
 
-## Anti-padrões
+Test files are exempt: their name already says what they cover. Every production file in the repository declares, so the whole-repo mode (`validate.sh crates`) fails, it does not warn.
+
+Writing the sentence IS the analysis. When it will not come out without an "and", the file has two owners and new code goes to a new file.
+
+## Where each thing lives
+
+| Situation | Where it lives |
+|---|---|
+| Constant, type or fn used by 2+ crates or 2+ features | a shared crate (`block-core`, `domain`, `project`) |
+| Logic of ONE model (its schema, its DSP) | the block crate that owns it |
+| A model's visual config (colours, font) | the block crate's `model_visual.rs` — NEVER in `MODEL_DEFINITION` |
+| Wiring of ONE Slint widget | its own `*_wiring.rs` file |
+| Audio-thread hot path | the `engine` crate, split by responsibility |
+
+## Anti-patterns
 
 ```
-❌ match/if novo em crate central a cada modelo novo
-❌ adapter-gui/src/lib.rs com 9000+ LOC de callbacks Slint
-❌ project/src/block.rs com match-branches que crescem por effect_type
-❌ visual config dentro de MODEL_DEFINITION (mistura business + GUI)
-❌ string literal de model_id em arquivo compartilhado
+❌ a new match/if in a central crate for every new model
+❌ adapter-gui/src/lib.rs holding thousands of lines of Slint callbacks
+❌ match branches that grow per effect_type in a shared file
+❌ visual config inside MODEL_DEFINITION (mixes business and GUI)
+❌ a model_id string literal in a shared file
 ```
 
-## Padrões corretos
+## Correct patterns
 
 ```
-✅ cada block-* exporta <crate>_model_visual(id) — UI olha brand sem tocar business
-✅ adapter-gui split em *_wiring.rs por feature
-✅ engine runtime split por responsabilidade
-✅ slint ternary por model_id em UM componente (block_panel_brand_strip.slint) — exceção autorizada
+✅ each block-* crate exports <crate>_model_visual(id) — the UI reads the look without touching business logic
+✅ adapter-gui split into one *_wiring.rs per feature
+✅ engine runtime split by responsibility
+✅ a Slint ternary per model_id in ONE component (block_panel_brand_strip.slint) — the authorised exception
 ```
 
-## Caps de tamanho (validate.sh)
+## Size caps (validate.sh)
 
-- `.rs` (não-test): **600 LOC**
+- `.rs` (non-test): **600 LOC**
 - `.slint`: **500 LOC**
-- `.rs` de teste: **sem cap** — é a única exceção de tamanho do repo, e `validate.sh` nem mede
-- `lib.rs` / `mod.rs`: só re-exports, < 100 LOC
+- test `.rs`: **no cap** — the only size exception in the repo; `validate.sh` does not measure them
+- `lib.rs` / `mod.rs`: re-exports only, < 100 LOC
 
-## Fonte mínima na UI (#954)
+### The debt ratchet
 
-Nenhum texto do app pode ser menor que **18px** — o tamanho do próprio select de preset, o piso de
-legibilidade. O valor mora uma vez em `Theme.min-font` (`crates/adapter-gui/ui/theme.slint`); use o
-token em vez de repetir o número. **Única exceção, decidida pelo dono:** o texto em volta de um knob — a legenda (`Theme.knob-caption-font`, 12px) e as posições não numéricas de um seletor (`Theme.knob-option-font`, 10px), que vivem na célula apertada do knob. O check 6 do `validate.sh` reprova qualquer `font-size` com
-literal abaixo do piso nos nossos `.slint` (o vendored `ui/modules/**` fica fora, só fornece ícones),
-e `scripts/tests/min_font_size_test.sh` cobre o check.
+`validate.sh` keeps `DEBT_FILES`, the baseline LOC of each production file that was already over the cap. The list is a ratchet, not an amnesty:
 
-### Catraca do débito (#873)
-
-`validate.sh` mantém `DEBT_FILES` com o LOC de referência de cada arquivo de produção que já nasceu acima do cap. A lista é catraca, não anistia:
-
-| Situação | Resultado do gate |
+| Situation | Gate result |
 |---|---|
-| Arquivo NOVO acima do cap | ❌ FAIL — split antes de commitar |
-| Arquivo em débito que **cresceu** acima do LOC de referência | ❌ FAIL — proibido crescer |
-| Arquivo em débito que encolheu, ainda acima do cap | ⚠️ WARN + baixe o LOC de referência no mesmo commit |
-| Arquivo em débito que caiu **abaixo** do cap | ❌ FAIL — tire a linha da lista (o débito acabou) |
+| NEW file over the cap | ❌ FAIL — split before committing |
+| Debt file that **grew** past its baseline | ❌ FAIL — it may never grow |
+| Debt file that shrank, still over the cap | ⚠️ WARN + lower its baseline in the same commit |
+| Debt file that dropped **under** the cap | ❌ FAIL — delete its line (the debt is paid) |
 
-Nunca se acrescenta arquivo à lista. Ela só encolhe.
+A file is never added to the list; it only shrinks. **The list is empty today**, and that is the normal state: a file born large is the "new file over the cap" FAIL, not a debt entry.
 
-**Hoje a lista está VAZIA** — o último débito (`jack_supervisor/live_backend.rs`, 627 LOC) foi quitado em #873, dividido nos módulos `live_shm` (limpeza de shm), `live_socket` (espera do socket), `live_stderr` (falha de driver), `live_process` (jackd não-spawnado) e `live_probe` (metadata do servidor). Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
+### Edit-time guard
 
-### Dividir arquivo com `cfg` (#873)
+The dev-rules plugin's `line-cap-guard` (PreToolUse) **denies an Edit/Write that grows** a file already over the cap; an edit that shrinks passes, so a split is never blocked by itself. Its caps come from the repo's `.dev-rules.json` (`line_caps`) — the same numbers as `validate.sh`.
 
-Metade do `infra-cpal` só compila em Linux+JACK, e a máquina de desenvolvimento
-é macOS: `cargo build` verde ali **não diz nada** sobre o outro caminho. Duas
-regressões seguidas saíram exatamente daí ao dividir arquivos gateados.
+### Splitting a file behind `cfg`
 
-O que quebrou, nas duas vezes:
+Half of `infra-cpal` only compiles on Linux + JACK, and the development machine is macOS: a green `cargo build` there **says nothing** about the other path. Splitting gated files breaks in two places:
 
-1. **Imports do arquivo novo.** O item continuava atrás do `cfg` certo, mas o
-   `use` que o alcança não — ou apontava para o módulo antigo, ou pedia um
-   símbolo que naquele `cfg` não existe (`select_host_for_enumeration` só
-   existe fora do JACK; `jack_server_is_running` só dentro).
-2. **A declaração do módulo em `lib.rs`.** Inserir `mod novo;` logo depois de
-   um `#[cfg(...)]` **rouba o atributo do módulo seguinte**. O `dsp_worker`
-   ficou sem gate e foi compilar em Linux procurando `audio_workgroup`,
-   `StreamConfig` e `BufferSize`, todos ausentes lá.
+1. **The new file's imports.** The item stays behind the right `cfg`, but the `use` that reaches it does not — it points at the old module, or asks for a symbol that does not exist under that `cfg` (`select_host_for_enumeration` exists only outside JACK; `jack_server_is_running` only inside).
+2. **The module declaration in `lib.rs`.** Inserting `mod new_module;` right after a `#[cfg(...)]` **steals the attribute from the next module**, which then compiles ungated on the other platform.
 
-Antes de commitar um split que toca código gateado:
+Before committing a split that touches gated code:
 
-- confira a declaração em `lib.rs` — cada `mod` novo carrega o MESMO `cfg` do
-  arquivo de onde saiu, e o `cfg` do vizinho continua no vizinho;
-- para cada arquivo novo, liste os identificadores livres e confirme que o
-  `use` que os traz existe no MESMO `cfg` em que são usados;
-- o re-export do caminho antigo carrega o `cfg` do item, não o do arquivo.
+- check the declaration in `lib.rs` — each new `mod` carries the SAME `cfg` as the file it came from, and the neighbour's `cfg` stays on the neighbour;
+- for each new file, list its free identifiers and confirm the `use` that brings them exists under the SAME `cfg` they are used in;
+- a re-export of the old path carries the item's `cfg`, not the file's.
 
-Quem confirma é o CI (job `Test Suite` do `pr.yml`, Ubuntu). Não existe
-substituto local: `jack-sys` precisa de sysroot Linux e não cross-compila do
-macOS.
+CI confirms it (the `Test Suite` job of `test.yml`, on Ubuntu). There is no local substitute: `jack-sys` needs a Linux sysroot and does not cross-compile from macOS.
 
-### Declaração de responsabilidade (#873)
+## Minimum font size in the UI
 
-Todo arquivo de produção — `.rs`, `.slint`, `build.rs`, exemplos — abre com uma
-linha declarando a ÚNICA coisa que ele faz:
+No app text may be smaller than **18px** — the size of the preset select itself, the legibility floor. The value lives once in `Theme.min-font` (`crates/adapter-gui/ui/theme.slint`); use the token instead of repeating the number. **The only exception, decided by the owner:** the text around a knob — its caption (`Theme.knob-caption-font`, 12px) and a selector's non-numeric positions (`Theme.knob-option-font`, 10px), which live in the knob's tight cell. Check 6 of `validate.sh` fails any `font-size` literal below the floor in our `.slint` files (the vendored `ui/modules/**` is out of scope: it only supplies icons), and `scripts/tests/min_font_size_test.sh` covers the check.
 
-```rust
-//! Responsibility: rebuilds a chain runtime in place
-```
-```slint
-// Responsibility: renders one block tile inside a chain row
-```
+## LV2 plugins — `audio_mode` vs builder
 
-O gate (check 1 do `validate.sh`) reprova duas coisas:
+The builder and the `audio_mode` must match. Mixing them up means a SIGSEGV or wasted CPU.
 
-| Situação | Resultado |
-|---|---|
-| Arquivo de produção sem a linha | ❌ FAIL |
-| Declaração com conjunção ou lista (`and`, `+`, `,`, `/`) | ❌ FAIL — o arquivo está confessando que faz duas coisas |
-
-Arquivo de teste é isento: o nome dele já diz o que ele cobre.
-
-**O sweep terminou.** Todos os arquivos de produção do repositório declaram —
-os crates puros, os 17 `block-*`, `project`, `application`, `engine`,
-`infra-cpal`, `adapter-gui` (148 `.rs` + 109 `.slint`), os `build.rs` e os
-`examples/`. Por isso o modo sweep (`validate.sh crates`) **não avisa mais, ele
-reprova**: antes ele só avisava porque a maior parte do repo ainda não tinha
-header e um FAIL travaria qualquer commit. Esse período acabou.
-
-Escrever a frase É a análise. Quando ela não sai sem um "e", o arquivo tem dois
-donos e o destino do código novo é um arquivo novo — foi assim que
-`catalog.rs` (482 LOC, seis perguntas diferentes), `query.rs` (447, cinco),
-`dsp/legacy.rs` (426, quatro primitivas) e `runtime_audio_frame.rs` (365,
-frame + buffer elástico + processador) se dividiram.
-
-### Guard em tempo de edição
-
-O `line-cap-guard` do plugin dev-rules (PreToolUse) **nega Edit/Write que cresça** um arquivo já acima do cap; edit que encolhe passa, então o split nunca fica bloqueado por si mesmo. Os caps que ele usa vêm do `.dev-rules.json` do repo (`line_caps`) — mesma fonte de números do `validate.sh`.
-
-## LV2 plugin — `audio_mode` vs builder (issue #130)
-
-Builder e `audio_mode` precisam bater. Misturar = SIGSEGV ou desperdício de CPU.
-
-| Plugin é... | Builder | `ModelAudioMode` |
+| The plugin is… | Builder | `ModelAudioMode` |
 |---|---|---|
-| 1 in / 1 out | `lv2::build_lv2_processor*` com `[in], [out]` | `DualMono` ou `MonoOnly` |
-| 1 in / 2 out | `lv2::build_stereo_lv2_processor*` com `[in], [L, R]` (entrada recebe o mid L/R) | `MonoToStereo` |
-| 2 in / 2 out | `lv2::build_stereo_lv2_processor*` | `TrueStereo` |
-| 2 in / 1 out (sidechain) | `lv2::build_lv2_processor*` | `DualMono` |
+| 1 in / 1 out | `lv2::build_lv2_processor_full` with `[in], [out]` | `DualMono` or `MonoOnly` |
+| 1 in / 2 out | `lv2::build_stereo_lv2_processor_full` with `[in], [L, R]` (the input gets the L/R mid) | `MonoToStereo` |
+| 2 in / 2 out | `lv2::build_stereo_lv2_processor_full` | `TrueStereo` |
+| 2 in / 1 out (sidechain) | `lv2::build_lv2_processor_full` | `DualMono` |
 
-Sintoma clássico: 4 portas declarado `DualMono` → 2 portas dangling → SIGSEGV no primeiro write. Confirmar port count via TTL antes de escolher.
+Classic symptom: a 4-port plugin declared `DualMono` → 2 dangling ports → SIGSEGV on the first write.
 
-Disk packages (`backend: lv2`) não declaram o modo à mão: `project::block::disk_audio_mode` lê as portas de áudio do TTL e aplica esta tabela (#938). Antes disso todo pacote LV2 rodava `DualMono`, e um 2in/2out saía com L == R numa guitarra mono.
+LV2 packages do not declare the mode by hand: `crates/project/src/block/disk_audio_mode.rs` reads the audio ports from the TTL and applies this table.

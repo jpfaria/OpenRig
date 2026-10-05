@@ -82,6 +82,10 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             blocks.retain(|b| !duplicates_chain_binding(b, &input.io_binding_ids));
         }
 
+        // #328: a rig saved before §11 names the paths of its single Y.
+        let mut disabled_endpoints = input.disabled_endpoints.clone();
+        disabled_endpoints.adopt_legacy_paths(&blocks);
+
         chains.push(Chain {
             id: ChainId(format!("rig:{name}")),
             // The chain title is the *input* label (the chain's own
@@ -106,8 +110,11 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             volume: preset.scene_volume(input.active_scene),
             io_binding_ids: input.io_binding_ids.clone(),
             blocks,
-            di_output: None,
+            di_output: input.di_output.clone(),
             loopers: input.loopers.clone(),
+            // #328: the input's checklists ride on the chain its graph edits.
+            disabled_endpoints,
+            mix: input.mix.clone(),
         });
     }
     chains
@@ -161,7 +168,7 @@ pub fn rig_to_legacy_project(
         name: rig.name.clone(),
         device_settings: Vec::new(),
         chains,
-        // #513: project-owned MIDI bindings travel with `.openrig`. A rig-
+        // #513: project-owned MIDI bindings travel with `project.yaml`. A rig-
         // projected `Project` is a synthetic view — bindings live on the
         // source RigProject if needed, so the projection starts with none.
         midi: None,

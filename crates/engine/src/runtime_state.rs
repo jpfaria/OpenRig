@@ -77,6 +77,16 @@ pub(crate) struct InputProcessingState {
     /// #454-T5: previous pipeline decaying in parallel after a switch.
     /// `None` in steady state ⇒ behaviour byte-identical to pre-#454-T5.
     pub(crate) outgoing: Option<Box<OutgoingTail>>,
+    /// #1007: the global and chain faders of this pipeline's physical input.
+    pub(crate) mixer_gain: crate::endpoint_fader::EndpointFader,
+    /// #1007: the fader gain this pipeline last played.
+    pub(crate) mixer_current: f32,
+    /// #1007: the chain's DI-loop fader.
+    pub(crate) di_gain: Arc<crate::mixer_gains::EndpointGain>,
+    /// #1007: the DI fader gain this pipeline last played.
+    pub(crate) di_current: f32,
+    /// #979: watches this pipeline's input channels for a stepped input.
+    pub(crate) seam_watch: crate::runtime_input_seams::InputSeamWatch,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -162,11 +172,20 @@ pub(crate) struct OutputRoutingState {
     /// scaling the send too made the knob act twice through the loop (-12 dB
     /// for a -6 dB turn).
     pub(crate) applies_chain_volume: bool,
+    /// #1007: the global and chain faders of this route's physical output.
+    pub(crate) mixer_gain: crate::endpoint_fader::EndpointFader,
+    /// #1007: the fader gain this route last played, as `f32` bits. Written
+    /// only by this route's own output callback.
+    pub(crate) mixer_current: std::sync::atomic::AtomicU32,
 }
 
 pub(crate) enum RuntimeProcessor {
     Audio(AudioProcessor),
     Select(SelectRuntimeState),
+    /// #328: a chain split — both paths and their mixer run inside this node.
+    // Task 14 builds split nodes from the model and removes this allow.
+    #[cfg_attr(not(test), allow(dead_code))]
+    Split(crate::runtime_split::state::SplitRuntimeState),
     Bypass,
 }
 
@@ -179,6 +198,7 @@ impl RuntimeProcessor {
         match self {
             RuntimeProcessor::Audio(_) => "audio",
             RuntimeProcessor::Select(_) => "select",
+            RuntimeProcessor::Split(_) => "split",
             RuntimeProcessor::Bypass => "bypass",
         }
     }
@@ -263,6 +283,10 @@ impl SelectRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 /// Lives next to `FadeState` because it parameterises that state machine.
 pub(crate) const FADE_IN_FRAMES: usize = 128;
+
+/// Frames a segment preallocates for one callback — its frame buffer and a
+/// split's path-B buffer (#328). A larger callback grows them once.
+pub(crate) const SEGMENT_FRAME_CAPACITY: usize = 1024;
 
 /// #454-T5 spillover window: after a preset/scene switch the previous
 /// pipeline keeps processing **silence** (so its delay/reverb tail rings

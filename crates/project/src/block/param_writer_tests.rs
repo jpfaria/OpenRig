@@ -243,6 +243,28 @@ fn set_parameter_option_missing_path_returns_err() {
 }
 
 #[test]
+fn set_parameter_option_inserts_a_schema_option_the_block_was_saved_without() {
+    // A delay saved before `time_sync` joined its schema has no entry for it.
+    let mut params = ParameterSet::default();
+    params.insert("time_ms", ParameterValue::Float(300.0));
+    let mut block = AudioBlock {
+        id: BlockId("blk_delay".to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "delay".to_string(),
+            model: "digital_clean".to_string(),
+            params,
+        }),
+    };
+    set_parameter_option(&mut block, "time_sync", "1/4")
+        .expect("the delay schema declares time_sync");
+    let AudioBlockKind::Core(ref core) = block.kind else {
+        panic!("expected CoreBlock");
+    };
+    assert_eq!(core.params.get_string("time_sync"), Some("1/4"));
+}
+
+#[test]
 fn set_parameter_option_input_block_returns_err() {
     let mut block = make_input_block();
     let err = set_parameter_option(&mut block, "mode", "option_a")

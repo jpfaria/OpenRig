@@ -9,6 +9,7 @@
 use anyhow::{anyhow, Result};
 
 use project::block::{AudioBlock, AudioBlockKind};
+use project::endpoint_prune::prune_stale_endpoint_disables;
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
@@ -97,6 +98,8 @@ impl LocalDispatcher {
             }
         }
 
+        // 5. The reloaded chain plays its synced blocks at the project tempo.
+        self.retime_after_nav(&chain);
         Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
     }
 
@@ -108,6 +111,12 @@ impl LocalDispatcher {
             return Ok(vec![]);
         };
         sync_synthetic_into_rig(&mut rig.borrow_mut(), &self.project.borrow());
+        // #328 (spec §1.3): the save drops checklist refs to endpoints the
+        // E/S no longer offers. With no registry attached nothing is known,
+        // so nothing is dropped.
+        if let Some(registry) = self.io_bindings.borrow().clone() {
+            prune_stale_endpoint_disables(&mut rig.borrow_mut(), &registry.borrow());
+        }
         Ok(vec![Event::ProjectMutated])
     }
 
@@ -175,3 +184,11 @@ pub(crate) fn merge_preserved_ports(
     merged.extend(effects);
     merged
 }
+
+#[cfg(test)]
+#[path = "issue_328_split_preset_switch_tests.rs"]
+mod issue_328_split_preset_switch_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_rig_split_tests.rs"]
+mod split_tests;

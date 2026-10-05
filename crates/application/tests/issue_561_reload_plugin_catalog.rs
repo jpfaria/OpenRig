@@ -53,7 +53,7 @@ fn reload_plugin_catalog_emits_plugin_catalog_reloaded_with_counts() {
         .expect("dispatch ReloadPluginCatalog");
     // #693: the rescan runs on its own task — the completion event
     // arrives via poll_async_results (the frontend tick's job).
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while events.is_empty() && std::time::Instant::now() < deadline {
         std::thread::sleep(std::time::Duration::from_millis(10));
         events = dispatcher.poll_async_results();

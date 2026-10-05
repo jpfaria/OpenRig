@@ -19,13 +19,17 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 const PROJECT_YAML: &str = r#"
-name: Studio
-chains:
-  - description: Guitar
-    blocks:
-      - type: gain
-        enabled: true
-        model: volume
+version: 1
+project:
+  name: Studio
+  inputs:
+    input-1:
+      bank: { 1: guitar }
+      active-preset: 1
+  outputs: {}
+  presets:
+    guitar:
+      blocks: []
 "#;
 
 /// The recents store canonical paths, so the fixture does too — otherwise the

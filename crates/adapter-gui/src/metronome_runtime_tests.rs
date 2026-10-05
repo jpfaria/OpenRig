@@ -16,7 +16,7 @@
 //! one metronome door allowed to create the controller.
 //!
 //! These dispatch commands that PERSIST in the real app. They cannot reach the
-//! machine's `config.yaml` here: `state::metronome_config_path` is `None` in a
+//! machine's `config.yaml` here: `state::machine_config_path` is `None` in a
 //! test build, so the state has nowhere to write (#701).
 //!
 //! **Half of them belong to the real-hardware battery** (`OPENRIG_HW_TESTS=1`,
@@ -72,6 +72,8 @@ fn session_with_disabled_chain() -> ProjectSession {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     };

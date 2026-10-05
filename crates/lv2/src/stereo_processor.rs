@@ -28,6 +28,12 @@ pub struct StereoLv2Processor {
     /// must be connected but are never read (issue #457).
     _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     control_values: Vec<f32>,
+    /// Slot the plugin's latency port writes into (#328), boxed so its
+    /// address stays put while the port is connected to it.
+    latency_out: Box<f32>,
+    /// Latency the plugin published on that port, in samples, read once at
+    /// build (#328). 0 when the plugin declares no latency port.
+    latency: usize,
     _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
 
@@ -152,6 +158,8 @@ impl StereoLv2Processor {
             out_buf_r,
             _dummy_out_buf: dummy_out_buf,
             control_values,
+            latency_out: Box::new(0.0),
+            latency: 0,
             _atom_buf: atom_buf,
         }
     }
@@ -160,6 +168,22 @@ impl StereoLv2Processor {
         if control_index < self.control_values.len() {
             self.control_values[control_index] = value;
         }
+    }
+
+    /// Point the plugin's latency port at this processor's own slot, let the
+    /// plugin publish its latency on one silent frame, and keep the value
+    /// (#328). Build time only — never on the audio thread.
+    pub fn with_latency_port(mut self, port_idx: usize) -> Self {
+        unsafe {
+            self.plugin.connect_port(
+                port_idx as u32,
+                &mut *self.latency_out as *mut f32 as *mut c_void,
+            );
+        }
+        self.load_input(0, [0.0, 0.0]);
+        self.plugin.run(1);
+        self.latency = crate::processor::latency_from_port(*self.latency_out);
+        self
     }
 
     fn load_input(&mut self, i: usize, frame: [f32; 2]) {
@@ -192,5 +216,9 @@ impl StereoProcessor for StereoLv2Processor {
             frame[0] = self.out_buf_l[i];
             frame[1] = self.out_buf_r[i];
         }
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.latency
     }
 }

@@ -17,11 +17,15 @@ fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
+        di_output: None,
     }
 }
 
 fn project_with(inputs: Vec<(&str, RigInput)>, presets: &[&str]) -> RigProject {
     RigProject {
+        bpm: None,
         name: Some("Studio".into()),
         inputs: inputs
             .into_iter()

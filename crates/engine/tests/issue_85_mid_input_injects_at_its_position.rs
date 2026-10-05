@@ -110,6 +110,8 @@ fn chain_with_gate(gate_enabled: bool) -> Chain {
         blocks: vec![gate_block(gate_enabled), mid_input_block()],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

@@ -101,7 +101,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 },
             );
             crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
-            set_selected_block(&window, None, None);
+            set_selected_block(&window, None);
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
@@ -174,11 +174,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 block_index,
             };
             *selected_block.borrow_mut() = Some(selected);
-            {
-                let proj = session.project.borrow();
-                let chain_ref = proj.chains.get(chain_index as usize);
-                set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
-            }
+            set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
@@ -251,7 +247,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             }
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
-            set_selected_block(&window, None, None);
+            set_selected_block(&window, None);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });

@@ -34,6 +34,8 @@ impl DiLoop {
         engine_sr: u32,
         xfade_frames: usize,
     ) -> Self {
+        // The loop plays from the audio thread: audio memory, wired.
+        let _audio = crate::audio_alloc_scope::audio_allocations();
         let layout = if channels >= 2 {
             AudioChannelLayout::Stereo
         } else {
@@ -101,6 +103,9 @@ pub struct DiPcm {
     samples: Box<[f32]>,
     src_sr: u32,
     channels: usize,
+    /// Fold a seam crossfade into the loop. A looper take keeps its exact
+    /// length instead: it sits on a shared timeline.
+    seam_crossfade: bool,
 }
 
 impl DiPcm {
@@ -110,7 +115,14 @@ impl DiPcm {
             samples: samples.into_boxed_slice(),
             src_sr,
             channels,
+            seam_crossfade: true,
         }
+    }
+
+    /// Play the source at its exact length, with no seam crossfade.
+    pub fn without_seam_crossfade(mut self) -> Self {
+        self.seam_crossfade = false;
+        self
     }
 
     /// `true` when there are no samples to play.
@@ -141,9 +153,14 @@ impl DiPcm {
 
     /// Build a [`DiLoop`] resampled to `target_sr`, with a ~10 ms seam
     /// crossfade (rate-relative, so the seam stays ~10 ms at any rate — the
-    /// old fixed 480-frame constant was exactly 10 ms only at 48 kHz).
+    /// old fixed 480-frame constant was exactly 10 ms only at 48 kHz) unless
+    /// the source keeps its exact length.
     pub fn to_loop_at(&self, target_sr: u32) -> DiLoop {
-        let xfade = (target_sr / 100) as usize;
+        let xfade = if self.seam_crossfade {
+            (target_sr / 100) as usize
+        } else {
+            0
+        };
         DiLoop::from_samples(&self.samples, self.src_sr, self.channels, target_sr, xfade)
     }
 }

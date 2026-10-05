@@ -355,6 +355,7 @@ fn block_parameter_descriptor_validate_delegates_to_spec() {
         current_value: ParameterValue::Float(50.0),
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     };
     assert!(desc.validate_value(&ParameterValue::Float(75.0)).is_ok());
     assert!(desc.validate_value(&ParameterValue::Float(200.0)).is_err());
@@ -516,5 +517,51 @@ fn normalize_coerces_legacy_float_to_bool() {
     assert_eq!(
         normalized.values.get("fastmode"),
         Some(&ParameterValue::Bool(false))
+    );
+}
+
+// ── Per-position value labels (#1011) ───────────────────────────
+
+#[test]
+fn value_labels_default_to_empty() {
+    let spec = float_parameter(
+        "mix",
+        "Mix",
+        None,
+        None,
+        0.0,
+        100.0,
+        1.0,
+        ParameterUnit::Percent,
+    );
+    assert!(spec.value_labels.is_empty());
+}
+
+#[test]
+fn value_labels_reach_the_materialized_descriptor() {
+    let labels = vec!["0.1 s".to_string(), "2.5 s".to_string()];
+    let spec = float_parameter(
+        "decay",
+        "Decay",
+        None,
+        None,
+        0.0,
+        1.0,
+        1.0,
+        ParameterUnit::None,
+    )
+    .with_value_labels(labels.clone());
+    assert_eq!(spec.value_labels, labels);
+    let block_id = BlockId("b".to_string());
+    let ctx = crate::param::MaterializeContext {
+        block_id: &block_id,
+        effect_type: "reverb",
+        model: "m",
+        audio_mode: ModelAudioMode::DualMono,
+    };
+    assert_eq!(
+        spec.materialize(&ctx, ParameterValue::Float(1.0))
+            .value_labels,
+        labels
     );
 }

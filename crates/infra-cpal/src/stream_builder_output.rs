@@ -96,8 +96,9 @@ pub(crate) fn build_output_stream_for_output(
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 stream_config,
-                move |out: &mut [f32], _| {
+                move |out: &mut [f32], info: &cpal::OutputCallbackInfo| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
+                    let playback_ns = crate::host_clock::playback_ns(info);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
@@ -110,7 +111,12 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
-                        crate::di_playback::mix_di_playback(&di_cell, out, channels);
+                        crate::di_playback::mix_di_playback_at(
+                            &di_cell,
+                            out,
+                            channels,
+                            playback_ns,
+                        );
                     }));
                 },
                 crate::stream_error::stream_error_handler(format!(
@@ -129,8 +135,9 @@ pub(crate) fn build_output_stream_for_output(
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 stream_config,
-                move |out: &mut [i16], _| {
+                move |out: &mut [i16], info: &cpal::OutputCallbackInfo| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
+                    let playback_ns = crate::host_clock::playback_ns(info);
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -144,7 +151,12 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
-                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
+                        crate::di_playback::mix_di_playback_at(
+                            &di_cell,
+                            &mut temp,
+                            channels,
+                            playback_ns,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_i16(*src);
@@ -166,8 +178,9 @@ pub(crate) fn build_output_stream_for_output(
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 stream_config,
-                move |out: &mut [u16], _| {
+                move |out: &mut [u16], info: &cpal::OutputCallbackInfo| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
+                    let playback_ns = crate::host_clock::playback_ns(info);
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -181,7 +194,12 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
-                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
+                        crate::di_playback::mix_di_playback_at(
+                            &di_cell,
+                            &mut temp,
+                            channels,
+                            playback_ns,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_u16(*src);
@@ -203,8 +221,9 @@ pub(crate) fn build_output_stream_for_output(
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 stream_config,
-                move |out: &mut [i32], _| {
+                move |out: &mut [i32], info: &cpal::OutputCallbackInfo| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
+                    let playback_ns = crate::host_clock::playback_ns(info);
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -218,7 +237,12 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
-                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
+                        crate::di_playback::mix_di_playback_at(
+                            &di_cell,
+                            &mut temp,
+                            channels,
+                            playback_ns,
+                        );
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_i32(*src);

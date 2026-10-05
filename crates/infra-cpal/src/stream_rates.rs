@@ -29,13 +29,16 @@ pub(crate) fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u3
         .unwrap_or_else(|| resolved.supported.sample_rate())
 }
 
+/// Buffer every stream asks for on a device the project has no settings for.
+pub(crate) const UNSET_BUFFER_SIZE_FRAMES: u32 = 256;
+
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
     resolved
         .settings
         .as_ref()
         .map(|settings| settings.buffer_size_frames)
-        .unwrap_or(256)
+        .unwrap_or(UNSET_BUFFER_SIZE_FRAMES)
 }
 
 pub(crate) fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
@@ -43,7 +46,7 @@ pub(crate) fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice
         .settings
         .as_ref()
         .map(|settings| settings.buffer_size_frames)
-        .unwrap_or(256)
+        .unwrap_or(UNSET_BUFFER_SIZE_FRAMES)
 }
 
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

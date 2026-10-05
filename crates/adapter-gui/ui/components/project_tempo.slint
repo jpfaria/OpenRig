@@ -1,0 +1,65 @@
+// Responsibility: renders the project tempo control of the top bar.
+import { HeaderIconAction } from "chain_chips.slint";
+import { MetronomeBridge } from "metronome_globals.slint";
+
+export component ProjectTempo inherits Rectangle {
+    width: 160px;
+    height: 24px;
+
+    minus := HeaderIconAction {
+        x: 0px;
+        y: 0px;
+        icon: @image-url("../assets/minus.svg");
+        tooltip: @tr("Slower");
+        clicked => { MetronomeBridge.set-bpm(Math.round(MetronomeBridge.bpm) - 1); }
+    }
+
+    bpm-text := Text {
+        x: 28px;
+        y: 0px;
+        width: 48px;
+        height: parent.height;
+        text: Math.round(MetronomeBridge.bpm);
+        color: #f1f4f8;
+        font-size: 22px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    plus := HeaderIconAction {
+        x: 80px;
+        y: 0px;
+        icon: @image-url("../assets/plus.svg");
+        tooltip: @tr("Faster");
+        clicked => { MetronomeBridge.set-bpm(Math.round(MetronomeBridge.bpm) + 1); }
+    }
+
+    tap := Rectangle {
+        x: 112px;
+        y: 0px;
+        width: 48px;
+        height: parent.height;
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: #3b4250;
+        background: tap-area.pressed ? #188cff40 : tap-area.has-hover ? #ffffff10 : transparent;
+        accessible-role: button;
+        accessible-label: @tr("action-tap-tempo");
+        accessible-action-default => { MetronomeBridge.tap(); }
+
+        Text {
+            text: @tr("action-tap-tempo");
+            color: #eef2f8;
+            font-size: 18px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        tap-area := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { MetronomeBridge.tap(); }
+        }
+    }
+}

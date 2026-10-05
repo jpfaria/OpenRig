@@ -37,7 +37,7 @@ use engine::DiPcm;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 
-use crate::metronome_view::{output_endpoints, resolve_output_endpoint, MetronomeOutput};
+use crate::metronome_view::{output_endpoints, resolve_output_endpoint, ProjectOutput};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_lifecycle::{attach_runtime_control, sync_engine_sr_from_runtime};
 use crate::runtime_loopers::restore_project_loops;
@@ -76,7 +76,7 @@ pub(crate) fn ensure_runtime(
     *runtime.borrow_mut() = Some(controller);
     // #669: keep the dispatcher's engine rate in lock-step with the real device
     // rate start() resolved, so a DI resamples correctly.
-    sync_engine_sr_from_runtime(runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(runtime, session);
     attach_runtime_control(runtime, analyzers, session);
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.
@@ -225,12 +225,9 @@ pub(crate) fn refresh_metronome_output(
 ///
 /// The key stays opaque to `application`; this frontend owns the binding
 /// registry, so it is the one that can turn it into a device and channels.
-fn metronome_endpoint(
-    session: &ProjectSession,
-    output_key: Option<&str>,
-) -> Option<MetronomeOutput> {
+fn metronome_endpoint(session: &ProjectSession, output_key: Option<&str>) -> Option<ProjectOutput> {
     let bindings = session.io_bindings.borrow();
-    resolve_output_endpoint(output_key, &output_endpoints(&bindings))
+    resolve_output_endpoint(output_key, &output_endpoints(&bindings, &[]))
 }
 
 #[cfg(test)]

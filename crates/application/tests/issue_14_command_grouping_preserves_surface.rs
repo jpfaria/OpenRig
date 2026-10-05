@@ -30,6 +30,8 @@ use domain::ids::{BlockId, ChainId};
 const EXPECTED_VARIANTS: &[&str] = &[
     // ── Added by #14 (the metronome) ──────────────────────────────────────
     "MetronomeTap",
+    "AddSplitPath",
+    "RemoveSplitPath",
     "SetMetronomeBpm",
     "SetMetronomeCountIn",
     "SetMetronomeEnabled",
@@ -38,6 +40,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetMetronomeTimbre",
     "SetMetronomeTimeSignature",
     "SetMetronomeVolume",
+    // The "use global tempo" lock and a rig preset's own tempo.
     // ── Added by #127 (runtime control on the bus) ────────────────────────
     "SetIoBindings",
     // ── Added on develop (#791 Tone Doctor, #829 device refresh) ──────────
@@ -57,7 +60,16 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "EditChainLooperAudio",
     "UndoChainLooperEdit",
     "RedoChainLooperEdit",
+    // #827 — keep a recorded loop as a named take the DI can play.
+    "SaveChainLooperTake",
+    // #1021 — remove a saved take from the library.
+    "DeleteLooperTake",
     "SetChainLooperTransport",
+    // ── Added by #328 (the chain split) ───────────────────────────────────
+    "AddSplit",
+    "RemoveSplit",
+    "SetSplitEnd",
+    "SetChainEndpointEnabled",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",
@@ -109,16 +121,23 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetBlockParameterBool",
     "SetBlockParameterNumber",
     "SetBlockParameterText",
+    "SetChainDiFader",
     "SetChainDiLoopEnabled",
     "SetChainDiLoopOutput",
     "SetChainDiLoopSource",
     "SetChainIoBindings",
+    "SetChainMixerFader",
+    "SetChainMixerMute",
     "SetChainVolume",
     "SetCompactViewEnabled",
     "SetEvaluationsPath",
     "SetLanguage",
     "SetMcpEnabled",
     "SetMidiEnabled",
+    // #1007: the global mixer.
+    "SetMixerFader",
+    "SetMixerMute",
+    "SetMixerSolo",
     "SetOutputMuted",
     "SetPluginsPath",
     "SetPresetsPath",
@@ -133,9 +152,35 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "ToggleActiveBlockNeighborEnabled",
     "ToggleBlockEnabled",
     "ToggleChainEnabled",
+    "ToggleChainMixerMute",
+    "ToggleMixerMute",
+    "ToggleMixerSolo",
     "UnloadPlugin",
     "UpdateIoBinding",
     "UpdateProjectName",
+    // The backing-track player.
+    "ClearPlayerLoop",
+    "DeletePlayerTrack",
+    "LoadPlayerTrack",
+    "SeekPlayer",
+    "SetBackingTracksPath",
+    "SetPlayerLoop",
+    "SetPlayerOutput",
+    "SetPlayerPlaying",
+    "SetPlayerSemitones",
+    "SetPlayerSpeed",
+    "SetPlayerVolume",
+    "StopPlayer",
+    // The drum machine.
+    "PlayDrums",
+    "SelectDrumGroove",
+    "SelectDrumKit",
+    "SetDrumsEnabled",
+    "SetDrumsOutput",
+    "SetDrumsVolume",
+    "StopDrums",
+    "ToggleDrums",
+    "TriggerDrumFill",
 ];
 
 #[test]

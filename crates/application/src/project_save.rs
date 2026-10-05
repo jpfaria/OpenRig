@@ -22,11 +22,11 @@ use project::rig::{RigPreset, RigProject};
 ///
 /// Pure: `(Project, Option<&RigProject>) -> Result<String>`.
 pub fn dirty_snapshot(project: &Project, rig: Option<&RigProject>) -> Result<String> {
-    let legacy = infra_yaml::serialize_project(project)?;
+    let legacy = serde_yaml::to_string(project)?;
     match rig {
         Some(rig) => Ok(format!(
-            "{legacy}\n---openrig---\n{}",
-            infra_yaml::serialize_rig_project(rig)?
+            "{legacy}\n---rig---\n{}",
+            infra_yaml::serialize_project(rig)?
         )),
         None => Ok(legacy),
     }
@@ -48,6 +48,7 @@ pub fn build_rig_for_save(project: &Project, current_rig: Option<&RigProject>) -
     let mut rig_out = match current_rig {
         Some(rig) => rig.clone(),
         None => RigProject {
+            bpm: None,
             name: project.name.clone(),
             inputs: std::collections::BTreeMap::new(),
             outputs: std::collections::BTreeMap::new(),

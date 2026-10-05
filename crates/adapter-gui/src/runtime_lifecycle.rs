@@ -23,28 +23,32 @@
 //! doors read the project through is `runtime_session_handle`.
 
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
-use application::dispatcher::CommandDispatcher;
 use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
 use engine::metronome_state::MetronomeSettings;
+use engine::player::settings::PlayerSettings;
 use engine::{DiPcm, LoopPcm};
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
 
+use crate::crash_context_publish::publish_runtime_context;
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
-use crate::{runtime_devices, runtime_loopers, runtime_pipelines, runtime_teardown};
+use crate::{
+    runtime_devices, runtime_loopers, runtime_pipelines, runtime_player, runtime_teardown,
+};
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
 /// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
@@ -52,13 +56,16 @@ use crate::{runtime_devices, runtime_loopers, runtime_pipelines, runtime_teardow
 ///
 /// Lives here because `runtime_lifecycle` is the module that owns the
 /// controller; every other wiring module dispatches a `Command` instead.
-struct GuiRuntimeControl {
-    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+pub(crate) struct GuiRuntimeControl {
+    pub(crate) runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     /// The tuner / spectrum sessions (#544/#546). Not part of the audio
     /// runtime: an analyzer is a READER of it, which is why powering one on
     /// never creates a controller.
-    analyzers: AnalyzerSessions,
-    session: SessionHandle,
+    pub(crate) analyzers: AnalyzerSessions,
+    pub(crate) session: SessionHandle,
+    /// Which kit the drums play, kept so a stream re-opened at another rate
+    /// reloads it. Body in `runtime_drums`.
+    pub(crate) drum_kit: crate::runtime_drums::DrumKitMemory,
 }
 
 impl RuntimeControl for GuiRuntimeControl {
@@ -177,6 +184,55 @@ impl RuntimeControl for GuiRuntimeControl {
             return Ok(());
         };
         runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
+    }
+
+    // The backing-track player: same rules as the click, bodies in
+    // `runtime_player`.
+
+    fn load_player_track(&self, path: &Path) -> Result<()> {
+        runtime_player::load_player_track(&self.runtime, path);
+        Ok(())
+    }
+
+    fn start_player(
+        &self,
+        track: &Path,
+        settings: PlayerSettings,
+        output_key: Option<&str>,
+    ) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        let (runtime, analyzers) = (&self.runtime, &self.analyzers);
+        runtime_player::start_player(runtime, analyzers, &session, track, settings, output_key)
+    }
+
+    fn pause_player(&self) {
+        runtime_player::pause_player(&self.runtime);
+    }
+
+    fn stop_player(&self) {
+        runtime_player::stop_player(&self.runtime);
+    }
+
+    fn seek_player(&self, seconds: f64) {
+        runtime_player::seek_player(&self.runtime, seconds);
+    }
+
+    fn set_player_settings(&self, settings: PlayerSettings) {
+        runtime_player::push_player_settings(&self.runtime, settings);
+    }
+
+    fn refresh_player_output(&self, output_key: Option<&str>) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        runtime_player::refresh_player_output(&self.runtime, &session, output_key)
+    }
+
+    /// The drum machine, an independent pipeline; body in `runtime_drums`.
+    fn drums(&self) -> Option<&dyn application::drums_runtime::DrumsRuntime> {
+        Some(self)
     }
 
     // The analyzers (#544/#546). Powering one on is what makes it SUBSCRIBE
@@ -329,7 +385,9 @@ pub(crate) fn attach_runtime_control(
             runtime: project_runtime.clone(),
             analyzers: analyzers.clone(),
             session: SessionHandle::mirror(session),
+            drum_kit: Default::default(),
         }));
+    crate::device_presence_gui::attach_device_presence(session);
 }
 
 pub(crate) fn sync_project_runtime(
@@ -347,7 +405,7 @@ pub(crate) fn sync_project_runtime(
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
     // (possibly rebuilt) runtime so DI loops resample to the live device rate.
-    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(project_runtime, session);
     attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
 }
@@ -380,7 +438,7 @@ pub(crate) fn sync_live_chain_runtime(
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
-            sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+            sync_engine_sr_from_runtime(project_runtime, session);
             attach_runtime_control(project_runtime, analyzers, session);
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
@@ -455,7 +513,7 @@ pub(crate) fn sync_live_chain_runtime(
     }
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
-    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(project_runtime, session);
     attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
 }
@@ -519,13 +577,12 @@ pub(crate) fn sync_block_toggle(
 /// against its rebuilt runtime (#669).
 pub(crate) fn sync_engine_sr_from_runtime(
     project_runtime: &RefCell<Option<ProjectRuntimeController>>,
-    dispatcher: &dyn CommandDispatcher,
+    session: &ProjectSession,
 ) {
-    let rate = match project_runtime.borrow().as_ref() {
-        Some(runtime) => runtime.sample_rate(),
-        None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
-    };
-    dispatcher.attach_engine_sr(rate);
+    let live_rate = project_runtime.borrow().as_ref().map(|r| r.sample_rate());
+    let rate = live_rate.unwrap_or(application::local_dispatcher::REFERENCE_SAMPLE_RATE);
+    session.dispatcher.attach_engine_sr(rate);
+    publish_runtime_context(session, live_rate, infra_cpal::audio_backend_name());
 }
 
 #[cfg(test)]

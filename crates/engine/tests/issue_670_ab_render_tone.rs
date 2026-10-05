@@ -55,6 +55,7 @@ fn render_beat_it_green_day_to_wav() {
         di_output: None,
         loopers: Vec::new(),
         blocks,
+        mix: Default::default(),
     };
 
     // 12 s of the real Green Day DI.

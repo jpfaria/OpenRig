@@ -117,6 +117,8 @@ pub(super) fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
             .collect(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -267,6 +269,8 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let project = Project {
         name: None,
@@ -275,38 +279,6 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         midi: None,
     };
     assert_eq!(project_title_for_path(None, &project), "Projeto");
-}
-
-// --- real_block_index_to_ui ---
-
-use crate::project_view::real_block_index_to_ui;
-
-#[test]
-fn real_block_index_to_ui_maps_effect_blocks_correctly() {
-    // [Input, Comp, Preamp, Delay, Output]
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("dynamics"),
-        effect_kind("preamp"),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-    assert_eq!(real_block_index_to_ui(&chain, 1), Some(0));
-    assert_eq!(real_block_index_to_ui(&chain, 2), Some(1));
-    assert_eq!(real_block_index_to_ui(&chain, 3), Some(2));
-}
-
-#[test]
-fn real_block_index_to_ui_hidden_blocks_return_none() {
-    let chain = test_chain(vec![input_kind(), effect_kind("delay"), output_kind()]);
-    assert_eq!(real_block_index_to_ui(&chain, 0), None); // first input hidden
-    assert_eq!(real_block_index_to_ui(&chain, 2), None); // last output hidden
-}
-
-#[test]
-fn real_block_index_to_ui_out_of_range_returns_none() {
-    let chain = test_chain(vec![input_kind(), output_kind()]);
-    assert_eq!(real_block_index_to_ui(&chain, 99), None);
 }
 
 // --- project_display_name ---

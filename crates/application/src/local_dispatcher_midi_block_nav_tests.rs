@@ -67,6 +67,8 @@ fn chain_with_io_and_blocks(id: &str, n_blocks: usize) -> Chain {
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

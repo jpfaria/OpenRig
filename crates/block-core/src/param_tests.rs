@@ -432,6 +432,7 @@ fn validate_int_range_in_range_ok() {
         default_value: None,
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     };
     assert!(spec.validate_value(&ParameterValue::Int(4)).is_ok());
 }
@@ -452,6 +453,7 @@ fn validate_int_range_out_of_range_fails() {
         default_value: None,
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     };
     assert!(spec.validate_value(&ParameterValue::Int(11)).is_err());
 }
@@ -472,6 +474,7 @@ fn validate_int_range_step_misalignment_fails() {
         default_value: None,
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     };
     assert!(spec.validate_value(&ParameterValue::Int(4)).is_err());
     assert!(spec.validate_value(&ParameterValue::Int(6)).is_ok());
@@ -493,6 +496,7 @@ fn validate_int_range_zero_step_allows_any() {
         default_value: None,
         optional: false,
         allow_empty: false,
+        value_labels: Vec::new(),
     };
     assert!(spec.validate_value(&ParameterValue::Int(7)).is_ok());
 }

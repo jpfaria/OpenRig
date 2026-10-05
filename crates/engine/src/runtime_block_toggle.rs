@@ -58,7 +58,8 @@ use domain::ids::BlockId;
 
 use crate::runtime::FADE_IN_FRAMES;
 use crate::runtime_state::{
-    BlockError, ChainProcessingState, ChainRuntimeState, FadeState, RuntimeProcessor,
+    BlockError, BlockRuntimeNode, ChainProcessingState, ChainRuntimeState, FadeState,
+    RuntimeProcessor,
 };
 
 /// Queue a per-block enabled flip for the audio thread to apply on its
@@ -113,10 +114,11 @@ pub(crate) fn drain_pending_block_toggles(
 }
 
 /// In-place mutation that flips `fade_state` for every node matching
-/// `block_id` across every per-input runtime of the chain. Mirrors the
-/// pre-#580 inline implementation but never takes the `processing`
-/// lock itself (the audio-thread caller already holds it via
-/// `process_input_f32`'s try_lock guard).
+/// `block_id` across every per-input runtime of the chain — inside the paths
+/// of a split too, at any depth; every split the toggle sits in then lines
+/// its paths up again, the deepest first (#328). Never takes the
+/// `processing` lock itself (the audio-thread caller already holds it via
+/// `process_input_f32`'s try_lock guard); no allocation on success.
 fn apply_block_toggle(
     processing: &mut ChainProcessingState,
     block_id: &BlockId,
@@ -125,35 +127,7 @@ fn apply_block_toggle(
 ) {
     let mut touched = 0usize;
     for input_state in processing.input_states.iter_mut() {
-        for node in input_state.blocks.iter_mut() {
-            if &node.block_snapshot.id != block_id {
-                continue;
-            }
-            if enabled && matches!(node.processor, RuntimeProcessor::Bypass) {
-                let _ = runtime.error_queue.push(BlockError {
-                    block_id: block_id.clone(),
-                    message: format!(
-                        "block '{}' has no live processor — needs full rebuild to re-enable",
-                        block_id.0
-                    ),
-                });
-                continue;
-            }
-            let was_enabled = node.block_snapshot.enabled;
-            if was_enabled != enabled {
-                node.fade_state = if enabled {
-                    FadeState::FadingIn {
-                        frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
-                    }
-                } else {
-                    FadeState::FadingOut {
-                        frames_remaining: FADE_IN_FRAMES,
-                    }
-                };
-            }
-            node.block_snapshot.enabled = enabled;
-            touched += 1;
-        }
+        touched += toggle_in(&mut input_state.blocks, block_id, enabled, runtime);
     }
     if touched == 0 {
         let _ = runtime.error_queue.push(BlockError {
@@ -164,4 +138,65 @@ fn apply_block_toggle(
             ),
         });
     }
+}
+
+/// Toggle `block_id` among `nodes` and inside every split path below them;
+/// returns how many nodes were toggled.
+fn toggle_in(
+    nodes: &mut [BlockRuntimeNode],
+    block_id: &BlockId,
+    enabled: bool,
+    runtime: &ChainRuntimeState,
+) -> usize {
+    let mut touched = 0usize;
+    for node in nodes.iter_mut() {
+        touched += toggle_node(node, block_id, enabled, runtime);
+        if let RuntimeProcessor::Split(split) = &mut node.processor {
+            let mut in_paths = 0usize;
+            for path in split.paths.iter_mut() {
+                in_paths += toggle_in(path, block_id, enabled, runtime);
+            }
+            if in_paths > 0 {
+                split.refresh_alignment();
+            }
+            touched += in_paths;
+        }
+    }
+    touched
+}
+
+/// Flip one node when it is `block_id`; returns 1 when it was toggled.
+fn toggle_node(
+    node: &mut BlockRuntimeNode,
+    block_id: &BlockId,
+    enabled: bool,
+    runtime: &ChainRuntimeState,
+) -> usize {
+    if &node.block_snapshot.id != block_id {
+        return 0;
+    }
+    if enabled && matches!(node.processor, RuntimeProcessor::Bypass) {
+        let _ = runtime.error_queue.push(BlockError {
+            block_id: block_id.clone(),
+            message: format!(
+                "block '{}' has no live processor — needs full rebuild to re-enable",
+                block_id.0
+            ),
+        });
+        return 0;
+    }
+    let was_enabled = node.block_snapshot.enabled;
+    if was_enabled != enabled {
+        node.fade_state = if enabled {
+            FadeState::FadingIn {
+                frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
+            }
+        } else {
+            FadeState::FadingOut {
+                frames_remaining: FADE_IN_FRAMES,
+            }
+        };
+    }
+    node.block_snapshot.enabled = enabled;
+    1
 }

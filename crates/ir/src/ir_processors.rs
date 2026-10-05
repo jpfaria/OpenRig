@@ -27,6 +27,10 @@ impl MonoProcessor for MonoIrProcessor {
     fn process_block(&mut self, buffer: &mut [f32]) {
         self.convolver.process_block_in_place(buffer);
     }
+
+    fn latency_samples(&self) -> usize {
+        self.convolver.latency_samples()
+    }
 }
 
 pub struct StereoIrProcessor {
@@ -66,5 +70,11 @@ impl StereoProcessor for StereoIrProcessor {
         {
             *frame = [left_sample, right_sample];
         }
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left
+            .latency_samples()
+            .max(self.right.latency_samples())
     }
 }

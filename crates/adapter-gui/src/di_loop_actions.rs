@@ -81,8 +81,15 @@ pub(crate) fn select_di_loop_source(
 ) -> Result<bool, String> {
     let bundled = crate::di_loop_ui_sources::bundled_di_loop_ids();
     let bundled_refs: Vec<&str> = bundled.iter().map(|s| s.as_str()).collect();
-    let Some(source) = crate::di_loop_ui_sources::parse_di_loop_source(source_label, &bundled_refs)
-    else {
+    // #827: a saved looper take is a pickable source on every chain.
+    let takes = application::looper_take_library::list_takes(
+        &infra_filesystem::default_looper_takes_path(),
+    );
+    let Some(source) = crate::di_loop_ui_sources::parse_di_loop_source_with_takes(
+        source_label,
+        &bundled_refs,
+        &takes,
+    ) else {
         return Ok(false);
     };
     apply_di_loop_intent(

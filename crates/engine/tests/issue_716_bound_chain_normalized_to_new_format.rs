@@ -51,9 +51,13 @@ fn bound_chain_drops_legacy_io_blocks_on_load() {
             endpoint: String::new(),
             io_binding_ids: vec!["main".to_string()],
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     let rig = RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,

@@ -58,6 +58,7 @@ fn io_wrap(block: AudioBlock) -> Chain {
         di_output: None,
         loopers: Vec::new(),
         blocks: vec![block],
+        mix: Default::default(),
     }
 }
 

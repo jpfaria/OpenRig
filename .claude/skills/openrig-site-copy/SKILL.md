@@ -87,6 +87,30 @@ Checked against the sites players already read:
 Common shape: **short claim, then one plain sentence with a concrete anchor.**
 None of them open with a mood.
 
+## Feature cards: copy how the gear makers write them
+
+A feature card (looper, drums, mixer...) is not a hero line. Before writing one,
+read how the units players already own describe the same feature, and write in
+that shape: **the feature's name as the title, then one plain sentence saying
+what the player does with it, with at most one number.**
+
+- Zoom G6, drums: the title is a two-word name for the feature; the sentence
+  invites the player to pick a groove and gives the pattern count.
+- HeadRush Flex Prime, drums: the title names the feature and what it is for
+  (practice, writing, performance); the sentence calls it a rhythm partner.
+- Positive Grid Spark LIVE, mixer: the title is "Channel Mixer"; the sentence
+  says you see every channel's volume at a glance and change it while playing.
+- Zoom G11, looper + drums: one sentence per feature, one number each.
+
+**Owner's correction (recorded):** the round below was rejected whole ("todos
+os textos estão horríveis"), and he sent me to the competitors' sites:
+
+| Rejected card line | What broke |
+|---|---|
+| `75 grooves de 15 gêneros (rock, funk, jazz, reggae…) em 2 kits, com virada no footswitch, no andamento do projeto.` | A spec sheet in one sentence: four facts stacked, none of them saying what the player gets. |
+| `Baixa o fone, sola a guitarra 2, muta o PA: cada entrada e saída tem seu fader, e cada cadeia o seu.` | Chopped imperatives plus a second clause; reads as a list, not a sentence. |
+| `Ensaia sem baterista: ...` / `... sem abrir o mixer do fabricante` | Defines the feature by what is missing instead of what it does. |
+
 ## Three languages, written natively
 
 `pt-BR` and `es-ES` are not translations of the English line. Write each one in
@@ -139,7 +163,7 @@ cd .solvers/issue-N/site && python3 -m http.server 8898
 ```
 
 Then drive it with the Playwright MCP. **Screenshots land in the session's
-working directory — which is the user's main folder, and LEI ZERO forbids
+working directory — which is the user's main folder, and CLAUDE.md law 1 forbids
 writing there.** Pass an absolute `filename` under the scratchpad, and if one
 still lands in the repo root, move it out immediately.
 

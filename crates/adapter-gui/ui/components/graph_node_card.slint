@@ -1,0 +1,249 @@
+// Responsibility: draws one node card of the graph view.
+// Node card of the graph chain editor (#435, #328). `node.kind` picks the
+// face: a "block" card keeps parity with the chain row's BlockChip (type
+// label, icon or thumbnail, LED, unavailable tint, MIDI markers — every
+// state colour read from BlockTileStyle so the two tiles never disagree);
+// the input and output read a fixed, translated IN / OUT in a small box
+// (never the endpoint names); the split and the mixer show their routing
+// artwork over a translated name.
+//
+// Input: the canvas's node TouchArea is declared UNDER this card and owns
+// click and drag. The card's only TouchAreas are a block's LED (bypass)
+// and the × (remove) of a block or a split, which therefore win there.
+
+import { GraphNode } from "graph_view_types.slint";
+import { EffectTypeIcon } from "effect_type_icon.slint";
+import { BlockTileStyle } from "block_tile_style.slint";
+import { Theme } from "../theme.slint";
+
+export component GraphNodeCard inherits Rectangle {
+    in property <GraphNode> node;
+    in property <bool> hovered;
+    in property <bool> dragging;
+    // #591: MIDI markers only show while a MIDI command is recent.
+    in property <bool> markers-visible: false;
+    // #328 part 6: the host also marks the selection by block id.
+    in property <string> selected-node-id;
+    in property <string> neighbor-node-id;
+    property <bool> is-selected: root.node.selected || (root.node.id != "" && root.node.id == root.selected-node-id);
+    property <bool> is-neighbor: root.node.neighbor || (root.node.id != "" && root.node.id == root.neighbor-node-id);
+    // Viewport zoom: block artwork scales with the card; text keeps
+    // Theme.min-font (#954) and elides.
+    in property <float> zoom: 1.0;
+    // Opaque fill behind a block card so the wires that run centre to
+    // centre stop at its edge (BlockChip itself sits on the row).
+    in property <color> backdrop;
+    in property <length> card_width;
+    in property <length> card_height;
+    callback bypass-toggled();
+    callback remove-requested();
+
+    property <bool> is-block: root.node.kind == "block";
+    property <bool> is-io: root.node.kind == "io_input" || root.node.kind == "io_output";
+    property <bool> is-routing: root.node.kind == "split" || root.node.kind == "mixer";
+    property <bool> enabled: !root.node.bypass;
+    property <bool> unavailable: root.is-block && root.node.block.unavailable;
+    // The picker's default accent (block_icon.rs), which the split entries use.
+    property <color> routing-accent: #7fb0ff;
+    property <length> disc: 44px * root.zoom;
+    // BlockChip geometry (100×100 tile: 22px label, 6px gap, 68px art,
+    // 12px LED 10px above the bottom), scaled by the zoom.
+    property <length> label-h: max(22px, 22px * root.zoom);
+    property <length> art-y: root.label-h + 6px * root.zoom;
+    property <length> art-h: max(0px, root.height - root.art-y - 4px * root.zoom);
+    property <length> led: 12px * root.zoom;
+    // Only a block carries a host label; every other name is translated.
+    property <string> face-label: root.node.kind == "split" ? @tr("graph-node-split")
+        : root.node.kind == "mixer" ? @tr("graph-node-mixer")
+        : root.node.kind == "io_input" ? @tr("graph-node-input")
+        : root.node.kind == "io_output" ? @tr("graph-node-output")
+        : root.node.label;
+    // A split is removed from its node (RemoveSplit); the mixer is the same
+    // split, so it carries no second ×.
+    property <bool> removable: root.is-block || root.node.kind == "split";
+
+    width: root.card_width;
+    height: root.card_height;
+    // Every card sits on the row like a BlockChip: the backdrop only hides
+    // the wires behind it, no coloured box of its own.
+    border-radius: 6px;
+    background: root.backdrop;
+    border-width: BlockTileStyle.marker-border-width(root.markers-visible, root.is-selected, root.is-neighbor);
+    border-color: BlockTileStyle.marker-border-color(root.markers-visible, root.is-selected, root.is-neighbor, root.enabled);
+    opacity: root.unavailable ? BlockTileStyle.unavailable-opacity
+        : (!root.is-block && root.node.bypass) ? 0.7
+        : 1.0;
+
+    // ── Block: BlockChip parity ──────────────────────────────────────
+    // #591 marker tint over the backdrop.
+    if root.is-block : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        background: BlockTileStyle.marker-background(root.markers-visible, root.is-selected);
+    }
+
+    if root.is-block : Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: root.label-h;
+        text: root.node.block.type-label;
+        color: BlockTileStyle.label-color(root.unavailable, root.enabled, root.node.block.accent-color);
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    if root.is-block && root.node.block.has-thumbnail : Image {
+        x: 0px;
+        y: root.art-y;
+        width: parent.width;
+        height: root.art-h;
+        source: root.node.block.thumbnail;
+        image-fit: contain;
+    }
+
+    if root.is-block && !root.node.block.has-thumbnail : EffectTypeIcon {
+        x: 0px;
+        y: root.art-y;
+        width: parent.width;
+        height: root.art-h;
+        icon-kind: root.node.block.icon-kind;
+        tint: BlockTileStyle.art-color(root.unavailable, root.dragging, root.enabled, root.node.block.accent-color);
+    }
+
+    // LED status (sprite 24×12 at zoom 1: 0px shows lit, -12px unlit), as
+    // BlockChip draws it.
+    if root.is-block : Rectangle {
+        x: (parent.width - root.led) / 2;
+        y: parent.height - 10px * root.zoom;
+        width: root.led;
+        height: root.led;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.enabled ? 0px : -root.led;
+            y: 0px;
+            width: 2 * root.led;
+            height: root.led;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // The LED is the bypass switch (#328 §5.2 `bypass-toggled`). Its hit
+    // zone scales with the card like the LED does: a fixed 28×20 would
+    // swallow the bottom of a zoomed-out card.
+    if root.is-block : bypass-ta := TouchArea {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - 18px * root.zoom;
+        width: 28px * root.zoom;
+        height: 20px * root.zoom;
+        mouse-cursor: pointer;
+        clicked => { root.bypass-toggled(); }
+        accessible-role: switch;
+        accessible-checked: root.enabled;
+        accessible-label: @tr("accessible-graph-node-bypass");
+    }
+
+    // × at the top right (#328 §5.2 `remove-requested`). Live only while the
+    // card is hovered: a tap on a touch screen, which has no hover, can
+    // never land on an invisible ×. Scaled with the card: a fixed 24×24
+    // would cover most of a 30px card at the minimum zoom, and a click
+    // meant to select the block would remove it.
+    if root.removable : remove-ta := TouchArea {
+        x: parent.width - 26px * root.zoom;
+        y: 2px * root.zoom;
+        width: 24px * root.zoom;
+        height: 24px * root.zoom;
+        enabled: root.hovered || self.has-hover;
+        mouse-cursor: pointer;
+        clicked => { root.remove-requested(); }
+        accessible-role: button;
+        accessible-label: @tr("accessible-graph-node-remove");
+
+        Image {
+            x: 4px * root.zoom;
+            y: 4px * root.zoom;
+            width: 16px * root.zoom;
+            height: 16px * root.zoom;
+            source: @image-url("../assets/close.svg");
+            colorize: remove-ta.has-hover ? #ffffff : #8a94a2;
+            visible: root.hovered || remove-ta.has-hover;
+        }
+    }
+
+    // ── I/O, split, mixer ────────────────────────────────────────────
+    // Split / mixer: an opaque junction disc on the wire (the wire stops at
+    // its rim, the lanes fork out of it) with the routing artwork inside and
+    // the translated name above, in the picker's routing accent.
+    if root.is-routing : Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.disc;
+        height: root.disc;
+        border-radius: root.disc / 2;
+        background: #171a20;
+        border-width: 2px;
+        border-color: root.routing-accent;
+
+        Image {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: parent.width * 0.62;
+            height: parent.height * 0.62;
+            source: root.node.kind == "split"
+                ? @image-url("../assets/graph-split.svg")
+                : @image-url("../assets/graph-mix.svg");
+            image-fit: contain;
+            colorize: root.routing-accent;
+        }
+    }
+
+    if root.is-routing : Text {
+        x: 4px;
+        y: 0px;
+        width: parent.width - 8px;
+        height: root.label-h;
+        text: root.face-label;
+        color: root.routing-accent;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // I/O: a fixed IN / OUT in an opaque rounded box on the wire.
+    if root.is-io : io-box := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: min(parent.width, 56px * root.zoom);
+        height: max(22px, 30px * root.zoom);
+        border-radius: 6px * root.zoom;
+        background: #171a20;
+        border-width: 2px;
+        border-color: #5d6b80;
+
+        Text {
+            text: root.face-label;
+            color: #f5f7fb;
+            font-size: Theme.min-font;
+            font-weight: 700;
+            letter-spacing: 1px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    accessible-role: button;
+    accessible-label: root.face-label;
+    accessible-enabled: !root.unavailable;
+}

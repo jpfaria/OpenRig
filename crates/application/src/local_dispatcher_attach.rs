@@ -12,6 +12,7 @@ use std::rc::Rc;
 use domain::ids::ChainId;
 use project::rig::RigProject;
 
+use crate::device_presence::DevicePresence;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
@@ -22,7 +23,9 @@ impl LocalDispatcher {
     /// `CommandDispatcher::attach_rig` (see `local_dispatcher_trait.rs`),
     /// which delegates here.
     pub(crate) fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
+        let saved = rig.borrow().bpm;
         *self.rig.borrow_mut() = Some(rig);
+        self.adopt_project_tempo(saved);
     }
 
     /// #555: configure the preset library directory. Called by the
@@ -96,5 +99,18 @@ impl LocalDispatcher {
             }
         }
         loaded
+    }
+
+    /// #827: override where saved looper takes go. `None` ⇒ the OS default
+    /// (`infra_filesystem::default_looper_takes_path`). Production leaves it
+    /// unset; tests attach a temp dir.
+    pub fn attach_looper_takes_path(&self, path: Option<PathBuf>) {
+        *self.looper_takes_path.borrow_mut() = path;
+    }
+
+    /// Register how a chain's interface is checked before switching it
+    /// on. Public surface: `CommandDispatcher::attach_device_presence`.
+    pub(crate) fn attach_device_presence(&self, presence: Rc<dyn DevicePresence>) {
+        *self.device_presence.borrow_mut() = Some(presence);
     }
 }

@@ -41,6 +41,10 @@ struct PortPlan {
     atom: Vec<usize>,
     /// Output control ports — connected to a dummy buffer, never read.
     extra_out: Vec<usize>,
+    /// The output control port that reports the plugin's latency (#328).
+    /// It stays in `extra_out` so it is connected; the processor re-points
+    /// it to its own slot.
+    latency: Option<usize>,
 }
 
 /// Partition scanned LV2 ports into the buckets the processor builders
@@ -78,6 +82,10 @@ fn plan_ports(ports: &[Lv2Port], params: &ParameterSet) -> PortPlan {
         control,
         atom,
         extra_out: indices(Lv2PortRole::ControlOut),
+        latency: ports
+            .iter()
+            .find(|p| p.role == Lv2PortRole::ControlOut && p.reports_latency)
+            .map(|p| p.index),
     }
 }
 
@@ -232,7 +240,7 @@ fn build_mono_input(
     // also satisfies stereo chains. `build_lv2_processor_full` connects
     // atom + output-control ports; empty slices reduce to the plain case.
     let make = || -> Result<crate::Lv2Processor> {
-        build_lv2_processor_full(
+        let processor = build_lv2_processor_full(
             lib_path,
             uri,
             sample_rate,
@@ -242,7 +250,11 @@ fn build_mono_input(
             &plan.control,
             &plan.atom,
             &plan.extra_out,
-        )
+        )?;
+        Ok(match plan.latency {
+            Some(port) => processor.with_latency_port(port),
+            None => processor,
+        })
     };
     let _ = plugin_id;
     match layout {
@@ -269,7 +281,7 @@ fn build_stereo_input(
     plugin_id: &str,
 ) -> Result<BlockProcessor> {
     let make = || -> Result<crate::StereoLv2Processor> {
-        build_stereo_lv2_processor_full(
+        let processor = build_stereo_lv2_processor_full(
             lib_path,
             uri,
             sample_rate,
@@ -279,7 +291,11 @@ fn build_stereo_input(
             &plan.control,
             &plan.atom,
             &plan.extra_out,
-        )
+        )?;
+        Ok(match plan.latency {
+            Some(port) => processor.with_latency_port(port),
+            None => processor,
+        })
     };
     let _ = plugin_id;
     match layout {

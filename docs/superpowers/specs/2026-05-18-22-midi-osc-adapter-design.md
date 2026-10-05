@@ -23,7 +23,7 @@ switching, bypass toggling and parameter rides while playing.
 - Mapping editor UI inside OpenRig — hand-edited `midi-map.yaml` for v1.
   Editor UI tracked separately as #493.
 - ~~Per-project mapping files — one global map for v1.~~ **Superseded by #499
-  (ADR 0003).** Bindings now live in `project.openrig` under `midi.bindings`
+  (ADR 0003).** Bindings now live in `project.yaml` under `midi.bindings`
   (project layer). The legacy single `midi-map.yaml` is split into a system
   device profile (`midi-profile.yaml`) and a system bindings fallback
   (`midi-bindings.yaml`). The resolver (`adapter-midi::resolve_midi_map`)

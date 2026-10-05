@@ -9,20 +9,30 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod arc_handoff;
+pub mod audio_alloc_scope;
 mod audio_frame;
 mod audio_processor;
+pub mod audio_zone_regions;
+pub mod audio_zone_router;
+#[cfg(test)]
+mod chain_mix_gain_tests;
+pub mod chain_mix_gains;
 pub mod chain_quality;
 pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
+pub mod drum_state;
 mod effective_endpoints;
 mod elastic_buffer;
 mod elastic_drift_guard;
 mod elastic_hand_off;
 mod elastic_skip_fade;
 mod endpoint_entry;
+mod endpoint_fader;
 mod input_conflicts;
+pub mod input_seam_detector;
 pub mod input_tap;
 pub mod insert_cut;
 mod insert_endpoints;
@@ -33,6 +43,9 @@ mod issue_85_stream_per_pair_tests;
 #[cfg(test)]
 #[path = "issue_928_two_bindings_one_tap_pairing_tests.rs"]
 mod issue_928_two_bindings_one_tap_pairing_tests;
+#[cfg(test)]
+#[path = "issue_979_input_seam_runtime_tests.rs"]
+mod issue_979_input_seam_runtime_tests;
 pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
@@ -40,9 +53,14 @@ pub mod looper_bank;
 mod looper_op;
 mod looper_status;
 pub mod metronome_state;
+#[cfg(test)]
+mod mixer_gain_tests;
+pub mod mixer_gains;
+pub mod mixer_ramp;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;
+pub mod player;
 pub mod probe;
 mod rig_projection;
 pub mod rig_runtime;
@@ -65,6 +83,8 @@ mod runtime_graph_assemble;
 mod runtime_graph_impl;
 mod runtime_graph_prebuild;
 mod runtime_graph_update;
+mod runtime_input_clock;
+mod runtime_input_seams;
 pub mod runtime_io;
 pub mod runtime_layout;
 pub mod runtime_load;
@@ -80,6 +100,7 @@ mod runtime_processor_model;
 mod runtime_route_resample;
 pub mod runtime_segments;
 mod runtime_select_precheck;
+mod runtime_split;
 pub mod runtime_state;
 mod runtime_state_taps;
 mod runtime_stream_query;
@@ -95,6 +116,7 @@ pub mod tone_doctor;
 pub mod tone_doctor_fix;
 pub mod tone_doctor_suggestion;
 pub mod tone_profile_table;
+pub mod worker_rt_policy;
 pub use di_loop::{DiFrame, DiLoop, DiPcm};
 pub use loop_pcm::LoopPcm;
 pub use looper::{LooperSlot, LooperSpeed, LooperState, LOOPER_MAX_LAYERS};

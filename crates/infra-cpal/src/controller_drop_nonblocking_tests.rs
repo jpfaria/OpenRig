@@ -30,6 +30,8 @@ fn chain(id: &str, enabled: bool) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -43,7 +45,6 @@ fn project() -> Project {
 }
 
 #[test]
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn switching_the_last_chain_off_returns_before_its_build_finishes() {
     let chain_id = ChainId("rig:input-1".into());
     let mut controller = ProjectRuntimeController::for_testing(engine::runtime::RuntimeGraph {
@@ -105,7 +106,6 @@ fn switching_the_last_chain_off_returns_before_its_build_finishes() {
 /// frontend thread. Deterministic: the worker is parked, so whoever frees the
 /// runtime before the release is the frontend thread.
 #[test]
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn switching_a_chain_off_frees_its_runtime_on_the_worker_not_on_the_caller() {
     use super::active_runtime::ActiveChainRuntime;
     use super::resolved::ChainStreamSignature;
@@ -172,7 +172,6 @@ fn switching_a_chain_off_frees_its_runtime_on_the_worker_not_on_the_caller() {
 /// frontend thread; the chain runtimes (and their plugins) must still be
 /// freed on the worker, which outlives the drop.
 #[test]
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn dropping_the_controller_frees_the_runtimes_on_the_worker_not_on_the_caller() {
     let chain_id = ChainId("rig:input-1".into());
     let runtime = std::sync::Arc::new(

@@ -45,7 +45,7 @@ pub struct RigRuntime {
     /// Resolved into chain ports at build/upsert time (model A, #716).
     registry: Vec<IoBinding>,
     /// Inputs currently activated, **in memory only** — never persisted to
-    /// `project.openrig`. A tap-sharing input can only be enabled if no
+    /// `project.yaml`. A tap-sharing input can only be enabled if no
     /// already-enabled input holds the same `(device, channel)`.
     enabled: BTreeSet<String>,
 }
@@ -60,7 +60,7 @@ impl RigRuntime {
     pub fn build(project: RigProject, sample_rate: f32, registry: Vec<IoBinding>) -> Result<Self> {
         project
             .validate()
-            .map_err(|e| anyhow!("invalid project.openrig: {e}"))?;
+            .map_err(|e| anyhow!("invalid project.yaml: {e}"))?;
         let mut graph = RuntimeGraph {
             chains: HashMap::new(),
         };
@@ -71,6 +71,12 @@ impl RigRuntime {
             }
             let id = ChainId(format!("rig:{name}"));
             if let Some(chain) = rig_to_chains(&project).into_iter().find(|c| c.id == id) {
+                // #328: an input whose checklist leaves it nothing to play is
+                // off — no runtime, and it holds no tap another input wants
+                // (the chain side's rule, `chain_plays`; #924).
+                if !crate::runtime_graph::chain_plays(&chain, &registry) {
+                    continue;
+                }
                 graph.upsert_chain(
                     &chain,
                     sample_rate,
@@ -121,6 +127,10 @@ impl RigRuntime {
             .into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
+        // #328: nothing to play → it stays off and holds no tap.
+        if !crate::runtime_graph::chain_plays(&chain, &self.registry) {
+            return Ok(());
+        }
         self.graph.upsert_chain(
             &chain,
             self.sample_rate,
@@ -247,3 +257,7 @@ mod chain_order_tests;
 #[cfg(test)]
 #[path = "rig_instrument_roundtrip_tests.rs"]
 mod instrument_roundtrip_tests;
+
+#[cfg(test)]
+#[path = "rig_di_output_roundtrip_tests.rs"]
+mod di_output_roundtrip_tests;

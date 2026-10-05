@@ -49,6 +49,11 @@ impl StereoProcessor for BrickWallLimiterStereo {
             (delayed_r * g).clamp(-self.ceiling_lin, self.ceiling_lin),
         ]
     }
+
+    /// Both channels are delayed by the same look-ahead (#328).
+    fn latency_samples(&self) -> usize {
+        self.lookahead_l.delay_samples()
+    }
 }
 
 #[cfg(test)]

@@ -8,18 +8,17 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock, NamBlock, OutputBlock,
-    SelectBlock,
+    SelectBlock, SplitEnd,
 };
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
-use crate::chain_yaml::default_io_yaml_model;
 use crate::{
     default_amp_model, default_body_model, default_cab_model, default_delay_model,
     default_drive_model, default_dynamics_model, default_enabled, default_filter_model,
-    default_full_rig_model, default_ir_model, default_modulation_model, default_nam_model,
-    default_pitch_model, default_preamp_model, default_reverb_model, default_utility_model,
-    default_wah_model, generated_block_id, parameter_set_to_yaml_value,
+    default_full_rig_model, default_io_yaml_model, default_ir_model, default_modulation_model,
+    default_nam_model, default_pitch_model, default_preamp_model, default_reverb_model,
+    default_utility_model, default_wah_model, generated_block_id, parameter_set_to_yaml_value,
 };
 
 // #792: the load/parse helpers moved to block_yaml_load.rs; the impl below calls them.
@@ -213,6 +212,22 @@ pub(crate) enum AudioBlockYaml {
         #[serde(default)]
         io: String,
     },
+    /// #328: a chain split. Its path blocks carry no id on disk — they are
+    /// positional and load as `<split>::p<path>:<i>` (see `block_yaml_split`).
+    /// Files saved before §11 hold two paths as `a` and `b`.
+    Split {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        end: SplitEnd,
+        #[serde(default)]
+        params: Value,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        paths: Vec<Vec<Value>>,
+        #[serde(default, skip_serializing)]
+        a: Option<Vec<Value>>,
+        #[serde(default, skip_serializing)]
+        b: Option<Vec<Value>>,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -227,7 +242,7 @@ impl AudioBlockYaml {
         self.into_audio_block_with_id(generated_block_id(chain_id, index))
     }
 
-    fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
+    pub(crate) fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
         match self {
             AudioBlockYaml::Nam {
                 enabled,
@@ -298,6 +313,17 @@ impl AudioBlockYaml {
                 enabled,
                 kind: AudioBlockKind::Insert(InsertBlock { model, io }),
             }),
+            AudioBlockYaml::Split {
+                enabled,
+                end,
+                params,
+                paths,
+                a,
+                b,
+            } => {
+                let paths = crate::block_yaml_split::paths_or_legacy(paths, a, b);
+                crate::block_yaml_split::split_from_yaml(generated_id, enabled, end, params, paths)
+            }
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
                 let model = migrate_legacy_model_id(effect_type, model, &params);
@@ -496,6 +522,7 @@ impl AudioBlockYaml {
                 model: insert.model.clone(),
                 io: insert.io.clone(),
             }),
+            AudioBlockKind::Split(split) => crate::block_yaml_split::split_to_yaml(block, split),
         }
     }
 }

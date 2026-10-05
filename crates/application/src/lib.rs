@@ -12,13 +12,22 @@
 pub mod app_config_persist;
 pub mod audio_taps;
 pub mod block_factory;
+mod block_path;
 pub mod bridge;
 mod bridge_off_frontend;
 pub mod chain_factory;
+pub mod chain_fader_view;
+pub mod chain_missing_devices;
+pub mod chain_mixer_strips;
 pub mod command;
 pub mod command_schema;
+pub mod device_presence;
 pub mod di_loader;
 pub mod dispatcher;
+pub mod drums;
+/// The drum machine's control-plane state and the door to its runtime.
+pub mod drums_runtime;
+pub mod drums_state;
 pub mod event;
 mod event_scope;
 pub mod event_sink;
@@ -30,26 +39,36 @@ pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
 mod local_dispatcher_attach;
+mod local_dispatcher_block_draft;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
+mod local_dispatcher_chain_devices;
+mod local_dispatcher_chain_endpoints;
 mod local_dispatcher_chain_io;
+mod local_dispatcher_chain_mixer;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
 mod local_dispatcher_close;
 mod local_dispatcher_di_loop;
 mod local_dispatcher_diagnostic;
+mod local_dispatcher_drums;
 mod local_dispatcher_io_binding;
 mod local_dispatcher_ir_reseed;
 mod local_dispatcher_language;
 mod local_dispatcher_looper;
+mod local_dispatcher_looper_take;
+mod local_dispatcher_looper_take_delete;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
+mod local_dispatcher_mixer;
 mod local_dispatcher_model_swap_rig;
 mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
 mod local_dispatcher_paths;
+mod local_dispatcher_player;
+mod local_dispatcher_player_track_delete;
 mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;
@@ -59,31 +78,49 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
+mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
+mod local_dispatcher_tempo;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
 pub mod looper_edit;
+pub mod looper_take_library;
 /// #127: the metronome's control-plane state — settings, chosen output and
 /// tap history — owned by the dispatcher so every transport shares one truth.
 pub mod metronome_state;
+/// #1007: the global mixer's control-plane state.
+mod mixer_persist_coalesce;
+pub mod mixer_state;
+/// #1007: the global mixer strips as frontends read them.
+pub mod mixer_view;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
+/// The backing-track player: its library, decoder and control-plane state.
+pub mod player_decode;
+pub mod player_event;
+pub mod player_library;
+pub mod player_state;
+pub mod player_track_category;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
 pub mod query_block_params;
+pub mod query_chain_mixer;
 pub mod query_chain_quality;
 pub mod query_di;
+pub mod query_drums;
 pub mod query_ids;
 pub mod query_kind;
 pub mod query_latency;
 pub mod query_loopers;
+pub mod query_mixer;
 pub mod query_output_routes;
 pub mod query_paths;
+pub mod query_player;
 pub mod query_plugins;
 pub mod query_presets;
 /// #831: the single `QueryKind` resolver every transport answers through —
@@ -97,6 +134,9 @@ pub mod session;
 /// #693: published immutable state snapshot — transports serve reads
 /// concurrently on their own thread (API-style), never via the GUI tick.
 pub mod snapshot;
+mod split_path_commands;
+mod split_path_references;
+mod split_rules;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;
@@ -110,6 +150,18 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_mixer_tests.rs"]
+mod local_dispatcher_mixer_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_mixer_solo_tests.rs"]
+mod local_dispatcher_mixer_solo_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_mixer_tests.rs"]
+mod local_dispatcher_chain_mixer_tests;
 
 #[cfg(test)]
 #[path = "ld_block2_tests.rs"]
@@ -158,3 +210,31 @@ mod local_dispatcher_parity_829_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]
 mod local_dispatcher_rig_tests;
+
+#[cfg(test)]
+#[path = "split_tests_fixtures.rs"]
+mod split_tests_fixtures;
+
+#[cfg(test)]
+#[path = "ld_split_path_tests.rs"]
+mod ld_split_path;
+
+#[cfg(test)]
+#[path = "ld_split_nested_tests.rs"]
+mod ld_split_nested;
+
+#[cfg(test)]
+#[path = "ld_split_endpoint_cleanup_tests.rs"]
+mod ld_split_endpoint_cleanup;
+
+#[cfg(test)]
+#[path = "local_dispatcher_split_tests.rs"]
+mod local_dispatcher_split_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_endpoints_tests.rs"]
+mod local_dispatcher_chain_endpoints_tests;
+
+#[cfg(test)]
+#[path = "ld_split_chain_doors_tests.rs"]
+mod ld_split_chain_doors;

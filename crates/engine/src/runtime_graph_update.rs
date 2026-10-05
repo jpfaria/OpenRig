@@ -113,6 +113,8 @@ fn update_chain_runtime_state_impl(
     spillover: bool,
     registry: &[IoBinding],
 ) -> Result<()> {
+    // #1007: the chain's own faders reach the engine before any state reads them.
+    crate::chain_mix_gains::apply_chain_mix(chain, registry);
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (effective_ins, eff_input_cpal_indices, effective_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);
@@ -227,6 +229,14 @@ fn update_chain_runtime_state_impl(
                         && old.buffer.target_level() == cushion.target
                         && old.buffer.capacity() == cushion.capacity
                         && old.applies_chain_volume != insert_send
+                        && old
+                            .mixer_gain
+                            .same_as(&crate::endpoint_fader::EndpointFader::of(
+                                &chain.id,
+                                domain::mixer_strip::MixerDirection::Output,
+                                &o.device_id.0,
+                                &o.channels,
+                            ))
                     {
                         return Some(Arc::clone(old));
                     }
@@ -237,7 +247,7 @@ fn update_chain_runtime_state_impl(
             // fragile (#670: fill ~0, every scheduling wobble on a real USB
             // interface popped the output empty — the owner's random clicks
             // after adding/swapping a cab).
-            let mut fresh = build_output_routing_state(o, cushion, route_rate);
+            let mut fresh = build_output_routing_state(&chain.id, o, cushion, route_rate);
             fresh.applies_chain_volume = !insert_send;
             if let Some(old) = old_route {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
@@ -315,6 +325,7 @@ fn update_chain_runtime_state_impl(
             segment.output_route_indices.clone(),
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
+            &segment.paths,
             prebuilt.as_mut(),
         ) {
             Ok(state) => state,

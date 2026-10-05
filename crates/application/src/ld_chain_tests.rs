@@ -30,6 +30,8 @@ pub(super) fn make_chain_with_input(
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -45,6 +47,8 @@ pub(super) fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -267,6 +271,8 @@ fn toggle_chain_enabled_refuses_chain_without_io_binding() {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
         }],
         midi: None,
     }));

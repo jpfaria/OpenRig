@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Result};
 use domain::ids::ChainId;
 
-/// Folder holding a project's recorded loops: `song.openrig` → `song.loops/`.
+/// Folder holding a project's recorded loops: `song.yaml` → `song.loops/`.
 pub fn loops_dir(project_path: &Path) -> PathBuf {
     project_path.with_extension("loops")
 }
@@ -46,19 +46,30 @@ pub fn write_loop_wav(
     let dir = loops_dir(project_path);
     std::fs::create_dir_all(&dir)?;
     let name = loop_file_name(chain, looper);
+    let file = std::io::BufWriter::new(std::fs::File::create(dir.join(&name))?);
+    write_loop_samples(file, pcm, sample_rate)?;
+    Ok(name)
+}
 
+/// Encode an interleaved-stereo loop as a 32-bit float wav into `sink` — the
+/// one format every recorded loop is stored in, whether it is a project
+/// sidecar or a saved take (#827).
+pub fn write_loop_samples<W: std::io::Write + std::io::Seek>(
+    sink: W,
+    pcm: &[f32],
+    sample_rate: u32,
+) -> hound::Result<()> {
     let spec = hound::WavSpec {
         channels: 2,
         sample_rate,
         bits_per_sample: 32,
         sample_format: hound::SampleFormat::Float,
     };
-    let mut writer = hound::WavWriter::create(dir.join(&name), spec)?;
+    let mut writer = hound::WavWriter::new(sink, spec)?;
     for sample in pcm {
         writer.write_sample(*sample)?;
     }
-    writer.finalize()?;
-    Ok(name)
+    writer.finalize()
 }
 
 /// Read a loop back, returning the interleaved-stereo samples and the rate

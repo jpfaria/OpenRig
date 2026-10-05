@@ -10,6 +10,7 @@ use application::live_source::{ChainMeterReading, LiveSource, MetronomeReading};
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
 use application::query_output_routes::{rows_for_chain, OutputRouteReading};
+use application::query_player::PlayerReading;
 use domain::ids::ChainId;
 use domain::io_binding::IoBinding;
 use engine::LooperStatus;
@@ -163,6 +164,14 @@ impl LiveSource for GuiLiveSource<'_> {
 
     fn metronome(&self) -> Option<MetronomeReading> {
         metronome_reading(self.runtime)
+    }
+
+    fn player(&self) -> Option<PlayerReading> {
+        crate::live_source_player::player_reading(self.runtime)
+    }
+
+    fn drums(&self) -> Option<feature_dsp::drums::DrumPosition> {
+        crate::live_source_drums::drums_position(self.runtime)
     }
 }
 

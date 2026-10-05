@@ -121,3 +121,15 @@ pub(crate) fn using_jack_direct() -> bool {
 pub(crate) fn using_jack_direct() -> bool {
     false
 }
+
+/// Name of the audio backend streams open through, for diagnostics (#1070).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub fn audio_backend_name() -> &'static str {
+    "jack"
+}
+
+/// Name of the audio backend streams open through, for diagnostics (#1070).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+pub fn audio_backend_name() -> &'static str {
+    get_host().id().name()
+}

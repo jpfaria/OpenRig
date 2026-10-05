@@ -1,12 +1,12 @@
-# #449 — `project.openrig` model + parser — Implementation Plan
+# #449 — `project.yaml` model + parser — Implementation Plan
 
 > Sub-issue de #436 (rig architecture). Escopo: modelo + parser + testes. Fora: engine, migração, UI, cenas.
 
-**Goal:** `project.openrig` domain model (`RigProject`) + YAML parser/serializer with validation and deterministic round-trip, mapping 1:1 onto the existing `InputEntry`/`OutputEntry` model.
+**Goal:** `project.yaml` domain model (`RigProject`) + YAML parser/serializer with validation and deterministic round-trip, mapping 1:1 onto the existing `InputEntry`/`OutputEntry` model.
 
 **Architecture:**
 - Domain model + validation → `crates/project/src/rig.rs` (deps `serde`+`anyhow`, matching the crate). Reuses `InputEntry`/`OutputEntry`/`AudioBlock` — single source of truth.
-- YAML file I/O → `crates/infra-yaml/src/rig_yaml.rs` (owns `serde_yaml`).
+- YAML file I/O → `crates/infra-yaml/src/project_file.rs` (owns `serde_yaml`).
 - Legacy `project::project::Project` untouched; migration is #450.
 
 ## File structure
@@ -16,9 +16,9 @@
 | `crates/project/src/rig.rs` | `RigProject/RigInput/RigOutput/RigPreset` + `RigProject::validate()` |
 | `crates/project/src/rig_tests.rs` | model + validation unit tests |
 | `crates/project/src/lib.rs` | `pub mod rig;` |
-| `crates/infra-yaml/src/rig_yaml.rs` | `parse_rig_project`, `serialize_rig_project`, `load_rig_project_file`, `save_rig_project_file` |
-| `crates/infra-yaml/src/lib.rs` | re-export rig_yaml |
-| `crates/infra-yaml/src/rig_yaml_tests.rs` | round-trip + file I/O tests |
+| `crates/infra-yaml/src/project_file.rs` | `parse_rig_project`, `serialize_rig_project`, `load_rig_project_file`, `save_rig_project_file` |
+| `crates/infra-yaml/src/lib.rs` | re-export project_file |
+| `crates/infra-yaml/src/project_file_tests.rs` | round-trip + file I/O tests |
 
 ## Validation rules (closed in #436)
 
@@ -34,7 +34,7 @@
 - [x] Task 1 — model structs compile (`RigProject` et al.), `pub mod rig;`.
 - [x] Task 2 — `RigProject::validate()` TDD (7 tests RED→GREEN).
 - [ ] Task 3 — `infra-yaml` parser + deterministic round-trip TDD.
-- [ ] Task 4 — docs `docs/projects/project-openrig-format.md` + `./scripts/qa.sh` green + push + issue comment.
+- [ ] Task 4 — docs `docs/projects/project-format.md` + `./scripts/qa.sh` green + push + issue comment.
 
 ## Notes
 

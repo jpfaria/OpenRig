@@ -69,6 +69,7 @@ fn asset_paths_serde_roundtrip_preserves_values() {
         presets_path: None,
         plugins_path: None,
         evaluations_path: None,
+        backing_tracks_path: None,
     };
     let yaml = serde_yaml::to_string(&paths).unwrap();
     let restored: AssetPaths = serde_yaml::from_str(&yaml).unwrap();
@@ -101,6 +102,7 @@ fn resolve_asset_paths_absolute_left_unchanged() {
         presets_path: None,
         plugins_path: None,
         evaluations_path: None,
+        backing_tracks_path: None,
     };
     let resolved = resolve_asset_paths(paths.clone());
     assert_eq!(resolved.thumbnails, absolute("/absolute/thumbs"));
@@ -291,4 +293,14 @@ fn app_config_save_and_load_filesystem_roundtrip() {
     assert_eq!(config, loaded);
 
     let _ = fs::remove_dir_all(&dir);
+}
+
+/// #827: saved looper takes live in ONE app-level folder of the OS data root,
+/// never beside a project, so every project sees them.
+#[test]
+fn looper_takes_live_in_the_user_data_root() {
+    assert_eq!(
+        default_looper_takes_path(),
+        user_data_root().join("looper-takes")
+    );
 }

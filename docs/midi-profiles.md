@@ -1,4 +1,4 @@
-# MIDI profiles (issue #548)
+# MIDI profiles
 
 OpenRig ships a **per-controller profile** system: plug a known
 footswitch / knob box / expression pedal, pick its profile in
@@ -67,6 +67,8 @@ CC slots (`chain_volume`, `block_param_numeric`).
 | `toggle_spectrum` | App | global | flips the spectrum window |
 | `toggle_metronome` | App | global | starts/stops the metronome |
 | `metronome_tap` | App | global | one tap of tap tempo (stateless — every press is a tap) |
+| `toggle_drums` | App | global | starts/stops the drum machine groove |
+| `drum_fill` | App | global | plays the groove's next fill (only while the drums play) |
 | `prev_chain` | Chain nav | active chain | select previous chain (wraps) |
 | `next_chain` | Chain nav | active chain | select next chain (wraps) |
 | `toggle_active_chain_enabled` | Chain | active chain | enable/disable the active chain |
@@ -82,7 +84,7 @@ CC slots (`chain_volume`, `block_param_numeric`).
 | `prev_block_2` | Block nav | active block | two blocks back (for compact view) |
 | `next_block_2` | Block nav | active block | two blocks forward |
 | `toggle_active_block_enabled` | Block | active block | enable/disable the active block |
-| `looper_record` | Looper | active chain | record / overdub tap on the chain's first looper (#323) |
+| `looper_record` | Looper | active chain | record / overdub tap on the chain's first looper |
 | `looper_play_stop` | Looper | active chain | play or stop that looper, whichever applies |
 | `looper_undo` | Looper | active chain | drop its newest overdub layer |
 | `looper_clear` | Looper | active chain | erase the loop |
@@ -95,7 +97,7 @@ The active chain is set by **tapping a chain row** (anywhere on its
 header), by selecting one of its blocks, or by the `prev_chain` /
 `next_chain` slots; the selected chain is outlined on screen. A
 footswitch bound to `toggle_active_chain_enabled` therefore toggles
-the chain the user currently has selected (issue #591). The active chain —
+the chain the user currently has selected. The active chain —
 and, inside it, the active block plus the neighbor block a block-toggle
 acts on — is marked on screen; moving the selection briefly pulses the new
 marker, which then settles to a subtle outline so it stays visible without

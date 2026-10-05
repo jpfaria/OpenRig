@@ -506,18 +506,12 @@ fn build_device_settings_input_takes_precedence_on_duplicate() {
 // #436 #1: the app's load path runs the NEW rig engine (GUI unchanged).
 
 #[test]
-fn rig_project_for_routes_legacy_through_rig_engine() {
+fn the_project_file_loads_through_the_rig_engine() {
     let dir = tempfile::tempdir().expect("tmp");
     let path = dir.path().join("project.yaml");
     std::fs::write(
         &path,
-        "name: t\nchains:\n\
-         - description: Guitarra\n  instrument: electric_guitar\n  volume: 137.0\n  blocks:\n\
-         \x20 - type: input\n    enabled: true\n    model: standard\n    entries:\n\
-         \x20   - device_id: dev\n      mode: mono\n      channels: [0]\n\
-         \x20 - type: gain\n    enabled: true\n    model: volume\n    params: { volume: 80.0, mute: false }\n\
-         \x20 - type: output\n    enabled: true\n    model: standard\n    entries:\n\
-         \x20   - device_id: dev\n      mode: stereo\n      channels: [0, 1]\n",
+        "version: 1\nproject:\n  inputs:\n    input-1:\n      bank: { 1: guitar }\n      active-preset: 1\n  outputs: {}\n  presets:\n    guitar:\n      blocks: []\n      volume: 137.0\n",
     )
     .unwrap();
 
@@ -536,11 +530,7 @@ fn rig_project_for_routes_legacy_through_rig_engine() {
         proj.chains[0].volume, 137.0,
         "preset volume preserved through the rig path (invariant #10)"
     );
-    assert!(
-        !path.with_extension("openrig").exists(),
-        "#716: legacy .yaml migrates IN MEMORY — no .openrig sibling is written"
-    );
-    assert!(path.exists(), "the .yaml project file stays in place");
+    assert!(path.exists(), "the project file stays in place");
 }
 
 #[test]

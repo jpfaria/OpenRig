@@ -183,6 +183,7 @@ fn heavy_chain(suffix: &str) -> Chain {
             ),
             limiter_block(),
         ],
+        mix: Default::default(),
     }
 }
 
@@ -269,6 +270,7 @@ fn natives_only_chain() -> Chain {
         di_output: None,
         loopers: Vec::new(),
         blocks: vec![comp_block(), eq_block(), gate_block(), limiter_block()],
+        mix: Default::default(),
     }
 }
 
@@ -380,6 +382,7 @@ fn isolated_chain(label: &str, block: AudioBlock) -> Chain {
         di_output: None,
         loopers: Vec::new(),
         blocks: vec![block],
+        mix: Default::default(),
     }
 }
 

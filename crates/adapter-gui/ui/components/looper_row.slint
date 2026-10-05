@@ -10,6 +10,7 @@
 import { Theme } from "../theme.slint";
 import { LooperItem } from "../models.slint";
 import { LooperIconButton, LooperSlider, LooperSegmented } from "looper_controls.slint";
+import { LooperSelectField } from "looper_select_field.slint";
 
 export component LooperRow inherits Rectangle {
     in property <LooperItem> looper;
@@ -33,11 +34,14 @@ export component LooperRow inherits Rectangle {
     callback decay-changed(int);
     callback speed-picked(int);
     callback reverse-toggled(bool);
-    callback input-picked(int);
-    callback output-picked(int);
+    // Open the record-from / play-to option list (a root-level modal).
+    callback input-open();
+    callback output-open();
     callback preset-open();
     // #826: open the waveform editor for this loop.
     callback edit();
+    // #827: open the save-take dialog for this loop.
+    callback save-take();
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
     private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
@@ -105,11 +109,22 @@ export component LooperRow inherits Rectangle {
         clicked => { root.edit(); }
     }
 
+    // #827: keep this loop as a named take any chain's DI can play. Needs
+    // material, and a closed take — a loop still recording has no end yet.
+    save-btn := LooperIconButton {
+        x: 184px;
+        y: 10px;
+        icon: @image-url("../assets/save.svg");
+        label: @tr("looper-take-save-title");
+        is-enabled: root.has-material && !root.recording;
+        clicked => { root.save-take(); }
+    }
+
     // ── state + progress ────────────────────────────────────────────────
     Rectangle {
-        x: 188px;
+        x: 232px;
         y: 10px;
-        width: parent.width - 188px - 96px;
+        width: parent.width - 232px - 96px;
         height: 40px;
         clip: true;
         background: transparent;
@@ -204,20 +219,20 @@ export component LooperRow inherits Rectangle {
             background: Theme.palette.border;
         }
 
-        in-seg := LooperSegmented {
+        // A select, never a row of buttons: a chain can have many endpoints
+        // with long names.
+        in-seg := LooperSelectField {
             label-width: preset-label.width;
             label: @tr("looper-input");
-            options: root.input-options;
-            selected-index: root.looper.input_index;
-            picked(i) => { root.input-picked(i); }
+            value: root.input-options[root.looper.input_index];
+            open => { root.input-open(); }
         }
 
-        out-seg := LooperSegmented {
+        out-seg := LooperSelectField {
             label-width: preset-label.width;
             label: @tr("looper-output");
-            options: root.output-options;
-            selected-index: root.looper.output_index;
-            picked(i) => { root.output-picked(i); }
+            value: root.output-options[root.looper.output_index];
+            open => { root.output-open(); }
         }
 
         // #323 phase 2: which preset renders this loop. A modal picker (not a

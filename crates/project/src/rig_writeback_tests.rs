@@ -1,7 +1,7 @@
 //! Rig preset write-back / structural-swap tests (issue #792 split from
 //! rig_tests.rs). Shares input/project_with/core_block via super::tests.
 
-use crate::block::AudioBlock;
+use crate::block::{AudioBlock, AudioBlockKind};
 
 use super::rig_tests::{core_block, input, project_with};
 use super::*;
@@ -258,7 +258,7 @@ fn step_scene_wraps_within_scene_count() {
     assert_eq!(p.step_scene("missing", 1), None, "unknown input → None");
 }
 
-/// A `.openrig` YAML without the `instrument` field must deserialize to the default
+/// A `project.yaml` YAML without the `instrument` field must deserialize to the default
 /// ("electric_guitar") so projects saved before #627 open without error.
 #[test]
 fn rig_input_missing_instrument_defaults_to_electric_guitar() {

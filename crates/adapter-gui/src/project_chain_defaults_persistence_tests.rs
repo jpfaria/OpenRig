@@ -14,8 +14,8 @@
 //!    reference it (#716, Task 20, O4).
 //!
 //! All tests exercise the same `create_new_project_session` →
-//! `save_project_session` → `load_rig_project_file` path the GUI
-//! follows. We read the on-disk `.openrig` directly so the assertions
+//! `save_project_session` → `load_project_file` path the GUI
+//! follows. We read the on-disk `project.yaml` directly so the assertions
 //! are about what was persisted, not about the in-memory rig.
 
 use crate::default_io_binding::DEFAULT_BINDING_ID;
@@ -58,8 +58,8 @@ impl Sandbox {
     }
 
     fn read_openrig(&self) -> project::rig::RigProject {
-        // #716: the project persists as the `.yaml` itself now (no `.openrig`).
-        infra_yaml::load_rig_project_file(&self.path).expect("load saved rig (.yaml)")
+        // #716: the project persists as the `.yaml` itself now (no `project.yaml`).
+        infra_yaml::load_project_file(&self.path).expect("load saved rig (.yaml)")
     }
 }
 

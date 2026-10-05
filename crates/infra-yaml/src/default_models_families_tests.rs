@@ -1,6 +1,6 @@
 //! The model a block family falls back to when the document omits it.
 //!
-//! A legacy or hand-written `.openrig` can leave `model:` out of a block. The
+//! A legacy or hand-written `project.yaml` can leave `model:` out of a block. The
 //! loader then asks the block's crate for its first supported model — so what
 //! matters is that every family whose crate HAS models answers with one of
 //! them. A fallback naming something unsupported would load a project the app
@@ -120,9 +120,4 @@ fn no_answerable_family_falls_back_to_an_empty_name() {
             "{family} has an empty fallback model"
         );
     }
-}
-
-#[test]
-fn a_block_with_no_instrument_is_an_electric_guitar() {
-    assert_eq!(default_instrument(), "electric_guitar");
 }

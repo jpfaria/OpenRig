@@ -24,11 +24,15 @@ export component CompactBlockParamCell inherits Rectangle {
     visible: root.param.widget_kind != "";
     min-width: root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 ? 100px
         : root.param.widget_kind == "bool" ? 44px
+        : root.has-value-labels ? 76px
         : 56px;
     preferred-width: root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 ? 110px
         : root.param.widget_kind == "enum" && root.param.option_labels.length > 4 ? 140px
         : root.param.widget_kind == "bool" ? 48px
+        : root.has-value-labels ? 76px
         : 62px;
+    // #1011: a knob showing the plugin's own text ("20000 Hz") needs a wider cell.
+    private property <bool> has-value-labels: root.param.widget_kind != "enum" && root.param.option_labels.length > 0;
     height: 90px;
 
     // Label
@@ -56,6 +60,7 @@ export component CompactBlockParamCell inherits Rectangle {
         min-val: root.param.numeric_min;
         max-val: root.param.numeric_max;
         step: root.param.numeric_step;
+        value-labels: root.param.option_labels;
         path: root.param.path;
         changed(p, v) => { root.update-parameter-number(root.chain-index, root.block-index, p, v); }
     }

@@ -59,10 +59,10 @@ fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
     });
 }
 
-/// #693 helper: poll async completions until `pred` matches (2s cap);
+/// #693 helper: poll async completions until `pred` matches (30s cap, so a loaded machine does not fail it);
 /// returns every event drained along the way.
 fn wait_async(dispatcher: &LocalDispatcher, pred: impl Fn(&Event) -> bool) -> Vec<Event> {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut all = Vec::new();
     while std::time::Instant::now() < deadline {
         all.extend(dispatcher.poll_async_results());

@@ -1,249 +1,140 @@
-# Installation Guide
+# Installing OpenRig
 
-This guide covers how to install and run OpenRig on your system, either from prebuilt binaries or by building from source.
+| Platform | How |
+|---|---|
+| **macOS** 11 or later, Apple Silicon or Intel | [Download](#macos) — one command, or the `.dmg` by hand |
+| **Linux** x86_64 / aarch64 | [Build from source](#linux) — no package yet |
+| **Windows** 10 or later, x86_64 | [Build from source](#windows) — no package yet |
 
-## System Requirements
+You also need an audio interface with an instrument input: built-in computer audio has no guitar input and adds latency.
 
-| Requirement | Details |
-|-------------|---------|
-| **macOS** | macOS 12 or later (Apple Silicon or Intel) |
-| **Linux** | x86_64 or aarch64 with ALSA support |
-| **Windows** | Windows 10 or later (x86_64) |
-| **RAM** | Minimum 4 GB |
-| **Disk** | Minimum 500 MB free space |
+## macOS
 
-**Recommended:** An audio interface such as a Focusrite Scarlett is strongly recommended for achieving low-latency performance. Built-in audio devices may introduce noticeable latency during live use.
+### Install with one command (recommended)
 
-## Download Binaries
-
-Prebuilt binaries are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Today that is the macOS build; the Linux and Windows packages are built in CI but not published yet (#816, #978), so build from source on those systems for now.
-
-### Linux
-
-Two ways to install — pick one.
-
-**AppImage (recommended — no root, self-contained, nothing installed system-wide):**
-
-```bash
-# x86_64 — replace <ver> with the release tag, e.g. 0.1.0-dev.19
-chmod +x OpenRig-<ver>-linux-x86_64.AppImage
-./OpenRig-<ver>-linux-x86_64.AppImage
-```
-
-To remove it, just delete the file. Use the `-linux-aarch64.AppImage` asset on ARM boards.
-
-**`.deb` / `.rpm` (system-integrated — adds a desktop entry and resolves dependencies, requires root):**
-
-```bash
-# Ubuntu / Debian, x86_64 (use openrig_<ver>_arm64.deb on ARM)
-sudo apt install ./openrig_<ver>_amd64.deb
-
-# Fedora / RHEL, x86_64 (use the .aarch64.rpm on ARM)
-sudo dnf install ./openrig-<ver>-1.x86_64.rpm
-```
-
-Prefer `apt install ./file.deb` over `dpkg -i` — it pulls in dependencies automatically.
-
-A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `openrig` binary directly. Every package (`.deb`/`.rpm`/`.tar.gz`/`.AppImage`, and the macOS `.app` / Windows `.zip`/`.msi`) also ships the headless console (`openrig-console`, `openrig-console-rig`) and the offline renderer (`openrig-render`) next to the GUI binary — see [`../render.md`](../render.md) for offline rendering.
-
-#### Audio setup (required for sound)
-
-Installing the package is not enough to get sound — OpenRig is a guitar
-pedalboard and needs a real audio I/O path:
-
-1. **A USB audio interface** with a guitar input and an output
-   (headphones/monitors). Class-compliant interfaces work on Linux with
-   no driver. The built-in laptop audio is not enough (no instrument
-   input). Verify it is seen: `arecord -l` / `aplay -l` or
-   `cat /proc/asound/cards`.
-2. **JACK server** — OpenRig launches `jackd` itself, so the daemon
-   (not just the libraries) must be installed:
-   ```bash
-   sudo apt install jackd2          # Debian / Ubuntu
-   sudo dnf install jack-audio-connection-kit   # Fedora
-   ```
-3. **Audio group** — add your user and re-login (so realtime/device
-   access applies):
-   ```bash
-   sudo usermod -aG audio "$USER"
-   ```
-4. **PipeWire / PulseAudio coexistence** — if a sound server is holding
-   the interface, OpenRig's `jackd` may fail to grab it exclusively.
-   Either suspend the device in the sound server or point OpenRig at the
-   PipeWire JACK/ALSA bridge.
-5. In OpenRig's **audio screen**, select the interface as input and
-   output, set sample rate / buffer size, then enable the chain.
-
-> **Note — interface mixer:** OpenRig raises the selected card's ALSA
-> playback mixer to unity (100% / 0 dB, unmuted) automatically before
-> starting JACK, because without PipeWire/PulseAudio nothing else does,
-> and many USB interfaces ship attenuated (~−23 dB → weak, muffled
-> sound). If your interface uses an unusual mixer control OpenRig
-> doesn't recognise, set it by hand and persist it:
-> ```bash
-> amixer -c <CARD> sset <CONTROL> 100% unmute   # <CARD> from `cat /proc/asound/cards`
-> sudo alsactl store                            # survives reboot
-> ```
-
-The `.deb` declares `libasound2` and `libseat1`; `jackd2` is recommended
-separately because some setups route audio through PipeWire's JACK
-bridge instead.
-
-### macOS
-
-The build is universal (Apple Silicon + Intel) but **not** Apple-notarized
-(no paid Developer certificate), so a browser/Finder download is
-quarantined and double-clicking the `.dmg` can show *"OpenRig is damaged
-and can't be opened"*. The message is misleading — Gatekeeper just blocks
-un-notarized downloads.
-
-**One-line install (recommended)** — fetched via `curl`, which does not
-quarantine, so it runs without the block:
+Open **Terminal**, paste this line and press Return:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jpfaria/OpenRig/develop/scripts/install-macos.sh | bash
 ```
 
-It downloads the latest release `.dmg`, copies `OpenRig.app` to
-`/Applications`, and strips the quarantine attribute. Pin a version with
-`| bash -s -- v0.1.0-dev.19`.
+It downloads the latest release, copies `OpenRig.app` to `/Applications` and clears the macOS download block (see below). Then open OpenRig from Applications.
 
-**Manual** — download `OpenRig-<ver>-macos-universal.dmg`, drag OpenRig to
-Applications, then clear the quarantine flag yourself:
+To install a specific version instead of the latest, add the tag: `... | bash -s -- vX.Y.Z`.
 
-```bash
-xattr -dr com.apple.quarantine /Applications/OpenRig.app
-```
+### Install by hand
 
-### Windows
+1. Download `OpenRig-<version>-macos-universal.dmg` from the [latest release](https://github.com/jpfaria/OpenRig/releases/latest).
+2. Open the `.dmg` and drag **OpenRig** to **Applications**.
+3. Open **Terminal** and run:
 
-Not published yet (#978). Once it is: run the `OpenRig-<ver>-windows-x64.msi` installer, or unzip `OpenRig-<ver>-windows-x64.zip` for a portable copy and run `openrig.exe`. The package carries the VC++ runtime it needs.
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/OpenRig.app
+   ```
 
-The installer is not code-signed yet, so Windows SmartScreen shows "Windows protected your PC": choose **More info → Run anyway**.
+Step 3 is needed because OpenRig is not notarized by Apple. Without it, macOS says *"OpenRig is damaged and can't be opened"*. The app is not damaged: macOS blocks any downloaded app that Apple has not notarized.
 
-Audio: OpenRig uses your interface's ASIO driver when one is installed, and WASAPI otherwise (onboard audio, class-compliant interfaces).
+### Updating
 
-If something goes wrong, the log of the last session is in `%APPDATA%\OpenRig\logs\openrig.log`.
+When a newer release is out, the launcher shows an **Update to vX.Y.Z** button next to the version number. It runs the same one-command installer.
 
-## Build from Source
+## Linux
 
-### Prerequisites
+There is no Linux package for the current version yet, so you build it from source.
 
-- **Rust toolchain** -- install via [rustup.rs](https://rustup.rs)
-- **cmake** (version 3.16 or later)
-- **pkg-config**
-
-### Platform-Specific Dependencies
-
-**macOS:**
+### 1. Install the build tools
 
 ```bash
-brew install cmake pkg-config
+# Debian / Ubuntu
+sudo apt install git git-lfs cmake pkg-config libasound2-dev libfontconfig-dev
+
+# Fedora
+sudo dnf install git git-lfs cmake pkg-config alsa-lib-devel fontconfig-devel
 ```
 
-**Ubuntu / Debian:**
+Then install Rust with [rustup](https://rustup.rs). cmake must be 3.16 or later (`cmake --version`).
 
-```bash
-sudo apt install cmake pkg-config libasound2-dev libfontconfig-dev
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install cmake pkg-config alsa-lib-devel fontconfig-devel
-```
-
-**Windows:**
-
-Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the C++ workload, then install [cmake](https://cmake.org/download/) and ensure it is available on your PATH.
-
-### Build Steps
-
-Clone the repository and build the release binary:
+### 2. Build
 
 ```bash
 git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
 cargo build --release -p adapter-gui
+./target/release/adapter-gui
 ```
 
-The compiled binary will be located at `target/release/adapter-gui`.
+### 3. Get the models
 
-## NAM Engine (Optional)
-
-For [Neural Amp Modeler](https://www.neuralampmodeler.com/) support, the NAM C++ engine must be built separately:
+The amps, pedals, cabs and IRs live in a separate repository, [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins):
 
 ```bash
-./scripts/build-lib.sh nam
+git clone https://github.com/jpfaria/OpenRig-plugins.git
 ```
 
-Alternatively, prebuilt NAM libraries are available on the [releases page](https://github.com/jpfaria/OpenRig/releases/latest). Download the appropriate library for your platform and place it in the expected path.
+In OpenRig, open **Settings → Paths → Plugins** and choose `OpenRig-plugins/plugins/source`. Without this step the block picker is empty.
 
-## Docker Cross-Compilation
+### 4. Set up audio
 
-To build libraries for all supported platforms using Docker:
+1. **Plug in a USB audio interface.** Class-compliant interfaces need no driver on Linux. Check that it is detected with `aplay -l` or `cat /proc/asound/cards`.
+2. **Install the JACK server.** OpenRig starts `jackd` itself, so the daemon must be installed, not only its libraries:
+
+   ```bash
+   sudo apt install jackd2                        # Debian / Ubuntu
+   sudo dnf install jack-audio-connection-kit     # Fedora
+   ```
+
+3. **Join the `audio` group**, then log out and back in:
+
+   ```bash
+   sudo usermod -aG audio "$USER"
+   ```
+
+4. **Free the interface from PipeWire / PulseAudio.** If a sound server holds the interface, `jackd` cannot open it. Suspend the device in the sound server, or use the PipeWire JACK bridge.
+5. In OpenRig's audio settings, pick the interface as input and output and choose the sample rate and buffer size.
+
+OpenRig sets the interface's ALSA playback mixer to 0 dB, unmuted, before starting JACK, because many USB interfaces start attenuated. If yours uses a mixer control OpenRig does not recognise, set it by hand and save it:
 
 ```bash
-docker build -f docker/Dockerfile.build-libs -t openrig-build .
-./scripts/build-lib.sh all --platform all
+amixer -c <CARD> sset <CONTROL> 100% unmute   # <CARD> from cat /proc/asound/cards
+sudo alsactl store
 ```
 
-This is primarily intended for CI and release workflows, but can also be used for local cross-compilation.
+## Windows
+
+There is no download yet (#978): CI builds the `.msi` and `.zip` but the release does not publish them. Build from source as in [Building OpenRig](../development/building.md), then run `target\release\adapter-gui.exe`.
+
+Audio: OpenRig uses your interface's ASIO driver when one is installed, and WASAPI otherwise (onboard audio, class-compliant interfaces).
+
+If something goes wrong, each session writes its own log under `%APPDATA%\OpenRig\logs\`.
 
 ## Troubleshooting
 
 ### "OpenRig is damaged and can't be opened" (macOS)
 
-The app is not damaged. macOS shows this for downloads that are not
-Apple-notarized. Use the one-line installer, or strip the quarantine
-flag manually — see [macOS](#macos) above. Right-click → *Open* also
-works once the app is a valid bundle.
+The app is fine; macOS blocks apps that Apple has not notarized. Use the [one-command install](#install-with-one-command-recommended), or run the `xattr` command from [Install by hand](#install-by-hand).
 
-### "cannot open shared object file" on Linux
+### The block picker has no amps or pedals
 
-Builds bundle the NAM wrapper shared object (`libnam_wrapper.so`, via
-RUNPATH) and the `.deb` declares `libseat1` as a dependency, so this is
-handled automatically. On older builds the app fails to start with
-`error while loading shared libraries: libnam_wrapper.so` or
-`libseat.so.1`. Fix by upgrading, or for `libseat`:
+OpenRig cannot find the models. Point **Settings → Paths → Plugins** at the `plugins/source` folder of your [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins) clone. The macOS app ships the models inside it, so this only happens with a source build.
 
-```bash
-sudo apt install libseat1   # Debian / Ubuntu
-```
+### "is a Git LFS pointer" when building
 
-### ALSA not found (Linux)
-
-If you encounter errors related to ALSA during compilation on Linux, install the ALSA development headers:
-
-```bash
-# Debian / Ubuntu
-sudo apt install libasound2-dev
-
-# Fedora
-sudo dnf install alsa-lib-devel
-```
-
-### cmake version too old
-
-OpenRig requires cmake 3.16 or later. Check your installed version with:
-
-```bash
-cmake --version
-```
-
-If your distribution ships an older version, install a newer one from the [cmake downloads page](https://cmake.org/download/) or use a package manager such as `snap` or `pip`.
-
-### Linker errors on Windows
-
-Ensure that [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) are installed with the **Desktop development with C++** workload selected. Restart your terminal after installation.
-
-### "is a Git LFS pointer" errors
-
-The build unpacks the NeuralAmpModelerCore sources from a Git LFS archive. If the
-repository was cloned without Git LFS, fetch the LFS files and build again:
+The repository was cloned without Git LFS. Fetch the LFS files and build again:
 
 ```bash
 git lfs install
 git lfs pull
 ```
+
+### ALSA errors when building (Linux)
+
+Install the ALSA development headers: `libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora.
+
+### cmake is too old
+
+OpenRig needs cmake 3.16 or later. If your distribution ships an older one, install a newer one from [cmake.org](https://cmake.org/download/).
+
+## Building on macOS
+
+Developers building the Mac app from source: [Building OpenRig](../development/building.md).

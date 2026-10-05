@@ -36,6 +36,8 @@ fn test_chain(id: &str) -> Chain {
         blocks: Vec::<AudioBlock>::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

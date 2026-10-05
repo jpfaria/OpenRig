@@ -60,8 +60,11 @@ fn memory_allocated_after_the_engine_started_ends_up_wired() {
     let _engine = ProjectRuntimeController::start(&project).expect("start the engine");
     std::thread::sleep(Duration::from_secs(1));
 
-    // A reverb's delay line, allocated and written through once.
-    let mut delay_line = vec![0.0_f32; 2 << 20];
+    // A reverb's delay line, allocated for the audio and written through once.
+    let mut delay_line = {
+        let _audio = engine::audio_alloc_scope::audio_allocations();
+        vec![0.0_f32; 2 << 20]
+    };
     for (i, sample) in delay_line.iter_mut().enumerate().step_by(1024) {
         *sample = i as f32;
     }

@@ -12,7 +12,7 @@ pub(crate) fn report_lines(now: &Report, before: Option<&Report>) -> Vec<(log::L
     let mut lines = Vec::new();
     if now.wired.regions > 0 {
         lines.push((
-            log::Level::Info,
+            log::Level::Debug,
             format!(
                 "memory residency: wired {} regions ({} MB), {} MB resident for good",
                 now.wired.regions,

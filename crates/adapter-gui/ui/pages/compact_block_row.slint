@@ -106,8 +106,31 @@ export component CompactBlockRow inherits Rectangle {
         overflow: elide;
     }
 
+    // #328: a split has no model — its row is the icon and its kind only.
+    private property <bool> is-split: root.block-data.effect-type == "split";
+
+    // #328: a block inside a split's path carries its path letter as a badge
+    // on the type icon, so the rows below the split read as path A, B, …
+    if root.block-data.path-label != "" : Rectangle {
+        x: 52px;
+        y: (root.header-height - 32px) / 2 - 12px;
+        width: 26px; height: 26px;
+        border-radius: 13px;
+        background: Theme.palette.accent-end;
+        border-width: 1px;
+        border-color: Theme.palette.accent-border;
+        Text {
+            text: root.block-data.path-label;
+            color: Theme.palette.text-primary;
+            font-size: Theme.min-font;
+            font-weight: 900;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
     // ── 4. Model selector with embedded search (after type label) ──
-    ModelSelectWithSearch {
+    if !root.is-split : ModelSelectWithSearch {
         x: max(158px, type-lbl.x + type-lbl.width + 6px);
         y: (root.header-height - 40px) / 2;
         width: 418px - self.x;
@@ -144,7 +167,7 @@ export component CompactBlockRow inherits Rectangle {
         root.block-data.effect-type == "insert"
         || root.block-data.effect-type == "input"
         || root.block-data.effect-type == "output";
-    if root.block-data.brand == "" && !root.is-routing : Image {
+    if root.block-data.brand == "" && !root.is-routing && !root.is-split : Image {
         x: 432px; y: (root.header-height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")

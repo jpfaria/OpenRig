@@ -9,7 +9,7 @@ use domain::AudioDeviceDescriptor;
 use infra_filesystem::IoBinding;
 use project::block::AudioBlockKind;
 use project::project::Project;
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 
 pub(crate) fn replace_project_chains(
@@ -19,6 +19,12 @@ pub(crate) fn replace_project_chains(
     output_devices: &[AudioDeviceDescriptor],
     io_bindings: &[IoBinding],
 ) {
+    // #324: the DI and looper output selects list every output of the project.
+    let project_output_labels: Vec<SharedString> =
+        project::project_outputs::output_endpoints(io_bindings, output_devices)
+            .into_iter()
+            .map(|o| SharedString::from(o.label))
+            .collect();
     let items = project
         .chains
         .iter()
@@ -28,6 +34,49 @@ pub(crate) fn replace_project_chains(
             // `latency_ms` with a measured value for up to 10 s when the
             // user clicks the probe button on the chain card.
             let latency_ms = 0.0_f32;
+            let input_label: SharedString = {
+                let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                if binding_name.is_empty() {
+                    // #716: device endpoints resolve from the binding
+                    // registry (never from block `entries`).
+                    let (resolved_inputs, _) =
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                    let input_chs: Vec<usize> = resolved_inputs
+                        .iter()
+                        .flat_map(|e| e.channels.iter().copied())
+                        .collect();
+                    chain_endpoint_label("In", &input_chs).into()
+                } else {
+                    binding_name.into()
+                }
+            };
+            let output_label: SharedString = {
+                let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                if binding_name.is_empty() {
+                    // #716: device endpoints resolve from the binding
+                    // registry (never from block `entries`).
+                    let (_, resolved_outputs) =
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                    let output_chs: Vec<usize> = resolved_outputs
+                        .iter()
+                        .flat_map(|e| e.channels.iter().copied())
+                        .collect();
+                    chain_endpoint_label("Out", &output_chs).into()
+                } else {
+                    binding_name.into()
+                }
+            };
+            // #328: the chain drawn as a graph for the desktop row (spec §5.2).
+            let io_labels = crate::endpoint_checklist_items::io_labels(
+                chain,
+                io_bindings,
+                input_devices,
+                output_devices,
+                &input_label,
+                &output_label,
+            );
+            let graph = crate::chain_graph_adapter::chain_graph(chain, &io_labels);
+            let graph_models = crate::chain_graph_models::row_graph_models(chain, &graph);
             ProjectChainItem {
                 instrument: chain.instrument.clone().into(),
                 title: chain
@@ -56,40 +105,10 @@ pub(crate) fn replace_project_chains(
                         format!("{} blocks", effect_block_count).into()
                     }
                 },
-                input_label: {
-                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
-                    if binding_name.is_empty() {
-                        // #716: device endpoints resolve from the binding
-                        // registry (never from block `entries`).
-                        let (resolved_inputs, _) =
-                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
-                        let input_chs: Vec<usize> = resolved_inputs
-                            .iter()
-                            .flat_map(|e| e.channels.iter().copied())
-                            .collect();
-                        chain_endpoint_label("In", &input_chs).into()
-                    } else {
-                        binding_name.into()
-                    }
-                },
+                input_label,
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
                     .into(),
-                output_label: {
-                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
-                    if binding_name.is_empty() {
-                        // #716: device endpoints resolve from the binding
-                        // registry (never from block `entries`).
-                        let (_, resolved_outputs) =
-                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
-                        let output_chs: Vec<usize> = resolved_outputs
-                            .iter()
-                            .flat_map(|e| e.channels.iter().copied())
-                            .collect();
-                        chain_endpoint_label("Out", &output_chs).into()
-                    } else {
-                        binding_name.into()
-                    }
-                },
+                output_label,
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices, io_bindings)
                     .into(),
                 latency_ms,
@@ -105,22 +124,19 @@ pub(crate) fn replace_project_chains(
                     out_dbfs: engine::output_meter::SILENT_DBFS,
                     in_label: Default::default(),
                     out_label: Default::default(),
+                    in_channels: Default::default(),
+                    out_channels: Default::default(),
+                    in_repeated: false,
                 },
                 // #771: the DI panel's output select — the chain's bound
                 // output endpoints + the persisted pick.
-                di_loop_outputs: {
-                    let (labels, _) =
-                        crate::di_output_options::output_labels_and_index(chain, io_bindings);
-                    ModelRc::from(Rc::new(VecModel::from(
-                        labels
-                            .into_iter()
-                            .map(SharedString::from)
-                            .collect::<Vec<_>>(),
-                    )))
-                },
+                di_loop_outputs: ModelRc::from(Rc::new(VecModel::from(
+                    project_output_labels.clone(),
+                ))),
                 di_output_selected_index: crate::di_output_options::output_labels_and_index(
                     chain,
                     io_bindings,
+                    output_devices,
                 )
                 .1,
                 // Issue #670: no overload until the meter timer observes
@@ -161,6 +177,15 @@ pub(crate) fn replace_project_chains(
                             out_dbfs: engine::output_meter::SILENT_DBFS,
                             in_label,
                             out_label,
+                            in_channels: labels
+                                .get(i)
+                                .map(|l| l.input_channels.as_str().into())
+                                .unwrap_or_default(),
+                            out_channels: labels
+                                .get(i)
+                                .map(|l| l.output_channels.as_str().into())
+                                .unwrap_or_default(),
+                            in_repeated: crate::meter_wiring::input_repeated(&labels, i),
                         });
                     }
                     ModelRc::from(model)
@@ -220,6 +245,7 @@ pub(crate) fn replace_project_chains(
                     )))
                 },
                 di_loop_selected_index: -1, // #661: refreshed by meter timer
+                di_loop_take_rows: ModelRc::default(), // the meter timer fills it
                 // #323: the looper rows and the header tint start empty and
                 // are refreshed by the meter timer from the live runtimes.
                 // #323: build the looper rows from the chain's PERSISTED
@@ -237,7 +263,7 @@ pub(crate) fn replace_project_chains(
                 looper_active: false,
                 looper_input_options: {
                     let (inputs, _) =
-                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                        project::chain_endpoint_options::chain_endpoint_labels(chain, io_bindings);
                     ModelRc::from(Rc::new(VecModel::from(
                         inputs
                             .into_iter()
@@ -245,20 +271,28 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
-                looper_output_options: {
-                    let (_, outputs) =
-                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
-                    ModelRc::from(Rc::new(VecModel::from(
-                        outputs
-                            .into_iter()
-                            .map(SharedString::from)
-                            .collect::<Vec<_>>(),
-                    )))
-                },
+                looper_output_options: ModelRc::from(Rc::new(VecModel::from(
+                    project_output_labels.clone(),
+                ))),
                 // #323 phase 2: filled by the meter tick (needs the rig's bank);
                 // the initial seed is empty ⇒ the picker shows just "follow".
                 looper_preset_options: ModelRc::default(),
+                graph_nodes: graph_models.nodes,
+                graph_edges: graph_models.edges,
+                graph_anchors: graph_models.anchors,
+                graph_lanes: graph.lanes as i32,
+                graph_columns: graph.columns as i32,
+                meters_expanded: false,
             }
+        })
+        .enumerate()
+        .map(|(index, mut item)| {
+            // #1007: nearly every edit rebuilds the rows; an expanded meter
+            // section stays open while the same chain sits in that place.
+            item.meters_expanded = model
+                .row_data(index)
+                .is_some_and(|old| old.meters_expanded && old.title == item.title);
+            item
         })
         .collect::<Vec<_>>();
     model.set_vec(items);

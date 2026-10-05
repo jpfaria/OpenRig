@@ -1,0 +1,53 @@
+// Responsibility: renders one chain's mixer section inside the compact view.
+// #1007 — a collapsible section around the chain's mixer tabs
+// (`ChainMixerTabs`: IN | OUT | DI | LOOPER). Inside the compact view
+// `MixerBridge` carries only this chain's endpoints, so it feeds the global
+// halves of the dual strips directly. The section opens collapsed every time:
+// only its header shows until it is expanded. #1022: the host owns `expanded`
+// (one compact section open at a time), so the header only asks for a flip.
+
+import { MixerBridge } from "mixer_globals.slint";
+import { ChainMixerTabs } from "chain_mixer_tabs.slint";
+import { SectionToggle } from "section_toggle.slint";
+
+export component CompactChainMixer inherits Rectangle {
+    in property <bool> expanded: false;
+    callback toggled(bool);
+    private property <length> header-height: 36px;
+    // Height the host reserves for the mixer: just the header while collapsed.
+    out property <length> preferred-area-height: root.expanded ? 416px : root.header-height;
+    // Every chain has at least its MASTER fader.
+    out property <bool> has-strips: true;
+
+    // The DI tab shows only while the chain's DI loop plays.
+    in property <bool> di-playing: false;
+    // The picked tab outlives a collapse.
+    private property <int> picked: 0;
+
+    background: #0c0e12;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 1px;
+        background: #1c2028;
+    }
+
+    mixer-toggle := SectionToggle {
+        x: 0; y: 1px;
+        width: parent.width; height: root.header-height - 1px;
+        title: @tr("label-mixer");
+        icon: @image-url("../assets/mixer-faders.svg");
+        expanded: root.expanded;
+        toggled(expanded) => { root.toggled(expanded); }
+    }
+
+    if root.expanded : ChainMixerTabs {
+        x: 16px; y: root.header-height + 6px;
+        width: parent.width - 32px;
+        height: parent.height - self.y;
+        global-inputs: MixerBridge.inputs;
+        global-outputs: MixerBridge.outputs;
+        di-playing: root.di-playing;
+        picked <=> root.picked;
+    }
+}

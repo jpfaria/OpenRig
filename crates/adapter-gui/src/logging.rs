@@ -105,6 +105,11 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
             })))
             .build();
     let max_level = logger.filter();
+    // Records reach the crash reporter once `crash_reporting::init` installs one.
+    let logger = crate::crash_log_bridge::ReportingLogger::new(
+        Box::new(logger),
+        crate::crash_reporting::slot(),
+    );
     if log::set_boxed_logger(Box::new(logger)).is_ok() {
         log::set_max_level(max_level);
     }
@@ -139,39 +144,24 @@ pub fn flush_logging(timeout: Duration) -> bool {
         .is_ok()
 }
 
-/// Default initialization used by the GUI binary: log to stderr.
+/// Default initialization used by the binaries: log to stderr and, when
+/// the platform log dir is writable, to a session file that also
+/// receives panic reports (#1060).
 pub fn init_logging() {
-    init_logging_with_target(default_sink());
-    #[cfg(target_os = "windows")]
-    log_panics();
-}
-
-/// The default panic message goes to stderr, which a windowed Windows process
-/// does not have, so a crash left nothing in the log file (#978).
-#[cfg(target_os = "windows")]
-fn log_panics() {
-    let previous = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        log::error!("panic: {info}");
-        flush_logging(Duration::from_secs(2));
-        previous(info);
-    }));
-}
-
-#[cfg(not(target_os = "windows"))]
-fn default_sink() -> Box<dyn Write + Send + 'static> {
-    Box::new(std::io::stderr())
-}
-
-/// The GUI is a windowed process on Windows (`windows_subsystem`), so stderr
-/// usually goes nowhere and every log line and startup error was lost (#978).
-/// Log to `%APPDATA%\OpenRig\logs\openrig.log` as well; stderr still gets
-/// every line when the user redirects it.
-#[cfg(target_os = "windows")]
-fn default_sink() -> Box<dyn Write + Send + 'static> {
-    let path = crate::log_file::log_file_path(&infra_filesystem::user_data_root());
-    match crate::log_file::open_log_file(&path) {
-        Ok(file) => Box::new(crate::log_file::TeeWriter::new(std::io::stderr(), file)),
-        Err(_) => Box::new(std::io::stderr()),
+    let session = crate::log_file::log_dir().and_then(|dir| {
+        crate::log_file::open_session_log(&dir, crate::log_file::SESSIONS_KEPT).ok()
+    });
+    match session {
+        Some((path, file)) => {
+            crate::panic_log::install(path.clone());
+            init_logging_with_target(Box::new(crate::tee_writer::TeeWriter::new(
+                std::io::stderr(),
+                file,
+            )));
+            log::info!("session log: {}", path.display());
+            // The machine the session ran on, for the file on disk.
+            log::info!("host: {}", crate::crash_context_host::host_context());
+        }
+        None => init_logging_with_target(Box::new(std::io::stderr())),
     }
 }

@@ -15,10 +15,10 @@ That produced two structural problems:
    input reached every output (all-to-all). There was no way to express
    "audio from interface A exits only through interface A".
 2. **Project portability.** A raw `device_id` is machine-specific. Moving an
-   `.openrig` to another machine left the chain referencing a device id that may
+   `project.yaml` to another machine left the chain referencing a device id that may
    not exist there.
 
-ADR 0003 established the portability test: *"if I send this `.openrig` to another
+ADR 0003 established the portability test: *"if I send this `project.yaml` to another
 machine, does this value have to travel with it?"* Raw device ids fail that test;
 they belong in `config.yaml` (system scope).
 
@@ -51,7 +51,7 @@ io_bindings:
 
 **Scope rationale.** The registry references concrete `device_id` / channels,
 which are machine-specific (ADR 0003 system criterion). Chains reference a
-binding by its stable `id`. Moving a `.openrig` to another machine carries only
+binding by its stable `id`. Moving a `project.yaml` to another machine carries only
 the `id` reference; the target machine re-resolves it against its local registry.
 This makes projects *more* portable than the legacy model where raw `device_id`
 was embedded in the chain.
@@ -90,18 +90,12 @@ ch1 → A B C D E → ch3         (head-input × tail-output)
 ch1 → A B C     → ch4         (head-input × middle-output)
 ```
 
-### Inserts stay raw (scope decision) — superseded by #881
+### Inserts reference one binding
 
-*Original decision (#716):* insert blocks keep their raw send/return endpoints
-and are **not** migrated to the registry, because an insert is a single-runtime
-send/return pipeline rather than a binding-paired stream.
-
-*What shipped instead:* an `InsertBlock` is `{ model, io }` — it references ONE
-binding, whose OUTPUT carries the send and whose INPUT carries the return. The
-raw endpoints were dropped from the model at the same time, but the editor was
-left on the old device pickers, so no insert could be bound at all and any chain
-carrying one went silent (#881). The editor now picks that binding, and an
-insert that does not resolve is bypassed instead of splitting the chain.
+An `InsertBlock` is `{ model, io }` — it references ONE binding, whose OUTPUT
+carries the send and whose INPUT carries the return; it has no raw endpoints.
+The editor picks that binding, and an insert that does not resolve is bypassed
+instead of splitting the chain.
 
 ### Commands (system scope)
 
@@ -116,7 +110,7 @@ Reshaped chain-IO commands (`SaveChainInputEndpoints`,
 references instead of embedded endpoints. MCP tooling inherits the same variants
 (command-bus parity, CLAUDE.md Law 1).
 
-### Clean break — no migration (#716)
+### Clean break — no migration
 
 Routing is **binding-only**. There is no migration from the old embedded-`entries`
 format. An old project still **deserializes** (it loads), but its `entries` are
@@ -137,13 +131,13 @@ machine. A legacy file remains loadable without silently wiring it to devices.
 
 - **Cross-binding bleed is structurally impossible.** A→A / B→B routing is the
   natural, default expression; cross-device routing cannot be authored.
-- **Portable projects.** The `.openrig` carries only stable binding ids; raw
+- **Portable projects.** The `project.yaml` carries only stable binding ids; raw
   device ids live on the machine that owns them.
 - **Legacy projects open unbound.** No migration, no silent device wiring —
   a legacy chain loads but plays no audio until reconfigured against the registry.
 - **Future settings have a written home.** Per ADR 0003, any new per-machine
   device reference belongs in `config.yaml` alongside the registry.
-- **Inserts went through the registry too (#881).** An insert references one
+- **Inserts go through the registry too.** An insert references one
   binding (send = its output, return = its input), so it is portable like every
   other chain reference.
 

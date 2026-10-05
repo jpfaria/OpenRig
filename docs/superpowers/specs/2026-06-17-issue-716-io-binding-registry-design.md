@@ -73,7 +73,7 @@ io_bindings:
 **Scope decision (ADR 0003):** the registry references concrete
 `device_id`/channels, which are machine-specific, so it lives in `config.yaml`
 (system), next to device settings. Chains reference a binding by its stable
-`id`. Moving a `.openrig` to another machine carries only the `id` reference;
+`id`. Moving a `project.yaml` to another machine carries only the `id` reference;
 the target machine re-resolves it against its local registry. This makes the
 project **more** portable than today (where raw `device_id` is embedded in the
 chain).

@@ -137,6 +137,7 @@ fn beat_it_chain_opt(with_ir: bool) -> Chain {
         di_output: None,
         loopers: Vec::new(),
         blocks,
+        mix: Default::default(),
     }
 }
 
@@ -151,6 +152,7 @@ fn isolated(label: &str, block: AudioBlock) -> Chain {
         di_output: None,
         loopers: Vec::new(),
         blocks: vec![block],
+        mix: Default::default(),
     }
 }
 
@@ -574,6 +576,7 @@ fn nam_plus_ir_cold_cache_cost() {
             di_output: None,
             loopers: Vec::new(),
             blocks: bs,
+            mix: Default::default(),
         }
     };
 
@@ -1338,6 +1341,7 @@ fn beat_it_plus_v30_cab_per_buffer_cost() {
         di_output: None,
         loopers: Vec::new(),
         blocks,
+        mix: Default::default(),
     };
     assert_no_faulted_blocks(&chain);
     let rt = build(&chain);
@@ -1399,6 +1403,7 @@ fn first_buffer_after_build_carries_no_lazy_init() {
         di_output: None,
         loopers: Vec::new(),
         blocks,
+        mix: Default::default(),
     };
 
     // Median steady cost for reference.

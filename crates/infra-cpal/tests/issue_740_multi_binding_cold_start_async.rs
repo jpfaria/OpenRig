@@ -77,6 +77,8 @@ fn four_binding_chain_is_scheduled_async_on_cold_start() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     };
     let project = Project {
         name: None,

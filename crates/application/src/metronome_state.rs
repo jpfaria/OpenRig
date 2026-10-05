@@ -25,7 +25,9 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use feature_dsp::metronome::{MetronomeSettings, Subdivision, Timbre, BPM_MAX, BPM_MIN};
+use feature_dsp::metronome::{
+    MetronomeSettings, Subdivision, Timbre, BPM_DEFAULT, BPM_MAX, BPM_MIN,
+};
 use infra_filesystem::MetronomeConfig;
 
 /// A gap longer than this is a fresh count-off, not a very slow tap.
@@ -112,7 +114,7 @@ impl MetronomeControlState {
     /// carrying an unknown key is a different matter and is rejected.
     pub fn seed_from_config(&mut self, config: &MetronomeConfig) {
         self.snapshot.settings = MetronomeSettings {
-            bpm: config.bpm.clamp(BPM_MIN, BPM_MAX),
+            bpm: BPM_DEFAULT,
             beats_per_bar: config.beats_per_bar,
             subdivision: Subdivision::from_key(&config.subdivision).unwrap_or_default(),
             timbre: Timbre::from_key(&config.timbre).unwrap_or_default(),

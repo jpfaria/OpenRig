@@ -1,8 +1,9 @@
 //! Responsibility: dispatches the chain callback wirings at startup.
 //! Chain-level callback wirings dispatched from `run_desktop_app`.
 //!
-//! Three `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:
-//! Chain CRUD, the compact chain view entry, and chain name edit. Pulled out
+//! Four `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:
+//! Chain CRUD, the compact chain view entry, chain name edit and the chain
+//! card's mixer section. Pulled out
 //! of `desktop_app.rs` to land that file under the 600-line cap. Same `&deps`
 //! pattern as `desktop_app_block_wiring` — callbacks clone the `Rc` handles
 //! they need at registration time.
@@ -34,6 +35,8 @@ pub(crate) struct ChainWiringDeps<'a> {
     pub audio_taps: Rc<dyn AudioTaps>,
     /// #127: the blocks' diagnostic-stream read seam.
     pub block_stream_reads: Rc<dyn LiveSource>,
+    /// #1022: the loopers' live read seam, for the compact view's waveform editor.
+    pub looper_live: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
 
@@ -75,6 +78,7 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             project_session: deps.project_session.clone(),
             audio_taps: Rc::clone(&deps.audio_taps),
             block_stream_reads: Rc::clone(&deps.block_stream_reads),
+            looper_live: Rc::clone(&deps.looper_live),
             project_chains: deps.project_chains.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
@@ -88,4 +92,11 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
     );
     // --- Chain name edit callback (extracted to chain_name_wiring) ---
     crate::chain_name_wiring::wire(deps.window, deps.chain_draft.clone());
+    // --- A chain card's mixer, opened at the bottom of the card ---
+    crate::chain_mixer_panel_wiring::wire(
+        deps.window,
+        deps.project_session.clone(),
+        deps.saved_project_snapshot.clone(),
+        deps.project_dirty.clone(),
+    );
 }

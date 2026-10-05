@@ -23,6 +23,9 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
+                disabled_endpoints: Default::default(),
+                mix: Default::default(),
+                di_output: None,
             },
         );
         presets.insert(
@@ -38,6 +41,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),
@@ -63,6 +67,8 @@ fn project_with_chain_ids(ids: &[&str]) -> Project {
                 blocks: Vec::new(),
                 di_output: None,
                 loopers: vec![],
+                disabled_endpoints: Default::default(),
+                mix: Default::default(),
             })
             .collect(),
         midi: None,
@@ -84,7 +90,7 @@ fn sync_captures_reordered_chains_in_chain_order() {
 #[test]
 fn sync_leaves_chain_order_empty_when_alphabetical() {
     // Order matches the BTreeMap iteration — no need to write
-    // chain_order. Keeps legacy `.openrig` files lean.
+    // chain_order. Keeps `project.yaml` files lean.
     let mut rig = rig_with_inputs(&["a", "b", "c"]);
     let proj = project_with_chain_ids(&["rig:a", "rig:b", "rig:c"]);
 
@@ -146,6 +152,27 @@ fn sync_captures_chain_loopers_into_the_rig_input() {
             ..LooperConfig::new(7)
         }],
         "a looper recorded on the projected chain must persist into the rig input"
+    );
+}
+
+#[test]
+fn sync_captures_chain_mix_into_the_rig_input() {
+    // #1007: the chain's own faders are project data; the projected chain
+    // is rebuilt from the rig on open, so they must be written back.
+    use domain::mixer_strip::MixerDirection;
+    let mut rig = rig_with_inputs(&["a"]);
+    let mut proj = project_with_chain_ids(&["rig:a"]);
+    proj.chains[0].mix.di_gain_db = -3.0;
+    proj.chains[0]
+        .mix
+        .endpoint_mut(MixerDirection::Output, "io", "Main")
+        .gain_db = -9.0;
+
+    sync_synthetic_into_rig(&mut rig, &proj);
+
+    assert_eq!(
+        rig.inputs["a"].mix, proj.chains[0].mix,
+        "the chain's own faders must persist into the rig input"
     );
 }
 

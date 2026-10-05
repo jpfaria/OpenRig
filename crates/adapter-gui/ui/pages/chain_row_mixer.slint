@@ -1,0 +1,35 @@
+// Responsibility: renders one chain card's mixer section.
+// The card header's mixer button opens it (`ChainMixerPanel`) and the card
+// grows to hold it at its bottom, below the IN/OUT meters: a divider, then
+// the chain's mixer tabs (IN | OUT | DI | LOOPER). The global halves of its
+// dual strips are only this chain's endpoints (`ChainMixerPanel.global-*`).
+// Closed, it takes no height; it always reopens on IN.
+
+import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
+import { ChainMixerTabs } from "../components/chain_mixer_tabs.slint";
+
+export component ChainRowMixer inherits Rectangle {
+    in property <bool> open: false;
+    // The DI tab shows only while the chain's DI loop plays.
+    in property <bool> di-playing: false;
+    private property <length> gap: 12px;
+    // Height the card adds for the section: nothing while it is closed.
+    out property <length> section-height: root.open ? 400px : 0px;
+
+    background: transparent;
+
+    if root.open : Rectangle {
+        x: 18px; y: 0;
+        width: parent.width - 36px; height: 1px;
+        background: #ffffff14;
+    }
+
+    if root.open : ChainMixerTabs {
+        x: 18px; y: root.gap;
+        width: parent.width - 36px;
+        height: parent.height - self.y - root.gap;
+        global-inputs: ChainMixerPanel.global-inputs;
+        global-outputs: ChainMixerPanel.global-outputs;
+        di-playing: root.di-playing;
+    }
+}

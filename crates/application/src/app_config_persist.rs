@@ -13,7 +13,14 @@
 
 use std::path::PathBuf;
 
-use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig};
+use infra_filesystem::{
+    AppConfig, DrumsConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig, PlayerConfig,
+};
+
+use crate::mixer_persist_coalesce::{pending_strips, Settle};
+
+/// How long a queued mixer-strip write waits for a drag to settle.
+const MIXER_WRITE_SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
 
 /// Read-modify-write `config.yaml` on the persist worker, against the path
 /// bound NOW. `mutate` runs on the worker thread after the current config
@@ -64,6 +71,75 @@ pub fn persist_metronome(
     });
 }
 
+/// Read-modify-write only the player section of `config.yaml` on the persist
+/// worker, against the path the caller bound. Only a dispatcher holding an
+/// attached config path reaches this, so tests never touch the real config.
+pub fn persist_player(
+    config_path: PathBuf,
+    mutate: impl FnOnce(&mut PlayerConfig) + Send + 'static,
+) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.player)
+        }) {
+            log::error!("persist player failed: {e}");
+        }
+    });
+}
+
+/// Read-modify-write the drums section of `config.yaml` on the persist worker.
+/// Only callers holding an attached config path reach this.
+pub fn persist_drums(config_path: PathBuf, mutate: impl FnOnce(&mut DrumsConfig) + Send + 'static) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.drums)
+        }) {
+            log::error!("persist drums failed: {e}");
+        }
+    });
+}
+
+/// #1007: upsert one global-mixer strip into `config.yaml` on the persist
+/// worker. Only callers holding an attached config path reach this (#701).
+/// A strip back at unity and unmuted leaves the file: the default needs no
+/// entry.
+///
+/// A fader drag sends a value per tick: the strip keeps ONE queued write, the
+/// later values replace the pending one, and the write waits until the strip
+/// has been still for `MIXER_WRITE_SETTLE` before writing the drop value
+/// (`mixer_persist_coalesce`).
+/// It stays on the single worker, so `persist_worker::flush` still waits for it.
+pub fn persist_mixer_strip(config_path: PathBuf, strip: MixerStripConfig) {
+    let id = strip.id.clone();
+    if !pending_strips().submit(config_path.clone(), strip) {
+        return;
+    }
+    crate::persist_worker::run(move || {
+        let strip = loop {
+            std::thread::sleep(MIXER_WRITE_SETTLE);
+            let now = std::time::Instant::now();
+            match pending_strips().take_settled(&config_path, &id, now, MIXER_WRITE_SETTLE) {
+                Settle::Ready(strip) => break strip,
+                Settle::Wait(_) => continue,
+                Settle::Gone => return,
+            }
+        };
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            let at_default = strip.gain_db == 0.0 && !strip.muted && !strip.soloed;
+            match config.mixer.iter().position(|s| s.id == strip.id) {
+                Some(i) if at_default => {
+                    config.mixer.remove(i);
+                }
+                Some(i) => config.mixer[i] = strip,
+                None if at_default => {}
+                None => config.mixer.push(strip),
+            }
+        }) {
+            log::error!("persist mixer strip failed: {e}");
+        }
+    });
+}
+
 /// #980: persist ONLY the recent-projects list of the GUI's in-memory
 /// `AppConfig` (read-modify-write). That snapshot is loaded at boot and is
 /// stale for every other section — an I/O binding edited over MCP, a path
@@ -91,3 +167,7 @@ pub fn persist_recent_projects(config_path: Option<PathBuf>, from: &AppConfig) {
         }
     });
 }
+
+#[cfg(test)]
+#[path = "app_config_persist_mixer_tests.rs"]
+mod mixer_tests;

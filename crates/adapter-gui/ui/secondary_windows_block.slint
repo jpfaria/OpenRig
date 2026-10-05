@@ -7,10 +7,12 @@ import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
-import { DiLoopPanel } from "components/di_loop_panel.slint";
-import { DiPanel } from "components/di_panel_globals.slint";
-import { ToneDoctorPanel } from "components/tone_doctor_panel.slint";
-import { ToneDoctorState } from "components/tone_doctor_globals.slint";
+import { LooperPanel, LooperTake } from "components/looper_panel_globals.slint";
+import { CompactLooper } from "components/compact_looper_globals.slint";
+import { LooperEditorOverlay } from "components/looper_editor_overlay.slint";
+import { LooperPresetPicker } from "components/looper_preset_picker.slint";
+import { LooperEndpointPicker } from "components/looper_endpoint_picker.slint";
+import { LooperTakeSaveDialog } from "components/looper_take_save_dialog.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -148,6 +150,7 @@ export component CompactChainViewWindow inherits Window {
     // #717: which source is selected — without it the compact panel opens with
     // no selection, so it shows nothing picked and hides the play/stop button.
     in property <int> di-loop-selected-index: -1;
+    in property <[bool]> di-loop-take-rows: []; // deletable takes
     // #771: the chain's bound output endpoints + the persisted pick.
     in property <[string]> di-loop-outputs: [];
     in property <int> di-output-selected-index: -1;
@@ -220,6 +223,7 @@ export component CompactChainViewWindow inherits Window {
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
         di-loop-selected-index: root.di-loop-selected-index;
+        di-loop-take-rows: root.di-loop-take-rows;
         di-loop-outputs: root.di-loop-outputs;
         di-output-selected-index: root.di-output-selected-index;
         di-graph-meter: root.di-graph-meter;
@@ -229,6 +233,9 @@ export component CompactChainViewWindow inherits Window {
         di-loop-choose-file => { root.di-loop-choose-file(); }
         di-loop-play => { root.di-loop-play(); }
         di-loop-stop => { root.di-loop-stop(); }
+        di-loop-output-selected(i) => { root.di-loop-output-selected(i); }
+        tone-doctor-run(ci) => { root.tone-doctor-run(ci); }
+        tone-doctor-apply(ci) => { root.tone-doctor-apply(ci); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
@@ -276,73 +283,32 @@ export component CompactChainViewWindow inherits Window {
         cancel => { OverlayBridge.cancel-delete-chain(); }
     }
 
-    // #717: DI panel overlay for the DETACHED compact window. The fone
-    // (ChainDiLoopButton) sets `DiPanel.open` on this window's own global;
-    // without this overlay the click had no visible effect ("botão não faz
-    // nada"). Mirrors app-window's DI overlay, but the window's DI callbacks
-    // are single-chain (no chain index).
-    if DiPanel.open : Rectangle {
+    // #1022: DI and Doctor are inline sections of the page now; the looper
+    // section's modals (preset picker, save-take, waveform editor) cover the
+    // whole window, never a PopupWindow (#749/#761).
+    if LooperPanel.preset-picker-uid >= 0 : LooperPresetPicker {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        TouchArea { clicked => { DiPanel.open = false; } }
-        DiLoopPanel {
-            x: DiPanel.x;
-            y: DiPanel.y;
-            sources: DiPanel.sources;
-            selected-index: DiPanel.selected-index;
-            playing: DiPanel.playing;
-            outputs: DiPanel.outputs;
-            output-selected-index: DiPanel.output-selected-index;
-            source-picked(i, s) => {
-                DiPanel.selected-index = i;
-                root.di-loop-source-selected(s);
-            }
-            choose-file => { root.di-loop-choose-file(); }
-            play => {
-                DiPanel.playing = true;
-                root.di-loop-play();
-            }
-            stop => {
-                DiPanel.playing = false;
-                root.di-loop-stop();
-            }
-            output-picked(i, s) => {
-                DiPanel.output-selected-index = i;
-                root.di-loop-output-selected(i);
-            }
-        }
+        preset-options: CompactLooper.preset-options;
+        preset-picked(ci, uid, i) => { CompactLooper.preset-picked(ci, uid, i); }
     }
-
-    // #791: Tone Doctor panel overlay for the detached compact window. The
-    // stethoscope (ChainToneDoctorButton) sets `ToneDoctorState.open`; Rust
-    // fills the result fields after the offline run.
-    if ToneDoctorState.open : Rectangle {
+    if LooperPanel.endpoint-picker-uid >= 0 : LooperEndpointPicker {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        TouchArea { clicked => { ToneDoctorState.open = false; } }
-        ToneDoctorPanel {
-            x: ToneDoctorState.x;
-            y: ToneDoctorState.y;
-            running: ToneDoctorState.running;
-            has-result: ToneDoctorState.has-result;
-            symptom-level: ToneDoctorState.symptom-level;
-            symptom-text: ToneDoctorState.symptom-text;
-            culprit-label: ToneDoctorState.culprit-label;
-            suggestion-text: ToneDoctorState.suggestion-text;
-            has-suggestion: ToneDoctorState.has-suggestion;
-            fizz-value: ToneDoctorState.fizz-value;
-            fizz-limit: ToneDoctorState.fizz-limit;
-            mud-value: ToneDoctorState.mud-value;
-            mud-limit: ToneDoctorState.mud-limit;
-            boom-value: ToneDoctorState.boom-value;
-            boom-limit: ToneDoctorState.boom-limit;
-            clip-value: ToneDoctorState.clip-value;
-            clip-limit: ToneDoctorState.clip-limit;
-            analyze-seconds: ToneDoctorState.analyze-seconds;
-            can-diagnose: ToneDoctorState.can-diagnose;
-            seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
-            run-diagnosis => { root.tone-doctor-run(ToneDoctorState.chain-index); }
-            apply-suggestion => { root.tone-doctor-apply(ToneDoctorState.chain-index); }
-        }
+        input-options: CompactLooper.input-options;
+        output-options: CompactLooper.output-options;
+        input-picked(ci, uid, i) => { CompactLooper.input-picked(ci, uid, i); }
+        output-picked(ci, uid, i) => { CompactLooper.output-picked(ci, uid, i); }
+    }
+    if LooperTake.dialog-uid >= 0 : LooperTakeSaveDialog {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+    }
+    LooperEditorOverlay {
+        width: root.width; height: root.height;
+        apply(ci, uid, kind, from, to) => { CompactLooper.edit-apply(ci, uid, kind, from, to); }
+        play-stop(ci, uid) => { CompactLooper.edit-play-stop(ci, uid); }
+        undo(ci, uid) => { CompactLooper.edit-undo(ci, uid); }
+        redo(ci, uid) => { CompactLooper.edit-redo(ci, uid); }
     }
 }

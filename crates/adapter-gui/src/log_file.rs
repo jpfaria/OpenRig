@@ -1,54 +1,52 @@
-//! Responsibility: provides the log file sink of the windowed Windows GUI.
+//! Responsibility: owns the on-disk session log files (#1060).
 
-use std::fs::File;
-use std::io::Write;
+use std::fs::{File, OpenOptions};
+use std::io;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Where the log of the current session goes, under the user data root.
-pub fn log_file_path(data_root: &Path) -> PathBuf {
-    data_root.join("logs").join("openrig.log")
+/// Sessions kept on disk; older ones are deleted at startup.
+pub const SESSIONS_KEPT: usize = 10;
+
+const PREFIX: &str = "openrig-";
+const SUFFIX: &str = ".log";
+
+/// Platform log directory: macOS `~/Library/Logs/OpenRig`, Windows
+/// `%APPDATA%\OpenRig\logs`, Linux `~/.local/share/openrig/logs`.
+pub fn log_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    return dirs::home_dir().map(|h| h.join("Library").join("Logs").join("OpenRig"));
+    #[cfg(target_os = "windows")]
+    return dirs::data_dir().map(|d| d.join("OpenRig").join("logs"));
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    return dirs::data_local_dir().map(|d| d.join("openrig").join("logs"));
 }
 
-/// Opens `path` for this session's log, creating its folder. The previous
-/// session's log is replaced: the file holds the run a problem was seen in.
-pub fn open_log_file(path: &Path) -> std::io::Result<File> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    File::create(path)
+fn session_number(name: &str) -> Option<u64> {
+    name.strip_prefix(PREFIX)?
+        .strip_suffix(SUFFIX)?
+        .parse()
+        .ok()
 }
 
-/// Writes every byte to two sinks. A failing `first` (stderr of a windowed
-/// process started without a console) never keeps a byte from `second`.
-pub struct TeeWriter<A: Write, B: Write> {
-    first: A,
-    second: B,
+/// Creates `openrig-<unix secs>.log` in `dir` and prunes all but the
+/// newest `keep` sessions (the new one included).
+pub fn open_session_log(dir: &Path, keep: usize) -> io::Result<(PathBuf, File)> {
+    std::fs::create_dir_all(dir)?;
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join(format!("{PREFIX}{secs}{SUFFIX}"));
+    let file = OpenOptions::new().create(true).append(true).open(&path)?;
+
+    let mut sessions: Vec<(u64, PathBuf)> = std::fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .filter_map(|e| session_number(&e.file_name().to_string_lossy()).map(|n| (n, e.path())))
+        .collect();
+    sessions.sort_by(|a, b| b.0.cmp(&a.0));
+    for (_, old) in sessions.into_iter().skip(keep) {
+        let _ = std::fs::remove_file(old);
+    }
+    Ok((path, file))
 }
-
-impl<A: Write, B: Write> TeeWriter<A, B> {
-    pub fn new(first: A, second: B) -> Self {
-        Self { first, second }
-    }
-
-    #[cfg(test)]
-    pub fn into_inner(self) -> (A, B) {
-        (self.first, self.second)
-    }
-}
-
-impl<A: Write, B: Write> Write for TeeWriter<A, B> {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        let _ = self.first.write_all(bytes);
-        self.second.write_all(bytes)?;
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        let _ = self.first.flush();
-        self.second.flush()
-    }
-}
-
-#[cfg(test)]
-#[path = "log_file_tests.rs"]
-mod tests;

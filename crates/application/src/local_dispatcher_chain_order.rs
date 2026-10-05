@@ -74,6 +74,9 @@ impl LocalDispatcher {
                     // binding registry, so the comparison is per physical
                     // capture point (device + channel), never per binding id.
                     self.ensure_no_input_channel_conflict(&chain_clone)?;
+                    // An interface that is not there opens no stream —
+                    // refuse instead of showing a chain that is on and silent.
+                    self.ensure_chain_devices_present(&chain_clone)?;
                 }
                 // Phase 3: mutate.
                 {

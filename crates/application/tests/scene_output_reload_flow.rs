@@ -1,6 +1,6 @@
 //! Hypothesis: the live "scene change wipes output" bug survives the
 //! dispatcher fix because the **persistence layer** writes the rig YAML
-//! (`.openrig`) without the user's output endpoint, and the next reload
+//! (`project.yaml`) without the user's output endpoint, and the next reload
 //! rebuilds the chain via `rig_to_legacy_project` -- which has no output
 //! to project (rig.outputs is empty for the chain).
 //!
@@ -93,9 +93,13 @@ fn fresh_rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
+            mix: Default::default(),
+            di_output: None,
         },
     );
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         presets,
@@ -215,11 +219,11 @@ fn full_simulated_save_then_reload_after_rig_nav_drops_output_today() {
     );
 
     // 2) "autosave": persist rig + project
-    let rig_yaml = serde_yaml::to_string(&*rig.borrow()).expect("serialize rig");
+    let project_doc = serde_yaml::to_string(&*rig.borrow()).expect("serialize rig");
     let project_yaml = serde_yaml::to_string(&*project.borrow()).expect("serialize project");
 
     // 3) "reload": rebuild rig + project from YAML, then re-project chain via rig
-    let reloaded_rig: RigProject = serde_yaml::from_str(&rig_yaml).expect("rig deserialize");
+    let reloaded_rig: RigProject = serde_yaml::from_str(&project_doc).expect("rig deserialize");
     let reloaded_project_from_rig =
         engine::rig_runtime::rig_to_legacy_project(&reloaded_rig, &BTreeSet::new());
 

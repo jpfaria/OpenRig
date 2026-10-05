@@ -63,6 +63,8 @@ fn chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -151,7 +153,7 @@ fn save_through_the_bus(
 #[test]
 fn a_recorded_loop_is_written_beside_the_project_and_comes_back_on_reopen() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let project_path = dir.path().join("song.openrig");
+    let project_path = dir.path().join("song.yaml");
     let session = session(project_path.clone());
     let runtime = controller();
 
@@ -198,7 +200,7 @@ fn a_recorded_loop_is_written_beside_the_project_and_comes_back_on_reopen() {
 #[test]
 fn an_empty_looper_saves_no_file_and_clears_a_stale_pointer() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let project_path = dir.path().join("song.openrig");
+    let project_path = dir.path().join("song.yaml");
     let session = session(project_path.clone());
     let runtime = controller();
 
@@ -225,7 +227,7 @@ fn an_empty_looper_saves_no_file_and_clears_a_stale_pointer() {
 #[test]
 fn a_missing_sidecar_does_not_break_opening_the_project() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let project_path = dir.path().join("song.openrig");
+    let project_path = dir.path().join("song.yaml");
     let session = session(project_path.clone());
     session
         .dispatcher

@@ -228,6 +228,10 @@ impl Vst3Plugin {
             );
         }
 
+        // #328: the plugin's processing latency, read now that it processes,
+        // so a chain split can line its paths up.
+        let latency_samples = unsafe { audio_processor.getLatencySamples() };
+
         // 13. Get IEditController.
         // First try QueryInterface on the component itself (single-object plugins).
         let (controller, controller_is_separate) = if let Some(ctrl) =
@@ -311,6 +315,7 @@ impl Vst3Plugin {
                 num_input_channels,
                 num_output_channels,
                 block_size,
+                latency_samples,
                 _host_app: host_app,
                 #[cfg(target_os = "macos")]
                 cf_bundle,

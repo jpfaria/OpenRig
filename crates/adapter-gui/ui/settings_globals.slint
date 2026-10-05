@@ -17,6 +17,7 @@ export global SettingsBridge {
     in-out property <string> presets-path;
     in-out property <string> plugins-path;
     in-out property <string> evaluations-path;
+    in-out property <string> backing-tracks-path;
     // #561: status text filled after a catalog reload — "12 plugins loaded
     // (8 native, 4 disk)". Empty until a reload has run.
     in-out property <string> plugin-catalog-status;
@@ -27,6 +28,8 @@ export global SettingsBridge {
     callback reset-plugins-path();
     callback pick-evaluations-path();
     callback reset-evaluations-path();
+    callback pick-backing-tracks-path();
+    callback reset-backing-tracks-path();
     // #561: re-scan the plugin packages directories without a restart.
     callback reload-plugin-catalog();
 

@@ -30,6 +30,7 @@ mod block_editor_window_setup;
 mod block_error_tick;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
+mod block_option_value;
 pub mod block_panel_dimensions;
 mod block_param_apply;
 mod block_parameter_extras;
@@ -50,6 +51,13 @@ mod chain_editor_callbacks;
 mod chain_editor_forwarders_wiring;
 mod chain_editor_meta_io_callbacks;
 mod chain_editor_save_cancel_callbacks;
+mod chain_fader_intent;
+mod chain_level_law;
+mod chain_mixer_intents;
+mod chain_mixer_panel_wiring;
+mod chain_mixer_rows;
+mod chain_mixer_rows_sync;
+mod chain_mixer_source;
 mod chain_name_wiring;
 mod chain_preset_bank;
 mod chain_preset_wiring;
@@ -61,7 +69,10 @@ mod chain_row_seams_tests;
 mod chain_row_wiring;
 mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
+mod chain_volume_row_patch;
 mod cli;
+mod compact_block_detail;
+mod compact_block_insert;
 mod compact_block_layout;
 mod compact_block_tabs;
 mod compact_block_view;
@@ -73,8 +84,13 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_looper_wiring;
+mod compact_mixer_wiring;
 mod compact_routing_pick;
+mod compact_row_address;
+mod compact_split_row;
 mod compact_view_refresh;
+mod device_presence_gui;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -92,15 +108,25 @@ pub mod di_meter;
 pub mod di_output_options;
 /// #771: window wiring for the DI panel's output select.
 mod di_output_select_wiring;
+mod di_panel_take_removal;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
+mod di_source_rows;
+mod di_take_delete_wiring;
 mod insert_wiring;
 mod live_sync_plan;
 mod looper_commands;
 mod looper_restore;
 mod param_tab_grouping;
 mod param_tabs_inline;
+mod player_category_view;
+mod player_controls_wiring;
+mod player_file_chooser;
+mod player_render;
+mod player_session;
+mod player_view;
+mod player_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod plugin_info_panel;
@@ -116,10 +142,12 @@ mod recent_project_remove;
 mod recent_projects_wiring;
 mod runtime_analyzers;
 mod runtime_devices;
+mod runtime_drums;
 mod runtime_health;
 mod runtime_lifecycle;
 pub mod runtime_loopers;
 mod runtime_pipelines;
+mod runtime_player;
 mod runtime_session_handle;
 mod runtime_sync_policy;
 #[cfg(test)]
@@ -146,21 +174,40 @@ pub use settings::paths::{
 mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
-mod metronome_outputs;
 mod metronome_read;
 mod metronome_view;
 mod metronome_vocabulary;
 mod metronome_wiring;
+mod mixer_fader_law;
+mod mixer_rows;
+mod mixer_rows_sync;
+pub use mixer_rows_sync::set_mixer_rows;
+mod main_window_size;
+mod mixer_strip_intents;
+mod mixer_window_size;
+mod mixer_wiring;
 mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
 mod spectrum_wiring;
+mod split_editor_grid;
+mod split_editor_items;
+mod split_editor_wiring;
+mod split_end_switch;
+mod split_insert;
+mod split_path_dispatch;
+mod split_path_gestures;
+mod split_path_wiring;
+mod split_picker_entries;
+mod stepped_input_mark;
+mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
+mod view_refresh_policy;
 mod virtual_key_text;
 mod virtual_keyboard_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
@@ -179,13 +226,34 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+/// #1065: audio faults logged as Sentry events.
+pub mod audio_fault_log;
 mod binding_status;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
+mod chain_block_lists;
 mod chain_editor;
+mod chain_graph_adapter;
+mod chain_graph_drag;
+mod chain_graph_drop;
+#[cfg(test)]
+mod chain_graph_fixtures_tests;
+mod chain_graph_ids;
+mod chain_graph_models;
+mod chain_graph_split_group;
+mod chain_graph_wiring;
+pub mod crash_context;
+pub mod crash_context_audio;
+pub mod crash_context_host;
+mod crash_context_publish;
+pub mod crash_log_bridge;
+mod crash_panic_forward;
+pub mod crash_reporter;
+pub mod crash_reporter_sentry;
+pub mod crash_reporting;
 mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_dispatch;
@@ -193,10 +261,26 @@ mod device_refresh_list;
 mod device_rows;
 mod device_selection_items;
 mod device_settings_resolve;
+mod drums_bridge_sync;
+mod drums_ctx;
+mod drums_intents;
+mod drums_picker_filter;
+mod drums_session;
+mod drums_view;
+mod drums_wiring;
+mod endpoint_checklist_items;
+mod endpoint_checklist_wiring;
+mod endpoint_toggle;
 mod eq;
+mod graph_anchor;
+mod graph_click;
+mod graph_gesture_actions;
 pub mod graph_view_model;
 mod gui_live_source;
 mod helpers;
+#[cfg(test)]
+#[path = "issue_1006_meter_direction_tests.rs"]
+mod issue_1006_meter_direction_tests;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
@@ -215,18 +299,23 @@ mod latency_probe_run;
 mod live_source_block_stream;
 mod live_source_chain_rate;
 mod live_source_chain_row;
+mod live_source_drums;
 mod live_source_gui;
 mod live_source_health;
 mod live_source_looper;
 mod live_source_metronome;
-#[cfg(any(target_os = "windows", test))]
-mod log_file;
+mod live_source_player;
+/// #1060: on-disk session log files.
+pub mod log_file;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
 mod looper_editor_callbacks;
+mod looper_editor_host;
 pub mod looper_items;
 mod looper_rows;
+mod looper_take_callbacks;
+mod looper_take_catalog;
 mod looper_view;
 mod looper_vocabulary;
 mod meter_invalidation;
@@ -239,11 +328,25 @@ mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
+mod midi_mixer_feedback_wiring;
 pub mod midi_profile_wiring;
 mod midi_selection_mirror;
+/// #1060: panic reports written to the session log.
+pub mod panic_log;
+/// #1060: writes one stream to two sinks.
+pub mod tee_writer;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
+#[cfg(test)]
+#[path = "chain_row_mixer_tests.rs"]
+mod chain_row_mixer_tests;
 mod gui_device_settings;
+#[cfg(test)]
+#[path = "issue_1007_external_fader_keeps_views_tests.rs"]
+mod issue_1007_external_fader_keeps_views_tests;
+#[cfg(test)]
+#[path = "issue_1023_block_window_compact_refresh_tests.rs"]
+mod issue_1023_block_window_compact_refresh_tests;
 #[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
@@ -316,6 +419,7 @@ mod project_session;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
+mod session_mixer;
 mod state;
 mod tone_doctor_events;
 mod tone_doctor_live_input;
@@ -374,12 +478,33 @@ mod compact_block_search_wiring_tests;
 mod chain_io_chip_label_tests;
 
 #[cfg(test)]
+mod chain_meter_fold_tests;
+#[cfg(test)]
 mod project_view_loopers_tests;
 #[cfg(test)]
 mod project_view_stream_meters_tests;
 
 #[cfg(test)]
 mod touch_window_io_parity_tests;
+
+#[cfg(test)]
+mod compact_row_address_tests;
+#[cfg(test)]
+mod issue_328_compact_path_row_actions_tests;
+#[cfg(test)]
+mod issue_328_compact_split_rows_tests;
+#[cfg(test)]
+mod issue_328_endpoint_checklist_interaction_tests;
+#[cfg(test)]
+mod issue_328_graph_row_interaction_tests;
+#[cfg(test)]
+mod issue_328_path_block_editor_tests;
+#[cfg(test)]
+mod issue_328_split_chip_tests;
+#[cfg(test)]
+mod issue_328_split_editor_interaction_tests;
+#[cfg(test)]
+mod issue_328_split_picker_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

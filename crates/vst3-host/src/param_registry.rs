@@ -15,6 +15,7 @@ use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo,
 use crate::host::Vst3ParamInfo;
 use crate::host_utils::char16_array_to_string;
 use crate::param_channel::{vst3_param_channel, Vst3ParamChannel};
+use crate::value_texts::continuous_value_texts;
 
 /// A live VST3 instance's shared handles, kept so the catalog can read its
 /// parameter metadata (for OpenRig knobs) without a second load.
@@ -100,7 +101,7 @@ pub fn lookup_vst3_channel(instance_key: &str) -> Option<Vst3ParamChannel> {
     lookup_vst3_gui_context(instance_key).map(|c| c.param_channel)
 }
 
-/// Read a controller's full parameter metadata (id, title, default, and — for
+/// Read a controller's full parameter metadata (id, title, default, flags, and — for
 /// discrete `step_count >= 2` selects — the per-step `(value_percent, label)`
 /// options read via `getParamStringByValue`).
 ///
@@ -120,14 +121,24 @@ pub(crate) fn read_controller_params(controller: &ComPtr<IEditController>) -> Ve
         } else {
             Vec::new()
         };
+        let units = char16_array_to_string(&info.units);
+        let value_texts = if info.stepCount == 0 {
+            continuous_value_texts(&units, |normalized| {
+                param_string(controller, info.id, normalized)
+            })
+        } else {
+            Vec::new()
+        };
         out.push(Vst3ParamInfo {
             id: info.id,
             title: char16_array_to_string(&info.title),
             short_title: char16_array_to_string(&info.shortTitle),
-            units: char16_array_to_string(&info.units),
+            units,
             step_count: info.stepCount,
             default_normalized: info.defaultNormalizedValue,
+            flags: info.flags,
             enum_options,
+            value_texts,
         });
     }
     out
@@ -145,15 +156,7 @@ fn read_enum_options(
     (0..=step_count)
         .map(|k| {
             let normalized = k as f64 / step_count as f64;
-            let mut buf: String128 = [0; 128];
-            let label = if unsafe {
-                controller.getParamStringByValue(id, normalized, &mut buf as *mut String128)
-            } == kResultOk
-            {
-                char16_array_to_string(&buf)
-            } else {
-                String::new()
-            };
+            let label = param_string(controller, id, normalized).unwrap_or_default();
             let label = if label.is_empty() {
                 format!("{k}")
             } else {
@@ -162,6 +165,14 @@ fn read_enum_options(
             (format!("{}", normalized * 100.0), label)
         })
         .collect()
+}
+
+/// The controller's display string for `id` at `normalized`, if it formats one.
+fn param_string(controller: &ComPtr<IEditController>, id: u32, normalized: f64) -> Option<String> {
+    let mut buf: String128 = [0; 128];
+    (unsafe { controller.getParamStringByValue(id, normalized, &mut buf as *mut String128) }
+        == kResultOk)
+        .then(|| char16_array_to_string(&buf))
 }
 
 /// The parameter metadata of any LIVE instance of `model_id` (from the first

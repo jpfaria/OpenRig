@@ -44,7 +44,9 @@ fn chain(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         io_binding_ids: binding_ids.iter().map(|s| s.to_string()).collect(),
         blocks: vec![],
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         di_output: None,
+        mix: Default::default(),
     }
 }
 

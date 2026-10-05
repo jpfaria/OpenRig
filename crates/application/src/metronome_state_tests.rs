@@ -79,7 +79,6 @@ fn four_taps_at_a_steady_tempo_report_it() {
 fn the_saved_config_comes_back_on_every_setting() {
     let mut state = MetronomeControlState::default();
     state.seed_from_config(&MetronomeConfig {
-        bpm: 96.0,
         beats_per_bar: 6,
         subdivision: "sixteenths".into(),
         timbre: "wood".into(),
@@ -89,7 +88,6 @@ fn the_saved_config_comes_back_on_every_setting() {
     });
 
     let settings = state.settings();
-    assert_eq!(settings.bpm, 96.0);
     assert_eq!(settings.beats_per_bar, 6);
     assert_eq!(settings.subdivision, Subdivision::Sixteenths);
     assert_eq!(settings.timbre, Timbre::Wood);
@@ -102,7 +100,6 @@ fn the_saved_config_comes_back_on_every_setting() {
 fn a_config_written_by_hand_cannot_push_the_generator_out_of_range() {
     let mut state = MetronomeControlState::default();
     state.seed_from_config(&MetronomeConfig {
-        bpm: 9000.0,
         volume: 4.0,
         subdivision: "quintuplets".into(),
         timbre: "gong".into(),
@@ -110,7 +107,6 @@ fn a_config_written_by_hand_cannot_push_the_generator_out_of_range() {
     });
 
     let settings = state.settings();
-    assert_eq!(settings.bpm, BPM_MAX);
     assert_eq!(settings.volume, 1.0);
     // Unknown enum names fall back to the defaults rather than to nothing.
     assert_eq!(settings.subdivision, Subdivision::Off);

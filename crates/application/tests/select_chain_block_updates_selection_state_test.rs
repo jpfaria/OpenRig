@@ -31,6 +31,8 @@ fn chain_with_block_ids(id: &str, _block_ids: &[&str]) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 

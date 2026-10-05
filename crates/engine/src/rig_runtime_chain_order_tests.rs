@@ -23,6 +23,9 @@ fn input_with_preset(preset_key: &str) -> RigInput {
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
         loopers: Vec::new(),
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
+        di_output: None,
     }
 }
 
@@ -45,6 +48,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
         );
     }
     RigProject {
+        bpm: None,
         name: None,
         inputs,
         outputs: BTreeMap::new(),
@@ -63,7 +67,7 @@ fn chain_input_names(rig: &RigProject) -> Vec<String> {
 
 #[test]
 fn rig_to_chains_falls_back_to_alphabetical_when_chain_order_empty() {
-    // Back-compat: a `.openrig` file without `chain-order` keeps its
+    // Back-compat: a `project.yaml` file without `chain-order` keeps its
     // historical alphabetical projection.
     let rig = rig_with_inputs(&["b", "a"]);
     assert_eq!(

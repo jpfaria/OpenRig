@@ -61,6 +61,8 @@ fn chain_with_bindings(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         blocks: vec![],
         loopers: vec![],
         di_output: None,
+        disabled_endpoints: Default::default(),
+        mix: Default::default(),
     }
 }
 
@@ -479,7 +481,7 @@ fn loading_a_project_with_two_enabled_chains_on_one_channel_disables_the_extra()
         .dispatch(Command::Project(
             application::command::ProjectCommand::LoadProject {
                 project: loaded,
-                path: std::path::PathBuf::from("project.openrig"),
+                path: std::path::PathBuf::from("project.yaml"),
             },
         ))
         .expect("load must succeed");

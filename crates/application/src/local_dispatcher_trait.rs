@@ -25,14 +25,20 @@ use engine::DiPcm;
 use project::rig::RigProject;
 
 use crate::command::{
-    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, PluginCommand,
-    ProjectCommand, SelectionCommand, SettingsCommand,
+    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, MixerCommand,
+    PluginCommand, ProjectCommand, SelectionCommand, SettingsCommand,
 };
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
+use crate::drums_state::{DrumsControlState, DrumsSnapshot};
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
 use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::mixer_state::MixerControlState;
+use crate::mixer_view::MixerStripView;
+use crate::player_library::PlayerLibraryDirs;
+use crate::player_state::{PlayerControlState, PlayerSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
@@ -77,6 +83,11 @@ impl CommandDispatcher for LocalDispatcher {
                 | ChainCommand::SetChainVolume { .. }
                 | ChainCommand::SetChainIoBindings { .. },
             ) => self.handle_chain_crud(cmd),
+
+            // #328: the endpoint checklist of the chain graph's I/O nodes.
+            Command::Chain(ChainCommand::SetChainEndpointEnabled { .. }) => {
+                self.handle_chain_endpoint_enabled(cmd)
+            }
 
             Command::Chain(
                 ChainCommand::MoveChainUp { .. }
@@ -223,6 +234,19 @@ impl CommandDispatcher for LocalDispatcher {
             ) => self.handle_diagnostic_enabled(cmd),
 
             Command::Metronome(_) => self.handle_metronome(cmd),
+            Command::Player(_) => self.handle_player(cmd),
+            Command::Drums(_) => self.handle_drums(cmd),
+
+            // #1007: a chain's own faders live in the project, not the
+            // system mixer state.
+            Command::Mixer(
+                MixerCommand::SetChainMixerFader { .. }
+                | MixerCommand::SetChainMixerMute { .. }
+                | MixerCommand::ToggleChainMixerMute { .. }
+                | MixerCommand::SetChainDiFader { .. },
+            ) => self.handle_chain_mixer(cmd),
+
+            Command::Mixer(_) => self.handle_mixer(cmd),
 
             // #791: the Tone Doctor — diagnosis and its measured fix, on the
             // bus so MCP/gRPC reach the same verdict the GUI panel shows.
@@ -246,7 +270,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::Settings(
                 SettingsCommand::SetPresetsPath { .. }
                 | SettingsCommand::SetPluginsPath { .. }
-                | SettingsCommand::SetEvaluationsPath { .. },
+                | SettingsCommand::SetEvaluationsPath { .. }
+                | SettingsCommand::SetBackingTracksPath { .. },
             ) => self.handle_paths_system(cmd),
 
             // #561: hot-reload the plugin catalog (no payload).
@@ -297,6 +322,9 @@ impl CommandDispatcher for LocalDispatcher {
             // #323: per-chain loopers (membership + params persisted; the
             // transport is runtime state and travels as an event).
             Command::Looper(_) => self.handle_looper(cmd),
+
+            // #328: the chain's splits — create, switch Mix/Y, remove.
+            Command::Split(_) => self.handle_split(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::IoBinding(
@@ -424,6 +452,10 @@ impl CommandDispatcher for LocalDispatcher {
         LocalDispatcher::attach_runtime_control(self, control)
     }
 
+    fn attach_device_presence(&self, presence: Rc<dyn DevicePresence>) {
+        LocalDispatcher::attach_device_presence(self, presence)
+    }
+
     fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
         LocalDispatcher::attach_io_bindings(self, registry)
     }
@@ -434,5 +466,37 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn metronome_snapshot(&self) -> MetronomeSnapshot {
         LocalDispatcher::metronome_snapshot(self)
+    }
+
+    fn attach_player_state(&self, state: Rc<RefCell<PlayerControlState>>) {
+        LocalDispatcher::attach_player_state(self, state)
+    }
+
+    fn player_snapshot(&self) -> PlayerSnapshot {
+        self.player_state().borrow().snapshot()
+    }
+
+    fn player_library(&self) -> PlayerLibraryDirs {
+        self.player_state().borrow().library()
+    }
+
+    fn attach_drums_state(&self, state: Rc<RefCell<DrumsControlState>>) {
+        LocalDispatcher::attach_drums_state(self, state)
+    }
+
+    fn drums_snapshot(&self) -> DrumsSnapshot {
+        LocalDispatcher::drums_snapshot(self)
+    }
+
+    fn drums_library(&self) -> crate::drums::DrumLibrary {
+        LocalDispatcher::drums_library(self)
+    }
+
+    fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
+        LocalDispatcher::attach_mixer_state(self, state)
+    }
+
+    fn mixer_strips(&self) -> Vec<MixerStripView> {
+        LocalDispatcher::mixer_strips(self)
     }
 }
