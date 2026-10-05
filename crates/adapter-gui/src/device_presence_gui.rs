@@ -26,3 +26,7 @@ pub(crate) fn attach_device_presence(session: &ProjectSession) {
         .dispatcher
         .attach_device_presence(Rc::new(HostDevicePresence));
 }
+
+#[cfg(test)]
+#[path = "device_presence_gui_tests.rs"]
+mod tests;

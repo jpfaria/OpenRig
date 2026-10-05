@@ -15,6 +15,8 @@ use application::command::{ChainCommand, Command};
 use application::device_presence::DevicePresence;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
+use application::publishing_dispatcher::PublishingDispatcher;
+use application::{bridge, event::Event, selection_state::SelectionState};
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_filesystem::FilesystemStorage;
@@ -183,4 +185,52 @@ fn a_dispatcher_with_no_presence_source_does_not_block_enabling() {
     toggle(&dispatcher, "digital").expect("no presence source, no check");
 
     assert!(enabled(&project, "digital"));
+}
+
+#[test]
+fn a_publishing_dispatcher_hands_the_presence_check_to_the_one_it_wraps() {
+    // The console frontend wraps its LocalDispatcher in a PublishingDispatcher;
+    // attaching through the wrapper must reach the dispatcher that toggles.
+    let (inner, project, _tmp) = dispatcher_with(
+        vec![chain("digital", &["hd8"])],
+        vec![binding("hd8", "Quantum HD 8", "hd8-uid", "hd8-uid")],
+        None,
+    );
+    let (sink, _events) = bridge::event_sink();
+    let publishing = PublishingDispatcher::new(inner, sink);
+    publishing.attach_device_presence(Rc::new(PresentDevices(vec![])));
+
+    let result = publishing.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+        chain: ChainId("digital".to_string()),
+    }));
+
+    assert!(result.is_err(), "the wrapped dispatcher must refuse");
+    assert!(!enabled(&project, "digital"));
+}
+
+/// A dispatcher that hosts no chains keeps the trait's default.
+struct NoChains(std::sync::Arc<std::sync::RwLock<SelectionState>>);
+
+impl CommandDispatcher for NoChains {
+    fn dispatch(&self, _cmd: Command) -> anyhow::Result<Vec<Event>> {
+        Ok(Vec::new())
+    }
+    fn selection_state(&self) -> std::sync::Arc<std::sync::RwLock<SelectionState>> {
+        std::sync::Arc::clone(&self.0)
+    }
+}
+
+#[test]
+fn a_dispatcher_without_chains_ignores_a_presence_source() {
+    let dispatcher = NoChains(Default::default());
+
+    dispatcher.attach_device_presence(Rc::new(PresentDevices(vec![])));
+
+    assert!(toggle_on(&dispatcher).is_ok());
+}
+
+fn toggle_on(dispatcher: &dyn CommandDispatcher) -> anyhow::Result<Vec<Event>> {
+    dispatcher.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+        chain: ChainId("digital".to_string()),
+    }))
 }

@@ -20,6 +20,7 @@ use project::rig::RigProject;
 
 use crate::bridge::EventSink;
 use crate::command::Command;
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::drums_state::{DrumsControlState, DrumsSnapshot};
@@ -139,6 +140,10 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
         self.inner.attach_runtime_control(control)
+    }
+
+    fn attach_device_presence(&self, presence: Rc<dyn DevicePresence>) {
+        self.inner.attach_device_presence(presence)
     }
 
     fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
