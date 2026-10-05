@@ -80,7 +80,11 @@ wide field vs a compact icon); the dropdown does not.
 buttons.** Endpoints, presets, sources: their count and label length come from the
 user's rig, so a segmented row overflows or truncates and reads as a list laid on
 its side. A segmented control is only for a short, fixed set the app defines
-(½× / 1× / 2×). Inside a panel that is itself an overlay, the select's list is a
+(½× / 1× / 2×).
+The reverse holds too: a short, fixed set the app defines (channel mode
+Mono / Stereo / Dual mono, sample rate, buffer size) is a segmented control
+(radio), never a select: a select hides two or three known options behind a
+click for no reason. Inside a panel that is itself an overlay, the select's list is a
 root-level modal (`looper_endpoint_picker.slint`, `looper_preset_picker.slint`).
 
 **An input/output list shows each physical endpoint once.** I/O bindings overlap:
