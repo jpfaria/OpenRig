@@ -102,7 +102,7 @@ El mismo software en cualquier form factor. El timbre del usuario va con él —
 
 <p align="center">
   <img src="docs/assets/sc2.png" alt="Biblioteca de bloques — lista vertical de pedales y amps con arte de panel fiel al hardware" width="280">&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/sc3.png" alt="Editor por bloque — panel del Marshall JTM45 con knobs de canal y volumen" width="600">
+  <img src="docs/assets/sc3.png" alt="Editor por bloque — captura del Vox AC30 con knobs de canal, volumen, cut, graves, agudos y boost" width="600">
 </p>
 
 Izquierda: biblioteca de bloques, organizada por marca con arte de panel fiel al hardware. Derecha: editor por bloque sobre una captura del Marshall JTM45 — controles exactos, respuesta exacta.

@@ -102,7 +102,7 @@ Mesmo software em qualquer form factor. O timbre do usuário vai junto — deskt
 
 <p align="center">
   <img src="docs/assets/sc2.png" alt="Biblioteca de blocos — lista vertical de pedais e amps com arte de painel fiel ao hardware" width="280">&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/sc3.png" alt="Editor por bloco — painel do Marshall JTM45 com knobs de canal e volume" width="600">
+  <img src="docs/assets/sc3.png" alt="Editor por bloco — captura do Vox AC30 com knobs de canal, volume, cut, grave, agudo e boost" width="600">
 </p>
 
 Esquerda: biblioteca de blocos, organizada por marca com arte de painel fiel ao hardware. Direita: editor por bloco em uma captura do Marshall JTM45 — controles exatos, resposta exata.
