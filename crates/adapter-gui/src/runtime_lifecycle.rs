@@ -41,6 +41,7 @@ use engine::{DiPcm, LoopPcm};
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
 
+use crate::crash_context_publish::publish_runtime_context;
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
@@ -578,12 +579,10 @@ pub(crate) fn sync_engine_sr_from_runtime(
     project_runtime: &RefCell<Option<ProjectRuntimeController>>,
     session: &ProjectSession,
 ) {
-    let rate = match project_runtime.borrow().as_ref() {
-        Some(runtime) => runtime.sample_rate(),
-        None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
-    };
+    let live_rate = project_runtime.borrow().as_ref().map(|r| r.sample_rate());
+    let rate = live_rate.unwrap_or(application::local_dispatcher::REFERENCE_SAMPLE_RATE);
     session.dispatcher.attach_engine_sr(rate);
-    crate::crash_context_publish::publish_runtime_context(project_runtime, session);
+    publish_runtime_context(session, live_rate, infra_cpal::audio_backend_name());
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ pub fn audio_context(
     project: &Project,
     bindings: &[IoBinding],
     live_sample_rate: Option<u32>,
+    backend: &str,
 ) -> Value {
     let devices: Vec<Value> = project
         .device_settings
@@ -31,7 +32,7 @@ pub fn audio_context(
         .map(|c| chain_context(c, bindings))
         .collect();
     json!({
-        "backend": infra_cpal::audio_backend_name(),
+        "backend": backend,
         "live_sample_rate": live_sample_rate,
         "devices": devices,
         "chains": chains,

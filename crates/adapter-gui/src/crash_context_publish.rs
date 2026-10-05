@@ -1,20 +1,20 @@
 //! Responsibility: publishes the session's running audio setup to crash reporting.
 
-use std::cell::RefCell;
-
-use infra_cpal::ProjectRuntimeController;
-
 use crate::state::ProjectSession;
 
+/// `live_rate` is the running runtime's rate (`None` with nothing running);
+/// `backend` names the audio host. Both come from the module that owns the
+/// runtime, so this one never sees the backend crate.
 pub(crate) fn publish_runtime_context(
-    project_runtime: &RefCell<Option<ProjectRuntimeController>>,
     session: &ProjectSession,
+    live_rate: Option<u32>,
+    backend: &str,
 ) {
-    let live_rate = project_runtime.borrow().as_ref().map(|r| r.sample_rate());
     let context = crate::crash_context_audio::audio_context(
         &session.project.borrow(),
         &session.io_bindings.borrow(),
         live_rate,
+        backend,
     );
     crate::crash_context::publish_audio(context);
 }
