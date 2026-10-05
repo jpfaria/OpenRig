@@ -126,10 +126,12 @@ fn poll_per_stream_returns_one_reading_per_stream() {
             StreamMeterTaps {
                 input: Some(tap_with(&[&[0.5]])),
                 output: Some(tap_with(&[&[0.9], &[]])),
+                routes: vec![],
             },
             StreamMeterTaps {
                 input: Some(tap_with(&[&[0.1]])),
                 output: Some(tap_with(&[&[0.25], &[]])),
+                routes: vec![],
             },
         ],
     };
@@ -166,6 +168,7 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
                 streams: vec![StreamMeterTaps {
                     input: Some(tap_with(&[&[]])),
                     output: Some(tap_with(&[&[]])),
+                    routes: vec![],
                 }],
             }
         }

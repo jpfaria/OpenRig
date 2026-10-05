@@ -22,9 +22,11 @@ use engine::stream_io_labels::StreamIoLabels;
 /// `.max(1)` clamp, so the timer can't re-grow the footer a tick after the
 /// chain is switched off.
 ///
-/// The OUTPUT reading is scaled by `apply_chain_volume_db` because the
-/// stream_tap reads the signal BEFORE the audio callback applies the
-/// chain volume slider (#496). INPUT is untouched.
+/// A stream without per-output labels shows its stream tap scaled by
+/// `apply_chain_volume_db`, because that tap reads the signal BEFORE the
+/// audio callback applies the chain volume slider (#496). A stream with
+/// outputs splits into one row per output read off its route (#1074). INPUT is
+/// untouched.
 pub fn rebuild_stream_meters_row(
     engine_readings: &[StreamMeterReading],
     project_input_count: usize,
@@ -38,45 +40,54 @@ pub fn rebuild_stream_meters_row(
         return Vec::new();
     }
     let len = project_input_count.max(1);
-    (0..len)
-        .map(|i| {
+    let mut rows = Vec::with_capacity(len);
+    for i in 0..len {
+        let label = labels.get(i);
+        let reading = engine_readings.get(i);
+        let in_label: slint::SharedString =
+            label.map(|l| l.input.as_str().into()).unwrap_or_default();
+        // #1006: and the channels of each side.
+        let in_channels: slint::SharedString = label
+            .map(|l| l.input_channels.as_str().into())
+            .unwrap_or_default();
+        let in_dbfs = reading.map_or(SILENT_DBFS, |r| r.in_dbfs);
+        let repeated = input_repeated(labels, i);
+        let outputs = label.map(|l| l.outputs.as_slice()).unwrap_or_default();
+        if outputs.is_empty() {
             // #928: the row names its E/S even before the engine fills it.
-            let (in_label, out_label) = labels
-                .get(i)
-                .map(|l| (l.input.as_str().into(), l.output.as_str().into()))
-                .unwrap_or_default();
-            // #1006: and the channels of each side.
-            let (in_channels, out_channels) = labels
-                .get(i)
-                .map(|l| {
-                    (
-                        l.input_channels.as_str().into(),
-                        l.output_channels.as_str().into(),
-                    )
-                })
-                .unwrap_or_default();
-            match engine_readings.get(i) {
-                Some(r) => crate::StreamMeter {
-                    in_dbfs: r.in_dbfs,
-                    out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
-                    in_label,
-                    out_label,
-                    in_channels,
-                    out_channels,
-                    in_repeated: input_repeated(labels, i),
-                },
-                None => crate::StreamMeter {
-                    in_dbfs: SILENT_DBFS,
-                    out_dbfs: SILENT_DBFS,
-                    in_label,
-                    out_label,
-                    in_channels,
-                    out_channels,
-                    in_repeated: input_repeated(labels, i),
-                },
-            }
-        })
-        .collect()
+            rows.push(crate::StreamMeter {
+                in_dbfs,
+                out_dbfs: reading.map_or(SILENT_DBFS, |r| {
+                    apply_chain_volume_db(r.out_dbfs, chain_volume)
+                }),
+                in_label,
+                out_label: label.map(|l| l.output.as_str().into()).unwrap_or_default(),
+                in_channels,
+                out_channels: label
+                    .map(|l| l.output_channels.as_str().into())
+                    .unwrap_or_default(),
+                in_repeated: repeated,
+            });
+            continue;
+        }
+        // #1074: one jack is one pipeline feeding every output — one row per
+        // output, the input listed once, each output at the level its own
+        // route played (already past the chain volume and its faders).
+        for (j, output) in outputs.iter().enumerate() {
+            rows.push(crate::StreamMeter {
+                in_dbfs,
+                out_dbfs: reading
+                    .and_then(|r| r.route_out_dbfs.get(j).copied())
+                    .unwrap_or(SILENT_DBFS),
+                in_label: in_label.clone(),
+                out_label: output.name.as_str().into(),
+                in_channels: in_channels.clone(),
+                out_channels: output.channels.as_str().into(),
+                in_repeated: repeated || j > 0,
+            });
+        }
+    }
+    rows
 }
 
 /// #1006: true when an earlier row already lists this row's input — the left

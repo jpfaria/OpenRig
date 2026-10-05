@@ -52,6 +52,10 @@ pub enum TapPoint {
     /// Post-FX, pre-mixdown stereo of ONE stream of ONE chain. Always two
     /// channels: a stream is internally stereo (invariant #5).
     StreamOutput { chain: ChainId, stream: usize },
+    /// What ONE output route of ONE chain played, after the chain volume and
+    /// that output's faders (#1074). One stream fans out to several routes,
+    /// so each output gets its own level. Peak-only: no raw window.
+    RouteOutput { chain: ChainId, route: usize },
     /// Every device channel of ONE input of ONE chain, as one multi-channel
     /// tap. The tuner's shape: one subscription, one channel per row.
     ///

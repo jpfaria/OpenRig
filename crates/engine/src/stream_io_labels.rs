@@ -13,9 +13,19 @@ use crate::runtime_endpoints::{
 use crate::runtime_segments::split_chain_into_segments;
 use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 
+/// One output a stream feeds: its chain-level route, E/S name and channels
+/// (#1074 — the meter row shows one level per output).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OutputIoLabel {
+    pub route: usize,
+    pub name: String,
+    /// 1-based channels the route writes, e.g. "1,2".
+    pub channels: String,
+}
+
 /// The E/S names one stream (meter row) carries: where its input comes from
 /// and where its output goes (#928).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StreamIoLabels {
     pub input: String,
     pub output: String,
@@ -23,6 +33,8 @@ pub struct StreamIoLabels {
     pub input_channels: String,
     /// 1-based channels the stream writes, one group per output, e.g. "1,2 + 17,18".
     pub output_channels: String,
+    /// Every output the stream feeds, in route order (#1074).
+    pub outputs: Vec<OutputIoLabel>,
 }
 
 /// One entry per stream, in the same order `chain_stream_count` counts them —
@@ -52,13 +64,14 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
         .map(|segment| {
             let mut outputs: Vec<String> = Vec::new();
             let mut output_channels: Vec<String> = Vec::new();
+            let mut routes: Vec<OutputIoLabel> = Vec::new();
             for &route in &segment.output_route_indices {
                 let Some(entry) = eff_outputs.get(route) else {
                     continue;
                 };
                 let chans = channel_list(&entry.channels);
                 if !output_channels.contains(&chans) {
-                    output_channels.push(chans);
+                    output_channels.push(chans.clone());
                 }
                 let id = inserts
                     .iter()
@@ -66,11 +79,14 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
                     .map(|(id, _, _)| id.clone())
                     .or_else(|| binding_of_route(&by_binding, route).map(str::to_string))
                     .or_else(|| ports.output_owner(entry));
-                if let Some(id) = id {
-                    let label = name(&id);
-                    if !outputs.contains(&label) {
-                        outputs.push(label);
-                    }
+                let label = id.map(|id| name(&id)).unwrap_or_default();
+                routes.push(OutputIoLabel {
+                    route,
+                    name: label.clone(),
+                    channels: chans,
+                });
+                if !label.is_empty() && !outputs.contains(&label) {
+                    outputs.push(label);
                 }
             }
             // A head input is named by the E/S it was resolved FROM (its
@@ -89,6 +105,7 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
                 output: outputs.join(" + "),
                 input_channels: channel_list(&segment.input.channels),
                 output_channels: output_channels.join(" + "),
+                outputs: routes,
             }
         })
         .collect()

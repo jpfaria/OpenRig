@@ -88,8 +88,13 @@ pub(crate) fn split_chain_into_segments(
     // #328: the split paths each route runs (a Y → A/B chain's outputs).
     let route_paths = crate::runtime_graph::segment_paths::route_paths(chain, registry);
 
+    // #1074: pipelines doing the same work on one jack fold into one fan-out.
+    let fold = |segments: Vec<ChainSegment>| {
+        crate::segment_fanout::fold_same_jack_segments(segments, effective_outs)
+    };
+
     if insert_positions.is_empty() {
-        return segments_without_inserts(
+        return fold(segments_without_inserts(
             chain,
             &effective_ins[..regular_input_count],
             &heads(cpal_indices),
@@ -101,7 +106,7 @@ pub(crate) fn split_chain_into_segments(
             resolved_output_count,
             registry,
             &route_paths,
-        );
+        ));
     }
 
     // The insert returns are the LAST entries of `effective_ins` — one per bound
@@ -118,7 +123,7 @@ pub(crate) fn split_chain_into_segments(
         })
         .collect();
 
-    segments_with_inserts(
+    fold(segments_with_inserts(
         chain,
         effective_ins,
         cpal_indices,
@@ -131,7 +136,7 @@ pub(crate) fn split_chain_into_segments(
         &crate::insert_return_routes::return_tail_routes(&tail_routes, effective_outs),
         &mid_taps,
         &route_paths,
-    )
+    ))
 }
 
 /// Split the chain's resolved output routes into the TAIL routes (the chain's
@@ -236,12 +241,14 @@ fn segments_without_inserts(
     // single-binding chain is bit-identical (golden).
     let by_binding = resolve_chain_io_by_binding(chain, registry);
 
-    // LAW (stream isolation) — a stream is ONE (input × output) pair, and each
-    // pair is an independent pipeline: "se eu tenho 1 input e dois outputs eu
-    // tenho dois streams". A mid `Output` is therefore the END of its own
-    // pipeline, not a tap riding someone else's, and a mid `Input` is the START
-    // of its own. Which blocks a pipeline runs follows from the two positions,
-    // so a pipeline that ends early simply has fewer blocks.
+    // LAW (stream isolation) — each (input × output) pair is built as its own
+    // pipeline here. A mid `Output` is therefore the END of its own pipeline,
+    // not a tap riding someone else's, and a mid `Input` is the START of its
+    // own. Which blocks a pipeline runs follows from the two positions, so a
+    // pipeline that ends early simply has fewer blocks. #1074: pairs that end
+    // up doing the SAME work on the same jack for one output device are then
+    // folded into one fan-out pipeline (`segment_fanout`) — the guitar is
+    // processed once, never once per output.
     //
     // Every resolved output with the chain offset it sits at: a tail output is
     // past the last block, a mid `Output` at its own index. A chain with no

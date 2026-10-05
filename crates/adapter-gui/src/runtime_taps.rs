@@ -59,6 +59,26 @@ impl AudioTap for RingTap {
     }
 }
 
+/// #1074: one output route's played level, read straight off the route the
+/// output callback already accounts — no ring, nothing added to the audio
+/// thread beyond its `fetch_max`.
+pub(crate) struct RouteMeterTap {
+    runtime: Arc<engine::runtime::ChainRuntimeState>,
+    route: usize,
+}
+
+impl AudioTap for RouteMeterTap {
+    fn channels(&self) -> usize {
+        1
+    }
+
+    fn poll_peak_dbfs(&self) -> f32 {
+        self.runtime
+            .take_route_meter_dbfs(self.route)
+            .unwrap_or(engine::output_meter::SILENT_DBFS)
+    }
+}
+
 /// The GUI's subscription authority over the app's shared runtime handle.
 ///
 /// Frontend-local by design (it holds an `Rc<RefCell<..>>`): only the thread
@@ -108,6 +128,13 @@ impl AudioTaps for GuiAudioTaps {
         let borrow = self.runtime.borrow();
         let controller = borrow.as_ref()?;
         let rings: Vec<Arc<SpscRing<f32>>> = match point {
+            TapPoint::RouteOutput { chain, route } => {
+                let runtime = controller.runtime_writing_route(chain, *route)?;
+                return Some(Arc::new(RouteMeterTap {
+                    runtime,
+                    route: *route,
+                }));
+            }
             TapPoint::StreamInput { chain, stream } => {
                 vec![controller.subscribe_stream_input_tap(chain, *stream, capacity_per_channel)?]
             }
