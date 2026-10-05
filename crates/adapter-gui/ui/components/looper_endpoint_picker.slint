@@ -16,7 +16,7 @@ export component LooperEndpointPicker inherits Rectangle {
     private property <bool> is-output: LooperPanel.endpoint-picker-kind == 1;
     private property <[string]> options: root.is-output ? root.output-options : root.input-options;
 
-    background: #000000a8;
+    background: Theme.scrim;
 
     // Click-outside closes without changing the endpoint.
     TouchArea { clicked => { LooperPanel.endpoint-picker-uid = -1; } }
@@ -26,7 +26,7 @@ export component LooperEndpointPicker inherits Rectangle {
         y: (root.height - self.height) / 2;
         width: 360px;
         height: min(root.height - 80px, 96px + root.options.length * 48px);
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 12px;
         border-width: 1px;
         border-color: Theme.palette.border-strong;
@@ -52,10 +52,10 @@ export component LooperEndpointPicker inherits Rectangle {
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: i == LooperPanel.endpoint-picker-selected
-                            ? #6e8aff : transparent;
+                            ? Theme.accent : transparent;
                         background: opt-ta.has-hover
-                            ? #6e8aff28
-                            : (i == LooperPanel.endpoint-picker-selected ? #6e8aff14 : #2a2c31);
+                            ? Theme.accent-soft
+                            : (i == LooperPanel.endpoint-picker-selected ? Theme.accent.with-alpha(0.08) : Theme.panel-hi);
 
                         Text {
                             x: 12px;
@@ -75,7 +75,7 @@ export component LooperEndpointPicker inherits Rectangle {
                             height: 16px;
                             source: @image-url("../assets/check.svg");
                             image-fit: contain;
-                            colorize: #6e8aff;
+                            colorize: Theme.accent;
                         }
 
                         opt-ta := TouchArea {

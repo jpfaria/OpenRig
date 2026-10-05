@@ -1,4 +1,5 @@
 // Responsibility: renders a fader.
+import { Theme } from "../theme.slint";
 // Sprite-sheet vertical fader (amsynth light-slider).
 // Horizontal strip: 2000×160 px, 40 frames (each 50×160).
 // Used for continuous parameters (EQ bands, etc.).
@@ -55,9 +56,9 @@ export component PanelSlider inherits Rectangle {
         width: max(root.fw * 0.95, value-text.preferred-width + 4px);
         height: max(22px, root.height - root.fh - 3px);
         border-radius: 3px;
-        background: #0c0a12;
+        background: Theme.well;
         border-width: 1px;
-        border-color: #2a2832;
+        border-color: Theme.hair;
 
         value-text := Text {
             width: parent.width;
@@ -65,7 +66,7 @@ export component PanelSlider inherits Rectangle {
             text: root.step >= 1.0
                 ? Math.round(root.current-val) + ""
                 : Math.round(root.current-val * 10) / 10 + "";
-            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
+            color: ta.pressed ? Theme.ink : ta.has-hover ? Theme.ink : Theme.ink-2;
             font-family: "Bebas Neue";
             font-size: 18px;
             font-weight: 700;

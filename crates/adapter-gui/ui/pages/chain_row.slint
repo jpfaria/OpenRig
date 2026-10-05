@@ -5,6 +5,7 @@
 // the file that draws it: `chain_row_header`, `chain_row_blocks`,
 // `chain_row_meters`, `chain_row_mixer`.
 
+import { Theme } from "../theme.slint";
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav } from "../models.slint";
 import { ChainRowHeader } from "chain_row_header.slint";
 import { ChainRowMeters } from "chain_row_meters.slint";
@@ -98,7 +99,7 @@ export component ChainRow inherits Rectangle {
     // the chain is enabled, dimmer when disabled.
     property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
     border-width: (root.chain-selected && root.midi-selection-active) ? 2px : 0px;
-    border-color: root.chain.enabled ? #f0a020 : #f0a02055;
+    border-color: root.chain.enabled ? Theme.accent : Theme.accent.with-alpha(0.33);
     animate border-width { duration: 350ms; easing: ease-out; }
     animate border-color { duration: 350ms; easing: ease-out; }
     // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,

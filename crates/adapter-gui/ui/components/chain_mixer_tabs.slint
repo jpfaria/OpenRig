@@ -8,6 +8,7 @@
 // LOOPER tab while the chain has a looper. Hosted by the compact view's mixer
 // section and by a chain card's mixer section.
 
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { MixerStripRow } from "mixer_globals.slint";
 import { ChainMixerBridge } from "chain_mixer_globals.slint";
@@ -99,7 +100,7 @@ export component ChainMixerTabs inherits Rectangle {
         x: 0; y: root.body-top;
         width: parent.width; height: 60px;
         text: root.empty-text;
-        color: #6f7a8a;
+        color: Theme.ink-3;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 1.0px;

@@ -1,4 +1,5 @@
 // Responsibility: asks the user to confirm a deletion.
+import { Theme } from "../theme.slint";
 // Modal dialog asking the user to confirm deletion of a block.
 // Used as an overlay inside AppWindow when `show-confirm-delete-block` is true.
 
@@ -7,7 +8,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
     callback cancel();
     callback confirm();
 
-    background: #000000b0;
+    background: Theme.scrim;
     TouchArea { }
 
     Rectangle {
@@ -16,11 +17,11 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
         width: min(root.width * 0.7, 400px);
         // Grows with its (translated, wrapped) content (#954).
         height: dialog-content.preferred-height;
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
-        drop-shadow-color: #000000c0;
+        drop-shadow-color: Theme.shadow;
 
         dialog-content := VerticalLayout {
             padding: 20px;
@@ -28,7 +29,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
             Text {
                 text: @tr("title-dialog-delete-block");
                 font-size: 18px;
-                color: #ffffff;
+                color: Theme.ink;
                 font-weight: 700;
                 horizontal-alignment: center;
                 wrap: word-wrap;
@@ -38,7 +39,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                 // pt-BR source string with the placeholder.
                 text: @tr("Excluir \"{}\"?", root.block-name);
                 font-size: 18px;
-                color: #aaaaaa;
+                color: Theme.ink-2;
                 horizontal-alignment: center;
                 overflow: elide;
                 wrap: no-wrap;
@@ -49,7 +50,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    background: cancel-area.has-hover ? Theme.hover : Theme.panel-hi;
                     cancel-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.cancel(); }
@@ -57,7 +58,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                     Text {
                         text: @tr("btn-cancel");
                         font-size: 18px;
-                        color: #aaaaaa;
+                        color: Theme.ink-2;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
@@ -66,7 +67,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
+                    background: confirm-area.has-hover ? Theme.bad.darker(0.15) : Theme.bad;
                     confirm-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.confirm(); }
@@ -74,7 +75,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                     Text {
                         text: @tr("btn-delete");
                         font-size: 18px;
-                        color: #ffffff;
+                        color: Theme.hero-fg;
                         font-weight: 700;
                         horizontal-alignment: center;
                         vertical-alignment: center;

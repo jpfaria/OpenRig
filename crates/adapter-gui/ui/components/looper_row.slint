@@ -48,11 +48,11 @@ export component LooperRow inherits Rectangle {
     private property <bool> playing: root.looper.state_code == 2 || root.looper.state_code == 3;
     private property <bool> has-material: root.looper.state_code != 0;
     private property <color> state-color:
-        root.looper.state_code == 1 ? #ff5f6d       // recording
-        : root.looper.state_code == 3 ? #ffb454     // overdubbing
-        : root.looper.state_code == 2 ? #6e8aff     // playing
-        : root.looper.state_code == 4 ? #c5cad4     // stopped
-        : #8a94a2;                                  // empty
+        root.looper.state_code == 1 ? Theme.bad       // recording
+        : root.looper.state_code == 3 ? Theme.warn     // overdubbing
+        : root.looper.state_code == 2 ? Theme.accent     // playing
+        : root.looper.state_code == 4 ? Theme.ink-2     // stopped
+        : Theme.ink-3;                                  // empty
 
     height: root.expanded ? 282px : 60px;
     border-radius: 10px;
@@ -67,8 +67,8 @@ export component LooperRow inherits Rectangle {
         y: 10px;
         icon: @image-url("../assets/record.svg");
         label: @tr("looper-record");
-        tint: root.recording ? #ffffff : #ff5f6d;
-        active-background: root.recording ? #ff5f6d : transparent;
+        tint: root.recording ? Theme.hero-fg : Theme.bad;
+        active-background: root.recording ? Theme.bad : transparent;
         // REC only arms while the chain is running — recording captures the
         // live input through the chain's runtime, which exists only then.
         is-enabled: root.looper.can_record;
@@ -82,7 +82,7 @@ export component LooperRow inherits Rectangle {
             ? @image-url("../assets/stop.svg")
             : @image-url("../assets/play.svg");
         label: root.playing ? @tr("looper-stop") : @tr("looper-play");
-        tint: root.playing ? #6e8aff : #e6ebf5;
+        tint: root.playing ? Theme.accent : Theme.ink;
         is-enabled: root.has-material;
         clicked => { root.play-stop(); }
     }
@@ -176,7 +176,7 @@ export component LooperRow inherits Rectangle {
             width: parent.width;
             height: 4px;
             border-radius: 2px;
-            background: #2a3140;
+            background: Theme.ktrack;
 
             Rectangle {
                 x: 0;
@@ -193,7 +193,7 @@ export component LooperRow inherits Rectangle {
         y: 10px;
         icon: @image-url("../assets/gear.svg");
         label: @tr("looper-parameters");
-        tint: root.expanded ? #6e8aff : #e6ebf5;
+        tint: root.expanded ? Theme.accent : Theme.ink;
         clicked => { root.toggle-drawer(); }
     }
 
@@ -202,7 +202,7 @@ export component LooperRow inherits Rectangle {
         y: 10px;
         icon: @image-url("../assets/close.svg");
         label: @tr("looper-remove");
-        tint: #d9959f;
+        tint: Theme.bad;
         clicked => { root.remove(); }
     }
 
@@ -260,10 +260,10 @@ export component LooperRow inherits Rectangle {
                 height: parent.height;
                 border-radius: 6px;
                 border-width: 1px;
-                border-color: root.looper.preset_index > 0 ? #6e8aff : Theme.palette.border;
+                border-color: root.looper.preset_index > 0 ? Theme.accent : Theme.palette.border;
                 background: preset-ta.has-hover
-                    ? #6e8aff28
-                    : (root.looper.preset_index > 0 ? #6e8aff14 : transparent);
+                    ? Theme.accent-soft
+                    : (root.looper.preset_index > 0 ? Theme.accent.with-alpha(0.08) : transparent);
 
                 Text {
                     x: 10px;
@@ -335,8 +335,8 @@ export component LooperRow inherits Rectangle {
                 width: max(132px, reverse-label.preferred-width + 20px);
                 border-radius: 6px;
                 border-width: 1px;
-                border-color: root.looper.reverse ? #6e8aff : Theme.palette.border;
-                background: root.looper.reverse ? #6e8aff28 : transparent;
+                border-color: root.looper.reverse ? Theme.accent : Theme.palette.border;
+                background: root.looper.reverse ? Theme.accent-soft : transparent;
 
                 reverse-label := Text {
                     text: @tr("looper-reverse");

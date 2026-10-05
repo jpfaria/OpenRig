@@ -8,7 +8,7 @@ import { Theme } from "../theme.slint";
 export component LooperIconButton inherits Rectangle {
     in property <image> icon;
     in property <string> label;          // accessible name, already translated
-    in property <color> tint: #e6ebf5;
+    in property <color> tint: Theme.ink;
     in property <color> active-background: transparent;
     in property <bool> is-enabled: true;
 
@@ -20,10 +20,10 @@ export component LooperIconButton inherits Rectangle {
     height: 40px;
     border-radius: 8px;
     opacity: root.is-enabled ? 1.0 : 0.45;
-    background: !root.is-enabled ? #ffffff05
+    background: !root.is-enabled ? Theme.hover
         : root.active-background != transparent ? root.active-background
-        : ta.has-hover ? #ffffff1c
-        : #ffffff0e;
+        : ta.has-hover ? Theme.hover
+        : Theme.hover;
     Image {
         x: 10px;
         y: 10px;
@@ -80,14 +80,14 @@ export component LooperSlider inherits Rectangle {
         width: parent.width - root.label-w - 6px - root.value-w - 6px;
         height: 4px;
         border-radius: 2px;
-        background: #2a3140;
+        background: Theme.ktrack;
 
         Rectangle {
             x: 0;
             width: parent.width * root.value / 100;
             height: parent.height;
             border-radius: 2px;
-            background: #6e8aff;
+            background: Theme.accent;
         }
 
         Rectangle {
@@ -96,7 +96,7 @@ export component LooperSlider inherits Rectangle {
             width: 14px;
             height: 14px;
             border-radius: 7px;
-            background: drag.has-hover || drag.pressed ? #ffffff : #c5cad4;
+            background: drag.has-hover || drag.pressed ? Theme.ink : Theme.ink-3;
         }
 
         drag := TouchArea {
@@ -178,8 +178,8 @@ export component LooperSegmented inherits Rectangle {
         for option[index] in root.options: Rectangle {
             border-radius: 6px;
             border-width: 1px;
-            border-color: index == root.selected-index ? #6e8aff : Theme.palette.border;
-            background: index == root.selected-index ? #6e8aff28 : transparent;
+            border-color: index == root.selected-index ? Theme.accent : Theme.palette.border;
+            background: index == root.selected-index ? Theme.accent-soft : transparent;
 
             Text {
                 text: option;

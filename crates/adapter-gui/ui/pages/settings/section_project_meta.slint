@@ -6,6 +6,7 @@
 // but the user expects a Save affordance — the button forwards to
 // AppWindow.save-project (Command::SaveProject).
 
+import { Theme } from "../../theme.slint";
 import { Button, LineEdit } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
@@ -27,7 +28,7 @@ export component SectionProjectMeta inherits Rectangle {
             min-height: 32px;
             name-label := Text {
                 text: @tr("label-name");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -40,7 +41,7 @@ export component SectionProjectMeta inherits Rectangle {
                 height: max(28px, name-edit.min-height);
                 border-radius: 8px;
                 border-width: name-edit.has-focus ? 2px : 1px;
-                border-color: name-edit.has-focus ? #45a7ff : #2a2f38;
+                border-color: name-edit.has-focus ? Theme.accent : Theme.hair;
                 animate border-color, border-width { duration: 150ms; }
 
                 name-edit := LineEdit {
@@ -60,7 +61,7 @@ export component SectionProjectMeta inherits Rectangle {
             min-height: 28px;
             file-label := Text {
                 text: @tr("label-file");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -69,7 +70,7 @@ export component SectionProjectMeta inherits Rectangle {
                 text: SettingsBridge.project-path-display == ""
                     ? @tr("placeholder-project-unsaved")
                     : SettingsBridge.project-path-display;
-                color: #8a92a3;
+                color: Theme.ink-2;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;

@@ -66,9 +66,9 @@ export component DiLoopPanel inherits Rectangle {
         ? min(root.base-h + root.outputs.length * root.row-h + 6px, 420px)
         : root.base-h;
     border-radius: root.embedded ? 0px : 8px;
-    background: root.embedded ? transparent : #11141af2;
+    background: root.embedded ? transparent : Theme.panel-lo.with-alpha(0.95);
     border-width: root.embedded ? 0px : 1px;
-    border-color: #3b4250;
+    border-color: Theme.field-line;
     clip: true;
 
     // Measures the confirm label; never shown.
@@ -86,9 +86,9 @@ export component DiLoopPanel inherits Rectangle {
         width: root.width - 2 * root.inset - (root.has-selection ? 36px : 0px);
         height: 30px;
         border-radius: 6px;
-        background: #0a0d12;
+        background: Theme.well;
         border-width: 1px;
-        border-color: (sel-ta.has-hover || root.expanded) ? #4d5868 : #2b3340;
+        border-color: (sel-ta.has-hover || root.expanded) ? Theme.field-line : Theme.hair;
         animate border-color { duration: 150ms; }
 
         Image {
@@ -97,14 +97,14 @@ export component DiLoopPanel inherits Rectangle {
             width: 16px;
             height: 16px;
             source: @image-url("../assets/headphones.svg");
-            colorize: root.playing ? #6e8aff : #8a94a2;
+            colorize: root.playing ? Theme.accent : Theme.ink-2;
         }
         Text {
             x: 34px;
             width: parent.width - 64px;
             height: parent.height;
             text: root.selected-source;
-            color: #f1f4f8;
+            color: Theme.ink;
             font-size: Theme.min-font;
             font-weight: 700;
             vertical-alignment: center;
@@ -116,7 +116,7 @@ export component DiLoopPanel inherits Rectangle {
             width: 14px;
             height: 14px;
             source: @image-url("../assets/arrow-down.svg");
-            colorize: root.expanded ? #8aa0ff : #8a94a2;
+            colorize: root.expanded ? Theme.accent : Theme.ink-2;
             transform-rotation: root.expanded ? 180deg : 0deg;
             animate transform-rotation { duration: 120ms; }
         }
@@ -138,9 +138,9 @@ export component DiLoopPanel inherits Rectangle {
         width: root.width - 2 * root.inset;
         height: 30px;
         border-radius: 6px;
-        background: #0a0d12;
+        background: Theme.well;
         border-width: 1px;
-        border-color: (out-sel-ta.has-hover || root.out-expanded) ? #4d5868 : #2b3340;
+        border-color: (out-sel-ta.has-hover || root.out-expanded) ? Theme.field-line : Theme.hair;
         animate border-color { duration: 150ms; }
 
         Image {
@@ -149,14 +149,14 @@ export component DiLoopPanel inherits Rectangle {
             width: 16px;
             height: 16px;
             source: @image-url("../assets/output.svg");
-            colorize: root.playing ? #6e8aff : #8a94a2;
+            colorize: root.playing ? Theme.accent : Theme.ink-2;
         }
         Text {
             x: 34px;
             width: parent.width - 64px;
             height: parent.height;
             text: root.selected-output;
-            color: #f1f4f8;
+            color: Theme.ink;
             font-size: Theme.min-font;
             font-weight: 700;
             vertical-alignment: center;
@@ -168,7 +168,7 @@ export component DiLoopPanel inherits Rectangle {
             width: 14px;
             height: 14px;
             source: @image-url("../assets/arrow-down.svg");
-            colorize: root.out-expanded ? #8aa0ff : #8a94a2;
+            colorize: root.out-expanded ? Theme.accent : Theme.ink-2;
             transform-rotation: root.out-expanded ? 180deg : 0deg;
             animate transform-rotation { duration: 120ms; }
         }
@@ -190,7 +190,7 @@ export component DiLoopPanel inherits Rectangle {
         width: 28px;
         height: 28px;
         border-radius: 5px;
-        background: root.playing ? #6e8aff28 : play-ta.has-hover ? #ffffff10 : transparent;
+        background: root.playing ? Theme.accent-soft : play-ta.has-hover ? Theme.hover : transparent;
         animate background { duration: 150ms; }
         Image {
             x: 4px;
@@ -200,7 +200,7 @@ export component DiLoopPanel inherits Rectangle {
             source: root.playing
                 ? @image-url("../assets/stop.svg")
                 : @image-url("../assets/play.svg");
-            colorize: root.playing ? #f87171 : play-ta.has-hover ? #ffffff : #8a94a2;
+            colorize: root.playing ? Theme.bad : play-ta.has-hover ? Theme.ink : Theme.ink-2;
         }
         play-ta := TouchArea {
             mouse-cursor: pointer;
@@ -232,14 +232,14 @@ export component DiLoopPanel inherits Rectangle {
             border-radius: 5px;
             background: i == root.selected-index
                 ? Theme.palette.accent-end
-                : (row-ta.has-hover ? #1b2230 : transparent);
+                : (row-ta.has-hover ? Theme.panel-hi : transparent);
             Text {
                 x: 10px;
                 width: parent.width - ((i < root.take-rows.length && root.take-rows[i])
                     ? (root.armed-delete == i ? root.armed-w + 16px : 44px) : 20px);
                 height: parent.height;
                 text: src;
-                color: #f1f4f8;
+                color: Theme.ink;
                 font-size: Theme.min-font;
                 font-weight: i == root.selected-index ? 800 : 600;
                 vertical-alignment: center;
@@ -267,8 +267,8 @@ export component DiLoopPanel inherits Rectangle {
                 width: root.armed-delete == i ? root.armed-w : 28px;
                 height: parent.height - 6px;
                 border-radius: 5px;
-                background: root.armed-delete == i ? #c0392b
-                    : del-ta.has-hover ? #c0392b40 : transparent;
+                background: root.armed-delete == i ? Theme.bad
+                    : del-ta.has-hover ? Theme.bad.with-alpha(0.25) : transparent;
                 animate width, background { duration: 120ms; }
                 Image {
                     x: 6px;
@@ -276,15 +276,15 @@ export component DiLoopPanel inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../assets/trash.svg");
-                    colorize: (root.armed-delete == i || del-ta.has-hover) ? #ffffff
-                        : i == root.selected-index ? #ffffffb0 : #8a94a2;
+                    colorize: (root.armed-delete == i || del-ta.has-hover) ? Theme.ink
+                        : i == root.selected-index ? Theme.ink-2 : Theme.ink-2;
                 }
                 if root.armed-delete == i : del-confirm := Text {
                     x: 26px;
                     width: parent.width - 30px;
                     height: parent.height;
                     text: @tr("di-take-delete-confirm");
-                    color: #ffffff;
+                    color: Theme.ink;
                     font-size: Theme.min-font;
                     font-weight: 800;
                     vertical-alignment: center;
@@ -324,13 +324,13 @@ export component DiLoopPanel inherits Rectangle {
             border-radius: 5px;
             background: i == root.output-selected-index
                 ? Theme.palette.accent-end
-                : (out-row-ta.has-hover ? #1b2230 : transparent);
+                : (out-row-ta.has-hover ? Theme.panel-hi : transparent);
             Text {
                 x: 10px;
                 width: parent.width - 20px;
                 height: parent.height;
                 text: out;
-                color: #f1f4f8;
+                color: Theme.ink;
                 font-size: Theme.min-font;
                 font-weight: i == root.output-selected-index ? 800 : 600;
                 vertical-alignment: center;

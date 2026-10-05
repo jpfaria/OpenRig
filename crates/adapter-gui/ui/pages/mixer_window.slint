@@ -6,6 +6,7 @@
 // The panel reads its state from `MixerBridge`, so the same component serves
 // the standalone window and the inline (fullscreen/touch) placement.
 
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
 import { MixerSection } from "../components/mixer_section.slint";
@@ -23,33 +24,33 @@ export component MixerPanel inherits Rectangle {
     out property <int> shown-count: root.shown.length;
     private property <length> body-top: 128px;
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    background: @linear-gradient(180deg, Theme.well 0%, Theme.page 100%);
 
     // ── Header bar ───────────────────────────────────────────────────────
     Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: 72px;
-        background: #0c0e12;
+        background: Theme.well;
 
         Rectangle {
             x: 0; y: parent.height - 1px;
             width: parent.width; height: 1px;
-            background: #1c2028;
+            background: Theme.panel;
         }
 
         Image {
             x: 20px; y: 24px;
             width: 24px; height: 24px;
             source: @image-url("../assets/mixer-faders.svg");
-            colorize: #c5cdd9;
+            colorize: Theme.ink;
         }
 
         Text {
             x: 54px; y: 0;
             width: 200px; height: parent.height;
             text: @tr("label-mixer");
-            color: #e5ebf2;
+            color: Theme.ink;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 3.0px;
@@ -60,9 +61,9 @@ export component MixerPanel inherits Rectangle {
             x: parent.width - 40px; y: 22px;
             width: 28px; height: 28px;
             border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            background: close-ta.has-hover ? Theme.ktrack : Theme.panel;
             border-width: 1px;
-            border-color: #2c323d;
+            border-color: Theme.hair;
 
             Image {
                 x: (parent.width - 12px) / 2;
@@ -70,7 +71,7 @@ export component MixerPanel inherits Rectangle {
                 width: 12px;
                 height: 12px;
                 source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
+                colorize: Theme.ink;
             }
 
             close-ta := TouchArea {
@@ -94,7 +95,7 @@ export component MixerPanel inherits Rectangle {
         x: 24px; y: root.body-top;
         width: parent.width - 48px; height: parent.height - root.body-top;
         text: @tr("status-mixer-no-endpoints");
-        color: #6a6a82;
+        color: Theme.ink-3;
         font-size: 18px;
         wrap: word-wrap;
         horizontal-alignment: center;
@@ -127,7 +128,7 @@ export component MixerWindow inherits Window {
     min-height: 520px;
     preferred-width: 720px;
     preferred-height: 600px;
-    background: #050608;
+    background: Theme.page;
 
     out property <int> shown-strip-count: panel.shown-count;
 

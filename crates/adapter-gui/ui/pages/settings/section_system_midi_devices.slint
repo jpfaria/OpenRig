@@ -3,6 +3,7 @@
 // SettingsPage shell renders the section title — here we just place
 // the refresh button + device list inside a VerticalLayout.
 
+import { Theme } from "../../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
@@ -22,9 +23,9 @@ export component SectionSystemMidiDevices inherits Rectangle {
                 width: 28px;
                 height: 28px;
                 border-radius: 8px;
-                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+                background: refresh-ta.has-hover ? Theme.ktrack : Theme.panel-hi;
                 border-width: 1px;
-                border-color: #3d4450;
+                border-color: Theme.field-line;
                 animate background { duration: 200ms; }
 
                 Image {
@@ -33,7 +34,7 @@ export component SectionSystemMidiDevices inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
-                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+                    colorize: refresh-ta.has-hover ? Theme.ink : Theme.ink-2;
                 }
 
                 refresh-ta := TouchArea {
@@ -53,10 +54,10 @@ export component SectionSystemMidiDevices inherits Rectangle {
             y: i * 48px;
             width: parent.width - 8px;
             height: 44px;
-            background: #1d2025;
+            background: Theme.panel;
             border-radius: 8px;
             border-width: 1px;
-            border-color: d.enabled ? #2f4a6a : #2a2f38;
+            border-color: d.enabled ? Theme.accent-line : Theme.hair;
             animate border-color { duration: 200ms; }
 
             // Custom toggle indicator (same visual as the audio device row)
@@ -65,9 +66,9 @@ export component SectionSystemMidiDevices inherits Rectangle {
                 y: 12px;
                 width: 20px;
                 height: 20px;
-                background: d.enabled ? #188cff : #1e2229;
+                background: d.enabled ? Theme.accent : Theme.panel-hi;
                 border-width: 1px;
-                border-color: d.enabled ? #45a7ff : #3d4450;
+                border-color: d.enabled ? Theme.accent : Theme.field-line;
                 border-radius: 8px;
 
                 if d.enabled : Image {
@@ -76,7 +77,7 @@ export component SectionSystemMidiDevices inherits Rectangle {
                     width: 12px;
                     height: 12px;
                     source: @image-url("../../assets/check.svg");
-                    colorize: #ffffff;
+                    colorize: Theme.on-accent;
                 }
 
                 toggle-ta := TouchArea {
@@ -91,9 +92,9 @@ export component SectionSystemMidiDevices inherits Rectangle {
                 y: 8px;
                 width: parent.width - 44px - 220px;
                 height: 28px;
-                background: #14171c;
+                background: Theme.panel-lo;
                 border-width: alias-input.has-focus ? 2px : 1px;
-                border-color: alias-input.has-focus ? #45a7ff : #2a2f38;
+                border-color: alias-input.has-focus ? Theme.accent : Theme.hair;
                 border-radius: 8px;
                 animate border-color, border-width { duration: 150ms; }
 
@@ -102,7 +103,7 @@ export component SectionSystemMidiDevices inherits Rectangle {
                     width: parent.width - 16px;
                     height: parent.height;
                     text: d.alias;
-                    color: #f3f6fb;
+                    color: Theme.ink;
                     single-line: true;
                     vertical-alignment: center;
                     font-size: 18px;
@@ -119,7 +120,7 @@ export component SectionSystemMidiDevices inherits Rectangle {
                 width: 200px;
                 height: parent.height;
                 text: d.instance == 0 ? d.name : "\{d.name} (#\{d.instance})";
-                color: #8a92a3;
+                color: Theme.ink-2;
                 vertical-alignment: center;
                 horizontal-alignment: right;
                 font-size: 18px;

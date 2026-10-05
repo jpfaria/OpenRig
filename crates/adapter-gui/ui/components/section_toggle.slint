@@ -1,4 +1,5 @@
 // Responsibility: renders the clickable header of a collapsible section.
+import { Theme } from "../theme.slint";
 // #1007 — a chevron (right = collapsed, down = expanded), the section's icon
 // and its title across the whole header; a click asks for the opposite state through
 // `toggled`. The owner keeps the state and feeds it back into `expanded`, so
@@ -11,7 +12,7 @@ export component SectionToggle inherits Rectangle {
     in property <bool> expanded: false;
     callback toggled(bool);
 
-    background: area.has-hover ? #141820 : transparent;
+    background: area.has-hover ? Theme.panel-lo : transparent;
     accessible-role: button;
     accessible-label: root.title;
     accessible-action-default => { root.flip(); }
@@ -27,7 +28,7 @@ export component SectionToggle inherits Rectangle {
         source: root.expanded
             ? @image-url("../assets/chevron-down.svg")
             : @image-url("../assets/arrow-right.svg");
-        colorize: area.has-hover ? #d7dde8 : #8a94a6;
+        colorize: area.has-hover ? Theme.ink : Theme.ink-2;
     }
 
     icon := Image {
@@ -35,14 +36,14 @@ export component SectionToggle inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 18px; height: 18px;
         source: root.icon;
-        colorize: area.has-hover ? #d7dde8 : #8a94a6;
+        colorize: area.has-hover ? Theme.ink : Theme.ink-2;
     }
 
     Text {
         x: 68px; y: 0;
         width: parent.width - 84px; height: parent.height;
         text: root.title;
-        color: area.has-hover ? #d7dde8 : #8a94a6;
+        color: area.has-hover ? Theme.ink : Theme.ink-2;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 1.0px;

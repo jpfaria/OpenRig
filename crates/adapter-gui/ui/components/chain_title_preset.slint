@@ -31,7 +31,7 @@ component IconButton inherits Rectangle {
         height: 18px;
         source: root.icon;
         image-fit: contain;
-        colorize: root.active ? #ffffff : (ta.has-hover ? #ffffff : #8a94a2);
+        colorize: root.active ? Theme.ink : (ta.has-hover ? Theme.ink : Theme.ink-2);
     }
     ta := TouchArea {
         mouse-cursor: pointer;
@@ -56,13 +56,13 @@ component SceneBtn inherits Rectangle {
         ? Theme.palette.accent-end
         : (sta.has-hover ? Theme.palette.card-secondary : transparent);
     border-width: root.active ? 0px : 1px;
-    border-color: #2b3340;
+    border-color: Theme.hair;
     animate background { duration: 120ms; }
     Text {
         width: parent.width;
         height: parent.height;
         text: root.idx;
-        color: root.active ? #ffffff : #aeb6c2;
+        color: root.active ? Theme.ink : Theme.ink-2;
         font-size: Theme.min-font;
         font-weight: 800;
         horizontal-alignment: center;
@@ -164,7 +164,7 @@ export component ChainTitlePreset inherits Rectangle {
                 width: parent.width;
                 height: parent.height;
                 text: root.title;
-                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                color: title-ta.has-hover ? Theme.ink : Theme.ink;
                 font-size: Theme.min-font;
                 font-weight: 600;
                 vertical-alignment: center;
@@ -281,24 +281,24 @@ export component ChainTitlePreset inherits Rectangle {
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #0a0d12;
+            background: Theme.well;
             border-width: 1px;
-            border-color: #2b3340;
+            border-color: Theme.hair;
             border-radius: 6px;
             rename-box := VerticalLayout {
                 padding: 10px;
                 spacing: 8px;
                 Text {
                     text: @tr("Rename preset");
-                    color: #8a94a2;
+                    color: Theme.ink-2;
                     font-size: Theme.min-font;
                 }
                 Rectangle {
                     height: 32px;
-                    background: #15191f;
+                    background: Theme.panel-lo;
                     border-radius: 4px;
                     border-width: 1px;
-                    border-color: #2b3340;
+                    border-color: Theme.hair;
                     name-input := TextInput {
                         x: 8px;
                         y: 0;
@@ -307,7 +307,7 @@ export component ChainTitlePreset inherits Rectangle {
                         text <=> root.rename-draft;
                         single-line: true;
                         font-size: Theme.min-font;
-                        color: #f1f4f8;
+                        color: Theme.ink;
                         vertical-alignment: center;
                         accepted => {
                             root.rename-preset(self.text);
@@ -321,13 +321,13 @@ export component ChainTitlePreset inherits Rectangle {
                     Rectangle {
                         width: Math.max(70px, cancel-label.preferred-width + 20px);
                         height: 30px;
-                        background: cancel-ta.has-hover ? #1f242c : transparent;
+                        background: cancel-ta.has-hover ? Theme.panel-hi : transparent;
                         border-width: 1px;
-                        border-color: #2b3340;
+                        border-color: Theme.hair;
                         border-radius: 4px;
                         cancel-label := Text {
                             text: @tr("Cancel");
-                            color: #c5cbd6;
+                            color: Theme.ink;
                             font-size: Theme.min-font;
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -348,7 +348,7 @@ export component ChainTitlePreset inherits Rectangle {
                         border-radius: 4px;
                         ok-label := Text {
                             text: @tr("OK");
-                            color: #ffffff;
+                            color: Theme.on-accent;
                             font-size: Theme.min-font;
                             font-weight: 700;
                             horizontal-alignment: center;

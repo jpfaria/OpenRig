@@ -5,6 +5,7 @@
 // absolute position. The panel itself (DiLoopPanel) lives in app-window's root
 // overlay so it is never clipped by the chain list.
 
+import { Theme } from "../theme.slint";
 import { DiPanel } from "di_panel_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 
@@ -22,8 +23,8 @@ export component ChainDiLoopButton inherits Rectangle {
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    background: root.playing ? #6e8aff28
-                : ta.has-hover ? #ffffff10
+    background: root.playing ? Theme.accent-soft
+                : ta.has-hover ? Theme.hover
                 : transparent;
     animate background { duration: 150ms; }
 
@@ -34,9 +35,9 @@ export component ChainDiLoopButton inherits Rectangle {
         height: 18px;
         source: @image-url("../assets/headphones.svg");
         image-fit: contain;
-        colorize: root.playing ? #6e8aff
-                  : ta.has-hover ? #ffffff
-                  : #8a94a2;
+        colorize: root.playing ? Theme.accent
+                  : ta.has-hover ? Theme.ink
+                  : Theme.ink-2;
         animate colorize { duration: 150ms; }
     }
 

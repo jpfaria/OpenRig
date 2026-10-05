@@ -32,7 +32,7 @@ export component LooperEditorOverlay inherits Rectangle {
     x: 0;
     y: 0;
     visible: LooperEditor.open;
-    background: #000000a8;
+    background: Theme.scrim;
 
     // Click-outside closes, leaving the loop as it stands.
     TouchArea { clicked => { LooperEditor.open = false; } }
@@ -44,7 +44,7 @@ export component LooperEditorOverlay inherits Rectangle {
         width: min(root.width - 80px, max(760px, buttons.min-width + 32px));
         // Grows with its content (the status line may wrap).
         height: editor-col.preferred-height;
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 12px;
         border-width: 1px;
         border-color: Theme.palette.border-strong;
@@ -165,7 +165,7 @@ export component LooperEditorOverlay inherits Rectangle {
                     : LooperEditor.status-code == 2 ? @tr("looper-editor-refused")
                     : "";
                 color: LooperEditor.status-code == 2
-                    ? #ffb454
+                    ? Theme.warn
                     : Theme.palette.text-muted;
                 font-size: Theme.min-font;
             }

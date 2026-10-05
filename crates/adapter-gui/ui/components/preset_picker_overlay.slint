@@ -4,6 +4,7 @@
 // desktop the old native FileDialog left users with no visible preset
 // list). Pure UI — the parent owns the data + load logic.
 
+import { Theme } from "../theme.slint";
 import { VerticalBox, ScrollView, LineEdit } from "std-widgets.slint";
 
 export component PresetPickerOverlay {
@@ -20,13 +21,13 @@ export component PresetPickerOverlay {
         y: 0;
         width: root.width;
         height: root.height;
-        background: #000000a0;
+        background: Theme.scrim;
         Rectangle {
             x: root.width * 0.1;
             y: root.height * 0.1;
             width: root.width * 0.8;
             height: root.height * 0.8;
-            background: #1e1f22;
+            background: Theme.panel;
             border-radius: 10px;
             VerticalBox {
                 padding: 16px;
@@ -34,7 +35,7 @@ export component PresetPickerOverlay {
                 Text {
                     text: @tr("btn-load-preset");
                     font-size: 18px;
-                    color: #ffffff;
+                    color: Theme.ink;
                     font-weight: 700;
                 }
                 LineEdit {
@@ -51,7 +52,7 @@ export component PresetPickerOverlay {
                         for item[i] in root.items: Rectangle {
                             height: 44px;
                             border-radius: 6px;
-                            background: item-area.has-hover ? #3c7ded : #2d2e32;
+                            background: item-area.has-hover ? Theme.accent : Theme.panel-hi;
                             item-area := TouchArea {
                                 mouse-cursor: pointer;
                                 width: parent.width - 52px;
@@ -64,7 +65,7 @@ export component PresetPickerOverlay {
                                 width: parent.width - 64px;
                                 text: item;
                                 font-size: 18px;
-                                color: #ffffff;
+                                color: Theme.ink;
                                 vertical-alignment: center;
                                 overflow: elide;
                             }
@@ -74,7 +75,7 @@ export component PresetPickerOverlay {
                                 width: 40px;
                                 height: 40px;
                                 border-radius: 6px;
-                                background: del-area.has-hover ? #c0392b : transparent;
+                                background: del-area.has-hover ? Theme.bad : transparent;
                                 del-area := TouchArea {
                                     mouse-cursor: pointer;
                                     clicked => {
@@ -87,7 +88,7 @@ export component PresetPickerOverlay {
                                     width: 18px;
                                     height: 18px;
                                     source: @image-url("../modules/surrealism-ui/icons/delete.svg");
-                                    colorize: del-area.has-hover ? #ffffff : #cc4444;
+                                    colorize: del-area.has-hover ? Theme.hero-fg : Theme.bad;
                                 }
                             }
                         }
@@ -96,7 +97,7 @@ export component PresetPickerOverlay {
                 Rectangle {
                     height: 44px;
                     border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    background: cancel-area.has-hover ? Theme.hover : Theme.panel-hi;
                     cancel-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
@@ -106,7 +107,7 @@ export component PresetPickerOverlay {
                     Text {
                         text: @tr("btn-cancel");
                         font-size: 18px;
-                        color: #aaaaaa;
+                        color: Theme.ink-2;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }

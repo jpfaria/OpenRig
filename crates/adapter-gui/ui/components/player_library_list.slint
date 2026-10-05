@@ -1,4 +1,5 @@
 // Responsibility: renders the backing-track library list.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { PlayerTrackRow } from "player_globals.slint";
 
@@ -14,14 +15,14 @@ component PlayerTrackItem inherits Rectangle {
 
     height: 40px;
     border-radius: 5px;
-    background: root.active ? #1d4e73 : (ta.has-hover ? #1b2230 : transparent);
+    background: root.active ? Theme.accent-soft : (ta.has-hover ? Theme.panel-hi : transparent);
 
     Text {
         x: 12px;
         width: root.track.bundled ? parent.width - 24px : parent.width - 140px;
         height: parent.height;
         text: root.track.name;
-        color: #f1f4f8;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: root.active ? 700 : 500;
         vertical-alignment: center;
@@ -40,7 +41,7 @@ component PlayerTrackItem inherits Rectangle {
         width: root.armed ? 120px : 32px;
         height: parent.height - 8px;
         border-radius: 5px;
-        background: root.armed ? #c0392b : del-ta.has-hover ? #c0392b40 : transparent;
+        background: root.armed ? Theme.bad : del-ta.has-hover ? Theme.bad.with-alpha(0.25) : transparent;
         animate width, background { duration: 120ms; }
         Image {
             x: 8px;
@@ -48,14 +49,14 @@ component PlayerTrackItem inherits Rectangle {
             width: 16px;
             height: 16px;
             source: @image-url("../assets/trash.svg");
-            colorize: root.armed || del-ta.has-hover ? #ffffff : #8a94a2;
+            colorize: root.armed || del-ta.has-hover ? Theme.hero-fg : Theme.ink-2;
         }
         if root.armed : Text {
             x: 30px;
             width: parent.width - 34px;
             height: parent.height;
             text: @tr("label-track-delete-confirm");
-            color: #ffffff;
+            color: Theme.ink;
             font-size: 18px;
             font-weight: 800;
             vertical-alignment: center;
@@ -87,14 +88,14 @@ export component PlayerLibraryList inherits Rectangle {
     callback delete(string);
 
     border-radius: 6px;
-    background: #0a0d12;
+    background: Theme.well;
     border-width: 1px;
-    border-color: #2b3340;
+    border-color: Theme.hair;
 
     if root.tracks.length == 0 : Text {
         x: 16px; width: parent.width - 32px; height: parent.height;
         text: @tr("status-no-backing-tracks");
-        color: #6a6a82;
+        color: Theme.ink-3;
         font-size: 18px;
         wrap: word-wrap;
         horizontal-alignment: center;

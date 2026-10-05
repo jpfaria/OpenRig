@@ -17,7 +17,7 @@ export component DeviceRow inherits Rectangle {
     callback bit-depth-selected(string);
 
     height: root.selected ? 64px : 52px;
-    background: root.selected ? Theme.palette.card-secondary : #0b0d13;
+    background: root.selected ? Theme.palette.card-secondary : Theme.well;
     border-radius: 14px;
     border-width: 1px;
     border-color: root.selected ? Theme.palette.accent-border : Theme.palette.border;

@@ -2,6 +2,7 @@
 // Hover-only tooltip attached to a BlockChip. Shows the block name,
 // brand, type label, and the live parameter summary in a callout panel.
 
+import { Theme } from "../theme.slint";
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
 import { EffectTypeIcon } from "./effect_type_icon.slint";
 import { BrandLogo } from "./brand_logo.slint";
@@ -37,12 +38,12 @@ export component BlockHoverTooltip inherits Rectangle {
     y: root.anchor-y + root.chip-height - root.tooltip-h;
     width: root.tooltip-w;
     height: root.tooltip-h;
-    background: #0e1218f5;
+    background: Theme.well.with-alpha(0.96);
     border-width: 1px;
-    border-color: #4d5868;
+    border-color: Theme.field-line;
     border-radius: 8px;
     drop-shadow-blur: 18px;
-    drop-shadow-color: #000000a0;
+    drop-shadow-color: Theme.shadow;
     drop-shadow-offset-y: 4px;
     // Literal z — covers any sibling declared after the tooltip in the
     // blocks container (insert-slot dashes, U-turn ticks, secondary
@@ -56,7 +57,7 @@ export component BlockHoverTooltip inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: 36px;
-        background: #171d2c;
+        background: Theme.panel;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
     }
@@ -69,18 +70,18 @@ export component BlockHoverTooltip inherits Rectangle {
         height: 22px;
         border-radius: 3px;
         background:
-            root.block.backend_label == "NATIVE" ? #1f6feb
-            : root.block.backend_label == "NAM" ? #b5651d
-            : root.block.backend_label == "IR" ? #6f42c1
-            : root.block.backend_label == "LV2" ? #2f7d32
-            : #4a5260;
+            root.block.backend_label == "NATIVE" ? Theme.b-native
+            : root.block.backend_label == "NAM" ? Theme.b-nam
+            : root.block.backend_label == "IR" ? Theme.b-ir
+            : root.block.backend_label == "LV2" ? Theme.b-lv2
+            : Theme.b-vst3;
 
         backend-text := Text {
             x: 7px;
             y: 0px;
             height: parent.height;
             text: root.block.backend_label;
-            color: #ffffff;
+            color: Theme.hero-fg;
             font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.6px;
@@ -98,7 +99,7 @@ export component BlockHoverTooltip inherits Rectangle {
         text: root.block.brand == "" || root.block.brand == "native" || root.block.brand == "generic"
             ? ""
             : root.block.brand;
-        color: #8fa0b6;
+        color: Theme.ink-2;
         font-size: 18px;
         font-weight: 800;
         letter-spacing: 0.6px;
@@ -113,7 +114,7 @@ export component BlockHoverTooltip inherits Rectangle {
         width: 320px - (brand-text.x + brand-text.preferred-width + 78px);
         height: 36px;
         text: root.block.display_name;
-        color: #f4f7fb;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: 700;
         vertical-alignment: center;
@@ -127,7 +128,7 @@ export component BlockHoverTooltip inherits Rectangle {
         width: 60px;
         height: 20px;
         brand: root.block.brand;
-        tint: #e6ecf5;
+        tint: Theme.ink;
     }
 
     // Parameter table — one row per entry, fixed column widths because
@@ -145,7 +146,7 @@ export component BlockHoverTooltip inherits Rectangle {
             width: 140px;
             height: parent.height;
             text: entry.label;
-            color: #8fa0b6;
+            color: Theme.ink-2;
             font-size: 18px;
             font-weight: 700;
             letter-spacing: 0.4px;
@@ -163,7 +164,7 @@ export component BlockHoverTooltip inherits Rectangle {
 
             Text {
                 text: entry.value;
-                color: #f4f7fb;
+                color: Theme.ink;
                 font-size: 18px;
                 font-weight: 700;
                 vertical-alignment: center;
@@ -171,7 +172,7 @@ export component BlockHoverTooltip inherits Rectangle {
 
             Text {
                 text: entry.unit;
-                color: #8fa0b6;
+                color: Theme.ink-2;
                 font-size: 18px;
                 font-weight: 600;
                 vertical-alignment: center;

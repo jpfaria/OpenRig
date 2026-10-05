@@ -65,7 +65,7 @@ export component LooperPanelView inherits Rectangle {
         + (root.expanded-uid >= 0 ? root.drawer-extra : 0px)
         + 12px;
     border-radius: root.embedded ? 0px : 10px;
-    background: root.embedded ? transparent : #11141af2;
+    background: root.embedded ? transparent : Theme.panel-lo.with-alpha(0.95);
     border-width: root.embedded ? 0px : 1px;
     border-color: Theme.palette.border-strong;
     clip: true;
@@ -98,7 +98,7 @@ export component LooperPanelView inherits Rectangle {
         y: 12px;
         icon: @image-url("../assets/play.svg");
         label: @tr("looper-play-all");
-        tint: #e6ebf5;
+        tint: Theme.ink;
         is-enabled: !root.is-empty;
         clicked => { root.play-all(); }
     }
@@ -108,7 +108,7 @@ export component LooperPanelView inherits Rectangle {
         y: 12px;
         icon: @image-url("../assets/stop.svg");
         label: @tr("looper-stop-all");
-        tint: #e6ebf5;
+        tint: Theme.ink;
         is-enabled: !root.is-empty;
         clicked => { root.stop-all(); }
     }
@@ -121,9 +121,9 @@ export component LooperPanelView inherits Rectangle {
         height: 32px;
         border-radius: 8px;
         opacity: root.can-add ? 1.0 : 0.4;
-        background: add-ta.has-hover && root.can-add ? #6e8aff38 : #6e8aff22;
+        background: add-ta.has-hover && root.can-add ? Theme.accent.with-alpha(0.22) : Theme.accent-soft;
         border-width: 1px;
-        border-color: #6e8aff;
+        border-color: Theme.accent;
 
         Image {
             x: 10px;
@@ -132,7 +132,7 @@ export component LooperPanelView inherits Rectangle {
             height: 16px;
             source: @image-url("../assets/plus.svg");
             image-fit: contain;
-            colorize: #a8c0ff;
+            colorize: Theme.accent;
         }
 
         add-label := Text {
@@ -140,7 +140,7 @@ export component LooperPanelView inherits Rectangle {
             height: parent.height;
             vertical-alignment: center;
             text: @tr("looper-add");
-            color: #dbe4ff;
+            color: Theme.ink;
             font-size: Theme.min-font;
             font-weight: 600;
         }

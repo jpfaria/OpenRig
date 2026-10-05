@@ -21,7 +21,7 @@ export component LooperTakeSaveDialog inherits Rectangle {
         }
     }
 
-    background: #000000a8;
+    background: Theme.scrim;
 
     // Click-outside closes without saving.
     TouchArea { clicked => { LooperTake.dialog-uid = -1; } }
@@ -31,7 +31,7 @@ export component LooperTakeSaveDialog inherits Rectangle {
         y: (root.height - self.height) / 2;
         width: min(400px, root.width - 32px);
         height: body.preferred-height;
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 12px;
         border-width: 1px;
         border-color: Theme.palette.border-strong;
@@ -67,7 +67,7 @@ export component LooperTakeSaveDialog inherits Rectangle {
                     : LooperTake.status == 4 ? @tr("looper-take-failed")
                     : LooperTake.status == 5 ? @tr("looper-take-needs-name")
                     : "";
-                color: LooperTake.status == 1 ? #7bd88f : #ffb454;
+                color: LooperTake.status == 1 ? Theme.ok : Theme.warn;
                 font-size: Theme.min-font;
             }
 

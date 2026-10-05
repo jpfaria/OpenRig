@@ -3,6 +3,7 @@
 // Wrapped in a plain Rectangle — the SettingsPage shell renders the
 // section title and divider; this component only renders the body.
 
+import { Theme } from "../../theme.slint";
 import { DeviceSelectionItem } from "../../models.slint";
 import { Button, ComboBox, ScrollView } from "std-widgets.slint";
 
@@ -51,7 +52,7 @@ component AudioDeviceRow inherits Rectangle {
         y: parent.height - 1px;
         width: parent.width;
         height: 1px;
-        background: #252a33;
+        background: Theme.panel-hi;
     }
 
     // Custom toggle indicator
@@ -60,9 +61,9 @@ component AudioDeviceRow inherits Rectangle {
         y: 14px;
         width: 20px;
         height: 20px;
-        background: root.device.selected ? #188cff : #1e2229;
+        background: root.device.selected ? Theme.accent : Theme.panel-hi;
         border-width: 1px;
-        border-color: root.device.selected ? #45a7ff : #3d4450;
+        border-color: root.device.selected ? Theme.accent : Theme.field-line;
         border-radius: 8px;
 
         if root.device.selected : Image {
@@ -71,7 +72,7 @@ component AudioDeviceRow inherits Rectangle {
             width: 12px;
             height: 12px;
             source: @image-url("../../assets/check.svg");
-            colorize: #ffffff;
+            colorize: Theme.on-accent;
         }
     }
 
@@ -81,7 +82,7 @@ component AudioDeviceRow inherits Rectangle {
         width: (root.device.selected ? controls.x - 4px : parent.width) - 32px;
         height: parent.height;
         text: root.device.name;
-        color: root.device.selected ? #edf2f9 : #8a95a5;
+        color: root.device.selected ? Theme.ink : Theme.ink-2;
         font-size: 18px;
         font-weight: root.device.selected ? 600 : 400;
         vertical-alignment: center;
@@ -105,7 +106,7 @@ component AudioDeviceRow inherits Rectangle {
 
             Text {
                 text: @tr("label-hz");
-                color: #6b7786;
+                color: Theme.ink-3;
                 font-size: 18px;
                 font-weight: 600;
                 vertical-alignment: center;
@@ -118,7 +119,7 @@ component AudioDeviceRow inherits Rectangle {
             }
             Text {
                 text: @tr("label-buffer");
-                color: #6b7786;
+                color: Theme.ink-3;
                 font-size: 18px;
                 font-weight: 600;
                 vertical-alignment: center;
@@ -131,7 +132,7 @@ component AudioDeviceRow inherits Rectangle {
             }
             Text {
                 text: @tr("label-bits");
-                color: #6b7786;
+                color: Theme.ink-3;
                 font-size: 18px;
                 font-weight: 600;
                 vertical-alignment: center;
@@ -185,9 +186,9 @@ export component SectionSystemAudio inherits Rectangle {
                 width: 28px;
                 height: 28px;
                 border-radius: 8px;
-                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+                background: refresh-ta.has-hover ? Theme.ktrack : Theme.panel-hi;
                 border-width: 1px;
-                border-color: #3d4450;
+                border-color: Theme.field-line;
                 animate background { duration: 200ms; }
 
                 Image {
@@ -196,7 +197,7 @@ export component SectionSystemAudio inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
-                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+                    colorize: refresh-ta.has-hover ? Theme.ink : Theme.ink-2;
                 }
 
                 refresh-ta := TouchArea {

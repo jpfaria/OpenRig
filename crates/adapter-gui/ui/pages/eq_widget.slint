@@ -1,4 +1,5 @@
 // Responsibility: renders the graphic EQ.
+import { Theme } from "../theme.slint";
 import { MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 
 import "../fonts/BebasNeue.ttf";
@@ -54,7 +55,7 @@ component EqBandSlider inherits Rectangle {
             : root.shown-val >= 0
                 ? "+" + Math.round(root.shown-val * 10) / 10
                 : Math.round(root.shown-val * 10) / 10;
-        color: Math.abs(root.shown-val) < 0.05 ? #6a7185 : #e8edf5;
+        color: Math.abs(root.shown-val) < 0.05 ? Theme.ink-3 : Theme.ink;
         font-family: "Bebas Neue";
         font-size: 18px;
         font-weight: 700;
@@ -69,9 +70,9 @@ component EqBandSlider inherits Rectangle {
         y: root.track-y;
         width: 4px;
         height: root.track-h;
-        background: #07090e;
+        background: Theme.well;
         border-width: 1px;
-        border-color: #1a1d27;
+        border-color: Theme.hair-2;
         border-radius: 2px;
     }
 
@@ -81,7 +82,7 @@ component EqBandSlider inherits Rectangle {
         y: root.track-y + root.track-h / 2 - 0.5px;
         width: 14px;
         height: 1px;
-        background: #5a6175;
+        background: Theme.ktrack;
     }
 
     // ── Filled segment (centerline → cap) ──
@@ -91,7 +92,7 @@ component EqBandSlider inherits Rectangle {
         y: Math.min(root.handle-y, self.center-y);
         width: 2px;
         height: Math.max(1px, Math.abs(root.handle-y - self.center-y));
-        background: #5cb8ff;
+        background: Theme.accent;
         opacity: 0.8;
     }
 
@@ -103,19 +104,19 @@ component EqBandSlider inherits Rectangle {
         height: root.cap-h;
         border-radius: 2px;
         background: ta.pressed
-            ? @linear-gradient(180deg, #f4f5f8 0%, #c0c2c8 50%, #898b92 100%)
+            ? @linear-gradient(180deg, Theme.hero-fg 0%, Theme.hero-fg-2 50%, Theme.chrome-fg-2 100%)
             : ta.has-hover
-                ? @linear-gradient(180deg, #ebedf2 0%, #b6b8be 50%, #7e8087 100%)
-                : @linear-gradient(180deg, #d8dae0 0%, #a4a6ac 50%, #6f7178 100%);
+                ? @linear-gradient(180deg, Theme.hero-fg.darker(0.03) 0%, Theme.hero-fg-2.darker(0.06) 50%, Theme.chrome-fg-2.darker(0.08) 100%)
+                : @linear-gradient(180deg, Theme.hero-fg.darker(0.08) 0%, Theme.hero-fg-2.darker(0.15) 50%, Theme.chrome-fg-2.darker(0.2) 100%);
         border-width: 1px;
-        border-color: #1c1e24;
+        border-color: Theme.hair-2;
         // Centre slot
         Rectangle {
             x: 3px;
             y: parent.height / 2 - 0.5px;
             width: parent.width - 6px;
             height: 1px;
-            background: #00000060;
+            background: Theme.shadow;
         }
     }
 
@@ -126,7 +127,7 @@ component EqBandSlider inherits Rectangle {
         width: parent.width;
         height: root.bottom-h;
         text: root.freq-label;
-        color: #828a99;
+        color: Theme.ink-2;
         font-family: "Bebas Neue";
         font-size: 18px;
         font-weight: 600;

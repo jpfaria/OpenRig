@@ -14,6 +14,7 @@
 // bound properties, so the same component serves the standalone window and the
 // inline (fullscreen/touch) placement without either one threading ~16 values
 // through the widget tree.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
@@ -27,19 +28,19 @@ export component MetronomePanel inherits Rectangle {
     // standalone window closes via its own chrome.
     in property <bool> show-close-button: false;
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    background: @linear-gradient(180deg, Theme.well 0%, Theme.page 100%);
 
     // ── Header bar ───────────────────────────────────────────────────────
     Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: 72px;
-        background: #0c0e12;
+        background: Theme.panel-lo;
 
         Rectangle {
             x: 0; y: parent.height - 1px;
             width: parent.width; height: 1px;
-            background: #1c2028;
+            background: Theme.hair;
         }
 
         PowerFootSwitch {
@@ -52,14 +53,14 @@ export component MetronomePanel inherits Rectangle {
             x: 78px; y: 24px;
             width: 24px; height: 24px;
             source: @image-url("../assets/metronome.svg");
-            colorize: #c5cdd9;
+            colorize: Theme.ink;
         }
 
         Text {
             x: 110px; y: 0;
             width: 200px; height: parent.height;
             text: @tr("label-metronome");
-            color: #e5ebf2;
+            color: Theme.ink;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 3.0px;
@@ -70,9 +71,9 @@ export component MetronomePanel inherits Rectangle {
             x: parent.width - 40px; y: 22px;
             width: 28px; height: 28px;
             border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            background: close-ta.has-hover ? Theme.ktrack : Theme.panel;
             border-width: 1px;
-            border-color: #2c323d;
+            border-color: Theme.hair;
 
             Image {
                 x: (parent.width - 12px) / 2;
@@ -80,7 +81,7 @@ export component MetronomePanel inherits Rectangle {
                 width: 12px;
                 height: 12px;
                 source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
+                colorize: Theme.ink;
             }
 
             close-ta := TouchArea {
@@ -96,12 +97,12 @@ export component MetronomePanel inherits Rectangle {
         width: parent.width - 32px;
         height: 168px;
         border-radius: 6px;
-        background: MetronomeBridge.metronome-enabled ? #ccaa66 : #776633;
+        background: MetronomeBridge.metronome-enabled ? Theme.lcd-near : Theme.lcd-off;
         border-width: 1px;
-        border-color: #00000099;
+        border-color: Theme.lcd-ink.with-alpha(0.6);
         clip: true;
         drop-shadow-blur: 6px;
-        drop-shadow-color: #00000080;
+        drop-shadow-color: Theme.shadow;
         animate background { duration: 200ms; }
 
         // Beat lamps, centred across the top of the LCD.
@@ -131,7 +132,7 @@ export component MetronomePanel inherits Rectangle {
             width: parent.width;
             height: 76px;
             text: Math.round(MetronomeBridge.bpm);
-            color: #2a2008;
+            color: Theme.lcd-ink;
             font-family: "Bebas Neue";
             font-size: 76px;
             horizontal-alignment: center;
@@ -143,7 +144,7 @@ export component MetronomePanel inherits Rectangle {
             width: parent.width;
             height: 22px;
             text: @tr("label-bpm");
-            color: #5a4a1a;
+            color: Theme.lcd-ink.with-alpha(0.7);
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 4.0px;
@@ -155,7 +156,7 @@ export component MetronomePanel inherits Rectangle {
             x: parent.width - 76px; y: 46px;
             width: 60px; height: 26px;
             text: MetronomeBridge.time-signature-label;
-            color: #5a4a1a;
+            color: Theme.lcd-ink.with-alpha(0.7);
             font-family: "Bebas Neue";
             font-size: 24px;
             letter-spacing: 1.0px;
@@ -166,7 +167,7 @@ export component MetronomePanel inherits Rectangle {
             x: 16px; y: 46px;
             width: self.preferred-width; height: 26px;
             text: @tr("label-count-in");
-            color: #7a3a0a;
+            color: Theme.lcd-ink-2;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 2.0px;
@@ -292,7 +293,7 @@ export component MetronomePanel inherits Rectangle {
     if MetronomeBridge.output-picker-open : Rectangle {
         width: 100%;
         height: 100%;
-        background: #000000cc;
+        background: Theme.scrim;
 
         TouchArea {
             clicked => { MetronomeBridge.output-picker-open = false; }
@@ -305,17 +306,17 @@ export component MetronomePanel inherits Rectangle {
             height: min(parent.height - 130px,
                 MetronomeBridge.output-options.length * 44px + 56px);
             border-radius: 8px;
-            background: #0f131b;
+            background: Theme.panel-lo;
             border-width: 1px;
-            border-color: #2b3340;
+            border-color: Theme.hair;
             drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
+            drop-shadow-color: Theme.shadow;
 
             Text {
                 x: 16px; y: 14px;
                 width: parent.width - 32px; height: 22px;
                 text: @tr("label-metronome-output");
-                color: #93a1b7;
+                color: Theme.ink-2;
                 font-family: "Bebas Neue";
                 font-size: 18px;
                 letter-spacing: 2.0px;
@@ -324,7 +325,7 @@ export component MetronomePanel inherits Rectangle {
             if MetronomeBridge.output-options.length == 0 : Text {
                 x: 0; y: 0; width: parent.width; height: parent.height;
                 text: @tr("status-no-outputs");
-                color: #6a6a82;
+                color: Theme.ink-3;
                 font-size: 18px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -359,7 +360,7 @@ export component MetronomeWindow inherits Window {
     min-height: 500px;
     preferred-width: 560px;
     preferred-height: 500px;
-    background: #050608;
+    background: Theme.page;
 
     MetronomePanel {
         width: 100%;

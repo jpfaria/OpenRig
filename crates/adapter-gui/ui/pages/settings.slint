@@ -15,6 +15,7 @@
 //   - Text: primary #dde3ec, secondary #8a92a3, tertiary #6b7786.
 //   - Accent #188cff (focus/active). Focus ring 2px #45a7ff @ 150ms.
 
+import { Theme } from "../theme.slint";
 import { Button, ScrollView } from "std-widgets.slint";
 import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow, IoBindingModel, ChannelOptionItem } from "../models.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
@@ -38,8 +39,8 @@ component NavRow inherits Rectangle {
     // the longest translated section name instead of eliding it.
     min-width: nav-label.preferred-width + 24px;
     background: root.selected
-        ? #22272f
-        : (ta.has-hover ? #1e2229 : transparent);
+        ? Theme.accent-soft
+        : (ta.has-hover ? Theme.hover : transparent);
     animate background { duration: 150ms; }
 
     // Left accent bar — only renders when this row is the active one.
@@ -48,7 +49,7 @@ component NavRow inherits Rectangle {
         y: 6px;
         width: 2px;
         height: parent.height - 12px;
-        background: #188cff;
+        background: Theme.accent;
     }
 
     nav-label := Text {
@@ -57,7 +58,7 @@ component NavRow inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text: root.label;
-        color: root.selected ? #dde3ec : #8a92a3;
+        color: root.selected ? Theme.ink : Theme.ink-2;
         font-size: 18px;
         font-weight: root.selected ? 600 : 400;
         vertical-alignment: center;
@@ -111,7 +112,7 @@ export component SettingsPage inherits Rectangle {
     // Active section index (sidebar selection). 0 = Audio, default.
     in-out property <int> selected-section: 0;
 
-    background: #171a1f;
+    background: Theme.panel-lo;
 
     HorizontalLayout {
         spacing: 0px;
@@ -120,7 +121,7 @@ export component SettingsPage inherits Rectangle {
         Rectangle {
             min-width: 200px;
             horizontal-stretch: 0;
-            background: #1a1d22;
+            background: Theme.panel;
 
             VerticalLayout {
                 padding-top: 16px;
@@ -136,7 +137,7 @@ export component SettingsPage inherits Rectangle {
                         padding-left: 16px;
                         Text {
                             text: @tr("nav-group-system");
-                            color: #6b7786;
+                            color: Theme.ink-3;
                             font-size: 18px;
                             font-weight: 700;
                             letter-spacing: 0.8px;
@@ -187,7 +188,7 @@ export component SettingsPage inherits Rectangle {
                         padding-left: 16px;
                         Text {
                             text: @tr("nav-group-project");
-                            color: #6b7786;
+                            color: Theme.ink-3;
                             font-size: 18px;
                             font-weight: 700;
                             letter-spacing: 0.8px;
@@ -209,13 +210,13 @@ export component SettingsPage inherits Rectangle {
         // Vertical hairline divider between sidebar and content area.
         Rectangle {
             width: 1px;
-            background: #25292f;
+            background: Theme.panel-hi;
         }
 
         // ── Content area ──────────────────────────────────────────
         Rectangle {
             horizontal-stretch: 1;
-            background: #171a1f;
+            background: Theme.panel-lo;
 
             VerticalLayout {
                 padding: 24px;
@@ -231,14 +232,14 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 5 ? @tr("title-section-integrations")
                         : root.selected-section == 6 ? @tr("title-section-io-bindings")
                         : @tr("title-section-project-meta");
-                    color: #dde3ec;
+                    color: Theme.ink;
                     font-size: 18px;
                     font-weight: 700;
                 }
 
                 // Hairline separator under the title.
                 Rectangle {
-                    background: #25292f;
+                    background: Theme.panel-hi;
                     height: 1px;
                 }
 

@@ -23,25 +23,25 @@ export component DualMixerStripView inherits Rectangle {
 
     width: 2 * root.half + 3 * root.pad;
     border-radius: 6px;
-    background: #0c0f14;
+    background: Theme.well;
     border-width: 1px;
-    border-color: #1f2530;
+    border-color: Theme.hair-2;
 
     // ── GLOBAL half: tinted, so it never reads as the chain's own fader ──
     Rectangle {
         x: root.pad; y: root.pad;
         width: root.half; height: root.faders-height;
         border-radius: 5px;
-        background: #121c2a;
+        background: Theme.accent-soft;
         border-width: 1px;
-        border-color: #22324a;
+        border-color: Theme.accent-line;
     }
 
     Text {
         x: root.pad; y: root.pad + 4px;
         width: root.half; height: root.caption-height - 6px;
         text: @tr("label-mixer-global");
-        color: #7fa6d6;
+        color: Theme.accent;
         font-family: "Bebas Neue";
         font-size: Theme.min-font;
         letter-spacing: 1.5px;

@@ -5,6 +5,7 @@
 // the rows never bleed into the next card. #717 adds the DI stream's own row
 // above them while the loop plays.
 
+import { Theme } from "../theme.slint";
 import { ProjectChainItem } from "../models.slint";
 
 export component ChainRowMeters inherits Rectangle {
@@ -43,31 +44,31 @@ export component ChainRowMeters inherits Rectangle {
             Text {
                 x: 0px; y: 0px; width: 140px; height: parent.height;
                 text: "DI";
-                font-size: 18px; font-weight: 800; color: #6e8aff;
+                font-size: 18px; font-weight: 800; color: Theme.accent;
                 overflow: elide;
                 horizontal-alignment: right; vertical-alignment: center;
             }
             Rectangle {
                 x: 144px; y: root.bar-y; width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: root.chain.di_meter.in_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-color: root.chain.di_meter.in_dbfs > 0.0 ? Theme.bad : Theme.accent-line;
                 border-radius: 2px;
-                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
-                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                background: @linear-gradient(90deg, Theme.warn.with-alpha(0.38) 0%, Theme.warn 6%, Theme.warn 35%,
+                    Theme.ok 50%, Theme.ok 88%, Theme.bad 95%, Theme.bad 100%);
                 Rectangle {
                     x: parent.width * Math.max(0.0, Math.min(1.0, (root.chain.di_meter.in_dbfs + 60.0) / 60.0));
                     width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.chain.di_meter.in_dbfs + 60.0) / 60.0)));
                     height: parent.height;
-                    background: #0b0e13e8;
+                    background: Theme.groove;
                 }
             }
             Text {
                 x: 278px; y: 0px; width: 58px; height: parent.height;
                 text: root.chain.di_meter.in_dbfs <= -119.0 ? "—" : Math.round(root.chain.di_meter.in_dbfs) + " dB";
                 font-size: 18px; font-weight: 700;
-                color: root.chain.di_meter.in_dbfs <= -119.0 ? #6b7280
-                     : root.chain.di_meter.in_dbfs > -3.0 ? #f87171
-                     : root.chain.di_meter.in_dbfs >= -30.0 ? #4ade80 : #facc15;
+                color: root.chain.di_meter.in_dbfs <= -119.0 ? Theme.ink-3
+                     : root.chain.di_meter.in_dbfs > -3.0 ? Theme.bad
+                     : root.chain.di_meter.in_dbfs >= -30.0 ? Theme.ok : Theme.warn;
                 vertical-alignment: center;
             }
         }
@@ -76,31 +77,31 @@ export component ChainRowMeters inherits Rectangle {
             Text {
                 x: 0px; y: 0px; width: 140px; height: parent.height;
                 text: "DI OUT";
-                font-size: 18px; font-weight: 800; color: #6e8aff;
+                font-size: 18px; font-weight: 800; color: Theme.accent;
                 overflow: elide;
                 horizontal-alignment: right; vertical-alignment: center;
             }
             Rectangle {
                 x: 150px; y: root.bar-y; width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: root.chain.di_meter.out_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-color: root.chain.di_meter.out_dbfs > 0.0 ? Theme.bad : Theme.accent-line;
                 border-radius: 2px;
-                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
-                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                background: @linear-gradient(90deg, Theme.warn.with-alpha(0.38) 0%, Theme.warn 6%, Theme.warn 35%,
+                    Theme.ok 50%, Theme.ok 88%, Theme.bad 95%, Theme.bad 100%);
                 Rectangle {
                     x: parent.width * Math.max(0.0, Math.min(1.0, (root.chain.di_meter.out_dbfs + 60.0) / 60.0));
                     width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.chain.di_meter.out_dbfs + 60.0) / 60.0)));
                     height: parent.height;
-                    background: #0b0e13e8;
+                    background: Theme.groove;
                 }
             }
             Text {
                 x: 284px; y: 0px; width: 62px; height: parent.height;
                 text: root.chain.di_meter.out_dbfs <= -119.0 ? "—" : Math.round(root.chain.di_meter.out_dbfs) + " dB";
                 font-size: 18px; font-weight: 700;
-                color: root.chain.di_meter.out_dbfs <= -119.0 ? #6b7280
-                     : root.chain.di_meter.out_dbfs > -3.0 ? #f87171
-                     : root.chain.di_meter.out_dbfs >= -30.0 ? #4ade80 : #facc15;
+                color: root.chain.di_meter.out_dbfs <= -119.0 ? Theme.ink-3
+                     : root.chain.di_meter.out_dbfs > -3.0 ? Theme.bad
+                     : root.chain.di_meter.out_dbfs >= -30.0 ? Theme.ok : Theme.warn;
                 vertical-alignment: center;
             }
         }
@@ -128,7 +129,7 @@ export component ChainRowMeters inherits Rectangle {
                     text: stream.in_label;
                     font-size: 18px;
                     font-weight: 700;
-                    color: #9ca3af;
+                    color: Theme.ink-3;
                     overflow: elide;
                     horizontal-stretch: 1;
                     horizontal-alignment: right;
@@ -138,7 +139,7 @@ export component ChainRowMeters inherits Rectangle {
                     text: stream.in_channels == "" ? "IN" : "IN " + stream.in_channels;
                     font-size: 18px;
                     font-weight: 800;
-                    color: #38bdf8;
+                    color: Theme.in;
                     horizontal-stretch: 0;
                     vertical-alignment: center;
                 }
@@ -147,16 +148,16 @@ export component ChainRowMeters inherits Rectangle {
                 x: 284px; y: root.bar-y;
                 width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-color: stream.in_dbfs > 0.0 ? Theme.bad : Theme.hair;
                 border-radius: 2px;
                 background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
+                    Theme.warn.with-alpha(0.38) 0%,
+                    Theme.warn 6%,
+                    Theme.warn 35%,
+                    Theme.ok 50%,
+                    Theme.ok 88%,
+                    Theme.bad 95%,
+                    Theme.bad 100%);
                 Rectangle {
                     x: parent.width * Math.max(0.0,
                         Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0));
@@ -164,7 +165,7 @@ export component ChainRowMeters inherits Rectangle {
                     width: parent.width * (1.0 - Math.max(0.0,
                         Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0)));
                     height: parent.height;
-                    background: #0b0e13e8;
+                    background: Theme.groove;
                 }
             }
             Text {
@@ -175,10 +176,10 @@ export component ChainRowMeters inherits Rectangle {
                     : Math.round(stream.in_dbfs) + " dB";
                 font-size: 18px;
                 font-weight: 700;
-                color: stream.in_dbfs <= -119.0 ? #6b7280
-                     : stream.in_dbfs > -3.0     ? #f87171
-                     : stream.in_dbfs >= -30.0   ? #4ade80
-                     :                              #facc15;
+                color: stream.in_dbfs <= -119.0 ? Theme.ink-3
+                     : stream.in_dbfs > -3.0     ? Theme.bad
+                     : stream.in_dbfs >= -30.0   ? Theme.ok
+                     :                              Theme.warn;
                 horizontal-alignment: left;
                 vertical-alignment: center;
             }
@@ -199,7 +200,7 @@ export component ChainRowMeters inherits Rectangle {
                     text: stream.out_label;
                     font-size: 18px;
                     font-weight: 700;
-                    color: #9ca3af;
+                    color: Theme.ink-3;
                     overflow: elide;
                     horizontal-stretch: 1;
                     horizontal-alignment: right;
@@ -209,7 +210,7 @@ export component ChainRowMeters inherits Rectangle {
                     text: stream.out_channels == "" ? "OUT" : "OUT " + stream.out_channels;
                     font-size: 18px;
                     font-weight: 800;
-                    color: #a78bfa;
+                    color: Theme.out;
                     horizontal-stretch: 0;
                     vertical-alignment: center;
                 }
@@ -218,16 +219,16 @@ export component ChainRowMeters inherits Rectangle {
                 x: 320px; y: root.bar-y;
                 width: 130px; height: 12px;
                 border-width: 1px;
-                border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
+                border-color: stream.out_dbfs > 0.0 ? Theme.bad : Theme.hair;
                 border-radius: 2px;
                 background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
+                    Theme.warn.with-alpha(0.38) 0%,
+                    Theme.warn 6%,
+                    Theme.warn 35%,
+                    Theme.ok 50%,
+                    Theme.ok 88%,
+                    Theme.bad 95%,
+                    Theme.bad 100%);
                 Rectangle {
                     x: parent.width * Math.max(0.0,
                         Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0));
@@ -235,7 +236,7 @@ export component ChainRowMeters inherits Rectangle {
                     width: parent.width * (1.0 - Math.max(0.0,
                         Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0)));
                     height: parent.height;
-                    background: #0b0e13e8;
+                    background: Theme.groove;
                 }
             }
             Text {
@@ -246,10 +247,10 @@ export component ChainRowMeters inherits Rectangle {
                     : Math.round(stream.out_dbfs) + " dB";
                 font-size: 18px;
                 font-weight: 700;
-                color: stream.out_dbfs <= -119.0 ? #6b7280
-                     : stream.out_dbfs > -3.0     ? #f87171
-                     : stream.out_dbfs >= -30.0   ? #4ade80
-                     :                               #facc15;
+                color: stream.out_dbfs <= -119.0 ? Theme.ink-3
+                     : stream.out_dbfs > -3.0     ? Theme.bad
+                     : stream.out_dbfs >= -30.0   ? Theme.ok
+                     :                               Theme.warn;
                 horizontal-alignment: left;
                 vertical-alignment: center;
             }

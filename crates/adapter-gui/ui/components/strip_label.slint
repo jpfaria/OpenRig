@@ -13,14 +13,14 @@ export component StripLabel inherits Rectangle {
 
     label-box := Rectangle {
         border-radius: 4px;
-        background: #121720;
+        background: Theme.panel-lo;
         clip: true;
 
         Text {
             x: 4px; y: 6px;
             width: parent.width - 8px; height: 30px;
             text: root.name;
-            color: #e5ebf2;
+            color: Theme.ink;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 0.5px;
@@ -36,7 +36,7 @@ export component StripLabel inherits Rectangle {
             x: 4px; y: 38px;
             width: parent.width - 8px; height: 22px;
             text: root.detail;
-            color: root.is-input ? #7fc4ff : #ffb86b;
+            color: root.is-input ? Theme.in : Theme.out;
             font-family: "Bebas Neue";
             font-size: Theme.min-font;
             letter-spacing: 1.0px;
@@ -49,16 +49,16 @@ export component StripLabel inherits Rectangle {
         y: -self.height - 2px;
         width: parent.width + 4px;
         height: full-name.preferred-height + 8px;
-        background: #11141aef;
+        background: Theme.panel-lo.with-alpha(0.94);
         border-width: 1px;
-        border-color: #3b4250;
+        border-color: Theme.field-line;
         border-radius: 4px;
 
         full-name := Text {
             x: 4px; y: 4px;
             width: parent.width - 8px;
             text: root.name;
-            color: #dde4ef;
+            color: Theme.ink;
             font-size: 18px;
             wrap: word-wrap;
             horizontal-alignment: center;

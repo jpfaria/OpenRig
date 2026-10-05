@@ -5,6 +5,7 @@
 // second click on the open one closes it. Every section opens collapsed. The
 // bodies are `if`-built, so a closed section leaves nothing in the tree.
 
+import { Theme } from "../theme.slint";
 import { StreamMeter } from "../models.slint";
 import { SectionToggle } from "section_toggle.slint";
 import { CompactChainMixer } from "compact_chain_mixer.slint";
@@ -24,8 +25,8 @@ component SectionHeader inherits Rectangle {
     in property <bool> expanded;
     callback toggled(bool);
     height: 36px;
-    background: #0c0e12;
-    Rectangle { x: 0; y: 0; width: parent.width; height: 1px; background: #1c2028; }
+    background: Theme.well;
+    Rectangle { x: 0; y: 0; width: parent.width; height: 1px; background: Theme.panel; }
     toggle := SectionToggle {
         x: 0; y: 1px;
         width: parent.width; height: parent.height - 1px;
@@ -42,7 +43,7 @@ component SectionBody inherits Rectangle {
     in property <length> content-height;
     in property <length> body-max-height;
     height: min(root.content-height + 16px, root.body-max-height);
-    background: #0c0e12;
+    background: Theme.well;
     Flickable {
         width: 100%; height: 100%;
         viewport-width: self.width;
@@ -104,7 +105,7 @@ export component CompactChainSections inherits Rectangle {
         }
     }
 
-    background: #0c0e12;
+    background: Theme.well;
 
     layout := VerticalLayout {
         x: 0; y: 0;

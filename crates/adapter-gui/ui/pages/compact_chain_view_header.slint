@@ -1,4 +1,5 @@
 // Responsibility: renders the header of the compact chain view.
+import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { ChainActionIcon } from "../components/chain_chips.slint";
@@ -32,8 +33,8 @@ export component CompactChainViewHeader inherits Rectangle {
     callback remove-chain(int);
 
     height: 62px;
-    background: #12141a;
-    border-width: 0px; border-color: #252830;
+    background: Theme.panel-lo;
+    border-width: 0px; border-color: Theme.hair-2;
 
     // Chain power toggle (sprite)
     PowerSwitch {
@@ -93,13 +94,13 @@ export component CompactChainViewHeader inherits Rectangle {
         width: min(lat-lbl.preferred-width + lat-ms.preferred-width + 14px, 80px);
         height: 22px;
         border-radius: 4px;
-        background: root.latency-ms < 10.0 ? #4ade8018
-                  : root.latency-ms < 20.0 ? #facc1518
-                  : #f8717118;
+        background: root.latency-ms < 10.0 ? Theme.ok.with-alpha(0.09)
+                  : root.latency-ms < 20.0 ? Theme.warn.with-alpha(0.09)
+                  : Theme.bad.with-alpha(0.09);
         border-width: 1px;
-        border-color: root.latency-ms < 10.0 ? #4ade8055
-                    : root.latency-ms < 20.0 ? #facc1555
-                    : #f8717155;
+        border-color: root.latency-ms < 10.0 ? Theme.ok.with-alpha(0.33)
+                    : root.latency-ms < 20.0 ? Theme.warn.with-alpha(0.33)
+                    : Theme.bad.with-alpha(0.33);
 
         lat-lbl := Text {
             x: 5px;
@@ -107,9 +108,9 @@ export component CompactChainViewHeader inherits Rectangle {
             width: self.preferred-width;
             height: parent.height;
             text: @tr("label-lat");
-            color: root.latency-ms < 10.0 ? #4ade8099
-                 : root.latency-ms < 20.0 ? #facc1599
-                 : #f8717199;
+            color: root.latency-ms < 10.0 ? Theme.ok.with-alpha(0.60)
+                 : root.latency-ms < 20.0 ? Theme.warn.with-alpha(0.60)
+                 : Theme.bad.with-alpha(0.60);
             font-size: 18px;
             font-weight: 700;
             horizontal-alignment: right;
@@ -123,9 +124,9 @@ export component CompactChainViewHeader inherits Rectangle {
             height: parent.height;
             overflow: elide;
             text: Math.round(root.latency-ms) + "ms";
-            color: root.latency-ms < 10.0 ? #4ade80
-                 : root.latency-ms < 20.0 ? #facc15
-                 : #f87171;
+            color: root.latency-ms < 10.0 ? Theme.ok
+                 : root.latency-ms < 20.0 ? Theme.warn
+                 : Theme.bad;
             font-size: 18px;
             font-weight: 800;
             vertical-alignment: center;

@@ -52,14 +52,14 @@ export component WaveformView inherits Rectangle {
         x: 0;
         width: root.width * root.sel-start;
         height: root.height;
-        background: #000000b0;
+        background: Theme.scrim;
     }
 
     Rectangle {
         x: root.width * root.sel-end;
         width: root.width - self.x;
         height: root.height;
-        background: #000000b0;
+        background: Theme.scrim;
     }
 
     // The playhead: drawn over the envelope and under the handles, so a drag
@@ -68,7 +68,7 @@ export component WaveformView inherits Rectangle {
         x: root.width * root.playhead - self.width / 2;
         width: 2px;
         height: root.height;
-        background: #ffffff;
+        background: Theme.ink;
     }
 
     start-handle := Rectangle {

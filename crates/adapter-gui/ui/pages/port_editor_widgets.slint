@@ -1,4 +1,5 @@
 // Responsibility: renders the footer button the port editors share.
+import { Theme } from "../theme.slint";
 // Footer button shared by the I/O port editor (#85). Same visual language as
 // the insert editor's footer.
 
@@ -10,9 +11,9 @@ export component PortEditorFooterButton inherits Rectangle {
     // #954: the button follows its translated label.
     width: max(96px, lbl.preferred-width + 24px);
     height: 36px;
-    background: root.primary ? #188cff : #2a2f38;
+    background: root.primary ? Theme.accent : Theme.panel-hi;
     border-width: 1px;
-    border-color: root.primary ? #45a7ff : #41464f;
+    border-color: root.primary ? Theme.accent : Theme.field-line;
     border-radius: 6px;
     accessible-role: button;
     accessible-label: root.label;
@@ -22,7 +23,7 @@ export component PortEditorFooterButton inherits Rectangle {
         width: parent.width;
         height: parent.height;
         text: root.label;
-        color: #f4f7fb;
+        color: Theme.ink;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 18px;

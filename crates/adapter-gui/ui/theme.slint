@@ -1,4 +1,6 @@
-// Responsibility: holds the palette the UI draws with.
+// Responsibility: holds the design tokens the UI draws with.
+import { Palette as SystemPalette } from "std-widgets.slint";
+
 export struct Palette {
     pure-black: brush,
     deep-space: brush,
@@ -49,25 +51,121 @@ export global Theme {
     // Non-numeric knob positions (e.g. BLUES / JAZZ) around a selector knob.
     out property <length> knob-option-font: 10px;
 
-    in property <Palette> palette: {
-        pure-black: #05070b,
-        deep-space: #0a0d12,
-        card: #0f131b,
-        card-secondary: #151b25,
-        row-start: #1b2430,
-        row-end: #131922,
-        border: #232c3a,
-        border-strong: #364457,
-        text-primary: #ffffff,
-        text-secondary: #dde4ef,
-        text-muted: #93a1b7,
-        accent-start: #22a7ff,
-        accent-end: #0d7eff,
-        accent-border: #62c1ff,
-        secondary-start: #1a212c,
-        secondary-end: #121821,
-        secondary-border: #48566c,
-        background-gradient: @radial-gradient(circle, #123a7228 0%, #05070b 70%),
+    // #398: the app follows the system light/dark scheme; an unknown scheme
+    // keeps the dark look the app always had.
+    out property <bool> dark: SystemPalette.color-scheme != ColorScheme.light;
+
+    // Surfaces, from the page behind everything up to the raised panel.
+    out property <color> page: dark ? #0b0e12 : #dde2e8;
+    out property <color> chrome: dark ? #12161c : #1a2029;
+    out property <color> chrome-2: dark ? #1a2029 : #232b36;
+    out property <color> chrome-line: dark ? #07090c : #10151b;
+    out property <color> chrome-fg: #e2e7ee;
+    out property <color> chrome-fg-2: #8b96a5;
+    out property <color> panel: dark ? #232a33 : #e4e8ee;
+    out property <color> panel-hi: dark ? #2a323c : #eef1f5;
+    out property <color> panel-lo: dark ? #1d232b : #d6dce4;
+    out property <color> well: dark ? #161b21 : #cdd4dd;
+    out property <color> field: dark ? #11151a : #fbfcfd;
+
+    // Lines stay subtle: hairlines, the field outline, the dark groove.
+    out property <color> hair: dark ? #2d343e : #cdd3db;
+    out property <color> hair-2: dark ? #262c35 : #dbe0e6;
+    out property <color> field-line: dark ? #353e49 : #c0c7d0;
+    out property <color> groove: dark ? #0f1318 : #c3cad3;
+    out property <color> ktrack: dark ? #3a434f : #c3cad3;
+    out property <color> wire: dark ? #8b95a3 : #5d5d62;
+
+    // Text, strongest first.
+    out property <color> ink: dark ? #e8ecf1 : #18202b;
+    out property <color> ink-2: dark ? #aab3bf : #465262;
+    out property <color> ink-3: dark ? #7a8592 : #75808f;
+
+    // Overlays.
+    out property <color> scrim: dark ? #00000099 : #0e121773;
+    out property <color> hover: dark ? #ffffff0d : #0000000a;
+    out property <color> shadow: dark ? #000000b3 : #141e2d52;
+
+    // The launcher hero sits on its photo in both schemes.
+    out property <color> hero-bg: #1b1d22;
+    out property <color> hero-fg: #eef1f5;
+    out property <color> hero-fg-2: #c9d1dc;
+    out property <color> hero-line: #34383f;
+    out property <color> hero-shade-top: #17191dcc;
+    out property <color> hero-shade-mid: #17191de6;
+    out property <color> hero-shade-bottom: #17191dd9;
+
+    // The tuner LCD is a physical display, the same in both schemes.
+    out property <color> lcd-off: #776633;
+    out property <color> lcd-in: #ccff66;
+    out property <color> lcd-near: #ccaa66;
+    out property <color> lcd-ink: #1a1206;
+    out property <color> lcd-ink-2: #2a1f0a;
+    out property <color> lcd-glass: #00000044;
+    out property <color> needle-off: #4a3a1a;
+    out property <color> needle-in: #2a6633;
+    out property <color> needle-near: #b87a1a;
+    out property <color> needle-far: #a02828;
+
+    // Accent and state.
+    out property <color> accent: #f28c1e;
+    out property <color> accent-soft: #f28c1e24;
+    out property <color> accent-line: #f28c1e66;
+    out property <color> on-accent: #1a1206;
+    out property <color> ok: #2f9a55;
+    out property <color> warn: #d9b43a;
+    out property <color> bad: #c8443e;
+    out property <color> ok-soft: #2f9a552e;
+    out property <color> warn-soft: #d9b43a2e;
+    out property <color> bad-soft: #c8443e2e;
+    out property <color> in: #2b8fd6;
+    out property <color> out: #8a4fe0;
+
+    // Block categories.
+    out property <color> c-filter: #c9a100;
+    out property <color> c-dyn: #2f6fe0;
+    out property <color> c-gain: #e8671b;
+    out property <color> c-amp: #d23b2d;
+    out property <color> c-pre: #b8862a;
+    out property <color> c-cab: #7c6d5a;
+    out property <color> c-mod: #8a4fe0;
+    out property <color> c-dly: #0f9c8e;
+    out property <color> c-rvb: #2b8fd6;
+    out property <color> c-vol: #69717f;
+
+    // Plugin backends.
+    out property <color> b-nam: #2b8fd6;
+    out property <color> b-native: #2f9a55;
+    out property <color> b-ir: #e8671b;
+    out property <color> b-lv2: #8a4fe0;
+    out property <color> b-vst3: #d0457f;
+
+    // Line weights.
+    out property <length> line: 1px;
+    out property <length> wire-width: 1.25px;
+    out property <length> mark: 2px;
+    out property <length> track: 3px;
+
+    // The pre-#398 names, kept as aliases of the tokens above.
+    out property <Palette> palette: {
+        pure-black: page,
+        deep-space: page,
+        card: panel,
+        card-secondary: panel-hi,
+        row-start: panel-hi,
+        row-end: panel,
+        border: hair,
+        border-strong: field-line,
+        text-primary: ink,
+        text-secondary: ink-2,
+        text-muted: ink-3,
+        accent-start: accent,
+        accent-end: accent,
+        accent-border: accent,
+        secondary-start: panel-hi,
+        secondary-end: panel-lo,
+        secondary-border: field-line,
+        background-gradient: page,
     };
 
     in property <Spaces> spaces: {

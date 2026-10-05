@@ -1,4 +1,5 @@
 // Responsibility: renders the tabs that pick which part the library lists.
+import { Theme } from "../theme.slint";
 import { PlayerBridge } from "player_globals.slint";
 
 // One part a player can practise over: solo, rhythm, bass, acoustic.
@@ -10,9 +11,9 @@ component PlayerCategoryTab inherits Rectangle {
     min-width: 0;
     horizontal-stretch: 1;
     border-radius: 5px;
-    background: root.active ? #ccaa6640 : (ta.has-hover ? #1b2230 : transparent);
+    background: root.active ? Theme.warn.with-alpha(0.25) : (ta.has-hover ? Theme.panel-hi : transparent);
     border-width: 1px;
-    border-color: root.active ? #ccaa66 : #2b3340;
+    border-color: root.active ? Theme.warn : Theme.hair;
 
     Text {
         x: 6px;
@@ -23,7 +24,7 @@ component PlayerCategoryTab inherits Rectangle {
             : root.key == "bass" ? @tr("label-category-bass")
             : root.key == "acoustic" ? @tr("label-category-acoustic")
             : @tr("label-category-other");
-        color: root.active ? #ccaa66 : #c4ccd8;
+        color: root.active ? Theme.warn : Theme.ink;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 1.4px;

@@ -10,6 +10,7 @@
 // showing the post-reload counts. Lives in the same section because
 // the action is bound to the plugins directory above it.
 
+import { Theme } from "../../theme.slint";
 import { Button } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
@@ -32,7 +33,7 @@ export component SectionSystemPaths inherits Rectangle {
             height: 32px;
             presets-label := Text {
                 text: @tr("label-presets-path");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -41,7 +42,7 @@ export component SectionSystemPaths inherits Rectangle {
                 text: SettingsBridge.presets-path == ""
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.presets-path;
-                color: SettingsBridge.presets-path == "" ? #8a92a3 : #dde3ec;
+                color: SettingsBridge.presets-path == "" ? Theme.ink-2 : Theme.ink;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -64,7 +65,7 @@ export component SectionSystemPaths inherits Rectangle {
             height: 32px;
             plugins-label := Text {
                 text: @tr("label-plugins-path");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -73,7 +74,7 @@ export component SectionSystemPaths inherits Rectangle {
                 text: SettingsBridge.plugins-path == ""
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.plugins-path;
-                color: SettingsBridge.plugins-path == "" ? #8a92a3 : #dde3ec;
+                color: SettingsBridge.plugins-path == "" ? Theme.ink-2 : Theme.ink;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -96,7 +97,7 @@ export component SectionSystemPaths inherits Rectangle {
             height: 32px;
             evaluations-label := Text {
                 text: @tr("label-evaluations-path");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -105,7 +106,7 @@ export component SectionSystemPaths inherits Rectangle {
                 text: SettingsBridge.evaluations-path == ""
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.evaluations-path;
-                color: SettingsBridge.evaluations-path == "" ? #8a92a3 : #dde3ec;
+                color: SettingsBridge.evaluations-path == "" ? Theme.ink-2 : Theme.ink;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -128,7 +129,7 @@ export component SectionSystemPaths inherits Rectangle {
             height: 32px;
             backing-tracks-label := Text {
                 text: @tr("label-backing-tracks-path");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -137,7 +138,7 @@ export component SectionSystemPaths inherits Rectangle {
                 text: SettingsBridge.backing-tracks-path == ""
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.backing-tracks-path;
-                color: SettingsBridge.backing-tracks-path == "" ? #8a92a3 : #dde3ec;
+                color: SettingsBridge.backing-tracks-path == "" ? Theme.ink-2 : Theme.ink;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -160,7 +161,7 @@ export component SectionSystemPaths inherits Rectangle {
             height: 32px;
             catalog-label := Text {
                 text: @tr("label-plugin-catalog");
-                color: #cfd5e0;
+                color: Theme.ink;
                 font-size: 18px;
                 width: root.label-width;
                 vertical-alignment: center;
@@ -169,7 +170,7 @@ export component SectionSystemPaths inherits Rectangle {
                 text: SettingsBridge.plugin-catalog-status == ""
                     ? @tr("status-plugin-catalog-idle")
                     : SettingsBridge.plugin-catalog-status;
-                color: SettingsBridge.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
+                color: SettingsBridge.plugin-catalog-status == "" ? Theme.ink-2 : Theme.ink;
                 font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;

@@ -1,4 +1,5 @@
 // Responsibility: renders the chains page.
+import { Theme } from "../theme.slint";
 import { ListView, ScrollView } from "std-widgets.slint";
 import { BlockEditorBridge } from "../block_editor_globals.slint";
 import { ProjectChainItem, ChainRigNav, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
@@ -66,14 +67,14 @@ export component ProjectChainsPage inherits Rectangle {
     callback reorder-chain-block(int, int, int);
     callback show-plugin-info(string, string);  // effect_type, model_id
 
-    background: #1f2023;
+    background: Theme.panel;
 
     Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: @linear-gradient(135deg, #0d1a2e 0%, #08090d 65%);
+        background: Theme.page;
 
         TouchArea {
             x: 0px;
@@ -103,7 +104,7 @@ export component ProjectChainsPage inherits Rectangle {
             width: 360px;
             height: 36px;
             text: root.project-title;
-            color: #f1f4f8;
+            color: Theme.ink;
             font-size: 28px;
             font-weight: 700;
             vertical-alignment: center;
@@ -191,7 +192,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 80px;
             y: 14px;
             icon: @image-url("../assets/save.svg");
-            tint: root.project-dirty ? #f3c64f : #eef2f8;
+            tint: root.project-dirty ? Theme.warn : Theme.ink;
             tooltip: @tr("tooltip-save");
             clicked => { root.save-project(); }
         }
@@ -211,7 +212,7 @@ export component ProjectChainsPage inherits Rectangle {
         y: 78px;
         width: parent.width - 48px;
         height: 1px;
-        background: #34383f;
+        background: Theme.ktrack;
     }
 
     TouchArea {
@@ -305,7 +306,7 @@ export component ProjectChainsPage inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #0405068a;
+        background: Theme.scrim;
 
         // Same use-panel-editor logic as BlockEditorWindow
         property <bool> use-panel-editor:
@@ -394,7 +395,7 @@ export component ProjectChainsPage inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #0405069a;
+        background: Theme.scrim;
 
         TouchArea {
             x: 0px;
@@ -411,9 +412,9 @@ export component ProjectChainsPage inherits Rectangle {
             y: (parent.height - self.height) / 2;
             width: 472px;
             height: Math.min(parent.height - 80px, self.content-height + 40px);
-            background: #171a20f8;
+            background: Theme.panel.with-alpha(0.97);
             border-width: 1px;
-            border-color: #2d3340;
+            border-color: Theme.hair;
             border-radius: 6px;
 
             ScrollView {

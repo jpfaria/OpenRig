@@ -44,7 +44,7 @@ export component GraphNodeCard inherits Rectangle {
     property <bool> enabled: !root.node.bypass;
     property <bool> unavailable: root.is-block && root.node.block.unavailable;
     // The picker's default accent (block_icon.rs), which the split entries use.
-    property <color> routing-accent: #7fb0ff;
+    property <color> routing-accent: Theme.in;
     property <length> disc: 44px * root.zoom;
     // BlockChip geometry (100×100 tile: 22px label, 6px gap, 68px art,
     // 12px LED 10px above the bottom), scaled by the zoom.
@@ -173,7 +173,7 @@ export component GraphNodeCard inherits Rectangle {
             width: 16px * root.zoom;
             height: 16px * root.zoom;
             source: @image-url("../assets/close.svg");
-            colorize: remove-ta.has-hover ? #ffffff : #8a94a2;
+            colorize: remove-ta.has-hover ? Theme.ink : Theme.ink-2;
             visible: root.hovered || remove-ta.has-hover;
         }
     }
@@ -188,7 +188,7 @@ export component GraphNodeCard inherits Rectangle {
         width: root.disc;
         height: root.disc;
         border-radius: root.disc / 2;
-        background: #171a20;
+        background: Theme.panel;
         border-width: 2px;
         border-color: root.routing-accent;
 
@@ -227,13 +227,13 @@ export component GraphNodeCard inherits Rectangle {
         width: min(parent.width, 56px * root.zoom);
         height: max(22px, 30px * root.zoom);
         border-radius: 6px * root.zoom;
-        background: #171a20;
+        background: Theme.panel;
         border-width: 2px;
-        border-color: #5d6b80;
+        border-color: Theme.field-line;
 
         Text {
             text: root.face-label;
-            color: #f5f7fb;
+            color: Theme.ink;
             font-size: Theme.min-font;
             font-weight: 700;
             letter-spacing: 1px;

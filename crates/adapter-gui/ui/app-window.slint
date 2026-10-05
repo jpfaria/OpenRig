@@ -1,6 +1,7 @@
 // Responsibility: hosts the desktop application window.
 import "fonts/CooperHewitt-Semibold.ttf";
 import { ChainEditorBridge } from "chain_editor_globals.slint";
+import { Theme } from "theme.slint";
 import { ChainGraphBridge } from "chain_graph_globals.slint";
 import { ChainGraphOverlayState } from "chain_graph_overlay_globals.slint";
 import { AnalyzerBridge } from "analyzer_globals.slint";
@@ -220,7 +221,7 @@ export component AppWindow inherits Window {
     min-height: 540px;
     preferred-width: 1324px;
     preferred-height: 640px;
-    background: #040708;
+    background: Theme.page;
     if !touch-optimized : DesktopMain {
         width: 100%;
         height: 100%;

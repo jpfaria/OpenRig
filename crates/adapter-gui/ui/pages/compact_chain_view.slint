@@ -1,4 +1,5 @@
 // Responsibility: renders the compact chain view.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter } from "../models.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
@@ -120,7 +121,7 @@ export component CompactChainViewPage inherits Rectangle {
     private property <float> drag-current-y: 0;
     private property <bool> drag-active: false;
 
-    background: #0a0c10;
+    background: Theme.well;
 
     // Header — preset select + scene bar + chain action cluster.
     // Extracted to `compact_chain_view_header.slint` (file-size cap).
@@ -168,7 +169,7 @@ export component CompactChainViewPage inherits Rectangle {
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: #3366cc;
+                background: Theme.accent;
                 border-radius: 1px;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
             }
@@ -178,12 +179,12 @@ export component CompactChainViewPage inherits Rectangle {
                 x: (parent.width - 24px) / 2; y: 0;
                 width: 24px; height: 22px;
                 border-radius: 11px;
-                background: #3366cc;
+                background: Theme.accent;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: @tr("+"); color: #ffffff; font-size: 18px; font-weight: 800;
+                    text: @tr("+"); color: Theme.on-accent; font-size: 18px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -227,13 +228,13 @@ export component CompactChainViewPage inherits Rectangle {
             Rectangle {
                 x: 0; y: 0;
                 width: 8px; height: parent.height;
-                background: drag-ta.has-hover ? #ffffff15 : #ffffff08;
+                background: drag-ta.has-hover ? Theme.hover : Theme.hover;
                 border-radius: 2px;
 
                 // Grip dots
-                Rectangle { x: 2px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
-                Rectangle { x: 2px; y: parent.height / 2;        width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
-                Rectangle { x: 2px; y: parent.height / 2 + 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 2px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: Theme.ink.with-alpha(0.19); }
+                Rectangle { x: 2px; y: parent.height / 2;        width: 4px; height: 4px; border-radius: 2px; background: Theme.ink.with-alpha(0.19); }
+                Rectangle { x: 2px; y: parent.height / 2 + 10px; width: 4px; height: 4px; border-radius: 2px; background: Theme.ink.with-alpha(0.19); }
             }
 
             drag-ta := TouchArea {
@@ -289,7 +290,7 @@ export component CompactChainViewPage inherits Rectangle {
             width: parent.width - 16px;
             height: 3px;
             border-radius: 1.5px;
-            background: #4488ff;
+            background: Theme.accent;
         }
 
         // Insert slots after each block
@@ -306,7 +307,7 @@ export component CompactChainViewPage inherits Rectangle {
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: #3366cc;
+                background: Theme.accent;
                 border-radius: 1px;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
             }
@@ -315,12 +316,12 @@ export component CompactChainViewPage inherits Rectangle {
                 x: (parent.width - 24px) / 2; y: (parent.height - 22px) / 2;
                 width: 24px; height: 22px;
                 border-radius: 11px;
-                background: #3366cc;
+                background: Theme.accent;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: @tr("+"); color: #ffffff; font-size: 18px; font-weight: 800;
+                    text: @tr("+"); color: Theme.on-accent; font-size: 18px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -358,7 +359,7 @@ export component CompactChainViewPage inherits Rectangle {
     // ── Type picker modal overlay ──
     if root.show-type-picker : Rectangle {
         x: 0; y: 0; width: parent.width; height: parent.height;
-        background: #0405069a;
+        background: Theme.scrim;
 
         TouchArea {
             width: 100%; height: 100%;
@@ -372,9 +373,9 @@ export component CompactChainViewPage inherits Rectangle {
             y: (parent.height - self.height) / 2;
             width: 472px;
             height: Math.min(parent.height - 80px, self.content-height + 40px);
-            background: #171a20f8;
+            background: Theme.panel.with-alpha(0.97);
             border-width: 1px;
-            border-color: #2d3340;
+            border-color: Theme.hair;
             border-radius: 6px;
 
             ScrollView {
@@ -424,7 +425,7 @@ export component CompactChainViewPage inherits Rectangle {
                 && root.compact-blocks[root.model-select-array-index].model-selected-index >= 0
                 && root.compact-blocks[root.model-select-array-index].model-selected-index < root.compact-blocks[root.model-select-array-index].models.length
                 ? root.compact-blocks[root.model-select-array-index].models[root.compact-blocks[root.model-select-array-index].model-selected-index]
-                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: Colors.transparent, panel_text: Colors.transparent, brand_strip_bg: Colors.transparent, model_font: "" };
             select(model-id) => {
                 root.choose-block-model-by-id(root.model-select-chain-index, root.model-select-block-index, model-id);
                 root.model-select-open = false;

@@ -7,6 +7,7 @@
 // row: one chip per path, with "+ path" (spec §11). State lives in
 // ChainGraphOverlayState; a click outside the card closes it.
 
+import { Theme } from "../theme.slint";
 import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
 import { BlockParamGrid } from "block_param_grid.slint";
 
@@ -16,7 +17,7 @@ component EndSegment inherits Rectangle {
     in property <bool> lit;
     callback clicked();
     border-radius: 6px;
-    background: root.lit ? #2f6fed : (ta.has-hover ? #2b3340 : #1b2230);
+    background: root.lit ? Theme.accent : (ta.has-hover ? Theme.ktrack : Theme.panel-hi);
     accessible-role: button;
     accessible-label: root.label;
     accessible-checked: root.lit;
@@ -27,7 +28,7 @@ component EndSegment inherits Rectangle {
     }
     Text {
         text: root.label;
-        color: root.lit ? #ffffff : #d8e0ff;
+        color: root.lit ? Theme.on-accent : Theme.ink;
         font-size: 18px;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -41,12 +42,12 @@ component PathChip inherits Rectangle {
     callback remove();
     width: root.removable ? 64px : 40px;
     border-radius: 6px;
-    background: #1b2230;
+    background: Theme.panel-hi;
     Text {
         x: 12px;
         width: 16px;
         text: root.letter;
-        color: #d8e0ff;
+        color: Theme.ink;
         font-size: 18px;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -57,7 +58,7 @@ component PathChip inherits Rectangle {
         width: 28px;
         height: 28px;
         border-radius: 4px;
-        background: remove-ta.has-hover ? #3a2430 : transparent;
+        background: remove-ta.has-hover ? Theme.bad-soft : transparent;
         accessible-role: button;
         accessible-label: @tr("label-remove-path", root.letter);
         accessible-action-default => { root.remove(); }
@@ -71,7 +72,7 @@ component PathChip inherits Rectangle {
             width: 12px;
             height: 12px;
             source: @image-url("../modules/surrealism-ui/icons/close.svg");
-            colorize: remove-ta.has-hover ? #ff8a8a : #8a8aa2;
+            colorize: remove-ta.has-hover ? Theme.bad : Theme.ink-2;
         }
     }
 }
@@ -105,12 +106,12 @@ export component SplitEditorOverlay inherits Rectangle {
         y: (root.height - self.height) / 2;
         width: Math.max(root.cols * root.cell, 280px, root.has-end-switch ? root.paths-width : 0px) + 32px;
         height: root.chrome-height + root.grid-height;
-        background: #111114;
+        background: Theme.well;
         border-radius: 10px;
         border-width: 1px;
-        border-color: #27272a;
+        border-color: Theme.hair-2;
         drop-shadow-blur: 20px;
-        drop-shadow-color: #000000c0;
+        drop-shadow-color: Theme.shadow;
 
         // Swallow clicks on the card so only the backdrop closes it.
         TouchArea { }
@@ -125,7 +126,7 @@ export component SplitEditorOverlay inherits Rectangle {
                 Text {
                     horizontal-stretch: 1;
                     text: ChainGraphOverlayState.split-editor-title;
-                    color: #f1f4f8;
+                    color: Theme.ink;
                     font-size: 22px;
                     font-weight: 800;
                     vertical-alignment: center;
@@ -133,7 +134,7 @@ export component SplitEditorOverlay inherits Rectangle {
                 Rectangle {
                     width: 88px;
                     border-radius: 6px;
-                    background: close-ta.has-hover ? #2b3340 : #1b2230;
+                    background: close-ta.has-hover ? Theme.ktrack : Theme.panel-hi;
                     accessible-role: button;
                     accessible-label: @tr("btn-close");
                     close-ta := TouchArea {
@@ -142,7 +143,7 @@ export component SplitEditorOverlay inherits Rectangle {
                     }
                     Text {
                         text: @tr("btn-close");
-                        color: #d8e0ff;
+                        color: Theme.ink;
                         font-size: 18px;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -185,7 +186,7 @@ export component SplitEditorOverlay inherits Rectangle {
                 Rectangle {
                     width: 96px;
                     border-radius: 6px;
-                    background: add-path-ta.has-hover ? #2b3340 : #1b2230;
+                    background: add-path-ta.has-hover ? Theme.ktrack : Theme.panel-hi;
                     accessible-role: button;
                     accessible-label: @tr("btn-add-path");
                     accessible-action-default => {
@@ -207,11 +208,11 @@ export component SplitEditorOverlay inherits Rectangle {
                             y: (parent.height - 14px) / 2;
                             height: 14px;
                             source: @image-url("../modules/surrealism-ui/icons/plus.svg");
-                            colorize: #d8e0ff;
+                            colorize: Theme.ink;
                         }
                         Text {
                             text: @tr("btn-add-path");
-                            color: #d8e0ff;
+                            color: Theme.ink;
                             font-size: 18px;
                             vertical-alignment: center;
                         }
@@ -233,7 +234,7 @@ export component SplitEditorOverlay inherits Rectangle {
                 grid-base-y: 0px;
                 grid-row-stride: root.cell;
                 content-height: root.content-height;
-                panel-text: #f1f4f8;
+                panel-text: Theme.ink;
                 update-number(path, value) => {
                     ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
                 }

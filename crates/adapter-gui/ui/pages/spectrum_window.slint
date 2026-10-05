@@ -4,6 +4,7 @@
 //
 // Visual: dark card per row, 63 vertical bars per analyzer (1/6-octave),
 // labelled at decade markers. Peak hold drawn as a 1-px line above each bar.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { AnalyzerBridge } from "../analyzer_globals.slint";
 import { SpectrumRow } from "../analyzer_rows.slint";
@@ -43,12 +44,12 @@ component SpectrumCard inherits Rectangle {
     // (22px lines each) without clipping either against the bars.
     height: 140px;
     border-radius: 8px;
-    background: @linear-gradient(180deg, #14181f 0%, #0e1116 100%);
+    background: @linear-gradient(180deg, Theme.panel-lo 0%, Theme.well 100%);
     border-width: 1px;
-    border-color: #1f2632;
+    border-color: Theme.hair-2;
     clip: true;
     drop-shadow-blur: 6px;
-    drop-shadow-color: #00000080;
+    drop-shadow-color: Theme.shadow;
 
     // Channel label (top-left)
     Text {
@@ -56,7 +57,7 @@ component SpectrumCard inherits Rectangle {
         width: parent.width - 32px;
         height: 22px;
         text: root.data.label;
-        color: #c5cdd9;
+        color: Theme.ink-2;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 1.4px;
@@ -68,7 +69,7 @@ component SpectrumCard inherits Rectangle {
         x: 0; y: parent.height / 2 - 11px;
         width: parent.width; height: 22px;
         text: @tr("—");
-        color: #2a3340;
+        color: Theme.ink-3;
         font-family: "Bebas Neue";
         font-size: 18px;
         horizontal-alignment: center;
@@ -93,7 +94,7 @@ component SpectrumCard inherits Rectangle {
             y: parent.height * (1.0 - level);
             width: parent.bar-width;
             height: parent.height * level;
-            background: level > 0.85 ? #ff7878 : (level > 0.6 ? #ffc266 : #4ade80);
+            background: level > 0.85 ? Theme.bad : (level > 0.6 ? Theme.warn : Theme.ok);
             border-radius: 1px;
         }
 
@@ -103,7 +104,7 @@ component SpectrumCard inherits Rectangle {
             y: parent.height * (1.0 - peak) - 1px;
             width: parent.bar-width;
             height: 1px;
-            background: #f5f7ff;
+            background: Theme.ink;
             opacity: 0.65;
         }
     }
@@ -121,32 +122,32 @@ component SpectrumCard inherits Rectangle {
 
         Text {
             x: 0 * parent.bar-stride; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("20"); color: #4a525e;
+            text: @tr("20"); color: Theme.ink-3;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 14 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("100"); color: #4a525e;
+            text: @tr("100"); color: Theme.ink-3;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
             x: 34 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("1k"); color: #4a525e;
+            text: @tr("1k"); color: Theme.ink-3;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
             x: min(54 * parent.bar-stride - 6px, label-20k.x - self.width - 4px); y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("10k"); color: #4a525e;
+            text: @tr("10k"); color: Theme.ink-3;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         label-20k := Text {
             // Kept inside the card's right edge (the card clips).
             x: min(60 * parent.bar-stride - 4px, parent.width - self.width); y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("20k"); color: #4a525e;
+            text: @tr("20k"); color: Theme.ink-3;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
@@ -161,19 +162,19 @@ export component SpectrumPanel inherits Rectangle {
     callback close-spectrum();
     callback toggle-enabled(bool);
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    background: @linear-gradient(180deg, Theme.page 0%, Theme.page 100%);
 
     // ── Header bar ───────────────────────────────────────────────────────
     Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: 72px;
-        background: #0c0e12;
+        background: Theme.panel-lo;
 
         Rectangle {
             x: 0; y: parent.height - 1px;
             width: parent.width; height: 1px;
-            background: #1c2028;
+            background: Theme.hair;
         }
 
         // Power footswitch — first element. Centered vertically.
@@ -188,14 +189,14 @@ export component SpectrumPanel inherits Rectangle {
             x: 78px; y: 24px;
             width: 24px; height: 24px;
             source: @image-url("../assets/spectrum.svg");
-            colorize: #c5cdd9;
+            colorize: Theme.ink-2;
         }
 
         Text {
             x: 110px; y: 0;
             width: self.preferred-width; height: parent.height;
             text: @tr("label-spectrum");
-            color: #e5ebf2;
+            color: Theme.ink;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 3.0px;
@@ -207,9 +208,9 @@ export component SpectrumPanel inherits Rectangle {
             x: parent.width - 40px; y: 22px;
             width: 28px; height: 28px;
             border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            background: close-ta.has-hover ? Theme.ktrack : Theme.panel;
             border-width: 1px;
-            border-color: #2c323d;
+            border-color: Theme.hair;
 
             Image {
                 x: (parent.width - 12px) / 2;
@@ -217,7 +218,7 @@ export component SpectrumPanel inherits Rectangle {
                 width: 12px;
                 height: 12px;
                 source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
+                colorize: Theme.ink-2;
             }
 
             close-ta := TouchArea {
@@ -237,7 +238,7 @@ export component SpectrumPanel inherits Rectangle {
             x: 0; y: parent.height / 2 - 32px;
             width: parent.width; height: 24px;
             text: @tr("status-no-active-outputs");
-            color: #4a525e;
+            color: Theme.ink-3;
             font-family: "Bebas Neue";
             font-size: 18px;
             letter-spacing: 2.4px;
@@ -248,7 +249,7 @@ export component SpectrumPanel inherits Rectangle {
             x: 16px; y: parent.height / 2 - 4px;
             width: parent.width - 32px; height: self.preferred-height;
             text: @tr("status-spectrum-empty-help");
-            color: #4a525e;
+            color: Theme.ink-3;
             font-family: "Inter";
             font-size: 18px;
             horizontal-alignment: center;
@@ -281,7 +282,7 @@ export component SpectrumWindow inherits Window {
     min-height: 280px;
     preferred-width: 720px;
     preferred-height: 480px;
-    background: #050608;
+    background: Theme.page;
 
     // Rows and power come from the bridge — the channel `spectrum_wiring`
     // publishes on (#873), same pattern as MetronomeWindow.

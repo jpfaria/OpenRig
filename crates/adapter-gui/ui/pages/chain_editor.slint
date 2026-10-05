@@ -1,4 +1,5 @@
 // Responsibility: renders the chain editor.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { ChainBindingChoice } from "../models.slint";
 
@@ -10,16 +11,16 @@ component FooterButton inherits Rectangle {
     // #954: the button follows its translated label.
     width: max(primary ? 112px : 104px, lbl.preferred-width + 24px);
     height: 38px;
-    background: primary ? #188cff : #2f3339;
+    background: primary ? Theme.accent : Theme.panel-hi;
     border-width: 1px;
-    border-color: primary ? #45a7ff : #4c515b;
+    border-color: primary ? Theme.accent : Theme.field-line;
     border-radius: 4px;
 
     lbl := Text {
         width: parent.width;
         height: parent.height;
         text: root.label;
-        color: #f4f7fb;
+        color: root.primary ? Theme.on-accent : Theme.ink;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 18px;
@@ -38,9 +39,9 @@ component FieldBox inherits Rectangle {
     in-out property <string> text;
     callback changed(string);
 
-    background: #1d2025;
+    background: Theme.panel;
     border-width: 1px;
-    border-color: #41454e;
+    border-color: Theme.field-line;
     border-radius: 4px;
 
     TextInput {
@@ -48,7 +49,7 @@ component FieldBox inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text <=> root.text;
-        color: #f3f6fb;
+        color: Theme.ink;
         single-line: true;
         vertical-alignment: center;
         font-size: 18px;
@@ -84,7 +85,7 @@ export component ChainEditorPage inherits Rectangle {
     // #716: toggle whether the chain uses binding at `index` (selected on/off).
     callback toggle-binding(int, bool);
 
-    background: #171a1f;
+    background: Theme.panel-lo;
 
     Text {
         x: 32px;
@@ -92,7 +93,7 @@ export component ChainEditorPage inherits Rectangle {
         width: parent.width - 64px;
         height: 28px;
         text: root.is-create-mode ? @tr("title-new-chain") : @tr("title-configure-chain");
-        color: #edf2f9;
+        color: Theme.ink;
         font-size: 20px;
         font-weight: 800;
     }
@@ -102,7 +103,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 68px;
         width: parent.width - 64px;
         height: 1px;
-        background: #2a2f38;
+        background: Theme.panel-hi;
     }
 
     Text {
@@ -111,7 +112,7 @@ export component ChainEditorPage inherits Rectangle {
         width: parent.width - 64px;
         height: 22px;
         text: @tr("label-name");
-        color: #7a8694;
+        color: Theme.ink-3;
         font-size: 18px;
     }
 
@@ -129,7 +130,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 156px;
         width: parent.width - 64px;
         height: 1px;
-        background: #2a2f38;
+        background: Theme.panel-hi;
     }
 
     Text {
@@ -138,7 +139,7 @@ export component ChainEditorPage inherits Rectangle {
         width: parent.width - 64px;
         height: 22px;
         text: @tr("label-instrument");
-        color: #7a8694;
+        color: Theme.ink-3;
         font-size: 18px;
     }
 
@@ -154,9 +155,9 @@ export component ChainEditorPage inherits Rectangle {
         for label[index] in root.instrument-labels : Rectangle {
             width: max(92px, tile-lbl.preferred-width + 16px);
             height: 44px;
-            background: index == root.selected-instrument-index ? #2a5da8 : #1d2025;
+            background: index == root.selected-instrument-index ? Theme.accent-soft : Theme.panel;
             border-width: 1px;
-            border-color: index == root.selected-instrument-index ? #45a7ff : #41454e;
+            border-color: index == root.selected-instrument-index ? Theme.accent : Theme.field-line;
             border-radius: 4px;
             opacity: 1.0;
 
@@ -173,7 +174,7 @@ export component ChainEditorPage inherits Rectangle {
                     : index == 5 ? @image-url("../../../../assets/instruments/drums.svg")
                     : @image-url("../../../../assets/instruments/generic.svg");
                 image-fit: contain;
-                colorize: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
+                colorize: index == root.selected-instrument-index ? Theme.accent : Theme.ink-2;
             }
 
             tile-lbl := Text {
@@ -182,7 +183,7 @@ export component ChainEditorPage inherits Rectangle {
                 width: parent.width;
                 height: 22px;
                 text: label;
-                color: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
+                color: index == root.selected-instrument-index ? Theme.ink : Theme.ink-2;
                 horizontal-alignment: center;
                 vertical-alignment: center;
                 font-size: 18px;
@@ -206,7 +207,7 @@ export component ChainEditorPage inherits Rectangle {
         y: 236px;
         width: parent.width - 64px;
         height: 1px;
-        background: #2a2f38;
+        background: Theme.panel-hi;
     }
 
     // --- I/O bindings checklist (#716) ---
@@ -218,7 +219,7 @@ export component ChainEditorPage inherits Rectangle {
         width: parent.width - 64px;
         height: 22px;
         text: @tr("label-chain-io-bindings");
-        color: #7a8694;
+        color: Theme.ink-3;
         font-size: 18px;
     }
 
@@ -228,7 +229,7 @@ export component ChainEditorPage inherits Rectangle {
         width: parent.width - 64px;
         height: self.preferred-height;
         text: @tr("empty-no-bindings-for-chain");
-        color: #5a6270;
+        color: Theme.ink-3;
         font-size: 18px;
         wrap: word-wrap;
     }
@@ -246,7 +247,7 @@ export component ChainEditorPage inherits Rectangle {
             for choice[index] in root.bindings : chain-binding-cell := Rectangle {
                 height: 40px;
                 border-radius: 6px;
-                background: cell-ta.has-hover ? #1e2229 : transparent;
+                background: cell-ta.has-hover ? Theme.panel-hi : transparent;
 
                 HorizontalLayout {
                     padding-left: 8px;
@@ -258,23 +259,23 @@ export component ChainEditorPage inherits Rectangle {
                         height: 20px;
                         y: (parent.height - self.height) / 2;
                         border-radius: 5px;
-                        background: choice.selected ? #2f80ff : #1d2025;
+                        background: choice.selected ? Theme.accent : Theme.panel;
                         border-width: 1px;
-                        border-color: choice.selected ? #2f80ff : #41454e;
+                        border-color: choice.selected ? Theme.accent : Theme.field-line;
                         if choice.selected : Image {
                             x: (parent.width - self.width) / 2;
                             y: (parent.height - self.height) / 2;
                             width: 12px;
                             height: 12px;
                             source: @image-url("../assets/check.svg");
-                            colorize: #ffffff;
+                            colorize: Theme.on-accent;
                         }
                     }
 
                     Text {
                         horizontal-stretch: 1;
                         text: choice.name;
-                        color: choice.selected ? #f4f7fb : #c4ccd6;
+                        color: choice.selected ? Theme.ink : Theme.ink-2;
                         font-size: 18px;
                         font-weight: choice.selected ? 600 : 500;
                         vertical-alignment: center;
@@ -296,7 +297,7 @@ export component ChainEditorPage inherits Rectangle {
         y: parent.height - 72px;
         width: parent.width - 64px;
         height: 1px;
-        background: #2a2f38;
+        background: Theme.panel-hi;
     }
 
     Text {
@@ -305,7 +306,7 @@ export component ChainEditorPage inherits Rectangle {
         width: cancel-btn.x - 40px;
         height: 38px;
         text: root.status-message;
-        color: #8db9ff;
+        color: Theme.accent;
         font-size: 18px;
         vertical-alignment: center;
         overflow: elide;

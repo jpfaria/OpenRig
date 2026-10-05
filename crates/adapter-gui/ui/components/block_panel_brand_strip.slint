@@ -1,4 +1,5 @@
 // Responsibility: renders the brand strip of the block panel.
+import { Theme } from "../theme.slint";
 import { BrandLogo } from "brand_logo.slint";
 
 // Top strip inside the BlockPanelEditor panel rect. Two mutually exclusive variants:
@@ -42,7 +43,7 @@ export component BlockPanelBrandStrip inherits Rectangle {
             height: 22px;
             text: root.selected-model-label;
             overflow: elide;
-            color: #666;
+            color: Theme.ink-3;
             font-size: 18px;
             font-weight: 600;
             letter-spacing: 1.5px;
@@ -100,7 +101,7 @@ export component BlockPanelBrandStrip inherits Rectangle {
             width: 340px;
             height: parent.height;
             text: root.selected-model-label;
-            color: #c0c8d0;
+            color: Theme.ink;
             font-family: root.model-font;
             font-size: 28px;
             font-weight: 700;

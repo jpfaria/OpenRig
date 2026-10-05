@@ -7,6 +7,7 @@
 // fixed in 371857e2, so std-widgets ComboBox now renders the model
 // correctly inside the secondary window.
 
+import { Theme } from "../../theme.slint";
 import { ComboBox } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
@@ -21,7 +22,7 @@ export component SectionSystemLanguage inherits Rectangle {
 
         Text {
             text: @tr("label-language");
-            color: #cfd5e0;
+            color: Theme.ink;
             font-size: 18px;
             min-width: 120px;
             vertical-alignment: center;

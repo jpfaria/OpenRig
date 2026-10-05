@@ -2,6 +2,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
 import { AppVersionBadge } from "../components/app_version_badge.slint";
+import { Theme } from "../theme.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -11,9 +12,9 @@ component LauncherButton inherits Rectangle {
     // #954: the button follows its translated label.
     width: max(primary ? 156px : 150px, lbl.preferred-width + 24px);
     height: 40px;
-    background: primary ? #188cff : #2f3339;
+    background: primary ? Theme.accent : Theme.chrome-2;
     border-width: 1px;
-    border-color: primary ? #45a7ff : #4c515b;
+    border-color: primary ? Theme.accent : Theme.hero-line;
     border-radius: 4px;
 
     lbl := Text {
@@ -22,7 +23,7 @@ component LauncherButton inherits Rectangle {
         width: parent.width;
         height: parent.height;
         text: root.label;
-        color: #f4f7fb;
+        color: root.primary ? Theme.on-accent : Theme.hero-fg;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 18px;
@@ -41,9 +42,9 @@ component IconLauncherButton inherits Rectangle {
 
     width: 40px;
     height: 40px;
-    background: #2f3339;
+    background: Theme.chrome-2;
     border-width: 1px;
-    border-color: #4c515b;
+    border-color: Theme.hero-line;
     border-radius: 4px;
 
     Image {
@@ -53,6 +54,7 @@ component IconLauncherButton inherits Rectangle {
         height: 20px;
         source: root.icon;
         image-fit: contain;
+        colorize: Theme.hero-fg-2;
     }
 
     hover-area := TouchArea {
@@ -66,9 +68,9 @@ component IconLauncherButton inherits Rectangle {
         y: 44px;
         width: max(76px, tip-lbl.preferred-width + 12px);
         height: 24px;
-        background: #11141ad9;
+        background: Theme.chrome;
         border-width: 1px;
-        border-color: #3b4250;
+        border-color: Theme.chrome-line;
         border-radius: 4px;
         z: 50;
 
@@ -78,7 +80,7 @@ component IconLauncherButton inherits Rectangle {
             width: parent.width - 12px;
             height: parent.height;
             text: root.tooltip;
-            color: #eef2f8;
+            color: Theme.chrome-fg;
             font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
@@ -95,14 +97,14 @@ component RecentProjectRow inherits Rectangle {
     callback remove(int);
 
     height: 74px;
-    background: main-area.has-hover ? #ffffff10 : transparent;
+    background: main-area.has-hover ? Theme.hover : transparent;
 
     Rectangle {
         x: 0px;
         y: parent.height - 1px;
         width: parent.width;
         height: 1px;
-        background: #33373e;
+        background: Theme.hair-2;
     }
 
     Rectangle {
@@ -110,13 +112,13 @@ component RecentProjectRow inherits Rectangle {
         y: 19px;
         width: 18px;
         height: 18px;
-        background: #171b22cc;
+        background: Theme.field;
         border-width: 1px;
-        border-color: #626c79;
+        border-color: Theme.field-line;
         border-radius: 3px;
 
-        Rectangle { x: 4px; y: 4px; width: 3px; height: 3px; background: #8e99a7; border-radius: 1.5px; }
-        Rectangle { x: 10px; y: 10px; width: 3px; height: 3px; background: #cfd5de; border-radius: 1.5px; }
+        Rectangle { x: 4px; y: 4px; width: 3px; height: 3px; background: Theme.ink-3; border-radius: 1.5px; }
+        Rectangle { x: 10px; y: 10px; width: 3px; height: 3px; background: Theme.ink-2; border-radius: 1.5px; }
     }
 
     Text {
@@ -125,7 +127,7 @@ component RecentProjectRow inherits Rectangle {
         width: parent.width - 148px;
         height: 24px;
         text: root.title;
-        color: #f1f4f8;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
@@ -138,7 +140,7 @@ component RecentProjectRow inherits Rectangle {
         width: parent.width - 148px;
         height: 22px;
         text: root.subtitle;
-        color: #8d95a2;
+        color: Theme.ink-3;
         font-size: 18px;
         vertical-alignment: center;
         overflow: elide;
@@ -150,6 +152,7 @@ component RecentProjectRow inherits Rectangle {
         width: 18px;
         height: 18px;
         source: @image-url("../assets/trash.svg");
+        colorize: Theme.ink-3;
     }
 
     main-area := TouchArea {
@@ -176,9 +179,9 @@ component SearchField inherits Rectangle {
     callback changed(string);
 
     height: 34px;
-    background: #1d2025;
+    background: Theme.field;
     border-width: 1px;
-    border-color: #41454e;
+    border-color: Theme.field-line;
     border-radius: 4px;
     clip: true;
 
@@ -188,7 +191,7 @@ component SearchField inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text: @tr("placeholder-search-projects");
-        color: #858d99;
+        color: Theme.ink-3;
         vertical-alignment: center;
         font-size: 18px;
     }
@@ -199,7 +202,7 @@ component SearchField inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text: root.text;
-        color: #f3f6fb;
+        color: Theme.ink;
         single-line: true;
         vertical-alignment: center;
         font-size: 18px;
@@ -225,14 +228,14 @@ export component ProjectLauncherPage inherits Rectangle {
     in property <int> selected-language-index;
     callback change-language(int);
 
-    background: #1f2023;
+    background: Theme.hero-bg;
 
     Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #1b1d22;
+        background: Theme.hero-bg;
 
         Image {
             x: 0px;
@@ -249,15 +252,7 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
-        }
-
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            background: @radial-gradient(circle, #3f87ff10 0%, transparent 40%, transparent 100%);
+            background: @linear-gradient(180deg, Theme.hero-shade-top 0%, Theme.hero-shade-mid 38%, Theme.hero-shade-bottom 100%);
         }
     }
 
@@ -308,7 +303,7 @@ export component ProjectLauncherPage inherits Rectangle {
         y: 78px;
         width: parent.width - 48px;
         height: 1px;
-        background: #34383f;
+        background: Theme.hero-line;
     }
 
     if root.app-version != "" : AppVersionBadge {
@@ -323,9 +318,9 @@ export component ProjectLauncherPage inherits Rectangle {
         y: 96px;
         width: parent.width - 48px;
         height: parent.height - 126px;
-        background: #22242988;
+        background: Theme.panel.with-alpha(0.92);
         border-width: 1px;
-        border-color: #32363daa;
+        border-color: Theme.hair;
         border-radius: 6px;
 
         SearchField {
@@ -344,7 +339,7 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 62px;
             width: parent.width - 36px;
             height: 1px;
-            background: #32363d;
+            background: Theme.hair-2;
         }
 
         ScrollView {

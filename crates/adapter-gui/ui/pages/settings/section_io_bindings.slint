@@ -1,23 +1,21 @@
 // Responsibility: renders the bindings section.
-// System / I/O bindings editor (#716) — shadcn-style dark, flat, system font.
+// System / I/O bindings editor (#716) — flat, system font.
 // Pure dispatcher (LAW): callbacks fire upward; Rust owns mutation + Commands.
-// Design locked via tools/slint-render (see _mockup_io_bindings.slint).
-//
-// Tokens (shadcn .dark / zinc): bg #09090b, card #18181b, border #27272a,
-// fg #fafafa, muted-fg #a1a1aa, secondary #27272a, radius 10px. Accent #2f80ff.
-// IN = green #4ade80, OUT = orange #fb923c. Body font = Locale.font-family
+// Colours come from the Theme tokens (#398): IN = Theme.in, OUT = Theme.out.
+// Body font = Locale.font-family
 // (inherited; NOT hardcoded — system fallback keeps CJK translations tofu-free).
 
+import { Theme } from "../../theme.slint";
 import { IoEndpointModel } from "../../models.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 import { ChannelPicker } from "../../components/channel_picker.slint";
 
-component Hairline inherits Rectangle { height: 1px; background: #27272a; }
+component Hairline inherits Rectangle { height: 1px; background: Theme.hair; }
 
 component Badge inherits Rectangle {
     in property <string> text;
-    in property <color> fg: #d4d4d8;
-    in property <color> bg: #27272a;
+    in property <color> fg: Theme.ink;
+    in property <color> bg: Theme.panel-hi;
     height: 26px;
     background: root.bg;
     border-radius: 7px;
@@ -32,13 +30,13 @@ component Badge inherits Rectangle {
 
 component IconBtn inherits Rectangle {
     in property <image> icon;
-    in property <color> hover-bg: #27272a;
+    in property <color> hover-bg: Theme.panel-hi;
     callback clicked();
     width: 32px; height: 32px; border-radius: 7px;
     background: ta.has-hover ? root.hover-bg : transparent;
     animate background { duration: 120ms; }
     Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-        width: 15px; height: 15px; source: root.icon; colorize: ta.has-hover ? #e4e4e7 : #a1a1aa; }
+        width: 15px; height: 15px; source: root.icon; colorize: ta.has-hover ? Theme.ink : Theme.ink-2; }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
@@ -47,41 +45,41 @@ component SectionHeader inherits HorizontalLayout {
     in property <color> tint;
     spacing: 9px;
     Rectangle { width: 8px; height: 8px; y: (parent.height - self.height) / 2; border-radius: 4px; background: root.tint; }
-    Text { text: root.text; color: #fafafa; font-size: 18px; font-weight: 600; vertical-alignment: center; }
+    Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 600; vertical-alignment: center; }
 }
 
 component PrimaryButton inherits Rectangle {
     in property <string> text;
     callback clicked();
     height: 38px;
-    background: ta.has-hover ? #4a93ff : #2f80ff;
+    background: ta.has-hover ? Theme.accent : Theme.accent;
     border-radius: 8px;
     animate background { duration: 120ms; }
     HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: #ffffff; font-size: 18px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
+        Text { text: root.text; color: Theme.on-accent; font-size: 18px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 component GhostButton inherits Rectangle {
     in property <string> text;
     callback clicked();
-    height: 38px; border-radius: 8px; border-width: 1px; border-color: #27272a;
-    background: ta.has-hover ? #1c1c20 : transparent;
+    height: 38px; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
+    background: ta.has-hover ? Theme.panel : transparent;
     animate background { duration: 120ms; }
     HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: #d4d4d8; font-size: 18px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
+        Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 component AddButton inherits Rectangle {
     in property <string> text;
     callback clicked();
-    height: 42px; border-radius: 8px; border-width: 1px; border-color: #2f2f36;
-    background: ta.has-hover ? #1f1f24 : #1c1c20;
+    height: 42px; border-radius: 8px; border-width: 1px; border-color: Theme.hair;
+    background: ta.has-hover ? Theme.panel : Theme.panel;
     animate background { duration: 120ms; }
     // No icon — the btn-add-* translations already include the "+" prefix.
     HorizontalLayout { alignment: center;
-        Text { text: root.text; color: #d4d4d8; font-size: 18px; font-weight: 500; vertical-alignment: center; } }
+        Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 500; vertical-alignment: center; } }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
@@ -91,24 +89,24 @@ component DropDown inherits Rectangle {
     in property <string> placeholder;
     callback picked(int);
     height: 40px;
-    background: #18181b; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
     property <string> label: root.current >= 0 && root.current < root.model.length ? root.model[root.current] : root.placeholder;
     HorizontalLayout { padding-left: 12px; padding-right: 12px; spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.label; color: root.current >= 0 ? #e4e4e7 : #71717a; font-size: 18px; vertical-alignment: center; overflow: elide; }
+        Text { horizontal-stretch: 1; text: root.label; color: root.current >= 0 ? Theme.ink : Theme.ink-3; font-size: 18px; vertical-alignment: center; overflow: elide; }
         Image { width: 11px; height: 11px; y: (parent.height - self.height) / 2;
-            source: @image-url("../../assets/arrow-down.svg"); colorize: #71717a; } }
+            source: @image-url("../../assets/arrow-down.svg"); colorize: Theme.ink-3; } }
     ta := TouchArea { mouse-cursor: pointer; clicked => { pop.show(); } }
     pop := PopupWindow {
         x: 0; y: parent.height + 4px; width: parent.width;
         Rectangle {
-            background: #18181b; border-radius: 8px; border-width: 1px; border-color: #2f2f36;
+            background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair;
             VerticalLayout {
                 padding: 4px;
                 for opt[i] in root.model : Rectangle {
                     height: 34px; border-radius: 6px;
-                    background: oi.has-hover ? #27272a : transparent;
+                    background: oi.has-hover ? Theme.panel-hi : transparent;
                     HorizontalLayout { padding-left: 10px; padding-right: 10px;
-                        Text { text: opt; color: #e4e4e7; font-size: 18px; vertical-alignment: center; overflow: elide; } }
+                        Text { text: opt; color: Theme.ink; font-size: 18px; vertical-alignment: center; overflow: elide; } }
                     oi := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.picked(i); } }
                 }
             }
@@ -122,14 +120,14 @@ component Segmented inherits Rectangle {
     in-out property <int> current: 0;
     callback changed(int);
     height: 40px;
-    background: #131316; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
     HorizontalLayout { padding: 3px; spacing: 3px;
         for opt[i] in root.options : Rectangle {
             horizontal-stretch: 1;
-            background: i == root.current ? #2f80ff : (seg.has-hover ? #1f1f24 : transparent);
+            background: i == root.current ? Theme.accent : (seg.has-hover ? Theme.panel : transparent);
             border-radius: 6px;
             animate background { duration: 100ms; }
-            Text { text: opt; color: i == root.current ? #ffffff : #a1a1aa; font-size: 18px;
+            Text { text: opt; color: i == root.current ? Theme.on-accent : Theme.ink-2; font-size: 18px;
                 font-weight: i == root.current ? 600 : 500; horizontal-alignment: center; vertical-alignment: center; }
             seg := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.changed(i); } }
         }
@@ -148,7 +146,7 @@ component FieldRow inherits HorizontalLayout {
         VerticalLayout {
             alignment: root.label-top ? start : center;
             padding-top: root.label-top ? 9px : 0px;
-            field-label := Text { text: root.label; color: #a1a1aa; font-size: 18px; }
+            field-label := Text { text: root.label; color: Theme.ink-2; font-size: 18px; }
         }
     }
     @children
@@ -159,17 +157,17 @@ component EndpointRow inherits Rectangle {
     in property <IoEndpointModel> endpoint;
     callback edit-requested();
     callback remove-requested();
-    property <color> mode-fg: root.endpoint.mode == "mono" ? #4ade80 : root.endpoint.mode == "stereo" ? #a78bfa : #fbbf24;
-    property <color> mode-bg: root.endpoint.mode == "mono" ? #0e2a1d : root.endpoint.mode == "stereo" ? #221b3c : #2c1f0c;
+    property <color> mode-fg: root.endpoint.mode == "mono" ? Theme.ok : root.endpoint.mode == "stereo" ? Theme.out : Theme.warn;
+    property <color> mode-bg: root.endpoint.mode == "mono" ? Theme.ok-soft : root.endpoint.mode == "stereo" ? Theme.out.with-alpha(0.18) : Theme.warn-soft;
     height: 46px;
     HorizontalLayout {
         spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.endpoint.device_label; color: #fafafa; font-size: 18px; font-weight: 500; vertical-alignment: center; overflow: elide; }
-        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.channels_label; fg: #60a5fa; bg: #112540; } } }
+        Text { horizontal-stretch: 1; text: root.endpoint.device_label; color: Theme.ink; font-size: 18px; font-weight: 500; vertical-alignment: center; overflow: elide; }
+        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.channels_label; fg: Theme.in; bg: Theme.in.with-alpha(0.18); } } }
         Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.mode; fg: root.mode-fg; bg: root.mode-bg; } } }
         Rectangle { width: 4px; }
         IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => { root.edit-requested(); } }
-        IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => { root.remove-requested(); } }
+        IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: Theme.bad-soft; clicked => { root.remove-requested(); } }
     }
 }
 
@@ -203,29 +201,29 @@ export component SectionSystemIoBindings inherits Rectangle {
             Text {
                 horizontal-stretch: 1;
                 text: @tr("help-io-bindings");
-                color: #a1a1aa; font-size: 18px; vertical-alignment: center; wrap: word-wrap;
+                color: Theme.ink-2; font-size: 18px; vertical-alignment: center; wrap: word-wrap;
             }
             Rectangle { width: new-binding-btn.preferred-width; VerticalLayout { alignment: center;
                 new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); } } } }
         }
 
         if SettingsBridge.io-binding-error != "" : Rectangle {
-            height: 40px; background: #3a1a1a; border-radius: 8px; border-width: 1px; border-color: #7f1d1d;
+            height: 40px; background: Theme.bad-soft; border-radius: 8px; border-width: 1px; border-color: Theme.bad;
             HorizontalLayout { padding-left: 14px; padding-right: 8px; spacing: 8px;
-                Text { horizontal-stretch: 1; text: SettingsBridge.io-binding-error; color: #fca5a5; font-size: 18px; vertical-alignment: center; overflow: elide; }
+                Text { horizontal-stretch: 1; text: SettingsBridge.io-binding-error; color: Theme.bad; font-size: 18px; vertical-alignment: center; overflow: elide; }
                 IconBtn { icon: @image-url("../../assets/close.svg"); clicked => { SettingsBridge.io-binding-error = ""; } } }
         }
 
         if SettingsBridge.io-bindings.length == 0 : Rectangle {
             // Grows with the (wrapped) hint instead of clipping it.
-            min-height: 96px; background: #16161a; border-radius: 10px; border-width: 1px; border-color: #27272a;
+            min-height: 96px; background: Theme.panel-lo; border-radius: 10px; border-width: 1px; border-color: Theme.hair-2;
             VerticalLayout { alignment: center; spacing: 4px; padding: 16px;
-                Text { text: @tr("empty-no-bindings"); color: #d4d4d8; font-size: 18px; font-weight: 600; horizontal-alignment: center; wrap: word-wrap; }
-                Text { text: @tr("empty-no-bindings-hint"); color: #71717a; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; } }
+                Text { text: @tr("empty-no-bindings"); color: Theme.ink; font-size: 18px; font-weight: 600; horizontal-alignment: center; wrap: word-wrap; }
+                Text { text: @tr("empty-no-bindings-hint"); color: Theme.ink-3; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; } }
         }
 
         for binding[bi] in SettingsBridge.io-bindings : Rectangle {
-            background: #18181b; border-radius: 10px; border-width: 1px; border-color: #27272a;
+            background: Theme.panel-lo; border-radius: 10px; border-width: 1px; border-color: Theme.hair-2;
             VerticalLayout {
                 padding: 24px; spacing: 18px;
 
@@ -238,7 +236,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                             x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
                             width: 12px; height: 12px;
                             source: @image-url("../../assets/arrow-down.svg");
-                            colorize: chev-ta.has-hover ? #e4e4e7 : #a1a1aa;
+                            colorize: chev-ta.has-hover ? Theme.ink : Theme.ink-2;
                             transform-rotation: root.expanded-binding-id == binding.id ? 0deg : -90deg;
                             animate transform-rotation { duration: 150ms; easing: ease-in-out; }
                         }
@@ -249,20 +247,20 @@ export component SectionSystemIoBindings inherits Rectangle {
                     if root.renaming-binding-id != binding.id : Rectangle {
                         horizontal-stretch: 1; height: 30px;
                         HorizontalLayout { spacing: 8px;
-                            Text { horizontal-stretch: 1; text: binding.name; color: #fafafa; font-size: 18px;
+                            Text { horizontal-stretch: 1; text: binding.name; color: Theme.ink; font-size: 18px;
                                 font-weight: 600; vertical-alignment: center; overflow: elide; }
                             if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
-                                Badge { text: "\{binding.inputs.length}"; fg: #4ade80; bg: #0e2a1d; } } }
+                                Badge { text: "\{binding.inputs.length}"; fg: Theme.in; bg: Theme.in.with-alpha(0.18); } } }
                             if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
-                                Badge { text: "\{binding.outputs.length}"; fg: #fb923c; bg: #2c1f0c; } } }
+                                Badge { text: "\{binding.outputs.length}"; fg: Theme.out; bg: Theme.out.with-alpha(0.18); } } }
                         }
                         name-ta := TouchArea { mouse-cursor: pointer; clicked => {
                             root.expanded-binding-id = root.expanded-binding-id == binding.id ? "" : binding.id; } }
                     }
                     if root.renaming-binding-id == binding.id : Rectangle {
                         horizontal-stretch: 1; height: 36px;
-                        background: #111114; border-radius: 8px; border-width: 1px;
-                        border-color: name-input.has-focus ? #2f80ff : #3f3f46;
+                        background: Theme.well; border-radius: 8px; border-width: 1px;
+                        border-color: name-input.has-focus ? Theme.accent : Theme.field-line;
                         // Auto-focus AFTER first layout. Calling focus() from the
                         // TextInput's init (while this conditional is still being
                         // laid out, mid mouse-event) recurses on item_geometry and
@@ -274,7 +272,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                         HorizontalLayout { padding-left: 12px; padding-right: 12px;
                             name-input := TextInput {
                                 text <=> root.rename-draft;
-                                color: #fafafa; font-size: 18px; font-weight: 600;
+                                color: Theme.ink; font-size: 18px; font-weight: 600;
                                 vertical-alignment: center; single-line: true;
                                 // Commit on Enter and on losing focus (blur).
                                 // Leave edit mode BEFORE dispatching: rename
@@ -301,10 +299,10 @@ export component SectionSystemIoBindings inherits Rectangle {
                         root.rename-draft = binding.name;
                         root.renaming-binding-id = binding.id;
                     } }
-                    if root.renaming-binding-id != binding.id : delete-btn := IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
+                    if root.renaming-binding-id != binding.id : delete-btn := IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: Theme.bad-soft; clicked => {
                         let err = SettingsBridge.delete-io-binding(binding.id); if err != "" { SettingsBridge.io-binding-error = err; } } }
                     // Editing actions: confirm commits the rename, cancel discards.
-                    if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: #14321f; clicked => {
+                    if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: Theme.ok-soft; clicked => {
                         // Reset before dispatch — see the accepted/blur note above.
                         root.renaming-binding-id = "";
                         SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
@@ -319,8 +317,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                     spacing: 18px;
 
                 // ── Entradas ──
-                SectionHeader { text: @tr("label-group-inputs"); tint: #4ade80; }
-                if binding.inputs.length == 0 : Text { text: @tr("empty-no-input-endpoints"); color: #71717a; font-size: 18px; }
+                SectionHeader { text: @tr("label-group-inputs"); tint: Theme.in; }
+                if binding.inputs.length == 0 : Text { text: @tr("empty-no-input-endpoints"); color: Theme.ink-3; font-size: 18px; }
                 for ep[ii] in binding.inputs : EndpointRow {
                     endpoint: ep;
                     edit-requested => {
@@ -337,7 +335,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                     clicked => { root.active-add = binding.id + "|in"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
                 }
                 if root.active-add == (binding.id + "|in") : Rectangle {
-                    background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
+                    background: Theme.well; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
                     VerticalLayout { padding: 16px; spacing: 14px;
                         FieldRow { label: @tr("label-endpoint-device");
                             DropDown { model: SettingsBridge.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
@@ -373,8 +371,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                 Hairline {}
 
                 // ── Saídas ──
-                SectionHeader { text: @tr("label-group-outputs"); tint: #fb923c; }
-                if binding.outputs.length == 0 : Text { text: @tr("empty-no-output-endpoints"); color: #71717a; font-size: 18px; }
+                SectionHeader { text: @tr("label-group-outputs"); tint: Theme.out; }
+                if binding.outputs.length == 0 : Text { text: @tr("empty-no-output-endpoints"); color: Theme.ink-3; font-size: 18px; }
                 for ep[oi] in binding.outputs : EndpointRow {
                     endpoint: ep;
                     edit-requested => {
@@ -391,7 +389,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                     clicked => { root.active-add = binding.id + "|out"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
                 }
                 if root.active-add == (binding.id + "|out") : Rectangle {
-                    background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
+                    background: Theme.well; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
                     VerticalLayout { padding: 16px; spacing: 14px;
                         FieldRow { label: @tr("label-endpoint-device");
                             DropDown { model: SettingsBridge.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");

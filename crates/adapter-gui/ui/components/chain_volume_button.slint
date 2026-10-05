@@ -26,7 +26,7 @@ export component ChainVolumeButton inherits Rectangle {
         height: 18px;
         source: @image-url("../assets/volume.svg");
         image-fit: contain;
-        colorize: ta.has-hover ? #ffffff : #8a94a2;
+        colorize: ta.has-hover ? Theme.ink : Theme.ink-2;
     }
 
     ta := TouchArea {
@@ -51,9 +51,9 @@ export component ChainVolumeButton inherits Rectangle {
             width: 192px;
             height: 40px;
             border-radius: 8px;
-            background: #11141af2;
+            background: Theme.panel-lo.with-alpha(0.95);
             border-width: 1px;
-            border-color: #3b4250;
+            border-color: Theme.field-line;
 
             ChainVolumeControl {
                 x: 12px;

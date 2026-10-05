@@ -1,4 +1,5 @@
 // Responsibility: renders a model select with a search field.
+import { Theme } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
 
 // Reusable model picker with embedded search field.
@@ -34,9 +35,9 @@ export component ModelSelectWithSearch inherits Rectangle {
 
     // ── closed-button visuals ─────────────────────────────────────────
     height: 40px;
-    background: #060610;
+    background: Theme.well;
     border-width: 1px;
-    border-color: #252538;
+    border-color: Theme.hair-2;
     border-radius: 6px;
 
     private property <bool> selected-has-brand:
@@ -58,7 +59,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         width: parent.width - 30px - root.badge-reserve;
         height: parent.height;
         text: root.selected-button-label;
-        color: #d8e0ff;
+        color: Theme.ink;
         font-size: 19px;
         font-weight: 700;
         vertical-alignment: center;
@@ -74,30 +75,30 @@ export component ModelSelectWithSearch inherits Rectangle {
         width: max(42px, badge-text.preferred-width + 10px);
         height: 22px;
         border-radius: 3px;
-        background: root.selected-model.type_label == "NATIVE" ? #0d2a0d
-            : root.selected-model.type_label == "NAM/A2" ? #2e260d
-            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #0d1a2e
-            : root.selected-model.type_label == "IR" ? #1a0d2e
-            : root.selected-model.type_label == "LV2" ? #0d2e2a
-            : #2e1a0d;
+        background: root.selected-model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.14)
+            : root.selected-model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.14)
+            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.14)
+            : root.selected-model.type_label == "IR" ? Theme.b-ir.with-alpha(0.14)
+            : root.selected-model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.14)
+            : Theme.b-vst3.with-alpha(0.14);
         border-width: 1px;
-        border-color: root.selected-model.type_label == "NATIVE" ? #1a6b1a
-            : root.selected-model.type_label == "NAM/A2" ? #8a6a1a
-            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #1a4488
-            : root.selected-model.type_label == "IR" ? #6b1a88
-            : root.selected-model.type_label == "LV2" ? #1a886b
-            : #883300;
+        border-color: root.selected-model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.5)
+            : root.selected-model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.5)
+            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.5)
+            : root.selected-model.type_label == "IR" ? Theme.b-ir.with-alpha(0.5)
+            : root.selected-model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.5)
+            : Theme.b-vst3.with-alpha(0.5);
 
         badge-text := Text {
             width: parent.width;
             height: parent.height;
             text: root.selected-model.type_label;
-            color: root.selected-model.type_label == "NATIVE" ? #33bb33
-                : root.selected-model.type_label == "NAM/A2" ? #ffcc44
-                : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #4499ff
-                : root.selected-model.type_label == "IR" ? #aa44ff
-                : root.selected-model.type_label == "LV2" ? #44ddaa
-                : #ff8833;
+            color: root.selected-model.type_label == "NATIVE" ? Theme.b-native
+                : root.selected-model.type_label == "NAM/A2" ? Theme.warn
+                : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? Theme.b-nam
+                : root.selected-model.type_label == "IR" ? Theme.b-ir
+                : root.selected-model.type_label == "LV2" ? Theme.b-lv2
+                : Theme.b-vst3;
             font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.5px;
@@ -112,7 +113,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         width: 18px;
         height: parent.height;
         text: @tr("▼");
-        color: #ffffff;
+        color: Theme.ink;
         font-size: 18px;
         vertical-alignment: center;
         horizontal-alignment: center;
@@ -144,12 +145,12 @@ export component ModelSelectWithSearch inherits Rectangle {
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #08080e;
+            background: Theme.well;
             border-width: 1px;
-            border-color: #2a2a40;
+            border-color: Theme.hair;
             border-radius: 6px;
             drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
+            drop-shadow-color: Theme.shadow;
             drop-shadow-offset-x: 0px;
             drop-shadow-offset-y: 6px;
             clip: true;
@@ -160,9 +161,9 @@ export component ModelSelectWithSearch inherits Rectangle {
                 y: 6px;
                 width: parent.width - 12px;
                 height: 40px;
-                background: #14142a;
+                background: Theme.accent-soft;
                 border-width: 1px;
-                border-color: #2a2a40;
+                border-color: Theme.hair;
                 border-radius: 6px;
 
                 // Magnifier icon (flat SVG, colorized).
@@ -172,7 +173,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../modules/surrealism-ui/icons/search.svg");
-                    colorize: #6a6a82;
+                    colorize: Theme.ink-3;
                 }
 
                 input := TextInput {
@@ -181,7 +182,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     width: parent.width - 30px - (root.search-text == "" ? 8px : 28px);
                     height: parent.height;
                     text <=> root.search-text;
-                    color: #d8e0ff;
+                    color: Theme.ink;
                     font-size: 18px;
                     horizontal-alignment: left;
                     vertical-alignment: center;
@@ -198,7 +199,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     width: parent.width - 38px;
                     height: parent.height;
                     text: @tr("placeholder-search-models");
-                    color: #6a6a82;
+                    color: Theme.ink-3;
                     font-size: 18px;
                     vertical-alignment: center;
                 }
@@ -220,7 +221,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                         width: 12px;
                         height: 12px;
                         source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                        colorize: #8a8aa2;
+                        colorize: Theme.ink-2;
                     }
                 }
             }
@@ -232,7 +233,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                 width: parent.width;
                 height: 36px;
                 text: @tr("status-no-models-found");
-                color: #6a6a82;
+                color: Theme.ink-3;
                 font-size: 18px;
                 vertical-alignment: center;
                 horizontal-alignment: center;
@@ -257,7 +258,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                     border-radius: 5px;
                     opacity: model.available ? 1.0 : 0.4;
                     background: model.model_id == root.selected-model.model_id
-                        ? #14142a : transparent;
+                        ? Theme.accent-soft : transparent;
 
                     private property <bool> row-has-brand:
                         model.brand != ""
@@ -275,7 +276,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                             ? model.brand + " " + model.display_name
                             : model.display_name;
                         color: model.model_id == root.selected-model.model_id
-                            ? #7788ff : #b0bce0;
+                            ? Theme.accent : Theme.ink-2;
                         font-size: 19px;
                         font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
                         vertical-alignment: center;
@@ -291,30 +292,30 @@ export component ModelSelectWithSearch inherits Rectangle {
                         width: max(42px, row-badge-text.preferred-width + 10px);
                         height: 22px;
                         border-radius: 3px;
-                        background: model.type_label == "NATIVE" ? #0d2a0d
-                            : model.type_label == "NAM/A2" ? #2e260d
-                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #0d1a2e
-                            : model.type_label == "IR" ? #1a0d2e
-                            : model.type_label == "LV2" ? #0d2e2a
-                            : #2e1a0d;
+                        background: model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.14)
+                            : model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.14)
+                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.14)
+                            : model.type_label == "IR" ? Theme.b-ir.with-alpha(0.14)
+                            : model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.14)
+                            : Theme.b-vst3.with-alpha(0.14);
                         border-width: 1px;
-                        border-color: model.type_label == "NATIVE" ? #1a6b1a
-                            : model.type_label == "NAM/A2" ? #8a6a1a
-                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #1a4488
-                            : model.type_label == "IR" ? #6b1a88
-                            : model.type_label == "LV2" ? #1a886b
-                            : #883300;
+                        border-color: model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.5)
+                            : model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.5)
+                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.5)
+                            : model.type_label == "IR" ? Theme.b-ir.with-alpha(0.5)
+                            : model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.5)
+                            : Theme.b-vst3.with-alpha(0.5);
 
                         row-badge-text := Text {
                             width: parent.width;
                             height: parent.height;
                             text: model.type_label;
-                            color: model.type_label == "NATIVE" ? #33bb33
-                                : model.type_label == "NAM/A2" ? #ffcc44
-                                : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #4499ff
-                                : model.type_label == "IR" ? #aa44ff
-                                : model.type_label == "LV2" ? #44ddaa
-                                : #ff8833;
+                            color: model.type_label == "NATIVE" ? Theme.b-native
+                                : model.type_label == "NAM/A2" ? Theme.warn
+                                : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam
+                                : model.type_label == "IR" ? Theme.b-ir
+                                : model.type_label == "LV2" ? Theme.b-lv2
+                                : Theme.b-vst3;
                             font-size: 18px;
                             font-weight: 800;
                             letter-spacing: 0.5px;

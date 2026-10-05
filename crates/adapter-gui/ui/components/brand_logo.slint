@@ -1,11 +1,12 @@
 // Responsibility: maps a brand onto its logo.
+import { Theme } from "../theme.slint";
 // Single source of truth for brand → logo mapping.
 // Use this component everywhere instead of duplicating the if chain.
 // Brands without a logo are hidden automatically.
 
 export component BrandLogo inherits Image {
     in property <string> brand;
-    in property <color> tint: #ffffff;
+    in property <color> tint: Theme.ink;
 
     property <bool> has-logo: root.brand == "alvarez"
         || root.brand == "ampeg"

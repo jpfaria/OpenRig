@@ -66,7 +66,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 0 ? root.param.option_labels[0] : "";
-            color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 0 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 0 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
@@ -89,7 +89,7 @@ export component BlockPanelParameterItem inherits Rectangle {
                 : parent.n == 3 ? (root.param.option_labels.length > 2 ? root.param.option_labels[2] : "")
                 : (root.param.option_labels.length > 3 ? root.param.option_labels[3] : "");
             color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
-                ? #ffaa44 : parent.tc.with-alpha(0.7);
+                ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
             horizontal-alignment: left;
@@ -109,7 +109,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: parent.cx - 55px; y: parent.top-row;
             width: 110px; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
-            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 1 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: center;
@@ -128,7 +128,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: 0; y: parent.top-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
-            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 1 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
@@ -147,7 +147,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 2 ? root.param.option_labels[2] : "";
-            color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 2 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 2 == parent.sel ? 700 : 400;
             horizontal-alignment: left;
@@ -166,9 +166,9 @@ export component BlockPanelParameterItem inherits Rectangle {
         x: 0; y: 22px;
         width: parent.width;
         height: 34px;
-        background: #060610;
+        background: Theme.well;
         border-width: 1px;
-        border-color: #252538;
+        border-color: Theme.hair-2;
         border-radius: 6px;
 
         Text {
@@ -178,7 +178,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
                 ? root.param.option_labels[root.param.selected_option_index]
                 : "";
-            color: #d8e0ff;
+            color: Theme.ink;
             font-size: 18px;
             font-weight: 700;
             vertical-alignment: center;
@@ -190,7 +190,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             width: 18px;
             height: parent.height;
             text: "\u{25BC}";
-            color: #ffffff;
+            color: Theme.ink;
             font-size: 18px;
             vertical-alignment: center;
             horizontal-alignment: center;
@@ -211,12 +211,12 @@ export component BlockPanelParameterItem inherits Rectangle {
             Rectangle {
                 width: 100%;
                 height: 100%;
-                background: #08080e;
+                background: Theme.well;
                 border-width: 1px;
-                border-color: #2a2a40;
+                border-color: Theme.hair;
                 border-radius: 6px;
                 drop-shadow-blur: 20px;
-                drop-shadow-color: #000000c0;
+                drop-shadow-color: Theme.shadow;
                 drop-shadow-offset-x: 0px;
                 drop-shadow-offset-y: 6px;
                 clip: true;
@@ -233,14 +233,14 @@ export component BlockPanelParameterItem inherits Rectangle {
                         width: parent.width - 8px;
                         height: 36px;
                         border-radius: 5px;
-                        background: oi == root.param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+                        background: oi == root.param.selected_option_index ? Theme.accent-soft : (opt-ta.has-hover ? Theme.hover : transparent);
 
                         Text {
                             x: 12px; y: 0;
                             width: parent.width - 24px;
                             height: parent.height;
                             text: option;
-                            color: oi == root.param.selected_option_index ? #7788ff : #b0bce0;
+                            color: oi == root.param.selected_option_index ? Theme.accent : Theme.ink-2;
                             font-size: 18px;
                             font-weight: oi == root.param.selected_option_index ? 700 : 400;
                             vertical-alignment: center;
@@ -265,16 +265,16 @@ export component BlockPanelParameterItem inherits Rectangle {
         width: parent.width - 8px;
         height: 32px;
         border-radius: 6px;
-        background: file-ta.has-hover ? #ffffff18 : #00000030;
+        background: file-ta.has-hover ? Theme.hover : Theme.shadow;
         border-width: 1px;
-        border-color: #ffffff10;
+        border-color: Theme.hair;
 
         Text {
             x: 4px;
             width: parent.width - 8px;
             height: parent.height;
             text: root.param.value_text != "" ? root.param.value_text : @tr("btn-load-file");
-            color: root.param.value_text != "" ? #8090a0 : #4488cc;
+            color: root.param.value_text != "" ? Theme.ink-2 : Theme.accent;
             font-size: 18px;
             font-weight: 600;
             overflow: elide;

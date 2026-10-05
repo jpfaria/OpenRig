@@ -7,6 +7,7 @@
 // this component only fires events. The add button is enabled once a device
 // and at least one channel are chosen.
 
+import { Theme } from "../../theme.slint";
 import { ChannelOptionItem } from "../../models.slint";
 import { ComboBox } from "std-widgets.slint";
 
@@ -25,9 +26,9 @@ component ChannelCheck inherits Rectangle {
         y: 12px;
         width: 20px;
         height: 20px;
-        background: root.channel.selected ? #188cff : #1e2229;
+        background: root.channel.selected ? Theme.accent : Theme.panel-hi;
         border-width: 1px;
-        border-color: root.channel.selected ? #45a7ff : #3d4450;
+        border-color: root.channel.selected ? Theme.accent : Theme.field-line;
         border-radius: 4px;
 
         if root.channel.selected : Image {
@@ -36,7 +37,7 @@ component ChannelCheck inherits Rectangle {
             width: 12px;
             height: 12px;
             source: @image-url("../../assets/check.svg");
-            colorize: #ffffff;
+            colorize: Theme.on-accent;
         }
     }
 
@@ -46,7 +47,7 @@ component ChannelCheck inherits Rectangle {
         width: parent.width - 28px;
         height: parent.height;
         text: root.channel.label;
-        color: root.channel.selected ? #edf2f9 : #8a95a5;
+        color: root.channel.selected ? Theme.ink : Theme.ink-2;
         font-size: 18px;
         font-weight: root.channel.selected ? 600 : 400;
         vertical-alignment: center;
@@ -95,7 +96,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
 
         Text {
             text: @tr("label-endpoint-device");
-            color: #8a92a3;
+            color: Theme.ink-2;
             font-size: 18px;
             min-width: 70px;
             vertical-alignment: center;
@@ -115,7 +116,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
 
         Text {
             text: @tr("label-endpoint-mode");
-            color: #8a92a3;
+            color: Theme.ink-2;
             font-size: 18px;
             min-width: 50px;
             horizontal-alignment: right;
@@ -138,7 +139,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
         alignment: start;
         Text {
             text: @tr("label-endpoint-channels");
-            color: #8a92a3;
+            color: Theme.ink-2;
             font-size: 18px;
             min-width: 70px;
             vertical-alignment: center;
@@ -156,7 +157,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
             // Grows with the translated label (icon + gap + text + padding).
             width: max(150px, add-content.preferred-width + 32px);
             height: 40px;
-            background: root.can-add ? #188cff : #1e2229;
+            background: root.can-add ? Theme.accent : Theme.panel-hi;
             border-radius: 8px;
             animate background { duration: 150ms; }
 
@@ -169,11 +170,11 @@ export component IoEndpointAddRow inherits VerticalLayout {
                     height: 13px;
                     y: (parent.height - self.height) / 2;
                     source: @image-url("../../assets/plus.svg");
-                    colorize: root.can-add ? #ffffff : #3d4450;
+                    colorize: root.can-add ? Theme.on-accent : Theme.ink-3;
                 }
                 Text {
                     text: @tr("btn-add-endpoint");
-                    color: root.can-add ? #ffffff : #3d4450;
+                    color: root.can-add ? Theme.on-accent : Theme.ink-3;
                     font-size: 18px;
                     font-weight: 600;
                     vertical-alignment: center;

@@ -5,6 +5,7 @@
 // The strip only reports intent: the fader position it was dragged to, a
 // reset (double-click or the reset button), a solo or mute press.
 
+import { Theme } from "../theme.slint";
 import { MixerStripRow } from "mixer_globals.slint";
 import { StripLabel } from "strip_label.slint";
 
@@ -28,15 +29,15 @@ component StripButton inherits Rectangle {
     border-radius: 5px;
     background: root.lit
         ? (root.hovered ? root.lit-hover : root.lit-color)
-        : (root.hovered ? #2a3340 : #1c2028);
+        : (root.hovered ? Theme.ktrack : Theme.panel);
     border-width: 1px;
-    border-color: root.lit ? root.lit-border : #2c323d;
+    border-color: root.lit ? root.lit-border : Theme.hair;
     animate background { duration: 120ms; }
 
     if !root.has-icon : Text {
         width: 100%; height: 100%;
         text: root.text;
-        color: root.lit ? #14100a : #d8e0ec;
+        color: root.lit ? Theme.on-accent : Theme.ink;
         font-family: "Bebas Neue";
         font-size: 18px;
         letter-spacing: 2.0px;
@@ -49,7 +50,7 @@ component StripButton inherits Rectangle {
         width: 16px; height: 16px;
         source: root.icon;
         image-fit: contain;
-        colorize: root.lit ? #14100a : #d8e0ec;
+        colorize: root.lit ? Theme.on-accent : Theme.ink;
     }
 
     accessible-role: button;
@@ -70,13 +71,13 @@ export component MixerStripView inherits Rectangle {
     in property <bool> has-mute: true;
     in property <bool> has-label: true;
     in property <bool> framed: true;
-    in property <brush> face: #0c0f14;
+    in property <brush> face: Theme.well;
 
     width: 112px;
     border-radius: 6px;
     background: root.face;
     border-width: root.framed ? 1px : 0px;
-    border-color: root.strip.soloed ? #b8962e : #1f2530;
+    border-color: root.strip.soloed ? Theme.warn : Theme.hair-2;
 
     // Muted, or silenced by another strip's solo: the strip reads dim.
     private property <bool> silent: root.strip.muted || root.strip.solo-silenced;
@@ -91,7 +92,7 @@ export component MixerStripView inherits Rectangle {
         x: 6px; y: 8px;
         width: parent.width - 12px; height: 22px;
         text: root.strip.gain-label;
-        color: root.silent ? #6f7a8a : #9fd3ff;
+        color: root.silent ? Theme.ink-3 : Theme.in;
         font-family: "Bebas Neue";
         font-size: 18px;
         horizontal-alignment: center;
@@ -112,9 +113,9 @@ export component MixerStripView inherits Rectangle {
             x: (parent.width - 6px) / 2; y: root.cap-height / 2;
             width: 6px; height: parent.travel;
             border-radius: 3px;
-            background: #1b212b;
+            background: Theme.panel;
             border-width: 1px;
-            border-color: #2b3340;
+            border-color: Theme.hair;
         }
 
         // Cap.
@@ -123,17 +124,17 @@ export component MixerStripView inherits Rectangle {
             y: (1 - parent.shown-position) * parent.travel;
             width: 44px; height: root.cap-height;
             border-radius: 4px;
-            background: fader-ta.pressed ? #d8e0ec : (fader-ta.has-hover ? #c5cdd9 : #aeb8c6);
+            background: fader-ta.pressed ? Theme.ink : (fader-ta.has-hover ? Theme.ink-2 : Theme.ink-2);
             opacity: root.silent ? 0.5 : 1.0;
             border-width: 1px;
-            border-color: #00000080;
+            border-color: Theme.shadow;
             drop-shadow-blur: 4px;
-            drop-shadow-color: #00000080;
+            drop-shadow-color: Theme.shadow;
 
             Rectangle {
                 x: 6px; y: (parent.height - 2px) / 2;
                 width: parent.width - 12px; height: 2px;
-                background: #2a3038;
+                background: Theme.panel-hi;
             }
         }
 
@@ -171,9 +172,9 @@ export component MixerStripView inherits Rectangle {
             text: @tr("action-mixer-solo-short");
             label: @tr("action-mixer-solo");
             lit: root.strip.soloed;
-            lit-color: #d9b43a;
-            lit-hover: #e8c552;
-            lit-border: #f2d77e;
+            lit-color: Theme.warn;
+            lit-hover: Theme.warn.brighter(0.15);
+            lit-border: Theme.warn.brighter(0.4);
             hovered: solo-ta.has-hover;
             pressed => { root.solo-toggled(root.strip.id); }
             solo-ta := TouchArea {
@@ -187,9 +188,9 @@ export component MixerStripView inherits Rectangle {
             has-icon: true;
             icon: root.strip.muted ? @image-url("../assets/volume-off.svg") : @image-url("../assets/volume.svg");
             lit: root.strip.muted;
-            lit-color: #c8443e;
-            lit-hover: #e0625c;
-            lit-border: #f08a84;
+            lit-color: Theme.bad;
+            lit-hover: Theme.bad.brighter(0.15);
+            lit-border: Theme.bad.brighter(0.4);
             hovered: mute-ta.has-hover;
             pressed => { root.mute-toggled(root.strip.id); }
             mute-ta := TouchArea {

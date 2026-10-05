@@ -5,6 +5,7 @@
 // configure, compact view, move, remove). #591: tapping empty header space selects the
 // chain as the footswitch's active chain.
 
+import { Theme } from "../theme.slint";
 import { ProjectChainItem, ChainRigNav } from "../models.slint";
 import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
@@ -74,7 +75,7 @@ export component ChainRowHeader inherits Rectangle {
             : root.chain.instrument == "drums" ? @image-url("../../../../assets/instruments/drums.svg")
             : @image-url("../../../../assets/instruments/generic.svg");
         image-fit: contain;
-        colorize: #6a7483;
+        colorize: Theme.ink-3;
     }
 
     // Issue #670: audio-overload (xrun) red LED. Lit while the chain's

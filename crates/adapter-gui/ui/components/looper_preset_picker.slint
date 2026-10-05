@@ -13,7 +13,7 @@ export component LooperPresetPicker inherits Rectangle {
     // (chain-index, uid, option-index) — the picked preset.
     callback preset-picked(int, int, int);
 
-    background: #000000a8;
+    background: Theme.scrim;
 
     // Click-outside closes without changing the link.
     TouchArea { clicked => { LooperPanel.preset-picker-uid = -1; } }
@@ -24,7 +24,7 @@ export component LooperPresetPicker inherits Rectangle {
         width: 360px;
         // +1 row for the "follow the chain" option the picker injects at 0.
         height: min(root.height - 80px, 96px + (root.preset-options.length + 1) * 48px);
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 12px;
         border-width: 1px;
         border-color: Theme.palette.border-strong;
@@ -51,10 +51,10 @@ export component LooperPresetPicker inherits Rectangle {
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: LooperPanel.preset-picker-selected == 0
-                            ? #6e8aff : transparent;
+                            ? Theme.accent : transparent;
                         background: follow-ta.has-hover
-                            ? #6e8aff28
-                            : (LooperPanel.preset-picker-selected == 0 ? #6e8aff14 : #2a2c31);
+                            ? Theme.accent-soft
+                            : (LooperPanel.preset-picker-selected == 0 ? Theme.accent.with-alpha(0.08) : Theme.panel-hi);
 
                         Text {
                             x: 12px;
@@ -74,7 +74,7 @@ export component LooperPresetPicker inherits Rectangle {
                             vertical-alignment: center;
                             horizontal-alignment: center;
                             text: LooperPanel.preset-picker-selected == 0 ? "✓" : "";
-                            color: #6e8aff;
+                            color: Theme.accent;
                             font-size: Theme.min-font;
                             font-weight: 700;
                         }
@@ -97,10 +97,10 @@ export component LooperPresetPicker inherits Rectangle {
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: (i + 1) == LooperPanel.preset-picker-selected
-                            ? #6e8aff : transparent;
+                            ? Theme.accent : transparent;
                         background: opt-ta.has-hover
-                            ? #6e8aff28
-                            : ((i + 1) == LooperPanel.preset-picker-selected ? #6e8aff14 : #2a2c31);
+                            ? Theme.accent-soft
+                            : ((i + 1) == LooperPanel.preset-picker-selected ? Theme.accent.with-alpha(0.08) : Theme.panel-hi);
 
                         Text {
                             x: 12px;
@@ -120,7 +120,7 @@ export component LooperPresetPicker inherits Rectangle {
                             vertical-alignment: center;
                             horizontal-alignment: center;
                             text: (i + 1) == LooperPanel.preset-picker-selected ? "✓" : "";
-                            color: #6e8aff;
+                            color: Theme.accent;
                             font-size: Theme.min-font;
                             font-weight: 700;
                         }

@@ -1,4 +1,5 @@
 // Responsibility: renders a knob.
+import { Theme } from "../theme.slint";
 // Sprite-sheet knob with value box below.
 // Horizontal strip: 8320×128 px, 65 frames (each 128×128).
 // Used in both block_panel_editor and compact_chain_view.
@@ -62,9 +63,9 @@ export component PanelKnob inherits Rectangle {
         width: max(root.ks * 0.9, value-text.preferred-width + 4px);
         height: max(22px, root.height - root.ks - 4px);
         border-radius: 3px;
-        background: #0c0a12;
+        background: Theme.well;
         border-width: 1px;
-        border-color: #2a2832;
+        border-color: Theme.hair;
 
         value-text := Text {
             width: parent.width;
@@ -74,7 +75,7 @@ export component PanelKnob inherits Rectangle {
                 : root.step >= 1.0
                 ? Math.round(root.current-val) + ""
                 : Math.round(root.current-val * 10) / 10 + "";
-            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
+            color: ta.pressed ? Theme.ink : ta.has-hover ? Theme.ink : Theme.ink-2;
             font-family: "Bebas Neue";
             font-size: 18px;
             font-weight: 700;

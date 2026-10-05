@@ -5,6 +5,7 @@
 // open. Offered on every chain, running or not: the faders are settings, not
 // live levels.
 
+import { Theme } from "../theme.slint";
 import { ChainMixerPanel } from "chain_mixer_panel_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 
@@ -16,8 +17,8 @@ export component ChainMixerButton inherits Rectangle {
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    background: root.active ? #6e8aff28
-                : ta.has-hover ? #ffffff10
+    background: root.active ? Theme.accent-soft
+                : ta.has-hover ? Theme.hover
                 : transparent;
     animate background { duration: 150ms; }
 
@@ -28,9 +29,9 @@ export component ChainMixerButton inherits Rectangle {
         height: 18px;
         source: @image-url("../assets/mixer-faders.svg");
         image-fit: contain;
-        colorize: root.active ? #6e8aff
-                  : ta.has-hover ? #ffffff
-                  : #8a94a2;
+        colorize: root.active ? Theme.accent
+                  : ta.has-hover ? Theme.ink
+                  : Theme.ink-2;
         animate colorize { duration: 150ms; }
     }
 

@@ -6,6 +6,7 @@
 // only its header shows until it is expanded. #1022: the host owns `expanded`
 // (one compact section open at a time), so the header only asks for a flip.
 
+import { Theme } from "../theme.slint";
 import { MixerBridge } from "mixer_globals.slint";
 import { ChainMixerTabs } from "chain_mixer_tabs.slint";
 import { SectionToggle } from "section_toggle.slint";
@@ -24,12 +25,12 @@ export component CompactChainMixer inherits Rectangle {
     // The picked tab outlives a collapse.
     private property <int> picked: 0;
 
-    background: #0c0e12;
+    background: Theme.well;
 
     Rectangle {
         x: 0; y: 0;
         width: parent.width; height: 1px;
-        background: #1c2028;
+        background: Theme.panel;
     }
 
     mixer-toggle := SectionToggle {

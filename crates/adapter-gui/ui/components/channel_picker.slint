@@ -14,6 +14,7 @@
 // the whole gesture and a nested list never sees the wheel: it could only be
 // moved by dragging its own scrollbar by hand.
 
+import { Theme } from "../theme.slint";
 import { ChannelOptionItem } from "../models.slint";
 
 component ChannelPickerRow inherits Rectangle {
@@ -22,7 +23,7 @@ component ChannelPickerRow inherits Rectangle {
     in property <bool> radio: false;
     callback toggled();
 
-    background: ta.has-hover ? #1f1f23 : transparent;
+    background: ta.has-hover ? Theme.panel : transparent;
     border-radius: 6px;
     accessible-role: checkbox;
     accessible-label: root.channel.label;
@@ -40,11 +41,11 @@ component ChannelPickerRow inherits Rectangle {
                 width: 18px;
                 height: 18px;
                 border-radius: root.radio ? 9px : 4px;
-                background: root.channel.selected && !root.radio ? #2f80ff : #18181b;
+                background: root.channel.selected && !root.radio ? Theme.accent : Theme.panel-lo;
                 border-width: 1px;
                 border-color: root.channel.selected
-                    ? #2f80ff
-                    : (root.channel.available ? #3f3f46 : #2a2a2e);
+                    ? Theme.accent
+                    : (root.channel.available ? Theme.field-line : Theme.hair-2);
                 opacity: root.channel.available ? 1 : 0.4;
 
                 if root.channel.selected && root.radio : Rectangle {
@@ -53,7 +54,7 @@ component ChannelPickerRow inherits Rectangle {
                     width: 8px;
                     height: 8px;
                     border-radius: 4px;
-                    background: #2f80ff;
+                    background: Theme.accent;
                 }
                 if root.channel.selected && !root.radio : Image {
                     x: (parent.width - self.width) / 2;
@@ -61,7 +62,7 @@ component ChannelPickerRow inherits Rectangle {
                     width: 10px;
                     height: 10px;
                     source: @image-url("../assets/check.svg");
-                    colorize: #ffffff;
+                    colorize: Theme.on-accent;
                 }
             }
         }
@@ -70,8 +71,8 @@ component ChannelPickerRow inherits Rectangle {
             horizontal-stretch: 1;
             text: root.channel.label;
             color: root.channel.available
-                ? (root.channel.selected ? #fafafa : #a1a1aa)
-                : #52525b;
+                ? (root.channel.selected ? Theme.ink : Theme.ink-2)
+                : Theme.ink-3;
             font-size: 18px;
             font-weight: root.channel.selected ? 600 : 400;
             vertical-alignment: center;
@@ -112,10 +113,10 @@ export component ChannelPicker inherits Rectangle {
     // without it the picker stretches to fill its parent.
     height: root.box-height;
 
-    background: #111114;
+    background: Theme.well;
     border-radius: 8px;
     border-width: 1px;
-    border-color: #27272a;
+    border-color: Theme.hair-2;
 
     VerticalLayout {
         padding: 8px;
@@ -129,7 +130,7 @@ export component ChannelPicker inherits Rectangle {
             Rectangle { horizontal-stretch: 1; }
             Text {
                 text: root.total-caption;
-                color: #52525b;
+                color: Theme.ink-3;
                 font-size: 18px;
                 vertical-alignment: center;
             }
@@ -138,7 +139,7 @@ export component ChannelPicker inherits Rectangle {
         if root.channels.length == 0 : Text {
             height: root.list-height;
             text: root.empty-hint;
-            color: #52525b;
+            color: Theme.ink-3;
             font-size: 18px;
             vertical-alignment: center;
         }

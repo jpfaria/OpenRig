@@ -3,26 +3,26 @@
 /// Returns the accent color (RGBA) for an effect type icon_kind.
 /// Single source of truth — used by all UI components.
 pub fn accent_color_for_icon_kind(icon_kind: &str) -> slint::Color {
+    // #398: the category palette the redesign draws blocks with.
+    let rgb = |v: u32| slint::Color::from_argb_u8(255, (v >> 16) as u8, (v >> 8) as u8, v as u8);
     match icon_kind {
-        "preamp" => slint::Color::from_argb_u8(255, 0xf2, 0x9f, 0x38),
-        "amp" => slint::Color::from_argb_u8(255, 0xf0, 0x62, 0x92),
-        "cab" => slint::Color::from_argb_u8(255, 0xf2, 0xcb, 0x54),
-        "body" => slint::Color::from_argb_u8(255, 0xc8, 0x94, 0x6a),
-        "ir" => slint::Color::from_argb_u8(255, 0x7c, 0xc9, 0xff),
-        "full_rig" => slint::Color::from_argb_u8(255, 0x63, 0xd2, 0xff),
-        "gain" => slint::Color::from_argb_u8(255, 0xff, 0x6a, 0x57),
-        "dynamics" => slint::Color::from_argb_u8(255, 0x41, 0xb8, 0xff),
-        "filter" => slint::Color::from_argb_u8(255, 0xd6, 0xc8, 0x5a),
-        "wah" => slint::Color::from_argb_u8(255, 0x78, 0xd0, 0x6b),
-        "modulation" => slint::Color::from_argb_u8(255, 0x58, 0xd3, 0x9b),
-        "delay" => slint::Color::from_argb_u8(255, 0xba, 0x8c, 0xff),
-        "reverb" => slint::Color::from_argb_u8(255, 0x6d, 0xe1, 0xd2),
-        "utility" => slint::Color::from_argb_u8(255, 0x95, 0xa0, 0xb2),
-        "nam" => slint::Color::from_argb_u8(255, 0xff, 0x7c, 0xd7),
-        "pitch" => slint::Color::from_argb_u8(255, 0x8f, 0x8c, 0xff),
-        "insert" => slint::Color::from_argb_u8(255, 0xf2, 0x9f, 0x38),
-        "input" => slint::Color::from_argb_u8(255, 0x45, 0xa7, 0xff),
-        "output" => slint::Color::from_argb_u8(255, 0x45, 0xa7, 0xff),
+        "preamp" => rgb(0xb8862a),
+        "amp" | "nam" => rgb(0xd23b2d),
+        "full_rig" => rgb(0xb5452f),
+        "cab" => rgb(0x7c6d5a),
+        "body" => rgb(0x8f6a45),
+        "ir" => rgb(0x6f6a62),
+        "gain" => rgb(0xe8671b),
+        "dynamics" => rgb(0x2f6fe0),
+        "filter" => rgb(0xc9a100),
+        "wah" => rgb(0xa88f12),
+        "modulation" => rgb(0x8a4fe0),
+        "delay" => rgb(0x0f9c8e),
+        "reverb" => rgb(0x2b8fd6),
+        "pitch" => rgb(0x6a5ae0),
+        "utility" => rgb(0x69717f),
+        "insert" => rgb(0xf28c1e),
+        "input" | "output" => rgb(0x2b8fd6),
         _ => slint::Color::from_argb_u8(255, 0x7f, 0xb0, 0xff),
     }
 }

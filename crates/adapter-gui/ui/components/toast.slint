@@ -1,4 +1,5 @@
 // Responsibility: renders a transient message.
+import { Theme } from "../theme.slint";
 export component Toast inherits Rectangle {
     in property <string> message;
     in property <string> level: "info"; // "error", "warning", "info"
@@ -14,16 +15,16 @@ export component Toast inherits Rectangle {
     width: Math.min(root.container-width - 40px, 500px);
     height: max(40px, msg.preferred-height + 16px);
     border-radius: 8px;
-    background: root.level == "error" ? #dc2626cc
-             : root.level == "warning" ? #d97706cc
-             : #2563ebcc;
+    background: root.level == "error" ? Theme.bad.with-alpha(0.80)
+             : root.level == "warning" ? Theme.warn.with-alpha(0.80)
+             : Theme.in.with-alpha(0.80);
 
     msg := Text {
         width: parent.width - 24px;
         height: parent.height;
         x: 12px;
         text: root.message;
-        color: #ffffff;
+        color: Theme.hero-fg;
         font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;

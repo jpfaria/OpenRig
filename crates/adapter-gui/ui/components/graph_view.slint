@@ -10,6 +10,7 @@
 //
 // All callbacks emit ids and coords in *layout* space.
 
+import { Theme } from "../theme.slint";
 import { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor } from "graph_view_types.slint";
 import { GraphNodeCard } from "graph_node_card.slint";
 import { GraphWire } from "graph_wire.slint";
@@ -36,8 +37,8 @@ export component GraphView inherits Rectangle {
     // row's BlockChip, the tile a block card keeps parity with (#328).
     in property <length> node_width: 100px;
     in property <length> node_height: 100px;
-    in property <color> background_color: #11141a;
-    in property <color> grid_color: #1a1f2a;
+    in property <color> background_color: Theme.panel-lo;
+    in property <color> grid_color: Theme.hair-2;
     in property <bool> show_grid: true;
     // #591 parity with BlockChip: MIDI markers show only while a MIDI
     // command is recent.

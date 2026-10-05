@@ -1,4 +1,5 @@
 // Responsibility: renders the hover label of a header icon.
+import { Theme } from "../theme.slint";
 // #323 — a small hover label for the chain-header icon buttons (looper, DI,
 // Tone Doctor, volume). Same look as ChainActionIcon's tooltip; extracted so
 // the icon-cluster buttons that are their own components can reuse it. Renders
@@ -15,15 +16,15 @@ export component IconTooltip inherits Rectangle {
     y: 30px;
     width: max(104px, label.preferred-width + 16px);
     height: label.preferred-height + 6px;
-    background: #11141aef;
+    background: Theme.panel-lo.with-alpha(0.94);
     border-width: 1px;
-    border-color: #3b4250;
+    border-color: Theme.field-line;
     border-radius: 4px;
     z: 60;
 
     label := Text {
         text: root.text;
-        color: #dde4ef;
+        color: Theme.ink;
         font-size: 18px;
         horizontal-alignment: center;
         vertical-alignment: center;

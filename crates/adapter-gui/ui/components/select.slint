@@ -48,9 +48,9 @@ export component Select inherits Rectangle {
 
     height: 38px;
     border-radius: 6px;
-    background: #0a0d12;
+    background: Theme.well;
     border-width: 1px;
-    border-color: ta.has-hover ? #4d5868 : #2b3340;
+    border-color: ta.has-hover ? Theme.field-line : Theme.hair;
     animate border-color { duration: 150ms; }
 
     if root.has-icon : Image {
@@ -60,7 +60,7 @@ export component Select inherits Rectangle {
         height: 16px;
         source: root.field-icon;
         image-fit: contain;
-        colorize: root.field-icon-active ? #6e8aff : #8a94a2;
+        colorize: root.field-icon-active ? Theme.accent : Theme.ink-2;
     }
 
     Text {
@@ -68,7 +68,7 @@ export component Select inherits Rectangle {
         width: parent.width - (root.has-icon ? 34px : 14px) - 30px;
         height: parent.height;
         text: root.field-label != "" ? root.field-label : root.placeholder;
-        color: root.field-label != "" ? #f1f4f8 : #6a6a82;
+        color: root.field-label != "" ? Theme.ink : Theme.ink-3;
         font-size: root.field-font-size;
         font-weight: root.field-font-weight;
         vertical-alignment: center;
@@ -81,7 +81,7 @@ export component Select inherits Rectangle {
         height: 16px;
         source: @image-url("../assets/arrow-down.svg");
         image-fit: contain;
-        colorize: ta.has-hover ? #ffffff : #8a94a2;
+        colorize: ta.has-hover ? Theme.ink : Theme.ink-2;
     }
 
     ta := TouchArea {
@@ -105,12 +105,12 @@ export component Select inherits Rectangle {
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #0a0d12;
+            background: Theme.well;
             border-width: 1px;
-            border-color: #2b3340;
+            border-color: Theme.hair;
             border-radius: 6px;
             drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
+            drop-shadow-color: Theme.shadow;
             drop-shadow-offset-y: 6px;
             clip: true;
 
@@ -120,9 +120,9 @@ export component Select inherits Rectangle {
                 y: 6px;
                 width: parent.width - 12px;
                 height: 40px;
-                background: #15191f;
+                background: Theme.panel-lo;
                 border-width: 1px;
-                border-color: #2b3340;
+                border-color: Theme.hair;
                 border-radius: 6px;
 
                 Image {
@@ -131,7 +131,7 @@ export component Select inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../modules/surrealism-ui/icons/search.svg");
-                    colorize: #6a6a82;
+                    colorize: Theme.ink-3;
                 }
 
                 input := TextInput {
@@ -140,7 +140,7 @@ export component Select inherits Rectangle {
                     width: parent.width - 30px - (root.search == "" ? 8px : 28px);
                     height: parent.height;
                     text <=> root.search;
-                    color: #d8e0ff;
+                    color: Theme.ink;
                     font-size: Theme.min-font;
                     horizontal-alignment: left;
                     vertical-alignment: center;
@@ -156,7 +156,7 @@ export component Select inherits Rectangle {
                     width: parent.width - 38px;
                     height: parent.height;
                     text: root.search-placeholder;
-                    color: #6a6a82;
+                    color: Theme.ink-3;
                     font-size: Theme.min-font;
                     vertical-alignment: center;
                 }
@@ -177,7 +177,7 @@ export component Select inherits Rectangle {
                         width: 12px;
                         height: 12px;
                         source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                        colorize: #8a8aa2;
+                        colorize: Theme.ink-2;
                     }
                 }
             }
@@ -189,7 +189,7 @@ export component Select inherits Rectangle {
                 width: parent.width;
                 height: 36px;
                 text: root.empty-text;
-                color: #6a6a82;
+                color: Theme.ink-3;
                 font-size: Theme.min-font;
                 vertical-alignment: center;
                 horizontal-alignment: center;
@@ -212,13 +212,13 @@ export component Select inherits Rectangle {
                     border-radius: 4px;
                     background: opt.key == root.active-key
                         ? Theme.palette.accent-end
-                        : (row-ta.has-hover ? #1b2230 : transparent);
+                        : (row-ta.has-hover ? Theme.panel-hi : transparent);
                     Text {
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
                         text: opt.label;
-                        color: #f1f4f8;
+                        color: Theme.ink;
                         font-size: Theme.min-font;
                         font-weight: opt.key == root.active-key ? 800 : 600;
                         vertical-alignment: center;

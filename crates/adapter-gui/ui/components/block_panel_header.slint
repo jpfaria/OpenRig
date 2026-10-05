@@ -1,4 +1,5 @@
 // Responsibility: renders the header of the block panel.
+import { Theme } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
 import { ModelSelectWithSearch } from "model_select_with_search.slint";
 
@@ -26,7 +27,7 @@ export component BlockPanelHeader inherits Rectangle {
     callback delete-block();
     callback save-block();
 
-    background: #06060c;
+    background: Theme.panel-lo;
 
     // The type label and the badge size from their (translated) text, so the
     // picker between them takes what is left instead of covering them (#954).
@@ -42,7 +43,7 @@ export component BlockPanelHeader inherits Rectangle {
         height: 24px;
         source: root.selected-icon-source;
         image-fit: contain;
-        colorize: #f1f4f8;
+        colorize: Theme.ink;
     }
 
     // Block type label (left, after icon)
@@ -51,7 +52,7 @@ export component BlockPanelHeader inherits Rectangle {
         width: self.preferred-width;
         height: parent.height;
         text: root.block-type-label;
-        color: #f1f4f8;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: 900;
         vertical-alignment: center;
@@ -78,7 +79,7 @@ export component BlockPanelHeader inherits Rectangle {
         width: root.picker-w;
         height: parent.height;
         text: root.selected-model.display_name;
-        color: #f1f4f8;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: 700;
         vertical-alignment: center;
@@ -94,25 +95,25 @@ export component BlockPanelHeader inherits Rectangle {
         width: root.badge-w;
         height: 24px;
         border-radius: 4px;
-        background: root.type-label == "NATIVE" ? #0d2a0d
-            : root.type-label == "NAM/A2" ? #2e260d
-            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #0d1a2e
-            : #2e1a0d;
+        background: root.type-label == "NATIVE" ? Theme.b-native.with-alpha(0.14)
+            : root.type-label == "NAM/A2" ? Theme.warn.with-alpha(0.14)
+            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam.with-alpha(0.14)
+            : Theme.b-vst3.with-alpha(0.14);
         border-width: 1px;
-        border-color: root.type-label == "NATIVE" ? #1a6b1a
-            : root.type-label == "NAM/A2" ? #8a6a1a
-            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a4488
-            : #883300;
+        border-color: root.type-label == "NATIVE" ? Theme.b-native.with-alpha(0.5)
+            : root.type-label == "NAM/A2" ? Theme.warn.with-alpha(0.5)
+            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam.with-alpha(0.5)
+            : Theme.b-vst3.with-alpha(0.5);
 
         badge-text := Text {
             x: 8px; y: 0;
             width: parent.width - 16px;
             height: parent.height;
             text: root.type-label;
-            color: root.type-label == "NATIVE" ? #33bb33
-                : root.type-label == "NAM/A2" ? #ffcc44
-                : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4499ff
-                : #ff8833;
+            color: root.type-label == "NATIVE" ? Theme.b-native
+                : root.type-label == "NAM/A2" ? Theme.warn
+                : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam
+                : Theme.b-vst3;
             font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.8px;
@@ -128,14 +129,14 @@ export component BlockPanelHeader inherits Rectangle {
         width: 24px;
         height: 24px;
         border-radius: 4px;
-        background: ta-info.has-hover ? #001a1a : transparent;
+        background: ta-info.has-hover ? Theme.hover : transparent;
 
         Image {
             x: 3px; y: 3px;
             width: 18px; height: 18px;
             source: @image-url("../assets/info.svg");
             image-fit: contain;
-            colorize: ta-info.has-hover ? #22C55E : #336655;
+            colorize: ta-info.has-hover ? Theme.ok : Theme.ink-3;
         }
 
         ta-info := TouchArea {
@@ -153,14 +154,14 @@ export component BlockPanelHeader inherits Rectangle {
         width: 24px;
         height: 24px;
         border-radius: 4px;
-        background: ta-del.has-hover ? #1a0000 : transparent;
+        background: ta-del.has-hover ? Theme.bad-soft : transparent;
 
         Image {
             x: 3px; y: 3px;
             width: 18px; height: 18px;
             source: @image-url("../assets/trash.svg");
             image-fit: contain;
-            colorize: ta-del.has-hover ? #ff4433 : #662222;
+            colorize: ta-del.has-hover ? Theme.bad : Theme.ink-3;
         }
 
         ta-del := TouchArea {
@@ -176,14 +177,14 @@ export component BlockPanelHeader inherits Rectangle {
         width: 24px;
         height: 24px;
         border-radius: 4px;
-        background: ta-save.has-hover ? #0a1a30 : transparent;
+        background: ta-save.has-hover ? Theme.accent-soft : transparent;
 
         Image {
             x: 3px; y: 3px;
             width: 18px; height: 18px;
             source: @image-url("../assets/save.svg");
             image-fit: contain;
-            colorize: ta-save.has-hover ? #4499ff : #224488;
+            colorize: ta-save.has-hover ? Theme.accent : Theme.ink-3;
         }
 
         ta-save := TouchArea {

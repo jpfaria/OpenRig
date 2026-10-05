@@ -53,7 +53,7 @@ export component CompactBlockRow inherits Rectangle {
     private property <length> header-height: 100px;
     background: root.block-data.panel-bg;
     border-width: 1px;
-    border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
+    border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : Theme.hair-2;
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
     clip: true;
@@ -140,7 +140,7 @@ export component CompactBlockRow inherits Rectangle {
         selected-model: root.block-data.model-selected-index >= 0
             && root.block-data.model-selected-index < root.block-data.models.length
             ? root.block-data.models[root.block-data.model-selected-index]
-            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: Colors.transparent, panel_text: Colors.transparent, brand_strip_bg: Colors.transparent, model_font: "" };
         open-requested(x, y, w) => {
             root.request-model-popup(root.block-data.chain-index, root.block-data.block-index, x, y, w);
         }
@@ -324,14 +324,14 @@ export component CompactBlockRow inherits Rectangle {
         width: 24px;
         height: 24px;
         border-radius: 4px;
-        background: del-ta.has-hover ? #ff4444 : transparent;
+        background: del-ta.has-hover ? Theme.bad : transparent;
         opacity: del-ta.has-hover ? 1.0 : 0.4;
 
         Image {
             x: 4px; y: 4px; width: 16px; height: 16px;
             source: @image-url("../assets/trash.svg");
             image-fit: contain;
-            colorize: del-ta.has-hover ? white : #8090a0;
+            colorize: del-ta.has-hover ? Theme.hero-fg : Theme.ink-2;
         }
 
         del-ta := TouchArea {

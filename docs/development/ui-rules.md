@@ -14,6 +14,19 @@ Icons are SVG via `@image-url` + colorize, never a glyph (it renders as tofu on
 the Orange Pi). Bebas Neue is the default font by choice — do not propose
 changing it. Keep the look consistent across screens.
 
+## 0.1 Colours come from `Theme` tokens only (#398)
+
+No raw hex in a `.slint` file outside `ui/theme.slint`. Every colour is a
+`Theme` token (`page`, `panel`, `hair`, `ink`, `accent`, `ok`/`warn`/`bad`,
+`in`/`out`, `c-*`, `b-*`, …), tinted with `.with-alpha()`, `.brighter()` or
+`.darker()` when needed. The app follows the system light/dark scheme through
+`Theme.dark`, so a hard-coded colour breaks one of the two schemes. Text on an
+accent fill uses `on-accent`; text on a red or coloured fill uses `hero-fg`.
+The launcher hero and the tuner/metronome LCD are fixed-look tokens
+(`hero-*`, `lcd-*`) that do not change with the scheme. Every monochrome SVG
+icon carries a `colorize` from a token, or it disappears in light mode. Lines
+stay subtle: 1px hairlines (`hair`, `hair-2`), not thick borders.
+
 ## 1. `PopupWindow` content does not reliably receive clicks
 
 In this Slint version (1.16.1) a `PopupWindow` renders its content on a separate

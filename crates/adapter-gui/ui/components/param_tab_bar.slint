@@ -10,7 +10,7 @@ export component ParamTabBar inherits Rectangle {
     in property <int> active: 0;
     callback select(int);
 
-    background: #0a0a0e;
+    background: Theme.well;
     clip: true;
     // #787: inside a layout (the compact row's strip) the bar would collapse to
     // zero width — it scrolls its own content, so nothing pushes it open. Its
@@ -37,13 +37,13 @@ export component ParamTabBar inherits Rectangle {
                 min-width: label.preferred-width + 24px;
                 background: i == root.active
                     ? Theme.palette.accent-end
-                    : (tab-ta.has-hover ? #1b2230 : transparent);
+                    : (tab-ta.has-hover ? Theme.panel-hi : transparent);
                 border-radius: 5px;
                 animate background { duration: 120ms; }
 
                 label := Text {
                     text: group;
-                    color: i == root.active ? #ffffff : #9aa4b2;
+                    color: i == root.active ? Theme.ink : Theme.ink-2;
                     font-size: Theme.min-font;
                     font-weight: i == root.active ? 800 : 600;
                     vertical-alignment: center;

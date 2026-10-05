@@ -17,8 +17,8 @@ export component EditorButton inherits Rectangle {
     border-width: 1px;
     border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
     background: !root.enabled
-        ? #2a2c3160
-        : (area.has-hover ? #6e8aff28 : #2a2c31);
+        ? Theme.panel-hi.with-alpha(0.38)
+        : (area.has-hover ? Theme.accent-soft : Theme.panel-hi);
 
     accessible-role: button;
     accessible-label: root.label;

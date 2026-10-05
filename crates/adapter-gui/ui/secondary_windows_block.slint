@@ -1,4 +1,5 @@
 // Responsibility: declares the detached block windows.
+import { Theme } from "theme.slint";
 import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
@@ -73,7 +74,7 @@ export component BlockEditorWindow inherits Window {
     max-height: panel-height;
     preferred-width: panel-width;
     preferred-height: panel-height;
-    background: #040708;
+    background: Theme.page;
 
     // Amp head: visual panel editor
     if root.use-panel-editor : BlockPanelEditor {
@@ -125,7 +126,7 @@ export component CompactChainViewWindow inherits Window {
     min-height: 480px;
     preferred-width: 1305px;
     preferred-height: 840px;
-    background: #0a0c10;
+    background: Theme.well;
 
     in property <string> chain-title;
     in property <int> chain-index;

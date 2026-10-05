@@ -1,4 +1,5 @@
 // Responsibility: renders the plugin info.
+import { Theme } from "../theme.slint";
 // Plugin info — both a standalone Window (windowed mode) and a Rectangle panel
 // used as inline overlay in fullscreen, where secondary windows do not surface
 // reliably (e.g. Orange Pi / kiosk).
@@ -18,7 +19,7 @@ export component PluginInfoPanel inherits Rectangle {
     callback open-homepage();
     callback close-window();
 
-    background: #111118;
+    background: Theme.panel-lo;
 
     VerticalLayout {
         alignment: start;
@@ -26,7 +27,7 @@ export component PluginInfoPanel inherits Rectangle {
         // ── Screenshot area (fixed 200px) ────────────────────────────────────
         Rectangle {
             height: 200px;
-            background: #0a0a14;
+            background: Theme.well;
             clip: true;
 
             if root.has-screenshot : Image {
@@ -38,7 +39,7 @@ export component PluginInfoPanel inherits Rectangle {
 
             if !root.has-screenshot : Rectangle {
                 width: parent.width; height: parent.height;
-                background: #0d0d1a;
+                background: Theme.well;
                 Image {
                     x: (parent.width - 72px) / 2;
                     y: (parent.height - 72px) / 2;
@@ -53,7 +54,7 @@ export component PluginInfoPanel inherits Rectangle {
             Rectangle {
                 y: parent.height - 60px;
                 width: parent.width; height: 60px;
-                background: @linear-gradient(180deg, transparent 0%, #111118 100%);
+                background: @linear-gradient(180deg, transparent 0%, Theme.panel-lo 100%);
             }
         }
 
@@ -68,7 +69,7 @@ export component PluginInfoPanel inherits Rectangle {
                 text: root.plugin-name;
                 font-size: 20px;
                 font-weight: 700;
-                color: #f0f0f8;
+                color: Theme.ink;
                 wrap: word-wrap;
             }
 
@@ -80,14 +81,14 @@ export component PluginInfoPanel inherits Rectangle {
                 if root.brand != "" : Text {
                     text: root.brand;
                     font-size: 18px;
-                    color: #8888aa;
+                    color: Theme.ink-2;
                     vertical-alignment: center;
                 }
 
                 if root.brand != "" && root.type-label != "" : Text {
                     text: @tr("·");
                     font-size: 18px;
-                    color: #555566;
+                    color: Theme.ink-3;
                     vertical-alignment: center;
                 }
 
@@ -95,11 +96,11 @@ export component PluginInfoPanel inherits Rectangle {
                     height: max(22px, type-badge-text.preferred-height + 4px);
                     width: type-badge-text.preferred-width + 12px;
                     border-radius: 4px;
-                    background: root.type-label == "LV2" ? #1a2a1a
-                        : root.type-label == "NAM/A2" ? #2e260d
-                        : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a1a2a
-                        : root.type-label == "IR" ? #2a1a1a
-                        : #1e1e2a;
+                    background: root.type-label == "LV2" ? Theme.b-lv2.with-alpha(0.14)
+                        : root.type-label == "NAM/A2" ? Theme.warn.with-alpha(0.14)
+                        : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam.with-alpha(0.14)
+                        : root.type-label == "IR" ? Theme.b-ir.with-alpha(0.14)
+                        : Theme.panel-hi;
 
                     type-badge-text := Text {
                         x: 6px;
@@ -107,18 +108,18 @@ export component PluginInfoPanel inherits Rectangle {
                         text: root.type-label;
                         font-size: 18px;
                         font-weight: 600;
-                        color: root.type-label == "LV2" ? #44cc44
-                            : root.type-label == "NAM/A2" ? #ffcc44
-                            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4488ff
-                            : root.type-label == "IR" ? #ff8844
-                            : #aaaacc;
+                        color: root.type-label == "LV2" ? Theme.b-lv2
+                            : root.type-label == "NAM/A2" ? Theme.warn
+                            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam
+                            : root.type-label == "IR" ? Theme.b-ir
+                            : Theme.ink-2;
                         vertical-alignment: center;
                     }
                 }
             }
 
             // Divider
-            Rectangle { height: 1px; background: #222230; }
+            Rectangle { height: 1px; background: Theme.hair; }
 
             // Description
             if root.description != "" : VerticalLayout {
@@ -127,13 +128,13 @@ export component PluginInfoPanel inherits Rectangle {
                     text: @tr("label-description");
                     font-size: 18px;
                     font-weight: 600;
-                    color: #555566;
+                    color: Theme.ink-3;
                     letter-spacing: 1px;
                 }
                 Text {
                     text: root.description;
                     font-size: 18px;
-                    color: #a0a0b8;
+                    color: Theme.ink-2;
                     wrap: word-wrap;
                 }
             }
@@ -145,13 +146,13 @@ export component PluginInfoPanel inherits Rectangle {
                 Text {
                     text: @tr("label-license");
                     font-size: 18px;
-                    color: #555566;
+                    color: Theme.ink-3;
                     vertical-alignment: center;
                 }
                 Text {
                     text: root.license;
                     font-size: 18px;
-                    color: #7a7a9a;
+                    color: Theme.ink-3;
                     vertical-alignment: center;
                 }
             }
@@ -160,9 +161,9 @@ export component PluginInfoPanel inherits Rectangle {
             if root.has-homepage : Rectangle {
                 height: 36px;
                 border-radius: 6px;
-                background: hp-ta.has-hover ? #1a3a20 : #162a1a;
+                background: hp-ta.has-hover ? Theme.ok-soft : Theme.ok.with-alpha(0.1);
                 border-width: 1px;
-                border-color: hp-ta.has-hover ? #22C55E : #1e401e;
+                border-color: hp-ta.has-hover ? Theme.ok : Theme.ok.with-alpha(0.4);
 
                 HorizontalLayout {
                     alignment: center;
@@ -172,13 +173,13 @@ export component PluginInfoPanel inherits Rectangle {
                     Text {
                         text: @tr("↗");
                         font-size: 18px;
-                        color: #22C55E;
+                        color: Theme.ok;
                         vertical-alignment: center;
                     }
                     Text {
                         text: @tr("btn-open-homepage");
                         font-size: 18px;
-                        color: #22C55E;
+                        color: Theme.ok;
                         vertical-alignment: center;
                     }
                 }
@@ -201,7 +202,7 @@ export component PluginInfoPanel inherits Rectangle {
         width: 32px;
         height: 32px;
         border-radius: 16px;
-        background: close-ta.has-hover ? #ff6a5740 : #00000080;
+        background: close-ta.has-hover ? Theme.bad.with-alpha(0.25) : Theme.scrim;
 
         Image {
             x: (parent.width - 14px) / 2;
@@ -209,7 +210,7 @@ export component PluginInfoPanel inherits Rectangle {
             width: 14px;
             height: 14px;
             source: @image-url("../assets/close.svg");
-            colorize: close-ta.has-hover ? #ffffff : #d0d4dc;
+            colorize: close-ta.has-hover ? Theme.ink : Theme.ink-2;
         }
 
         close-ta := TouchArea {
@@ -225,7 +226,7 @@ export component PluginInfoWindow inherits Window {
     title: "Plugin Info";
     width: 480px;
     min-height: 400px;
-    background: #111118;
+    background: Theme.panel-lo;
 
     in property <image> screenshot;
     in property <bool> has-screenshot: false;

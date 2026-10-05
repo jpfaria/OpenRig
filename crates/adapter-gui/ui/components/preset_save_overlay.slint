@@ -5,6 +5,7 @@
 // A second overlay (rendered by AppWindow) asks for overwrite
 // confirmation when the chosen name collides with an existing file.
 
+import { Theme } from "../theme.slint";
 import { LineEdit } from "std-widgets.slint";
 
 export component PresetSaveOverlay inherits Rectangle {
@@ -15,18 +16,18 @@ export component PresetSaveOverlay inherits Rectangle {
     callback cancel();
 
     visible: root.visible-overlay;
-    background: #000000b0;
+    background: Theme.scrim;
 
     if root.visible-overlay: Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width * 0.7, 420px);
         height: max(200px, save-col.preferred-height);
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
-        drop-shadow-color: #000000c0;
+        drop-shadow-color: Theme.shadow;
         // Issue #510 bug fix: focus the name field when the overlay
         // appears so the user can type immediately. Without this the
         // LineEdit waits for an extra click before accepting keys.
@@ -38,7 +39,7 @@ export component PresetSaveOverlay inherits Rectangle {
             Text {
                 text: @tr("title-dialog-save-preset");
                 font-size: 18px;
-                color: #ffffff;
+                color: Theme.ink;
                 font-weight: 700;
                 horizontal-alignment: center;
             }
@@ -55,7 +56,7 @@ export component PresetSaveOverlay inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    background: cancel-area.has-hover ? Theme.panel-hi : Theme.panel;
                     cancel-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.cancel(); }
@@ -63,7 +64,7 @@ export component PresetSaveOverlay inherits Rectangle {
                     Text {
                         text: @tr("btn-cancel");
                         font-size: 18px;
-                        color: #aaaaaa;
+                        color: Theme.ink-2;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
@@ -72,7 +73,7 @@ export component PresetSaveOverlay inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
+                    background: confirm-area.has-hover ? Theme.accent : Theme.accent;
                     confirm-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
@@ -82,7 +83,7 @@ export component PresetSaveOverlay inherits Rectangle {
                     Text {
                         text: @tr("btn-save");
                         font-size: 18px;
-                        color: #ffffff;
+                        color: Theme.on-accent;
                         font-weight: 700;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -100,7 +101,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
     callback confirm();
 
     visible: root.visible-overlay;
-    background: #000000b0;
+    background: Theme.scrim;
 
     if root.visible-overlay: Rectangle {
         x: (root.width - self.width) / 2;
@@ -108,11 +109,11 @@ export component PresetOverwriteOverlay inherits Rectangle {
         width: min(root.width * 0.7, 420px);
         // Grows with the (wrapped) message.
         height: max(170px, overwrite-col.preferred-height);
-        background: #1e1f22;
+        background: Theme.panel;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
-        drop-shadow-color: #000000c0;
+        drop-shadow-color: Theme.shadow;
 
         overwrite-col := VerticalLayout {
             padding: 20px;
@@ -120,14 +121,14 @@ export component PresetOverwriteOverlay inherits Rectangle {
             Text {
                 text: @tr("title-dialog-overwrite-preset");
                 font-size: 18px;
-                color: #ffffff;
+                color: Theme.ink;
                 font-weight: 700;
                 horizontal-alignment: center;
             }
             Text {
                 text: @tr("msg-overwrite-preset", root.preset-name);
                 font-size: 18px;
-                color: #aaaaaa;
+                color: Theme.ink-2;
                 horizontal-alignment: center;
                 wrap: word-wrap;
             }
@@ -137,7 +138,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    background: cancel-area.has-hover ? Theme.panel-hi : Theme.panel;
                     cancel-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.cancel(); }
@@ -145,7 +146,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     Text {
                         text: @tr("btn-cancel");
                         font-size: 18px;
-                        color: #aaaaaa;
+                        color: Theme.ink-2;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
@@ -154,7 +155,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     horizontal-stretch: 1;
                     height: 40px;
                     border-radius: 6px;
-                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
+                    background: confirm-area.has-hover ? Theme.bad : Theme.bad;
                     confirm-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.confirm(); }
@@ -162,7 +163,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
                     Text {
                         text: @tr("btn-overwrite");
                         font-size: 18px;
-                        color: #ffffff;
+                        color: Theme.hero-fg;
                         font-weight: 700;
                         horizontal-alignment: center;
                         vertical-alignment: center;
