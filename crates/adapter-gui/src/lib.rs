@@ -157,6 +157,11 @@ mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
+/// #1070: crash-report contexts.
+pub mod sentry_audio_context;
+pub mod sentry_event_context;
+pub mod sentry_host_context;
+mod sentry_runtime_publish;
 pub(crate) mod session_dispatch;
 mod settings;
 pub mod tone_doctor_compact_wiring;

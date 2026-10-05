@@ -28,6 +28,7 @@ mod device_config_cache;
 mod device_lookup;
 
 mod host;
+pub use host::audio_backend_name;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_device_enum;

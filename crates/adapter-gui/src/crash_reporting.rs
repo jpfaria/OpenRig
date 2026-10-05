@@ -10,5 +10,7 @@ pub fn init() -> Option<Guard> {
     let mut options = sentry::ClientOptions::new();
     options.release = Some(concat!("openrig@", env!("CARGO_PKG_VERSION")).into());
     options.attach_stacktrace = true;
+    // #1070: every event carries the audio setup and the host sample.
+    options.before_send = Some(std::sync::Arc::new(crate::sentry_event_context::attach));
     Some(sentry::init((dsn, options)))
 }
