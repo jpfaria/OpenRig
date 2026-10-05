@@ -85,12 +85,30 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
             })))
             .build();
     let max_level = logger.filter();
+    // #1060: `error!` becomes a Sentry event, lower levels breadcrumbs.
+    // Without a Sentry client this is a no-op.
+    let logger = sentry_log::SentryLogger::with_dest(logger);
     if log::set_boxed_logger(Box::new(logger)).is_ok() {
         log::set_max_level(max_level);
     }
 }
 
-/// Default initialization used by the binaries: log to stderr.
+/// Default initialization used by the binaries: log to stderr and, when
+/// the platform log dir is writable, to a session file that also
+/// receives panic reports (#1060).
 pub fn init_logging() {
-    init_logging_with_target(Box::new(std::io::stderr()));
+    let session = crate::log_file::log_dir().and_then(|dir| {
+        crate::log_file::open_session_log(&dir, crate::log_file::SESSIONS_KEPT).ok()
+    });
+    match session {
+        Some((path, file)) => {
+            crate::panic_log::install(path.clone());
+            init_logging_with_target(Box::new(crate::tee_writer::TeeWriter::new(
+                std::io::stderr(),
+                file,
+            )));
+            log::info!("session log: {}", path.display());
+        }
+        None => init_logging_with_target(Box::new(std::io::stderr())),
+    }
 }
