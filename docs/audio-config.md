@@ -378,6 +378,19 @@ One detector serves all of them and the activation path:
 holds nothing, so binding it freely is allowed; the guard fires on enable. Both
 GUI surfaces (chains screen row and compact view) toast the error.
 
+**Absent interface.** Enabling a chain also refuses when any device its ports
+resolve to is not listed by the host right now (interface powered off or
+unplugged): the chain stays off and the error names the bindings whose
+interface is missing. The dispatcher asks through the `DevicePresence` port
+(`crates/application/src/device_presence.rs`), which the desktop app attaches
+with the host check `infra_cpal::device_is_present` (cpal device lookup; on
+JACK, the USB card being on the bus). It is asked once per enable, never on a
+timer. A dispatcher with no presence source (MCP-only process, tests) skips
+the check. Chain `enabled` is not saved in the project, so a project always
+opens with its chains off and the check runs on the first enable. Contract
+tests: `crates/application/tests/issue_1069_chain_device_unavailable.rs`,
+`crates/infra-cpal/tests/issue_1069_device_presence.rs`.
+
 Contract tests: `crates/engine/tests/issue_716_input_conflict.rs`
 (conflict detector + skip decision); `crates/engine/tests/issue_833_input_channel_conflict.rs`
 (named conflict + load normalization); `crates/application/tests/chain_enable_channel_conflict.rs`

@@ -387,6 +387,7 @@ pub(crate) fn attach_runtime_control(
             session: SessionHandle::mirror(session),
             drum_kit: Default::default(),
         }));
+    crate::device_presence_gui::attach_device_presence(session);
 }
 
 pub(crate) fn sync_project_runtime(

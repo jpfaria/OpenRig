@@ -36,6 +36,7 @@ use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
+use crate::device_presence::DevicePresence;
 use crate::di_loader::DiLoopSource;
 use crate::drums_state::DrumsControlState;
 use crate::event::Event;
@@ -148,6 +149,9 @@ pub struct LocalDispatcher {
     /// still record their state and emit their events, they just have nothing
     /// to apply the change to.
     pub(crate) runtime_control: RefCell<Option<Rc<dyn RuntimeControl>>>,
+    /// Whether a chain's interface is there before it switches on.
+    /// `None` ⇒ no frontend hosts an audio host here: nothing is asked.
+    pub(crate) device_presence: RefCell<Option<Rc<dyn DevicePresence>>>,
     /// #127/#14: the metronome's settings, chosen output endpoint, POWER state
     /// and tap history. It lived in the GUI, which is why a footswitch or an
     /// MCP client could flip `metronome_enabled` and hear nothing — only the
@@ -222,6 +226,7 @@ impl LocalDispatcher {
             tone_doctor_input: RefCell::new(None),
             io_bindings: RefCell::new(None),
             runtime_control: RefCell::new(None),
+            device_presence: RefCell::new(None),
             metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
             mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
             player: RefCell::new(Rc::new(RefCell::new(PlayerControlState::default()))),
