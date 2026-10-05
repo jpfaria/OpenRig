@@ -12,6 +12,7 @@ use std::rc::Rc;
 use domain::ids::ChainId;
 use project::rig::RigProject;
 
+use crate::device_presence::DevicePresence;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
@@ -105,5 +106,11 @@ impl LocalDispatcher {
     /// unset; tests attach a temp dir.
     pub fn attach_looper_takes_path(&self, path: Option<PathBuf>) {
         *self.looper_takes_path.borrow_mut() = path;
+    }
+
+    /// Register how a chain's interface is checked before switching it
+    /// on. Public surface: `CommandDispatcher::attach_device_presence`.
+    pub(crate) fn attach_device_presence(&self, presence: Rc<dyn DevicePresence>) {
+        *self.device_presence.borrow_mut() = Some(presence);
     }
 }
