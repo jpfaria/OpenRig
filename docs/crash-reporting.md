@@ -30,3 +30,5 @@ poll) and an unhealthy audio backend are logged at `error!`, so each one is a
 Sentry event. The overload message is constant per chain (`audio overload on
 chain '<id>' (xrun/underrun)`) so Sentry groups occurrences; the counts ride in
 the `warn!` breadcrumb right before it.
+
+To read what reached Sentry from a terminal: `./scripts/sentry.py issues`, then `./scripts/sentry.py events OPENRIG-N` (skill `openrig-sentry`).
