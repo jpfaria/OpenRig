@@ -306,10 +306,8 @@ fn refresh_chain_meter_row(
     // One concise warning only on the transition INTO overload (not
     // every event) so it never spams the log.
     if overloaded && !row.audio_overload {
-        log::warn!(
-            "audio overload on chain '{}': {} new xrun(s), {} new \
-             underrun(s) — the rig is heavy for this buffer size",
-            cid.0,
+        crate::audio_fault_log::report_overload(
+            &cid.0,
             cur_xruns.saturating_sub(prev_xruns),
             cur_underruns.saturating_sub(prev_underruns),
         );

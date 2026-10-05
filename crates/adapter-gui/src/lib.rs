@@ -225,6 +225,8 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+/// #1065: audio faults logged as Sentry events.
+pub mod audio_fault_log;
 mod binding_status;
 mod block_editor;
 mod block_editor_param_items;
