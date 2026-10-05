@@ -102,7 +102,7 @@ El mismo software en cualquier form factor. El timbre del usuario va con él —
 
 <p align="center">
   <img src="docs/assets/sc2.png" alt="Biblioteca de bloques — lista vertical de pedales y amps con arte de panel fiel al hardware" width="280">&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/sc3.png" alt="Editor por bloque — panel del Marshall JTM45 con knobs de canal y volumen" width="600">
+  <img src="docs/assets/sc3.png" alt="Editor por bloque — captura del Vox AC30 con knobs de canal, volumen, cut, graves, agudos y boost" width="600">
 </p>
 
 Izquierda: biblioteca de bloques, organizada por marca con arte de panel fiel al hardware. Derecha: editor por bloque sobre una captura del Marshall JTM45 — controles exactos, respuesta exacta.
@@ -218,7 +218,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] **Formato de preset YAML abierto** — diffeable, compartible por gist, scriptable; registry canónico de `MODEL_ID` documentado en [Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md)
 - [x] **Construcción de timbre asistida por IA** — la skill [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) de Claude Code (entregada en [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) arma timbres completos sobre la rig viva a partir de una canción o un artista, vía MCP
 - [x] **Bancos de presets + escenas por cadena** — cambia presets y escenas en vivo por cadena; las escenas guardan solo las diferencias de parámetro (estilo Helix-Snapshot) para cambio instantáneo sin recargar bloques ([#321](https://github.com/jpfaria/OpenRig/issues/321))
-- [x] **Looper multicapa por cadena** — hasta 8 loopers independientes por cadena, cada uno graba la entrada seca de la cadena y la reproduce por toda ella (editar un bloque en vivo cambia el timbre del loop): overdub por capas con deshacer/rehacer, velocidad ½×/1×/2×, inverso, nivel y decaimiento por capa, desde el panel o un pedal MIDI; los loops se guardan con el proyecto ([#323](https://github.com/jpfaria/OpenRig/issues/323)); un loop grabado puede guardarse como toma con nombre en una biblioteca de la app y reproducirse como fuente DI de cualquier cadena ([#827](https://github.com/jpfaria/OpenRig/issues/827))
+- [x] **Looper multicapa por cadena** — hasta 8 loopers independientes por cadena, cada uno graba la entrada seca de la cadena y la reproduce por toda ella (editar un bloque en vivo cambia el timbre del loop): overdub por capas con deshacer/rehacer, velocidad ½×/1×/2×, inverso, nivel y decaimiento por capa, desde el panel o un pedal MIDI; los loops se guardan con el proyecto ([#323](https://github.com/jpfaria/OpenRig/issues/323)); un loop grabado puede guardarse como toma con nombre en una biblioteca de la app y reproducirse como fuente DI de cualquier cadena ([#827](https://github.com/jpfaria/OpenRig/issues/827)); todos los loops de todas las cadenas siguen un único ciclo, así que los loops grabados en cadenas distintas quedan a tempo ([#1033](https://github.com/jpfaria/OpenRig/issues/1033))
 - [x] **Loop de DI virtual por cadena** — haz loop de un DI seco en cualquier cadena para moldear el timbre sin tocar (loops CC0 incluidos o tu propio WAV); por cadena, efímero, nunca guardado en el proyecto ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 - [x] **Host de VST3** — los plugins VST3 instalados y del catálogo corren como bloques con su propio editor; lo que ajustas en la ventana del plugin se guarda con el proyecto ([#776](https://github.com/jpfaria/OpenRig/issues/776))
 - [x] **Control MIDI** — MIDI Learn, perfiles de controlador y BLE-MIDI para footswitches y superficies de control
@@ -237,7 +237,6 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] Mixer global — un fader y un mute por entrada/salida, desde la GUI, MCP y superficies de control MIDI ([#1007](https://github.com/jpfaria/OpenRig/issues/1007))
 - [x] Caja de ritmos integrada — kits sampleados, ritmos agrupados por género, redobles, tempo y salida propia, desde la barra superior o la Compact Chain View ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Un tempo por proyecto en la barra superior, con tap ([#322](https://github.com/jpfaria/OpenRig/issues/322))
-- [ ] Batería integrada — batería para tocar encima ([#1039](https://github.com/jpfaria/OpenRig/issues/1039))
 - [x] Routing paralelo / splits de cadena ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))
 - [ ] Master mixer por stream ([#344](https://github.com/jpfaria/OpenRig/issues/344))

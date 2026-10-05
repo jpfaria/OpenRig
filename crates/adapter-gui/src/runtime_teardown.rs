@@ -46,7 +46,7 @@ pub(crate) fn stop_project_runtime(
         runtime.stop();
     }
     if let Some(session) = session {
-        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+        sync_engine_sr_from_runtime(project_runtime, session);
     }
 }
 
@@ -82,6 +82,6 @@ pub(crate) fn remove_live_chain_runtime(
         }
     }
     if let Some(session) = session {
-        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+        sync_engine_sr_from_runtime(project_runtime, session);
     }
 }

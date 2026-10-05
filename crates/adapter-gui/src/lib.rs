@@ -245,7 +245,14 @@ mod chain_graph_ids;
 mod chain_graph_models;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
-/// #1060: Sentry client for release builds.
+pub mod crash_context;
+pub mod crash_context_audio;
+pub mod crash_context_host;
+mod crash_context_publish;
+pub mod crash_log_bridge;
+mod crash_panic_forward;
+pub mod crash_reporter;
+pub mod crash_reporter_sentry;
 pub mod crash_reporting;
 mod curated_knob_overlays;
 mod default_io_binding;
@@ -274,6 +281,8 @@ mod helpers;
 #[cfg(test)]
 #[path = "issue_1006_meter_direction_tests.rs"]
 mod issue_1006_meter_direction_tests;
+#[cfg(test)]
+mod issue_1074_meter_row_per_output_tests;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]

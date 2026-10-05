@@ -30,7 +30,6 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
-use application::dispatcher::CommandDispatcher;
 use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
@@ -42,6 +41,7 @@ use engine::{DiPcm, LoopPcm};
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
 
+use crate::crash_context_publish::publish_runtime_context;
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
@@ -405,7 +405,7 @@ pub(crate) fn sync_project_runtime(
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
     // (possibly rebuilt) runtime so DI loops resample to the live device rate.
-    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(project_runtime, session);
     attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
 }
@@ -438,7 +438,7 @@ pub(crate) fn sync_live_chain_runtime(
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
-            sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+            sync_engine_sr_from_runtime(project_runtime, session);
             attach_runtime_control(project_runtime, analyzers, session);
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
@@ -513,7 +513,7 @@ pub(crate) fn sync_live_chain_runtime(
     }
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
-    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(project_runtime, session);
     attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
 }
@@ -577,13 +577,12 @@ pub(crate) fn sync_block_toggle(
 /// against its rebuilt runtime (#669).
 pub(crate) fn sync_engine_sr_from_runtime(
     project_runtime: &RefCell<Option<ProjectRuntimeController>>,
-    dispatcher: &dyn CommandDispatcher,
+    session: &ProjectSession,
 ) {
-    let rate = match project_runtime.borrow().as_ref() {
-        Some(runtime) => runtime.sample_rate(),
-        None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
-    };
-    dispatcher.attach_engine_sr(rate);
+    let live_rate = project_runtime.borrow().as_ref().map(|r| r.sample_rate());
+    let rate = live_rate.unwrap_or(application::local_dispatcher::REFERENCE_SAMPLE_RATE);
+    session.dispatcher.attach_engine_sr(rate);
+    publish_runtime_context(session, live_rate, infra_cpal::audio_backend_name());
 }
 
 #[cfg(test)]

@@ -67,6 +67,9 @@ page for the working rule.
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists
   on this machine. Strips at unity, unmuted and not soloed are not stored; a missing
   entry means 0 dB, so a config without `mixer` changes nothing.
+- `crash_reporting` — where this machine sends crash reports: `provider`
+  (`sentry` by default, or `none`) and an optional `dsn` that overrides the
+  one baked into release builds. See [crash-reporting.md](crash-reporting.md).
 - MIDI device profile (`midi-profile.yaml`) — which controller port to listen to.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has
   no `midi:` field.

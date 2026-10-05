@@ -33,7 +33,11 @@ use crate::StreamMeter;
 use engine::output_meter::SILENT_DBFS;
 
 fn reading(in_dbfs: f32, out_dbfs: f32) -> StreamMeterReading {
-    StreamMeterReading { in_dbfs, out_dbfs }
+    StreamMeterReading {
+        in_dbfs,
+        out_dbfs,
+        route_out_dbfs: vec![],
+    }
 }
 
 /// #715: the meter poll must not run faster than ~20 Hz. Its per-frame memory

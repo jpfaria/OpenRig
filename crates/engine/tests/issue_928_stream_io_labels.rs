@@ -106,17 +106,11 @@ fn two_bindings_on_one_input_name_their_own_row() {
     );
     assert_eq!(
         pairs(&labels),
-        vec![
-            (
-                "GUITARRA 1 - MAIN".to_string(),
-                "GUITARRA 1 - MAIN".to_string()
-            ),
-            (
-                "GUITARRA 1 - SYN5050".to_string(),
-                "GUITARRA 1 - SYN5050".to_string()
-            ),
-        ],
-        "#928: both rows read ch 0 — the E/S the row belongs to is the one whose output it feeds"
+        vec![(
+            "GUITARRA 1 - MAIN".to_string(),
+            "GUITARRA 1 - MAIN + GUITARRA 1 - SYN5050".to_string()
+        )],
+        "#1074: both E/S read ch 0 — one jack is one row that feeds both outputs"
     );
 }
 
@@ -143,13 +137,12 @@ fn an_enabled_insert_names_the_loop_on_the_rows_it_splits() {
         pairs(&labels),
         vec![
             ("GUITARRA 1 - MAIN".to_string(), "SYN-2 (Re-amp 1 -> MAIN OUT)".to_string()),
-            ("GUITARRA 1 - SYN5050".to_string(), "SYN-2 (Re-amp 1 -> MAIN OUT)".to_string()),
             (
                 "SYN-2 (Re-amp 1 -> MAIN OUT)".to_string(),
                 "GUITARRA 1 - MAIN + GUITARRA 1 - SYN5050".to_string()
             ),
         ],
-        "#928: the head rows send into the loop; the return row comes back from it and feeds both tails"
+        "#1074: the jack sends into the loop once; the return row comes back from it and feeds both tails"
     );
 }
 

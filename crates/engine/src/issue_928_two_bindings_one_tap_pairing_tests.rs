@@ -115,9 +115,9 @@ fn each_binding_on_the_shared_tap_feeds_its_own_output() {
 
     assert_eq!(
         pairing(&chain, &registry),
-        vec![(0, vec![vec![0, 1]]), (1, vec![vec![16, 17]])],
-        "#928: the first binding's input feeds MAIN, the second's feeds SYN5050 — \
-         not both into MAIN with SYN5050 left unfed"
+        vec![(0, vec![vec![0, 1], vec![16, 17]])],
+        "#928: MAIN and SYN5050 are both fed — #1074: by ONE pipeline, since both \
+         E/S read the same jack on the same interface"
     );
 }
 
@@ -128,13 +128,13 @@ fn binding_order_does_not_change_who_feeds_what() {
 
     assert_eq!(
         pairing(&chain, &registry),
-        vec![(0, vec![vec![16, 17]]), (1, vec![vec![0, 1]])],
-        "#928: swapping the selection order swaps the rows, never the routing"
+        vec![(0, vec![vec![16, 17], vec![0, 1]])],
+        "#928: swapping the selection order swaps the order, never the routing"
     );
 }
 
 #[test]
-fn a_shared_tap_next_to_an_insert_still_sends_both_heads_into_the_loop() {
+fn a_shared_tap_next_to_an_insert_sends_the_jack_into_the_loop_once() {
     let registry = registry();
     let chain = chain(
         &["main", "syn5050"],
@@ -143,11 +143,8 @@ fn a_shared_tap_next_to_an_insert_still_sends_both_heads_into_the_loop() {
 
     assert_eq!(
         pairing(&chain, &registry),
-        vec![
-            (0, vec![vec![10]]),
-            (1, vec![vec![10]]),
-            (2, vec![vec![0, 1], vec![16, 17]]),
-        ],
-        "with the loop on: both heads send into it, the return feeds both tails"
+        vec![(0, vec![vec![10]]), (2, vec![vec![0, 1], vec![16, 17]]),],
+        "with the loop on: the jack is sent into it ONCE (#1074: two E/S on one \
+         jack used to stack it twice), the return feeds both tails"
     );
 }

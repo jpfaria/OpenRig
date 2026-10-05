@@ -7,7 +7,7 @@
 //! the backend: a route with callbacks and level that is inaudible was lost
 //! after our code.
 //!
-//! RT side: one `Relaxed` add and one `fetch_max` per output callback, both on
+//! RT side: one `Relaxed` add and two `fetch_max` per output callback, both on
 //! the route the callback already holds — no allocation, no lock (invariant
 //! #8). Read side: plain atomic loads off the audio thread.
 
@@ -54,8 +54,9 @@ impl OutputRoutingState {
     #[inline]
     pub(crate) fn record_callback(&self, peak: f32) {
         self.callbacks.fetch_add(1, Ordering::Relaxed);
-        self.peak_bits
-            .fetch_max(peak.max(0.0).to_bits(), Ordering::Relaxed);
+        let bits = peak.max(0.0).to_bits();
+        self.peak_bits.fetch_max(bits, Ordering::Relaxed);
+        self.meter_peak_bits.fetch_max(bits, Ordering::Relaxed);
     }
 }
 

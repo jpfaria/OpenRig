@@ -244,6 +244,7 @@ impl application::audio_taps::AudioTaps for RecordingTapApi {
                 2
             }
             application::audio_taps::TapPoint::InputChannels { channels, .. } => channels.len(),
+            application::audio_taps::TapPoint::RouteOutput { .. } => 1,
         };
         Some(Arc::new(OneRing(
             (0..channels)

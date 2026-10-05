@@ -76,7 +76,7 @@ pub(crate) fn ensure_runtime(
     *runtime.borrow_mut() = Some(controller);
     // #669: keep the dispatcher's engine rate in lock-step with the real device
     // rate start() resolved, so a DI resamples correctly.
-    sync_engine_sr_from_runtime(runtime, session.dispatcher.as_ref());
+    sync_engine_sr_from_runtime(runtime, session);
     attach_runtime_control(runtime, analyzers, session);
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.

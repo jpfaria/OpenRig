@@ -28,6 +28,7 @@ mod device_config_cache;
 mod device_lookup;
 
 mod host;
+pub use host::audio_backend_name;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_device_enum;
@@ -124,6 +125,7 @@ mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
+mod controller_route_meter;
 mod controller_stepped_evidence;
 mod controller_stepped_restart;
 mod controller_sync;
