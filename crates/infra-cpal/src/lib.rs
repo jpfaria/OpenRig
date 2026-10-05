@@ -154,6 +154,8 @@ pub use device_cache::{
     list_output_device_descriptors,
 };
 pub use device_enum::list_devices;
+mod device_presence;
+pub use device_presence::device_is_present;
 
 mod device_settings;
 mod jack_device_defaults;

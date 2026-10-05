@@ -90,7 +90,12 @@ const GUARDED: &[Guarded] = &[
 ///   the evidence the controller kept and probes the host device the stream
 ///   runs on. A host-device probe at the moment of a restart, not a rig
 ///   operation.
+/// * `device_presence_gui.rs` — the GUI's `DevicePresence` port: asks the host
+///   whether a chain's interface is listed before the chain switches on
+///   (`device_is_present`). A read of the host's device list, not a rig
+///   operation; the refusal itself lives in the dispatcher (#1069).
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
+    "device_presence_gui.rs",
     "device_refresh_list.rs",
     "desktop_app.rs",
     "desktop_app_mcp.rs",
