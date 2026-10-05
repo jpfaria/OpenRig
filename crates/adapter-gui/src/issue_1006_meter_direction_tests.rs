@@ -107,6 +107,7 @@ fn the_row_payload_carries_the_channels_of_each_side() {
         output: BINDING.into(),
         input_channels: "1".into(),
         output_channels: "17,18".into(),
+        outputs: vec![],
     }];
 
     let rows = crate::meter_wiring::rebuild_stream_meters_row(&[], 1, &labels, 100.0, true);
@@ -169,6 +170,7 @@ fn the_row_payload_marks_a_repeated_input() {
         output: BINDING.into(),
         input_channels: "1".into(),
         output_channels: out.into(),
+        outputs: vec![],
     };
     let other_input = engine::stream_io_labels::StreamIoLabels {
         input_channels: "2".into(),

@@ -131,6 +131,7 @@ mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
+mod controller_route_meter;
 mod controller_stepped_evidence;
 mod controller_stepped_restart;
 mod controller_sync;

@@ -282,6 +282,8 @@ mod helpers;
 #[path = "issue_1006_meter_direction_tests.rs"]
 mod issue_1006_meter_direction_tests;
 #[cfg(test)]
+mod issue_1074_meter_row_per_output_tests;
+#[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
 mod issue_815_add_block_tabs_tests;
