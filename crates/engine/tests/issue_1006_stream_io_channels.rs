@@ -90,8 +90,8 @@ fn each_row_carries_the_channels_of_its_binding() {
     let chain = chain(&["guitarra-1", "guitarra-1-5050"], vec![effect("gate")]);
     assert_eq!(
         channels(&chain),
-        vec![pair("1", "1,2"), pair("1", "17,18")],
-        "#1006: same input channel, each row its own output channels"
+        vec![pair("1", "1,2 + 17,18")],
+        "#1006/#1074: one jack is one row carrying every output's channels"
     );
 }
 
@@ -103,11 +103,7 @@ fn an_insert_row_carries_the_loop_channels() {
     );
     assert_eq!(
         channels(&chain),
-        vec![
-            pair("1", "11"),
-            pair("1", "11"),
-            pair("18,19", "1,2 + 17,18"),
-        ],
-        "#1006: head rows send to the loop, the return row feeds both tails"
+        vec![pair("1", "11"), pair("18,19", "1,2 + 17,18")],
+        "#1006/#1074: the head row sends to the loop, the return row feeds both tails"
     );
 }
