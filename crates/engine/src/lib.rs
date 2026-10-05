@@ -38,6 +38,9 @@ pub mod insert_cut;
 mod insert_endpoints;
 mod insert_return_routes;
 #[cfg(test)]
+#[path = "issue_1074_one_pipeline_per_jack_tests.rs"]
+mod issue_1074_one_pipeline_per_jack_tests;
+#[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
 #[cfg(test)]
@@ -107,6 +110,7 @@ mod runtime_stream_query;
 mod runtime_taps_lifecycle;
 mod runtime_taps_subscribe;
 mod segment_binding;
+mod segment_fanout;
 mod segment_taps;
 mod segment_types;
 pub mod spsc;

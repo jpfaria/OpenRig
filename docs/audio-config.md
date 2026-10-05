@@ -1012,6 +1012,17 @@ point at a binding the chain ALREADY carries (that duplicate starves the
 device); a port pointing at another E/S, or not yet pointed anywhere, is the
 user's and stays.
 
+**One jack is one pipeline per output device (#1074).** The segment builder
+pairs every input with every output it may reach, then folds the pairs that do
+the SAME work — same jack, same blocks, same split paths — on the same output
+device into ONE pipeline that fans out to all of their routes. A guitar wired
+to MAIN, FRFR and SYN-5050 on one interface (through one E/S or through several
+E/S reading that jack) runs the chain once: one set of NAM/IR instances, one
+tuner/spectrum row, the same latency on every output. An output on another
+interface keeps its own pipeline (its own clock), two different jacks never
+fold, and a pipeline ending at a mid `Output` runs fewer blocks, so it stays
+its own.
+
 **A mid `Output` emits the signal at ITS OWN position.** It taps the bus
 right where it sits — only the blocks BEFORE it have run — while the chain keeps
 flowing through the blocks after it down to the tail output. Nothing is cut and

@@ -180,9 +180,8 @@ fn route_3_is_the_insert_send() {
 
 /// Hypothesis 1: the doubled `input entry processing layout … channels=[0]`
 /// log is two runtimes processing one head into one route. It is not: each
-/// head is ONE runtime whose pipelines are one per output (#85: a stream is an
-/// input × output pair — 2 guitars × 2 outputs = the 4 NAM loads), and no
-/// route has two writers or two owning runtimes.
+/// head is ONE runtime with ONE pipeline fanning out to its outputs (#1074),
+/// and no route has two writers or two owning runtimes.
 // linux+JACK keeps the pre-#967 grouping (one runtime per chain).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
@@ -204,8 +203,8 @@ fn insert_off_every_route_has_exactly_one_writing_pipeline() {
     let pipelines_per_guitar: Vec<usize> = rts.iter().map(|rt| pipelines(rt).len()).collect();
     assert_eq!(
         pipelines_per_guitar,
-        vec![2, 2],
-        "one pipeline per (guitar × output)"
+        vec![1, 1],
+        "#1074: one pipeline per guitar, fanning out to both outputs"
     );
 }
 
