@@ -1,7 +1,7 @@
-//! Responsibility: describes the running audio setup as a crash-report context (#1070).
+//! Responsibility: describes the running audio setup as a crash-report context.
 //!
 //! Pure: built on the GUI thread whenever the runtime is (re)built, never on
-//! the audio thread (invariant #8).
+//! the audio thread.
 
 use domain::io_binding::IoBinding;
 use project::chain::Chain;

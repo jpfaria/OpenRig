@@ -582,7 +582,7 @@ pub(crate) fn sync_engine_sr_from_runtime(
         None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
     };
     session.dispatcher.attach_engine_sr(rate);
-    crate::sentry_runtime_publish::publish_runtime_context(project_runtime, session);
+    crate::crash_context_publish::publish_runtime_context(project_runtime, session);
 }
 
 #[cfg(test)]

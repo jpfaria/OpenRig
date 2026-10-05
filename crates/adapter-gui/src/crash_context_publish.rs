@@ -1,4 +1,4 @@
-//! Responsibility: publishes the session's running audio setup to crash reporting (#1070).
+//! Responsibility: publishes the session's running audio setup to crash reporting.
 
 use std::cell::RefCell;
 
@@ -11,14 +11,14 @@ pub(crate) fn publish_runtime_context(
     session: &ProjectSession,
 ) {
     let live_rate = project_runtime.borrow().as_ref().map(|r| r.sample_rate());
-    let context = crate::sentry_audio_context::audio_context(
+    let context = crate::crash_context_audio::audio_context(
         &session.project.borrow(),
         &session.io_bindings.borrow(),
         live_rate,
     );
-    crate::sentry_event_context::publish_audio(context);
+    crate::crash_context::publish_audio(context);
 }
 
 #[cfg(test)]
-#[path = "sentry_runtime_publish_tests.rs"]
+#[path = "crash_context_publish_tests.rs"]
 mod tests;

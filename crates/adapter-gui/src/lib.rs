@@ -157,11 +157,6 @@ mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
-/// #1070: crash-report contexts.
-pub mod sentry_audio_context;
-pub mod sentry_event_context;
-pub mod sentry_host_context;
-mod sentry_runtime_publish;
 pub(crate) mod session_dispatch;
 mod settings;
 pub mod tone_doctor_compact_wiring;
@@ -249,7 +244,14 @@ mod chain_graph_ids;
 mod chain_graph_models;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
-/// #1060: Sentry client for release builds.
+pub mod crash_context;
+pub mod crash_context_audio;
+pub mod crash_context_host;
+mod crash_context_publish;
+pub mod crash_log_bridge;
+mod crash_panic_forward;
+pub mod crash_reporter;
+pub mod crash_reporter_sentry;
 pub mod crash_reporting;
 mod curated_knob_overlays;
 mod default_io_binding;

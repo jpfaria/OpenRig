@@ -1,5 +1,6 @@
 //! Responsibility: routes the filesystem crate's public surface.
 
+pub mod crash_reporting_config;
 pub mod drums_config;
 pub mod io_bindings;
 pub mod metronome_config;
@@ -9,6 +10,7 @@ pub mod midi_paths;
 pub mod midi_profile;
 pub mod mixer_config;
 pub mod player_config;
+pub use crash_reporting_config::{CrashReportingConfig, CrashReportingProvider};
 pub use drums_config::DrumsConfig;
 pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
 pub use metronome_config::MetronomeConfig;

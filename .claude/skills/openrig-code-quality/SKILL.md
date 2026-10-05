@@ -125,6 +125,18 @@ Same commit as the component. **Never** leave an empty `msgstr ""` on a new key 
 
 ---
 
+## LAW — an external service is an interface; the vendor is one implementation, chosen by config
+
+Crash reporting, telemetry, cloud sync, any third-party SDK: the app talks to a **trait** it owns (e.g. `CrashReporter`), never to the vendor crate. The vendor (Sentry, …) is ONE implementation of that trait, and which implementation runs — or none — comes from **config** (`config.yaml`, system scope per ADR 0003), not from code. Everything the app hands the service (context, events) is vendor-neutral data (`serde_json::Value`, own structs). The vendor crate is imported in exactly one module: its implementation.
+
+The service is best effort: a bad config, an unreachable endpoint or a failing implementation disables it with a warning in the session log — it never panics, blocks or slows the app, and never touches the audio thread.
+
+**Why:** (#1070) Sentry was wired straight into the GUI (`sentry::init`, `before_send`, `sentry::protocol` types across modules), the provider fixed at compile time. The owner: "tinha que ser uma config.. deveria ter uma interface e o sentry uma implementacao". Swapping the vendor would have meant rewriting call sites, and a malformed DSN made `sentry::init` panic at startup.
+
+**How to apply:** before the first line that imports a vendor SDK, write the trait + the config entry + a no-op implementation; the vendor goes behind it. Tests drive the trait (no-op / in-memory), plus one test of the vendor implementation over its in-memory transport.
+
+---
+
 ## LAW — every new feature is a `Command` (GUI/MCP/gRPC parity)
 
 **No state-changing operation lives in one frontend only.** The `Command` enum in `crates/application/src/command.rs` is the **single source of truth** of what the app can do. Every new feature that mutates `Project`/session:

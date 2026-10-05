@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::asset_paths::AssetPaths;
+use crate::crash_reporting_config::CrashReportingConfig;
 use crate::drums_config::DrumsConfig;
 use crate::gui_settings::GuiAudioDeviceSettings;
 use crate::io_bindings::IoBinding;
@@ -81,6 +82,9 @@ pub struct AppConfig {
     /// on purpose — see [`DrumsConfig`].
     #[serde(default)]
     pub drums: DrumsConfig,
+    /// Per-machine crash reporter choice (#1070, ADR 0003).
+    #[serde(default)]
+    pub crash_reporting: CrashReportingConfig,
 }
 
 fn default_true() -> bool {

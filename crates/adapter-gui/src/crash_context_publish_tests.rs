@@ -9,8 +9,8 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
 
+use crate::crash_context::last_published_on_this_thread;
 use crate::runtime_teardown::stop_project_runtime;
-use crate::sentry_event_context::last_published_on_this_thread;
 use crate::state::ProjectSession;
 
 #[test]
