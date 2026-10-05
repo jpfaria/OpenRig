@@ -83,7 +83,12 @@ fn fixture() -> (Project, Vec<IoBinding>) {
 
 fn publish_fixture() {
     let (project, bindings) = fixture();
-    publish_audio(audio_context(&project, &bindings, Some(44_100)));
+    publish_audio(audio_context(
+        &project,
+        &bindings,
+        Some(44_100),
+        "CoreAudio",
+    ));
 }
 
 /// Records what the app hands a reporter — no vendor involved.
@@ -138,10 +143,10 @@ fn log(logger: &dyn log::Log, level: log::Level, message: &str) {
 #[test]
 fn issue_1070_audio_context_names_interface_rate_buffer_and_chain() {
     let (project, bindings) = fixture();
-    let ctx = audio_context(&project, &bindings, Some(44_100));
+    let ctx = audio_context(&project, &bindings, Some(44_100), "CoreAudio");
 
     assert_eq!(ctx["live_sample_rate"], json!(44_100));
-    assert!(ctx["backend"].is_string(), "{ctx:?}");
+    assert_eq!(ctx["backend"], json!("CoreAudio"));
     let device = &ctx["devices"][0];
     assert_eq!(device["device_id"], json!(DEVICE));
     assert_eq!(device["sample_rate"], json!(44_100));
@@ -163,7 +168,7 @@ fn issue_1070_audio_context_names_interface_rate_buffer_and_chain() {
 #[test]
 fn issue_1070_audio_context_without_runtime_has_no_live_rate() {
     let (project, bindings) = fixture();
-    let ctx = audio_context(&project, &bindings, None);
+    let ctx = audio_context(&project, &bindings, None, "CoreAudio");
     assert_eq!(ctx["live_sample_rate"], Value::Null);
 }
 

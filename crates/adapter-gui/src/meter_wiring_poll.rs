@@ -134,7 +134,13 @@ pub fn start_meter_polling(
             return;
         }
         let make_streams = |cid: &ChainId| -> ChainMeterStreams {
-            build_streams_from_taps(taps.as_ref(), cid, RING_CAPACITY)
+            let mut streams = build_streams_from_taps(taps.as_ref(), cid, RING_CAPACITY);
+            // #1074: one level per output, off the same labels the rows use.
+            if let Some(chain) = project.chains.iter().find(|c| c.id == *cid) {
+                let labels = project_stream_labels(chain, &session.io_bindings.borrow());
+                attach_route_meters(taps.as_ref(), cid, &labels, &mut streams);
+            }
+            streams
         };
         refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
         // Reclaim any orphan tap slots left behind after an invalidation

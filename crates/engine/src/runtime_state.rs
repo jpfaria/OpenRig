@@ -166,6 +166,9 @@ pub(crate) struct OutputRoutingState {
     /// #923: the loudest |sample| popped since the last read, as `f32` bits
     /// (non-negative floats order like their bits, so `fetch_max` works).
     pub(crate) peak_bits: std::sync::atomic::AtomicU32,
+    /// #1074: the same peak for the meter row, drained by its own reader so
+    /// `openrig://routes` and the GUI never steal each other's window.
+    pub(crate) meter_peak_bits: std::sync::atomic::AtomicU32,
     /// #979: the chain volume (#440, the chain's OUTPUT level) scales this
     /// route. Every chain output takes it; an insert SEND does not — what it
     /// sends comes back through the return into tail routes that take it, so

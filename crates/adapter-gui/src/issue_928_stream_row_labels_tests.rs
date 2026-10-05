@@ -14,12 +14,14 @@ fn labels() -> Vec<StreamIoLabels> {
             output: "GUITARRA 1 - MAIN".into(),
             input_channels: String::new(),
             output_channels: String::new(),
+            outputs: vec![],
         },
         StreamIoLabels {
             input: "GUITARRA 1 - SYN5050".into(),
             output: "GUITARRA 1 - SYN5050".into(),
             input_channels: String::new(),
             output_channels: String::new(),
+            outputs: vec![],
         },
     ]
 }
@@ -30,10 +32,12 @@ fn every_row_carries_the_names_of_its_bindings() {
         StreamMeterReading {
             in_dbfs: -20.0,
             out_dbfs: -18.0,
+            route_out_dbfs: vec![],
         },
         StreamMeterReading {
             in_dbfs: -30.0,
             out_dbfs: -28.0,
+            route_out_dbfs: vec![],
         },
     ];
 

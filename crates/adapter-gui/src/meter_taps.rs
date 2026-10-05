@@ -13,6 +13,8 @@ use std::sync::Arc;
 pub struct StreamMeterTaps {
     pub input: Option<Arc<dyn AudioTap>>,
     pub output: Option<Arc<dyn AudioTap>>,
+    /// #1074: one level per output the stream feeds, in label order.
+    pub routes: Vec<Option<Arc<dyn AudioTap>>>,
 }
 
 /// All meter subscriptions for one chain, indexed by stream order. The
@@ -23,10 +25,12 @@ pub struct ChainMeterStreams {
 }
 
 /// Per-stream peak readings for one chain, returned by `poll_per_stream`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StreamMeterReading {
     pub in_dbfs: f32,
     pub out_dbfs: f32,
+    /// #1074: what each output route played, in the stream's label order.
+    pub route_out_dbfs: Vec<f32>,
 }
 
 /// Per-stream meter store: each chain id maps to a list of stream
@@ -107,9 +111,36 @@ pub fn build_streams_from_taps(
                 },
                 capacity_per_channel,
             ),
+            routes: Vec::new(),
         })
         .collect();
     ChainMeterStreams { streams }
+}
+
+/// #1074: subscribe one route meter per output each stream feeds, from the
+/// same labels the rows are named with — so a row and its level never
+/// disagree.
+pub fn attach_route_meters(
+    taps: &dyn AudioTaps,
+    chain_id: &domain::ids::ChainId,
+    labels: &[engine::stream_io_labels::StreamIoLabels],
+    streams: &mut ChainMeterStreams,
+) {
+    for (stream, label) in streams.streams.iter_mut().zip(labels) {
+        stream.routes = label
+            .outputs
+            .iter()
+            .map(|output| {
+                taps.subscribe(
+                    &TapPoint::RouteOutput {
+                        chain: chain_id.clone(),
+                        route: output.route,
+                    },
+                    1,
+                )
+            })
+            .collect();
+    }
 }
 
 /// Poll the per-stream subscriptions and return one
@@ -129,6 +160,15 @@ pub fn poll_per_stream(
                     StreamMeterReading {
                         in_dbfs: i,
                         out_dbfs: o,
+                        route_out_dbfs: s
+                            .routes
+                            .iter()
+                            .map(|t| {
+                                t.as_ref().map_or(engine::output_meter::SILENT_DBFS, |t| {
+                                    t.poll_peak_dbfs()
+                                })
+                            })
+                            .collect(),
                     }
                 })
                 .collect();

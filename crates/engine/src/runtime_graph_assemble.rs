@@ -446,6 +446,7 @@ pub(crate) fn build_output_routing_state(
         sample_rate,
         callbacks: AtomicU64::new(0),
         peak_bits: std::sync::atomic::AtomicU32::new(0),
+        meter_peak_bits: std::sync::atomic::AtomicU32::new(0),
         // A chain output unless the caller builds an insert send (#979).
         applies_chain_volume: true,
     }
