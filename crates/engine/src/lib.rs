@@ -100,6 +100,7 @@ pub mod runtime_probe;
 mod runtime_process_segment;
 mod runtime_processing_lock;
 mod runtime_processor_model;
+mod runtime_route_meter;
 mod runtime_route_resample;
 pub mod runtime_segments;
 mod runtime_select_precheck;

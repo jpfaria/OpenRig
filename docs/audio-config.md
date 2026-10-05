@@ -1023,6 +1023,11 @@ interface keeps its own pipeline (its own clock), two different jacks never
 fold, and a pipeline ending at a mid `Output` runs fewer blocks, so it stays
 its own.
 
+The chain's meter row follows the outputs, not the pipelines: the input shows
+once, and every output it feeds gets its own row with the level that route
+actually played — after the chain volume and that output's faders — so
+lowering FRFR in the mixer lowers only the FRFR meter.
+
 **A mid `Output` emits the signal at ITS OWN position.** It taps the bus
 right where it sits — only the blocks BEFORE it have run — while the chain keeps
 flowing through the blocks after it down to the tail output. Nothing is cut and

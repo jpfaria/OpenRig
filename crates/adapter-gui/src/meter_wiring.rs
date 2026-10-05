@@ -7,10 +7,10 @@ pub use crate::meter_invalidation::{detect_invalidations, project_stream_count};
 pub use crate::meter_math::apply_chain_volume_db;
 pub(crate) use crate::meter_math::chain_overloaded;
 pub use crate::meter_row_labels::project_stream_labels;
-pub use crate::meter_rows::{input_repeated, rebuild_stream_meters_row};
+pub use crate::meter_rows::rebuild_stream_meters_row;
 pub(crate) use crate::meter_taps::METER_POLL_TICK_MS;
 pub use crate::meter_taps::{
-    build_streams_from_taps, new_meter_store_per_stream, poll_per_stream,
+    attach_route_meters, build_streams_from_taps, new_meter_store_per_stream, poll_per_stream,
     refresh_subscriptions_lazy_per_stream, ChainMeterStreams, StreamMeterReading,
 };
 pub use crate::meter_wiring_poll::start_meter_polling;
