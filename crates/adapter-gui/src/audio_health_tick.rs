@@ -53,7 +53,7 @@ pub(crate) fn health_tick(
     let first_notice = !*disconnected.borrow();
     if first_notice {
         *disconnected.borrow_mut() = true;
-        log::warn!("health check: audio backend unhealthy, will attempt reconnection");
+        crate::audio_fault_log::report_backend_lost();
     }
 
     let announce_reconnect = match control.reconnect_audio() {
