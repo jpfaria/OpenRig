@@ -89,6 +89,21 @@ the PA, so the room mix is not what the player hears. The spatial output therefo
 - Each player's monitor is part of their own stream (isolation): a bass player's binaural mix does not
   depend on the guitar stream.
 
+## Playing for yourself (player in the sweet spot)
+
+The player sits in the middle of their own speaker layout and plays: no monitor needed, the room mix is
+what they hear. This is the direct-render mode and the first target (the owner's room already has a
+6-speaker test layout).
+
+- **Calibration to the chair:** per-speaker distance, level and delay measured at the listening
+  position, so all speakers arrive at the same time and level (the first test had rears 12–19 dB below the
+  fronts).
+- **Alignment delay only on the ambience:** time alignment delays the nearer speakers to match the
+  farthest one. The dry guitar stays on the front speakers without that extra delay, so playing feel is
+  not affected; only the wet/ambience is aligned.
+- **"Inside the guitar" option:** place the dry object at the listener position (all speakers around)
+  instead of in front.
+
 ## Two output modes
 
 1. **Direct render (small room, home studio, own rig):** OpenRig renders to a fixed layout
