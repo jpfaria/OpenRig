@@ -27,6 +27,7 @@ component AxisLabel inherits Text {
     y: 0;
     width: self.preferred-width;
     color: Theme.scope-axis;
+    font-family: Locale.mono-font-family;
     font-size: Theme.min-font;
     vertical-alignment: center;
 }
@@ -48,6 +49,7 @@ component SpectrumCard inherits Rectangle {
             x: parent.width - 14px - self.width; y: 10px;
             width: self.preferred-width; height: 22px;
             text: @tr("label-spectrum-bands", root.data.levels.length > 0 ? root.data.levels.length : 63);
+            font-family: Locale.mono-font-family;
             color: Theme.scope-mid;
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
@@ -58,6 +60,7 @@ component SpectrumCard inherits Rectangle {
             x: 14px; y: 10px;
             width: parent.width - 38px - bands.width; height: 22px;
             text: root.data.label;
+            font-family: Locale.mono-font-family;
             color: Theme.scope-mid;
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;

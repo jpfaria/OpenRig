@@ -1,11 +1,12 @@
 //! #398 — the project settings pages follow the approved mockup: the I/O
 //! bindings page carries "New binding" on its title row, and the metadata
-//! page's file field is as wide as the name field above it.
+//! page's file field is as wide as the name field above it. A binding made
+//! with "New binding" scrolls into view, open, however long the list is.
 
-use adapter_gui::ProjectSettingsWindow;
+use adapter_gui::{IoBindingModel, ProjectSettingsWindow};
 use i_slint_backend_testing::ElementHandle;
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize};
+use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -76,5 +77,47 @@ fn the_file_field_is_as_wide_as_the_name_field() {
     assert!(
         (name - file).abs() < 0.5,
         "name {name} and file {file} line up"
+    );
+}
+
+fn binding(id: &str) -> IoBindingModel {
+    IoBindingModel {
+        id: id.into(),
+        name: id.to_uppercase().into(),
+        inputs: ModelRc::default(),
+        outputs: ModelRc::default(),
+    }
+}
+
+#[test]
+fn a_new_binding_at_the_end_of_a_long_list_scrolls_into_view() {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = window_on(6);
+    let list = Rc::new(VecModel::from(
+        (0..12)
+            .map(|i| binding(&format!("b{i}")))
+            .collect::<Vec<_>>(),
+    ));
+    let bridge = adapter_gui::SettingsBridge::get(&w);
+    bridge.set_io_bindings(ModelRc::from(list.clone()));
+    let l = list.clone();
+    bridge.on_create_io_binding(move |_| {
+        l.push(binding("fresh"));
+        "fresh".into()
+    });
+
+    click(&w, &element(&w, "SettingsPage::new-binding-btn"));
+    assert_eq!(list.row_count(), 13);
+
+    let pane = element(&w, "SettingsPage::section-scroll");
+    let top = pane.absolute_position().y;
+    let bottom = top + pane.size().height;
+    let fresh = ElementHandle::find_by_accessible_label(&w, "FRESH")
+        .next()
+        .expect("the new binding is on screen");
+    let y = fresh.absolute_position().y;
+    assert!(
+        y >= top && y + fresh.size().height <= bottom,
+        "the new binding ({y}) is inside the visible pane ({top} .. {bottom})"
     );
 }

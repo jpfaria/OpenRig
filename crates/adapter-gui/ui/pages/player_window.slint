@@ -95,6 +95,7 @@ export component PlayerPanel inherits Rectangle {
                             : PlayerBridge.loop-label != "" ? @tr("label-loop-range", PlayerBridge.loop-label)
                             : "";
                         color: PlayerBridge.failed ? Theme.bad : Theme.lcd-dim;
+                        font-family: Locale.mono-font-family;
                         font-size: Theme.min-font;
                         letter-spacing: 0.14 * Theme.min-font;
                         horizontal-alignment: center;

@@ -11,4 +11,7 @@ export global Locale {
     // #398: titles, the chain name and the big readouts are set in Bebas
     // Neue; a CJK or Devanagari locale keeps its own script face there too.
     out property <string> display-font-family: root.font-family == "Barlow" ? "Bebas Neue" : root.font-family;
+    // #398: values and readouts (dB, Hz, ms, channel labels) are set in
+    // JetBrains Mono; a CJK or Devanagari locale keeps its own script face.
+    out property <string> mono-font-family: root.font-family == "Barlow" ? "JetBrains Mono" : root.font-family;
 }

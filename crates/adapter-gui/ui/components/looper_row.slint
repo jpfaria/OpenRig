@@ -10,6 +10,7 @@
 // 150 px columns as the row is wide.
 
 import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { LooperItem } from "../models.slint";
 import { LooperIconButton, LooperRowAction, LooperSlider, LooperSegmented } from "looper_controls.slint";
 import { LooperSelectField, LooperSelectBox } from "looper_select_field.slint";
@@ -181,6 +182,7 @@ export component LooperRow inherits Rectangle {
 
             Text {
                 text: root.looper.time_label;
+                font-family: Locale.mono-font-family;
                 color: Theme.ink-3;
                 font-size: Theme.min-font;
                 font-weight: 500;

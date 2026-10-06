@@ -10,6 +10,7 @@
 // editable, the file read-only — and the save button under them.
 
 import { Theme } from "../../theme.slint";
+import { Locale } from "../../locale_globals.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 import { FieldCaption } from "../../components/field_caption.slint";
 import { TextField } from "../../components/text_field.slint";
@@ -46,6 +47,7 @@ export component SectionProjectMeta inherits Rectangle {
                     width: name-edit.width;
                     read-only: true;
                     text: SettingsBridge.project-path-display;
+                    font-family: Locale.mono-font-family;
                     placeholder: @tr("placeholder-project-unsaved");
                 }
             }

@@ -60,6 +60,7 @@ component EqBandSlider inherits Rectangle {
             + (Math.abs(root.shown-val) < 0.05 ? "0.0" : root.shown-val.to-fixed(1))
             + (root.width >= 64px ? " dB" : "");
         color: Theme.ink-2;
+        font-family: Locale.mono-font-family;
         font-size: Theme.min-font;
         font-weight: 500;
         horizontal-alignment: center;

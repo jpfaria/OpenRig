@@ -3,6 +3,7 @@ import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
 import { AppVersionBadge } from "../components/app_version_badge.slint";
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { IconTooltip } from "../components/icon_tooltip.slint";
 
 component LauncherButton inherits Rectangle {
@@ -103,6 +104,7 @@ component RecentProjectRow inherits Rectangle {
         height: 22px;
         text: root.subtitle;
         color: Theme.ink-3;
+        font-family: Locale.mono-font-family;
         font-size: 18px;
         font-weight: 500;
         vertical-alignment: center;

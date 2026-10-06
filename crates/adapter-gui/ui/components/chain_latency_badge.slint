@@ -1,5 +1,6 @@
 // Responsibility: shows a chain's probed latency.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 //
 // #328: extracted verbatim from chain_row_blocks.slint so the graph row shows
 // the same badge. < 10 ms green, < 20 ms yellow, else red; #954: the badge
@@ -40,6 +41,7 @@ export component ChainLatencyBadge inherits Rectangle {
         width: self.preferred-width;
         height: parent.height;
         text: Math.round(root.latency-ms) + "ms";
+        font-family: Locale.mono-font-family;
         color: root.latency-ms < 10.0 ? Theme.ok
              : root.latency-ms < 20.0 ? Theme.warn
              : Theme.bad;

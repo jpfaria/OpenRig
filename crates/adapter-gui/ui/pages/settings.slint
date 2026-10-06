@@ -249,13 +249,17 @@ export component SettingsPage inherits Rectangle {
                                 icon-only: true;
                                 icon: @image-url("../assets/plus.svg");
                                 label: @tr("btn-new-binding");
-                                clicked => { root.io-expanded-binding = SettingsBridge.create-io-binding(""); }
+                                // The new binding lands at the end of the list: bring it into view.
+                                clicked => {
+                                    root.io-expanded-binding = SettingsBridge.create-io-binding("");
+                                    section-scroll.viewport-y = min(0px, section-scroll.visible-height - section-scroll.viewport-height);
+                                }
                             }
                         }
                     }
 
                     // Over-tall sections scroll inside the pane.
-                    ScrollView {
+                    section-scroll := ScrollView {
                         vertical-stretch: 1;
 
                         // A ScrollView only auto-sizes its viewport (and thus

@@ -52,6 +52,7 @@ component TunerCard inherits Rectangle {
                 : (root.data.cents > 0 ? "+" : "") + Math.round(root.data.cents) + " ct · "
                     + Math.round(root.data.frequency * 100) / 100 + " Hz";
             color: Theme.lcd-dim;
+            font-family: Locale.mono-font-family;
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
             vertical-alignment: center;
@@ -61,6 +62,7 @@ component TunerCard inherits Rectangle {
             x: 16px; y: 10px;
             width: parent.width - 42px - hz.width; height: 22px;
             text: root.data.label;
+            font-family: Locale.mono-font-family;
             color: Theme.lcd-dim;
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
@@ -98,6 +100,7 @@ component TunerCard inherits Rectangle {
                 width: self.preferred-width; height: 22px;
                 text: (v > 0 ? "+" : "") + v;
                 color: Theme.lcd-faint;
+                font-family: Locale.mono-font-family;
                 font-size: Theme.min-font;
             }
 
@@ -163,7 +166,7 @@ component TunerCard inherits Rectangle {
                 width: self.preferred-width; height: 22px;
                 text: root.data.active ? root.data.octave : "";
                 color: root.lit;
-                font-family: Locale.display-font-family;
+                font-family: Locale.mono-font-family;
                 font-size: 20px;
             }
         }

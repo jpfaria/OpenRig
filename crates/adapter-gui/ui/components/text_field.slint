@@ -8,6 +8,8 @@ export component TextField inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder;
     in property <bool> read-only: false;
+    // The typed text's face; empty keeps the window's UI face.
+    in property <string> font-family;
     out property <bool> has-focus: input.has-focus;
     callback edited(string);
     callback accepted(string);
@@ -59,6 +61,7 @@ export component TextField inherits Rectangle {
             read-only: root.read-only;
             single-line: true;
             color: Theme.ink;
+            font-family: root.font-family;
             font-size: Theme.min-font;
             vertical-alignment: center;
             edited => { root.edited(self.text); }

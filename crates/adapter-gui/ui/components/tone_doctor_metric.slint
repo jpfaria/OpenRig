@@ -3,6 +3,7 @@
 // healthy limit, red over it) with the limit as an ink tick across it, and the
 // numbers on the right. The limit sits at the middle of the track.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ToneDoctorMetric inherits Rectangle {
     in property <string> name;
@@ -59,6 +60,7 @@ export component ToneDoctorMetric inherits Rectangle {
         width: root.value-w;
         height: parent.height;
         text: root.value-text;
+        font-family: Locale.mono-font-family;
         color: Theme.ink;
         font-size: Theme.min-font;
         font-weight: 500;

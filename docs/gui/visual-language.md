@@ -86,7 +86,7 @@ new hex. A monochrome SVG icon always carries a `colorize` from a token.
 
 ## Typography
 
-Two faces, as in the approved mockup (owner's decision, #398):
+Three faces, as in the approved mockup (owner's decision, #398):
 
 - **Barlow** is the UI face: every label, name, value, button, list row and
   body text. Windows bind `default-font-family: Locale.font-family`, which
@@ -99,6 +99,15 @@ Two faces, as in the approved mockup (owner's decision, #398):
   `font-family: Locale.display-font-family`, never the face by name: a CJK
   or Devanagari locale gets its own script face there too, so nothing
   renders as tofu.
+- **JetBrains Mono** (Medium) is the readout face, only where the mockup sets
+  `var(--mono)`: knob and EQ values, mixer dB readouts, the latency badge,
+  the app version, channel labels in the channel picker, Tone Doctor metric
+  values, looper times and slider values, preset numbers, the rack screen of
+  gear art, the tuner and spectrum LCD captions and scales, the tuner octave,
+  the BPM caption, the player loop range, project paths in the launcher and
+  the project file field. Such a text sets
+  `font-family: Locale.mono-font-family`; a CJK or Devanagari locale keeps
+  its own script face there as well.
 
 Barlow prints the case it is given. Labels the mockup sets in upper case
 (`FieldCaption`, `TagPill`, the graph's category caption) apply
@@ -107,7 +116,8 @@ string. A knob's caption is printed as the model names it ("Treble",
 "Level to A"), never upper-cased. Labels are bold (700) with 1.5–2px letter spacing; names and values
 are 600; body text is 400. One size: `Theme.min-font`, with hierarchy from
 weight, case and colour (`ink` → `ink-2` → `ink-3`), not from small text.
-The fonts live in `ui/fonts/Barlow/` with their licence (`OFL.txt`).
+The fonts live in `ui/fonts/Barlow/` and `ui/fonts/JetBrainsMono/`, each with
+its licence (`OFL.txt`).
 
 ## Components to reuse
 
