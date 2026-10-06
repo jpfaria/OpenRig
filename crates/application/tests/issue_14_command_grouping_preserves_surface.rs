@@ -118,6 +118,8 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SelectActiveChainRelative",
     "SelectBlockParameterOption",
     "SelectChainBlock",
+    // #398: the light/dark scheme.
+    "SetAppearance",
     "SetBlockParameterBool",
     "SetBlockParameterNumber",
     "SetBlockParameterText",

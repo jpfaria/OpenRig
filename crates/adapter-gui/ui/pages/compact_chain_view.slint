@@ -128,6 +128,7 @@ export component CompactChainViewPage inherits Rectangle {
     // Header — preset select + scene bar + chain action cluster.
     // Extracted to `compact_chain_view_header.slint` (file-size cap).
     CompactChainViewHeader {
+        z: 10;
         x: 0; y: 0; width: parent.width;
         chain-enabled: root.chain-enabled;
         chain-index: root.chain-index;

@@ -55,6 +55,11 @@ impl FilesystemStorage {
         Self::update_app_config(|config| config.language = language)
     }
 
+    /// #398: update only the light/dark scheme, preserving every other field.
+    pub fn save_gui_appearance(appearance: crate::Appearance) -> Result<()> {
+        Self::update_app_config(|config| config.appearance = appearance)
+    }
+
     /// #513: update only the user's preset directory override (under
     /// `AppConfig.paths.presets_path`), preserving every other config
     /// field. `None` resets the override so the OS default wins again.

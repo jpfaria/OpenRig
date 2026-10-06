@@ -8,6 +8,7 @@
 
 import { Theme, Gear } from "../theme.slint";
 import { BrandLogo } from "brand_logo.slint";
+import { GearShape } from "gear_shape.slint";
 
 // One white knob cap with its dark pointer.
 component GearKnob inherits Rectangle {
@@ -43,29 +44,9 @@ export component GearArt inherits Rectangle {
     in property <bool> bypassed: false;
     in property <float> s: 1.0;
 
-    out property <string> piece: root.icon-kind == "amp" || root.icon-kind == "preamp"
-            || root.icon-kind == "full_rig" || root.icon-kind == "nam" ? "head"
-        : root.icon-kind == "cab" || root.icon-kind == "ir" || root.icon-kind == "body" ? "cab"
-        : root.icon-kind == "reverb" || root.icon-kind == "insert" ? "rack"
-        : root.icon-kind == "wah" || root.icon-kind == "utility" ? "exp"
-        : "stomp";
-    out property <length> art-width: (root.piece == "head" || root.piece == "rack" ? 104px
-        : root.piece == "cab" ? 78px
-        : root.piece == "exp" ? 46px
-        : 58px) * root.s;
-    out property <length> art-height: (root.piece == "head" ? 58px
-        : root.piece == "cab" ? 80px
-        : root.piece == "rack" ? 40px
-        : root.piece == "exp" ? 80px
-        : 84px) * root.s;
-
-    // Where the piece's bypass switch sits (a stomp box's footswitch; the
-    // bottom of every other piece), unscaled 28 × 20 zone.
-    out property <length> switch-x: (root.piece == "stomp" ? 15px
-        : root.piece == "cab" ? 25px
-        : root.piece == "exp" ? 9px
-        : 38px) * root.s;
-    out property <length> switch-y: root.art-height - (root.piece == "stomp" ? 28px : 20px) * root.s;
+    out property <string> piece: GearShape.piece(root.icon-kind);
+    out property <length> art-width: GearShape.width(root.piece) * root.s;
+    out property <length> art-height: GearShape.height(root.piece) * root.s;
 
     // A bypassed piece loses its colour (the mockup's grayscale).
     property <color> c: root.bypassed ? Gear.off : root.tint;
@@ -104,6 +85,9 @@ export component GearArt inherits Rectangle {
             background: Gear.window;
             clip: true;
             if root.print : Text {
+                x: 2 * root.u;
+                width: parent.width - 4 * root.u;
+                height: parent.height;
                 text: root.short-label;
                 color: root.c.mix(Gear.black, 0.6);
                 font-size: Theme.knob-option-font;
@@ -298,6 +282,9 @@ export component GearArt inherits Rectangle {
             border-color: Gear.black;
             clip: true;
             if root.print : Text {
+                x: 2 * root.u;
+                width: parent.width - 4 * root.u;
+                height: parent.height;
                 text: root.short-label;
                 color: Gear.screen-text;
                 font-size: Theme.knob-option-font;

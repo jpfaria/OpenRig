@@ -243,8 +243,7 @@ export component CompactBlockRow inherits Rectangle {
                     width: 92px;
                     height: 40px;
 
-                    BrandLogo {
-                        visible: root.block-data.brand != "";
+                    brand-logo := BrandLogo {
                         x: 2px;
                         y: 5px;
                         width: 88px;
@@ -253,7 +252,7 @@ export component CompactBlockRow inherits Rectangle {
                         tint: Theme.ink;
                     }
 
-                    if root.block-data.brand == "" : EffectTypeIcon {
+                    if !brand-logo.has-logo : EffectTypeIcon {
                         x: (parent.width - 28px) / 2;
                         y: (parent.height - 28px) / 2;
                         width: 28px;

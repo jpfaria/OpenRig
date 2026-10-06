@@ -222,7 +222,11 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "믹서"
+msgstr "믹스"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:150
+msgid "graph-lane-tag {}"
+msgstr "경로 {}"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1377,3 +1381,18 @@ msgstr "블록 추가"
 
 msgid "di-source-label"
 msgstr "소스"
+
+msgid "title-section-appearance"
+msgstr "모양"
+
+msgid "label-theme"
+msgstr "테마"
+
+msgid "appearance-system"
+msgstr "시스템"
+
+msgid "appearance-light"
+msgstr "라이트"
+
+msgid "appearance-dark"
+msgstr "다크"

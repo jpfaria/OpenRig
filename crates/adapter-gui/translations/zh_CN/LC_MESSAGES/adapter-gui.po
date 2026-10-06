@@ -222,7 +222,11 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "混音器"
+msgstr "混音"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:150
+msgid "graph-lane-tag {}"
+msgstr "路径 {}"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1373,3 +1377,18 @@ msgstr "添加模块"
 
 msgid "di-source-label"
 msgstr "来源"
+
+msgid "title-section-appearance"
+msgstr "外观"
+
+msgid "label-theme"
+msgstr "主题"
+
+msgid "appearance-system"
+msgstr "系统"
+
+msgid "appearance-light"
+msgstr "浅色"
+
+msgid "appearance-dark"
+msgstr "深色"

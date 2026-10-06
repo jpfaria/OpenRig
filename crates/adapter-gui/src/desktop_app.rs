@@ -103,6 +103,8 @@ pub fn run_desktop_app(
     let output_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
+    let windows = crate::desktop_app_windows::create()?;
+    crate::desktop_app_appearance::wire(&windows, project_session.clone(), app_config.clone());
     let crate::desktop_app_windows::DesktopWindows {
         window,
         project_settings_window,
@@ -116,7 +118,7 @@ pub fn run_desktop_app(
         drums_window,
         chain_editor_window,
         plugin_info_window,
-    } = crate::desktop_app_windows::create()?;
+    } = windows;
     let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
     // The analyzer owns each session; these are the same cells, for the reads
     // (`GuiLiveSource::tuner`, `openrig://tuner`) that answer from them.

@@ -123,7 +123,9 @@ export component ChainRow inherits Rectangle {
         + mixer.section-height;
     property <bool> meters-shown: root.chain.enabled && root.chain.meters_expanded;
 
+    // Declared first but painted last: its hover labels hang over the body.
     ChainRowHeader {
+        z: 10;
         x: 0px;
         y: 0px;
         width: parent.width;

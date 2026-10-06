@@ -222,7 +222,11 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "मिक्सर"
+msgstr "मिक्स"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:150
+msgid "graph-lane-tag {}"
+msgstr "पथ {}"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1374,3 +1378,18 @@ msgstr "ब्लॉक जोड़ें"
 
 msgid "di-source-label"
 msgstr "स्रोत"
+
+msgid "title-section-appearance"
+msgstr "रूप"
+
+msgid "label-theme"
+msgstr "थीम"
+
+msgid "appearance-system"
+msgstr "सिस्टम"
+
+msgid "appearance-light"
+msgstr "हल्का"
+
+msgid "appearance-dark"
+msgstr "गहरा"

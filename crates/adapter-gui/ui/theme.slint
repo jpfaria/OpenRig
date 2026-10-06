@@ -42,6 +42,9 @@ export struct Typo {
     button: Font,
 }
 
+// #398: Settings → Appearance; `system` follows the operating system.
+export enum ThemeMode { system, light, dark }
+
 export global Theme {
     // The smallest text the app may draw: the preset select's own size (#954).
     out property <length> min-font: 18px;
@@ -51,9 +54,12 @@ export global Theme {
     // Non-numeric knob positions (e.g. BLUES / JAZZ) around a selector knob.
     out property <length> knob-option-font: 10px;
 
-    // #398: the app follows the system light/dark scheme; an unknown scheme
-    // keeps the dark look the app always had.
-    out property <bool> dark: SystemPalette.color-scheme != ColorScheme.light;
+    // #398: the scheme Settings → Appearance chose; under `system` the app
+    // follows the OS, and an unknown OS scheme keeps the dark look the app
+    // always had. Rust sets `mode` on every window (each has its own Theme).
+    in property <ThemeMode> mode: ThemeMode.system;
+    out property <bool> dark: root.mode == ThemeMode.dark
+        || (root.mode == ThemeMode.system && SystemPalette.color-scheme != ColorScheme.light);
 
     // Surfaces, from the page behind everything up to the raised panel.
     out property <color> page: dark ? #0b0e12 : #dde2e8;
@@ -277,4 +283,12 @@ export global Gear {
     out property <color> fill-mid: #b9bcc2;
     out property <color> fill-lo: #8d9097;
     out property <color> fill-ring: #2a2f37;
+    // The routing hub (#398): a dark slate tile, a light trunk and the round
+    // ports the wires plug into.
+    out property <color> hub-hi: #3a4452;
+    out property <color> hub-lo: #1c232d;
+    out property <color> hub-edge: #0b0f14;
+    out property <color> hub-line: #e6ebf1;
+    out property <color> port-fill: #0a0d11;
+    out property <color> port-ring: #c3cbd6;
 }

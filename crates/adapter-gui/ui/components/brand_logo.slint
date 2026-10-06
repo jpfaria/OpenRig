@@ -183,7 +183,7 @@ export component BrandLogo inherits Image {
         : root.brand == "xotic" ? @image-url("../../../../assets/brands/xotic/logo.png")
         : root.brand == "yamaha" ? @image-url("../../../../assets/brands/yamaha/logo.png")
         : root.brand == "zvex" ? @image-url("../../../../assets/brands/zvex/logo.png")
-        : @image-url("../../../../assets/brands/marshall/logo.svg"); // fallback never shown (visible: false)
+        : @image-url("");
     image-fit: contain;
     colorize: root.brand == "vox" ? Colors.transparent : root.tint;
 }

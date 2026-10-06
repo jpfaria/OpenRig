@@ -97,6 +97,7 @@ impl Event {
             | Event::CompactViewEnabledChanged { .. }
             | Event::MidiEnabledChanged { .. }
             | Event::McpEnabledChanged { .. }
+            | Event::AppearanceChanged { .. }
             | Event::ProjectClosed
             // #513 / #493: MIDI device / mapping / learn events live at the
             // system or project root, not a single chain.

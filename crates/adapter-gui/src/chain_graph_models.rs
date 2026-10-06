@@ -8,7 +8,7 @@
 
 use std::rc::Rc;
 
-use slint::{Color, ModelRc, VecModel};
+use slint::{Color, ModelRc, SharedString, VecModel};
 
 use project::chain::Chain;
 use project::endpoint_disables::EndpointNode;
@@ -17,6 +17,8 @@ use crate::chain_block_item::chain_block_item_from_block;
 use crate::chain_block_lists::block_at;
 use crate::chain_graph_adapter::ChainGraph;
 use crate::chain_graph_ids::{resolve_node, NodeRef};
+use crate::chain_graph_lanes::{hub_lanes, path_tags};
+use crate::chain_graph_ports::{hub_port, hub_split};
 use crate::graph_view_model::{default_palette, GraphNode as LaidOutNode, NodeCategory, NodeKind};
 use crate::{ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode};
 
@@ -27,10 +29,11 @@ pub(crate) struct RowGraphModels {
 }
 
 pub(crate) fn row_graph_models(chain: &Chain, graph: &ChainGraph) -> RowGraphModels {
+    let tags = path_tags(chain);
     let nodes: Vec<GraphNode> = graph
         .nodes
         .iter()
-        .map(|node| slint_node(chain, node))
+        .map(|node| slint_node(chain, node, &tags))
         .collect();
     let anchors: Vec<GraphAnchor> = graph
         .anchors
@@ -59,8 +62,13 @@ fn block_tile(chain: &Chain, node_id: &str) -> ChainBlockItem {
     }
 }
 
-fn slint_node(chain: &Chain, node: &LaidOutNode) -> GraphNode {
+fn slint_node(chain: &Chain, node: &LaidOutNode, tags: &[(String, String, usize)]) -> GraphNode {
     let (fill, border) = category_colours(node.category);
+    let tag = tags.iter().find(|(id, _, _)| *id == node.id);
+    let lanes: Vec<SharedString> = hub_lanes(chain, &node.id)
+        .into_iter()
+        .map(SharedString::from)
+        .collect();
     GraphNode {
         id: node.id.as_str().into(),
         label: node.label.as_str().into(),
@@ -77,6 +85,12 @@ fn slint_node(chain: &Chain, node: &LaidOutNode) -> GraphNode {
         } else {
             ChainBlockItem::default()
         },
+        lanes: ModelRc::from(Rc::new(VecModel::from(lanes))),
+        path_tag: tag
+            .map(|(_, letter, _)| letter.as_str())
+            .unwrap_or_default()
+            .into(),
+        path_index: tag.map_or(-1, |(_, _, at)| *at as i32),
         ..Default::default()
     }
 }
@@ -97,25 +111,40 @@ fn rgb(value: u32) -> Color {
 
 /// One wire per edge; an edge that bends through a point (an empty lane)
 /// draws as two wires meeting there, each still moving with its own node.
+/// Each end names its node by index and the hub port it plugs into (#398).
 fn edge_geometry(chain: &Chain, graph: &ChainGraph) -> Vec<GraphEdgeGeometry> {
-    let centre = |id: &str| graph.nodes.iter().find(|n| n.id == id).map(|n| (n.x, n.y));
+    let end = |id: &str, port: i32| {
+        let index = graph.nodes.iter().position(|n| n.id == id)?;
+        let node = &graph.nodes[index];
+        Some(WireEnd {
+            id: node.id.as_str(),
+            index: index as i32,
+            at: (node.x, node.y),
+            port,
+        })
+    };
     graph
         .edges
         .iter()
         .filter_map(|edge| {
-            let from = centre(&edge.from_id)?;
-            let to = centre(&edge.to_id)?;
             Some(match edge.via {
                 None => {
-                    let lane = wire_lane(chain, &edge.from_id, &edge.to_id);
-                    vec![wire(&edge.from_id, from, &edge.to_id, to, lane)]
+                    let from = end(&edge.from_id, hub_port(chain, &edge.from_id, &edge.to_id))?;
+                    let to = end(&edge.to_id, hub_port(chain, &edge.to_id, &edge.from_id))?;
+                    vec![wire(from, to, wire_lane(chain, &edge.from_id, &edge.to_id))]
                 }
                 Some(via) => {
                     let lane = via.path as i32;
-                    vec![
-                        wire(&edge.from_id, from, "", (via.x, via.y), lane),
-                        wire("", (via.x, via.y), &edge.to_id, to, lane),
-                    ]
+                    let port = |id: &str| if hub_split(id).is_some() { lane } else { -1 };
+                    let from = end(&edge.from_id, port(&edge.from_id))?;
+                    let to = end(&edge.to_id, port(&edge.to_id))?;
+                    let bend = WireEnd {
+                        id: "",
+                        index: -1,
+                        at: (via.x, via.y),
+                        port: -1,
+                    };
+                    vec![wire(from, bend, lane), wire(bend, to, lane)]
                 }
             })
         })
@@ -136,21 +165,29 @@ fn wire_lane(chain: &Chain, from_id: &str, to_id: &str) -> i32 {
     lane(to_id).or_else(|| lane(from_id)).unwrap_or(-1)
 }
 
-fn wire(
-    from_id: &str,
-    from: (f32, f32),
-    to_id: &str,
-    to: (f32, f32),
-    path: i32,
-) -> GraphEdgeGeometry {
+/// One end of a wire: its node (none for a bend point), where it sits and
+/// the hub port it plugs into.
+#[derive(Clone, Copy)]
+struct WireEnd<'a> {
+    id: &'a str,
+    index: i32,
+    at: (f32, f32),
+    port: i32,
+}
+
+fn wire(from: WireEnd, to: WireEnd, path: i32) -> GraphEdgeGeometry {
     GraphEdgeGeometry {
-        from_id: from_id.into(),
-        to_id: to_id.into(),
-        from_x: from.0,
-        from_y: from.1,
-        to_x: to.0,
-        to_y: to.1,
+        from_id: from.id.into(),
+        to_id: to.id.into(),
+        from_x: from.at.0,
+        from_y: from.at.1,
+        to_x: to.at.0,
+        to_y: to.at.1,
         path,
+        from_index: from.index,
+        to_index: to.index,
+        from_port: from.port,
+        to_port: to.port,
     }
 }
 
