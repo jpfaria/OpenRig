@@ -9,7 +9,7 @@ use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, update_chain_runtime_state,
     update_chain_runtime_state_spillover, ChainRuntimeState, DEFAULT_ELASTIC_TARGET,
 };
-use crate::runtime_state::{FADE_IN_FRAMES, SPILLOVER_FRAMES};
+use crate::runtime_state::SPILLOVER_FRAMES;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
@@ -212,11 +212,10 @@ fn pipeline_serials(rt: &Arc<ChainRuntimeState>) -> Vec<(Vec<u64>, Option<Vec<u6
         .collect()
 }
 
-/// #454-T5: a spillover switch that GROWS the chain's pipelines (the E/S
-/// gained a second output) gives the new pipeline a freshly built chain of
-/// its own, with no previous pipeline to ring out, and it plays on its own
-/// output. The old pipeline rings out exactly once, on the pipeline it came
-/// from.
+/// #454-T5 / #1074: a spillover switch that GROWS the chain's outputs (the
+/// E/S gained a second output on the same device) keeps ONE pipeline — one
+/// jack is one pipeline — which now fans out to both routes and plays on the
+/// new one. Its previous chain rings out exactly once.
 #[test]
 fn spillover_that_adds_a_pipeline_builds_it_fresh_and_it_plays() {
     const FRAMES: usize = 128;
@@ -245,45 +244,27 @@ fn spillover_that_adds_a_pipeline_builds_it_fresh_and_it_plays() {
     .expect("spillover switch that grows the pipelines");
 
     let after = pipeline_serials(&rt);
-    assert_eq!(after.len(), 2, "one input × two outputs = two pipelines");
-
-    // The pipeline that existed: fresh nodes, its old delay ringing out.
+    assert_eq!(
+        after.len(),
+        1,
+        "#1074: one input × two outputs on one device = one pipeline"
+    );
     assert_eq!(
         after[0].1.as_deref(),
         Some(old_delay.as_slice()),
-        "the old pipeline rings out on the pipeline it came from"
+        "the old chain rings out on the pipeline it came from"
     );
     assert_eq!(outgoing_frames_remaining(&rt), Some(SPILLOVER_FRAMES));
     assert_ne!(
         after[0].0, old_delay,
         "spillover builds the surviving pipeline fresh"
     );
-
-    // The pipeline that did not exist: its own fresh delay, nothing to ring out.
-    assert_eq!(
-        after[1].0.len(),
-        1,
-        "the new pipeline runs the chain's delay"
-    );
-    assert!(
-        !after[1].0.contains(&old_delay[0]) && after[1].0 != after[0].0,
-        "the new pipeline owns a freshly built node, not a reused one"
-    );
-    assert_eq!(
-        after[1].1, None,
-        "a pipeline that did not exist before has no previous pipeline to ring out"
-    );
     {
         let p = rt.processing.lock().expect("processing lock");
-        let grown = &p.input_states[1];
         assert_eq!(
-            grown.output_route_indices,
-            vec![1],
-            "the new pipeline writes the new output"
-        );
-        assert_eq!(
-            grown.fade_in_remaining, FADE_IN_FRAMES,
-            "the new pipeline fades in, never starts hot"
+            p.input_states[0].output_route_indices,
+            vec![0, 1],
+            "the one pipeline fans out to both outputs"
         );
     }
 
@@ -307,6 +288,6 @@ fn spillover_that_adds_a_pipeline_builds_it_fresh_and_it_plays() {
     }
     assert!(
         peak > 0.01,
-        "the new pipeline must play on its own output — peak was {peak}"
+        "the pipeline must play on the new output — peak was {peak}"
     );
 }
