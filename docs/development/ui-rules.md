@@ -7,7 +7,9 @@ suggestions. Read this before touching the UI, together with `docs/screens.md`
 
 ## 0. Before any UI work
 
-Invoke `claude-plugin:ux-ui` and `slint-best-practices` first. Never assume a
+Invoke `claude-plugin:ux-ui` and `slint-best-practices` first, and read
+`docs/gui/visual-language.md`: the look every screen follows, the tokens, the
+components to reuse and the approved mockup (T01–T42). Never assume a
 layout: render it with `tools/slint-render` (headless PNG) and look at the PNG
 before saying "done", then close the visual in a short loop with the owner.
 Icons are SVG via `@image-url` + colorize, never a glyph (it renders as tofu on
