@@ -9,6 +9,7 @@
 import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { ListBox, ListRow } from "list_box.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component LooperEndpointPicker inherits Rectangle {
     in property <[string]> input-options;
@@ -50,7 +51,7 @@ export component LooperEndpointPicker inherits Rectangle {
                 height: 24px;
                 text: root.is-output ? @tr("looper-output") : @tr("looper-input");
                 color: Theme.ink;
-                font-family: "Bebas Neue";
+                font-family: Locale.display-font-family;
                 font-size: 24px;
                 letter-spacing: 0.05 * 24px;
                 vertical-alignment: center;

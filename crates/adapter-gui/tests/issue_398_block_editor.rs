@@ -44,7 +44,7 @@ fn the_brand_zone_sits_beside_the_controls() {
     assert!(zone.contains("height: 3px;"), "the category stripe");
     assert!(zone.contains("BrandLogo {"));
     assert!(
-        zone.contains("font-family: \"Bebas Neue\";"),
+        zone.contains("font-family: Locale.display-font-family;"),
         "the model word"
     );
     assert!(

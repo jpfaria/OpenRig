@@ -20,6 +20,7 @@ import { LcdGlass } from "../components/lcd_glass.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FieldCaption } from "../components/field_caption.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component PlayerPanel inherits Rectangle {
     in property <bool> show-close-button: false;
@@ -56,7 +57,7 @@ export component PlayerPanel inherits Rectangle {
                     Text {
                         text: PlayerBridge.track-name != "" ? PlayerBridge.track-name : @tr("status-no-track");
                         color: root.lit;
-                        font-family: "Bebas Neue";
+                        font-family: Locale.display-font-family;
                         font-size: 22px;
                         letter-spacing: 0.06 * 22px;
                         horizontal-alignment: center;
@@ -71,7 +72,7 @@ export component PlayerPanel inherits Rectangle {
                         Text {
                             text: PlayerBridge.position-label;
                             color: root.lit;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.display-font-family;
                             font-size: 56px;
                             vertical-alignment: bottom;
                         }
@@ -79,7 +80,7 @@ export component PlayerPanel inherits Rectangle {
                         Text {
                             text: "/ " + PlayerBridge.duration-label;
                             color: Theme.lcd-dim;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.display-font-family;
                             font-size: 26px;
                             vertical-alignment: bottom;
                         }
@@ -92,7 +93,6 @@ export component PlayerPanel inherits Rectangle {
                             : PlayerBridge.loop-label != "" ? @tr("label-loop-range", PlayerBridge.loop-label)
                             : "";
                         color: PlayerBridge.failed ? Theme.bad : Theme.lcd-dim;
-                        font-family: "Bebas Neue";
                         font-size: Theme.min-font;
                         letter-spacing: 0.14 * Theme.min-font;
                         horizontal-alignment: center;
@@ -247,7 +247,6 @@ export component PlayerPanel inherits Rectangle {
                 width: parent.width - 32px; height: 22px;
                 text: @tr("label-player-output");
                 color: Theme.ink-2;
-                font-family: "Bebas Neue";
                 font-size: 20px;
                 letter-spacing: 0.08 * 20px;
             }
@@ -283,7 +282,7 @@ export component PlayerPanel inherits Rectangle {
 
 export component PlayerWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-player");
     min-width: 520px;

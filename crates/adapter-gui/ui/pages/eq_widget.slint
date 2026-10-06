@@ -3,6 +3,7 @@ import { Theme, Gear } from "../theme.slint";
 import { MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 
 import "../fonts/BebasNeue.ttf";
+import { Locale } from "../locale_globals.slint";
 
 // Vertical band slider built from primitives — track + fader cap + value
 // readout. No sprite, so it scales to any height the parent gives it.
@@ -128,7 +129,7 @@ component EqBandSlider inherits Rectangle {
         height: root.bottom-h;
         text: root.freq-label;
         color: Theme.ink-2;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 18px;
         letter-spacing: 0.06 * 18px;
         horizontal-alignment: center;

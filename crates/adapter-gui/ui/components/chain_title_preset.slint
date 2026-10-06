@@ -10,6 +10,7 @@ import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 import { PresetSelect } from "preset_select.slint";
 import { HeaderIconStyle } from "header_icon_style.slint";
+import { Locale } from "../locale_globals.slint";
 
 // Small square icon button (press to fire), drawn like every chain
 // header icon (HeaderIconStyle).
@@ -176,7 +177,7 @@ export component ChainTitlePreset inherits Rectangle {
                 color: root.on-chrome
                     ? (!root.enabled ? Theme.chrome-fg-2 : Theme.chrome-fg)
                     : (!root.enabled ? Theme.ink-3 : title-ta.has-hover ? Theme.accent : Theme.ink);
-                font-family: "Bebas Neue";
+                font-family: Locale.display-font-family;
                 font-size: 28px;
                 letter-spacing: 1px;
                 vertical-alignment: center;

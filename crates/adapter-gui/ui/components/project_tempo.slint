@@ -4,6 +4,7 @@
 import { Theme } from "../theme.slint";
 import { HeaderIconAction } from "chain_chips.slint";
 import { MetronomeBridge } from "metronome_globals.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ProjectTempo inherits Rectangle {
     width: 184px;
@@ -25,7 +26,7 @@ export component ProjectTempo inherits Rectangle {
         height: parent.height;
         text: Math.round(MetronomeBridge.bpm);
         color: Theme.chrome-fg;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 30px;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -56,7 +57,7 @@ export component ProjectTempo inherits Rectangle {
         Text {
             text: @tr("action-tap-tempo");
             color: Theme.chrome-fg;
-            font-family: "Bebas Neue";
+            font-family: Locale.display-font-family;
             font-size: 22px;
             letter-spacing: 2px;
             horizontal-alignment: center;

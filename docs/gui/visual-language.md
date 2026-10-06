@@ -85,10 +85,27 @@ new hex. A monochrome SVG icon always carries a `colorize` from a token.
 
 ## Typography
 
-Bebas Neue is the face (do not propose another). Category and section labels
-are upper case, bold (700) with 1.5–2px letter spacing; names and values are
-600; body text is 400. One size: `Theme.min-font`, with hierarchy from
+Two faces, as in the approved mockup (owner's decision, #398):
+
+- **Barlow** is the UI face: every label, name, value, button, list row and
+  body text. Windows bind `default-font-family: Locale.font-family`, which
+  Rust sets to Barlow for a Latin locale (`locale_font.rs`).
+- **Bebas Neue** is the display face, only for what the mockup sets in it:
+  window and page titles (`ToolBar`, `DialogCard`, settings page heading,
+  top bar), the chain name, accordion sections (`SectionToggle`), the
+  model word of the block editor, category tabs, and the big readouts (tuner
+  note, BPM, tap, player time, drum bar). Such a text sets
+  `font-family: Locale.display-font-family`, never the face by name: a CJK
+  or Devanagari locale gets its own script face there too, so nothing
+  renders as tofu.
+
+Barlow prints the case it is given. Labels the mockup sets in upper case
+(`FieldCaption`, `TagPill`, the graph's category caption) apply
+`.to-uppercase()` in the component, so callers pass the normal translated
+string. Labels are bold (700) with 1.5–2px letter spacing; names and values
+are 600; body text is 400. One size: `Theme.min-font`, with hierarchy from
 weight, case and colour (`ink` → `ink-2` → `ink-3`), not from small text.
+The fonts live in `ui/fonts/Barlow/` with their licence (`OFL.txt`).
 
 ## Components to reuse
 
@@ -125,7 +142,11 @@ ring) reads the same `GearShape`, so the two never disagree.
 
 The enclosure is tinted with the block's category colour, the window/screen
 prints the model name (elided), the knobs are drawn caps, the LED is a drawn
-8px dot. A bypassed block is grey and dimmed, never hidden.
+8px dot. An amp head is the brand logo on the white upper panel over a band
+of the category colour across its lower 20px, with no knobs. A brand logo is
+always monochrome in the tint it is given (`BrandLogo`), and its SVG
+`viewBox` is cropped to the letters so it fills its box. A bypassed block is
+grey and dimmed, never hidden.
 
 ## Graph view
 
@@ -151,6 +172,12 @@ A bar whose hover labels hang below it (chain header, top bar, compact
 header, block editor header) declares `z: 10` so its tooltip paints over the
 page below (`src/issue_398_paint_order_tests.rs`). A list a user clicks is a
 root-level overlay, never a `PopupWindow` (`ui-rules.md` §1).
+
+The hover card of a graph block is a window-level layer too: the canvas
+writes the hovered block and its window position into `BlockHoverState`,
+and `BlockHoverLayer`, declared last in the window, draws the card clamped
+inside the window. Drawn inside the canvas, the chain header above it
+painted over the card.
 
 ## Checking a screen
 

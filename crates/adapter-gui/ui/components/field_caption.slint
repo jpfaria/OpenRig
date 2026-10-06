@@ -1,14 +1,27 @@
 // Responsibility: renders the caption above a form field.
 // #398: the small bold uppercase label of a field (`OUTPUT`, `KIT`, `TRACKS`),
-// spaced out and quiet so the field below reads first.
+// spaced out and quiet so the field below reads first. Callers pass the
+// normal translated string; the caption sets it in upper case.
 import { Theme } from "../theme.slint";
 
-export component FieldCaption inherits Text {
-    color: Theme.ink-2;
-    font-size: Theme.min-font;
-    font-weight: 700;
-    letter-spacing: 0.12 * Theme.min-font;
-    vertical-alignment: center;
-    overflow: elide;
+export component FieldCaption {
+    in property <string> text;
+    in property <brush> color: Theme.ink-2;
+
+    min-height: label.min-height;
+    preferred-height: label.preferred-height;
+    preferred-width: label.preferred-width;
     vertical-stretch: 0;
+
+    label := Text {
+        width: 100%;
+        height: 100%;
+        text: root.text.to-uppercase();
+        color: root.color;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
 }

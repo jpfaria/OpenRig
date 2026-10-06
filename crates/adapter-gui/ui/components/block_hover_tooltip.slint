@@ -14,6 +14,9 @@ export component BlockHoverTooltip inherits Rectangle {
     in property <length> chip-width;
     in property <length> chip-height;
     in property <length> container-width;
+    // #398: when set, the card is kept inside this height (a window-level
+    // layer); 0 keeps the old rule of growing up from the chip's bottom.
+    in property <length> container-height: 0px;
 
     property <length> row-height: 24px;
     property <length> header-h: 36px;
@@ -35,7 +38,10 @@ export component BlockHoverTooltip inherits Rectangle {
     x: root.fits-right
         ? root.anchor-x + root.chip-width + root.gap
         : root.anchor-x - root.gap - root.tooltip-w;
-    y: root.anchor-y + root.chip-height - root.tooltip-h;
+    property <length> raw-y: root.anchor-y + root.chip-height - root.tooltip-h;
+    y: root.container-height > 0px
+        ? Math.max(0px, Math.min(root.container-height - root.tooltip-h, root.raw-y))
+        : root.raw-y;
     width: root.tooltip-w;
     height: root.tooltip-h;
     background: Theme.well.with-alpha(0.96);

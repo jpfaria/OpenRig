@@ -2,6 +2,7 @@
 // #398: the page dims behind a scrim that swallows clicks; the card sits in the
 // middle on the panel, radius 6, its height set by what the dialog stacks in it.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component DialogCard inherits Rectangle {
     in property <length> card-width: 420px;
@@ -44,7 +45,7 @@ export component ConfirmBody inherits VerticalLayout {
     Text {
         text: root.title;
         color: Theme.ink;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 24px;
         letter-spacing: 0.05 * 24px;
         wrap: word-wrap;

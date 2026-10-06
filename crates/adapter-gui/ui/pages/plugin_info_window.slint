@@ -12,6 +12,7 @@ import { Theme, Gear } from "../theme.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FieldCaption } from "../components/field_caption.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component PluginInfoPanel inherits Rectangle {
     in property <image> screenshot;
@@ -125,7 +126,7 @@ export component PluginInfoPanel inherits Rectangle {
         Text {
             text: root.plugin-name;
             color: Theme.ink;
-            font-family: "Bebas Neue";
+            font-family: Locale.display-font-family;
             font-size: 32px;
             letter-spacing: 0.04 * 32px;
             wrap: word-wrap;

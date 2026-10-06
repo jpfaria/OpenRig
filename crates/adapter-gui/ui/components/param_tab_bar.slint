@@ -8,6 +8,7 @@
 // the active tab lifted to the panel tone. `display` (the mixers) sets the
 // labels in the display face and leaves the active tab on the row.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ParamTabBar inherits Rectangle {
     in property <[string]> groups;
@@ -55,7 +56,7 @@ export component ParamTabBar inherits Rectangle {
                     text: group;
                     color: i == root.active ? Theme.ink
                         : (tab-ta.has-hover || root.boxed ? Theme.ink-2 : Theme.ink-3);
-                    font-family: root.display ? "Bebas Neue" : "";
+                    font-family: root.display ? Locale.display-font-family : "";
                     font-size: root.display ? 20px : Theme.min-font;
                     font-weight: root.display ? 400 : 600;
                     letter-spacing: (root.display ? 0.08 : 0.06) * self.font-size;

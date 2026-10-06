@@ -11,6 +11,7 @@
 import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { ListBox, ListRow } from "list_box.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component LooperPresetPicker inherits Rectangle {
     // The chain's bank presets; option 0 ("follow the chain") is injected here.
@@ -49,7 +50,7 @@ export component LooperPresetPicker inherits Rectangle {
                 height: 24px;
                 text: @tr("looper-preset-picker-title");
                 color: Theme.ink;
-                font-family: "Bebas Neue";
+                font-family: Locale.display-font-family;
                 font-size: 24px;
                 letter-spacing: 0.05 * 24px;
                 vertical-alignment: center;

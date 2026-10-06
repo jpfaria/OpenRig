@@ -87,3 +87,55 @@ fn the_name_printed_on_the_gear_elides_from_the_left_edge() {
         );
     }
 }
+
+#[test]
+fn the_amp_head_prints_its_logo_over_a_category_band() {
+    let src = ui("components/gear_art.slint");
+    let head = src
+        .split("if root.piece == \"head\"")
+        .nth(1)
+        .and_then(|rest| rest.split("// ── Cabinet ──").next())
+        .expect("gear art draws the head");
+    assert!(
+        !head.contains("GearKnob"),
+        "the approved head shows no knobs, only the logo over the band"
+    );
+    assert!(
+        head.contains("height: 20 * root.u;"),
+        "the lower 20px of the head panel is the category band"
+    );
+}
+
+#[test]
+fn every_brand_logo_takes_the_tint() {
+    let src = ui("components/brand_logo.slint");
+    assert!(
+        src.contains("colorize: root.tint;"),
+        "a brand logo is monochrome in the tint, VOX included"
+    );
+}
+
+#[test]
+fn the_vox_logo_is_cropped_to_its_letters() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/brands/vox/logo.svg");
+    let svg = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert!(
+        !svg.contains("viewBox=\"0 0 192.756 192.756\""),
+        "the square canvas leaves the letters tiny; crop the viewBox to them"
+    );
+}
+
+#[test]
+fn the_block_tooltip_is_a_window_level_layer() {
+    let canvas = ui("components/graph_view.slint");
+    assert!(
+        !canvas.contains("BlockHoverTooltip {"),
+        "inside the canvas the chain header paints over the card"
+    );
+    assert!(canvas.contains("BlockHoverState."));
+    let app = ui("app-window.slint");
+    assert!(
+        app.contains("BlockHoverLayer {"),
+        "the main window draws the hovered block's card above everything"
+    );
+}

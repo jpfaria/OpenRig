@@ -3,6 +3,7 @@
 // (green while the block runs; a click switches it), the title, and the trash
 // that deletes the block at the right.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component BlockDialogBar inherits Rectangle {
     in property <string> title;
@@ -53,7 +54,7 @@ export component BlockDialogBar inherits Rectangle {
             horizontal-stretch: 1;
             text: root.title;
             color: Theme.chrome-fg;
-            font-family: "Bebas Neue";
+            font-family: Locale.display-font-family;
             font-size: 24px;
             letter-spacing: 0.06 * 24px;
             vertical-alignment: center;

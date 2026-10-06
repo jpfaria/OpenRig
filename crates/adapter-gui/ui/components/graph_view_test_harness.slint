@@ -5,6 +5,7 @@
 // slint-build emits the Rust types; never shown in the running app.
 
 import { GraphView, GraphNode, GraphEdgeGeometry, GraphAnchor } from "graph_view.slint";
+import { BlockHoverLayer } from "block_hover_layer.slint";
 
 // The canvas alone, every callback forwarded.
 export component GraphViewHarness inherits Window {
@@ -41,6 +42,13 @@ export component GraphViewHarness inherits Window {
         node-dropped(id, anchor) => { root.node-dropped(id, anchor); }
         resolve-drop-anchor(id, x, y) => { root.resolve-drop-anchor(id, x, y) }
     }
+    // #398: the block tooltip is a window-level layer, as in AppWindow.
+    BlockHoverLayer {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+    }
 }
 
 // The canvas inside a scroll area, the way the chains list hosts it
@@ -67,5 +75,12 @@ export component GraphViewScrollHarness inherits Window {
             nodes: root.nodes;
             zoom <=> root.zoom;
         }
+    }
+    // #398: the block tooltip is a window-level layer, as in AppWindow.
+    BlockHoverLayer {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
     }
 }

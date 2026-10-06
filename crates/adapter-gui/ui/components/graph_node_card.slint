@@ -134,7 +134,7 @@ export component GraphNodeCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.node.block.type-label;
+                    text: root.node.block.type-label.to-uppercase();
                     color: root.node.block.accent-color;
                     opacity: root.node.bypass ? 0.5 : 1.0;
                     font-size: Theme.min-font;

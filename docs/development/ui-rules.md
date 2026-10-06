@@ -13,8 +13,10 @@ components to reuse and the approved mockup (T01–T42). Never assume a
 layout: render it with `tools/slint-render` (headless PNG) and look at the PNG
 before saying "done", then close the visual in a short loop with the owner.
 Icons are SVG via `@image-url` + colorize, never a glyph (it renders as tofu on
-the Orange Pi). Bebas Neue is the default font by choice — do not propose
-changing it. Keep the look consistent across screens.
+the Orange Pi). The faces are the owner's choice (#398): Barlow for the UI,
+Bebas Neue for display text only, through `Locale.display-font-family`
+(`docs/gui/visual-language.md` §Typography) — do not propose others. Keep the
+look consistent across screens.
 
 ## 0.1 Colours come from `Theme` tokens only (#398)
 

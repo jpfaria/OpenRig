@@ -161,16 +161,12 @@ export component GearArt inherits Rectangle {
                 brand: root.brand;
                 tint: Gear.print;
             }
-            for i in 5 : GearKnob {
-                x: (94 / 6 * (i + 1) - 5) * root.u;
-                y: 22 * root.u;
-                d: 10 * root.u;
-                turn: (-120 + Math.mod(i * 83, 240)) * 1deg;
-            }
+            // The approved head: the logo on the white upper panel, the
+            // category colour across the lower 20px, no knobs.
             Rectangle {
                 y: parent.height - self.height;
                 width: parent.width;
-                height: 3 * root.u;
+                height: 20 * root.u;
                 background: root.c;
             }
         }

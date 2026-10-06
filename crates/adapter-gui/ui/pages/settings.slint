@@ -20,6 +20,7 @@ import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { Locale } from "../locale_globals.slint";
 
 // A group label of the rail (SYSTEM, PROJECT).
 component NavScope inherits Rectangle {
@@ -227,7 +228,7 @@ export component SettingsPage inherits Rectangle {
                             : root.selected-section == 7 ? @tr("title-section-appearance")
                             : @tr("title-section-project-meta");
                         color: Theme.ink;
-                        font-family: "Bebas Neue";
+                        font-family: Locale.display-font-family;
                         font-size: 26px;
                         letter-spacing: 0.05 * 26px;
                     }

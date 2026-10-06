@@ -1,0 +1,18 @@
+// Responsibility: carries the hovered block's tooltip state.
+// #398: the graph canvas sits under the chain header and the next rows, so
+// a hover card drawn inside it is painted over. The canvas writes the
+// hovered block and its window position here instead; `BlockHoverLayer`,
+// declared last in the window, draws the card above everything.
+import { ChainBlockItem } from "../models.slint";
+
+export global BlockHoverState {
+    in-out property <bool> open;
+    in-out property <ChainBlockItem> block;
+    // The hovered card's top-left corner and size, in window coordinates.
+    in-out property <length> x;
+    in-out property <length> y;
+    in-out property <length> card-width;
+    in-out property <length> card-height;
+    // Id of the node that opened the card, so only it closes it.
+    in-out property <string> owner;
+}

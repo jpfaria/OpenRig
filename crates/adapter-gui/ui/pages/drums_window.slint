@@ -14,6 +14,7 @@ import { LcdGlass } from "../components/lcd_glass.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component DrumsPanel inherits Rectangle {
     // The inline overlay needs a close button; the window closes via its chrome.
@@ -62,7 +63,7 @@ export component DrumsPanel inherits Rectangle {
                     Text {
                         text: @tr("label-drums-bar", DrumsBridge.current-bar + 1);
                         color: DrumsBridge.playing ? Theme.lcd-dim : Theme.lcd-off;
-                        font-family: "Bebas Neue";
+                        font-family: Locale.display-font-family;
                         font-size: 20px;
                         letter-spacing: 0.06 * 20px;
                         vertical-alignment: center;
@@ -92,7 +93,7 @@ export component DrumsPanel inherits Rectangle {
                         Text {
                             text: Math.round(DrumsBridge.bpm);
                             color: DrumsBridge.playing ? Theme.lcd-glow : Theme.lcd-off;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.display-font-family;
                             font-size: 76px;
                             height: 70px;
                             horizontal-alignment: right;
@@ -101,7 +102,7 @@ export component DrumsPanel inherits Rectangle {
                         Text {
                             text: @tr("label-bpm");
                             color: Theme.lcd-dim;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.display-font-family;
                             font-size: Theme.min-font;
                             letter-spacing: 0.14 * Theme.min-font;
                             horizontal-alignment: right;
@@ -220,7 +221,7 @@ export component DrumsPanel inherits Rectangle {
                     : DrumsBridge.picker == 2 ? @tr("label-drum-groove")
                     : @tr("label-output");
                 color: Theme.ink-2;
-                font-family: "Bebas Neue";
+                font-family: Locale.display-font-family;
                 font-size: 20px;
                 letter-spacing: 0.08 * 20px;
             }
@@ -328,7 +329,7 @@ export component DrumsPanel inherits Rectangle {
 // The standalone window is only a host for the panel.
 export component DrumsWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-drums");
     min-width: 480px;

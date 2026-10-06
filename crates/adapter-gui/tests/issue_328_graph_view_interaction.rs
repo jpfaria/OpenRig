@@ -8,8 +8,8 @@
 
 use adapter_gui::graph_view_model as model;
 use adapter_gui::{
-    ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode, GraphViewHarness,
-    GraphViewScrollHarness,
+    BlockParamSummaryEntry, ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode,
+    GraphViewHarness, GraphViewScrollHarness,
 };
 use i_slint_backend_testing::ElementHandle;
 use slint::platform::{Key, PointerEventButton, WindowEvent};
@@ -608,4 +608,32 @@ fn a_split_hub_has_one_port_per_path() {
     let w = harness(vec![split]);
     assert_eq!(handles(&w, "GraphHub::lane-port").len(), 4);
     assert_eq!(handles(&w, "GraphHub::lane-letter").len(), 4);
+}
+
+/// #398: the hover card is a window-level layer, so the chain header above
+/// the canvas never paints over it and the canvas edge never cuts it: a tall
+/// card on a block near the top of the canvas stays inside the window.
+#[test]
+fn a_tall_tooltip_near_the_top_of_the_canvas_stays_inside_the_window() {
+    let mut amp = block_node("amp", "Amp", 400.0, 60.0);
+    let entries: Vec<BlockParamSummaryEntry> = (0..8)
+        .map(|i| BlockParamSummaryEntry {
+            label: format!("Param {i}").into(),
+            value: "5.00".into(),
+            unit: SharedString::new(),
+        })
+        .collect();
+    amp.block.param_entries = ModelRc::new(VecModel::from(entries));
+    let w = harness(vec![amp]);
+
+    hover(&w, at(400.0, 60.0));
+
+    let tip = ElementHandle::find_by_element_type_name(&w, "BlockHoverTooltip")
+        .next()
+        .expect("hovering the block shows its card");
+    assert!(
+        tip.absolute_position().y >= 0.0,
+        "the card is clamped inside the window, not pushed above it (y = {})",
+        tip.absolute_position().y
+    );
 }

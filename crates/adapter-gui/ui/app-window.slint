@@ -1,5 +1,9 @@
 // Responsibility: hosts the desktop application window.
 import "fonts/CooperHewitt-Semibold.ttf";
+import "fonts/Barlow/Barlow-Regular.ttf";
+import "fonts/Barlow/Barlow-Medium.ttf";
+import "fonts/Barlow/Barlow-SemiBold.ttf";
+import "fonts/Barlow/Barlow-Bold.ttf";
 import { ChainEditorBridge } from "chain_editor_globals.slint";
 import { Theme } from "theme.slint";
 export { Theme, ThemeMode } from "theme.slint";
@@ -45,6 +49,7 @@ import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MixerWindow, MixerBridge, MixerStripRow, PlayerWindow, PlayerBridge, PlayerTrackRow, DrumsWindow, DrumsBridge, DrumPickRow } from "pages/pages.slint";
 import { RootModalOverlays } from "components/root_modal_overlays.slint";
+import { BlockHoverLayer } from "components/block_hover_layer.slint";
 import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow } from "secondary_windows_chain.slint";
@@ -59,11 +64,9 @@ export { BlockEditorWindow, CompactChainViewWindow }
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    // Helvetica Neue (system) instead of Bebas Neue because the bundled
-    // Latin-only display fonts cause CJK/Devanagari/Hangul characters to
-    // render as tofu boxes when the UI locale is ja-JP / zh-CN / ko-KR /
-    // hi-IN. Helvetica Neue routes through the macOS system fallback
-    // chain (PingFang SC, Hiragino, Apple SD Gothic, etc.).
+    // Barlow for a Latin locale (#398); a CJK/Devanagari/Hangul locale gets
+    // the macOS face that covers its script (locale_font.rs), since the
+    // bundled faces are Latin-only and would render tofu boxes.
     default-font-family: Locale.font-family;
     default-font-size: 18px;
     in property <string> app-version;
@@ -466,5 +469,11 @@ export component AppWindow inherits Window {
         preset-name: OverlayBridge.preset-save-overwrite-name;
         confirm() => { OverlayBridge.preset-save-overwrite-confirm(); }
         cancel() => { OverlayBridge.preset-save-overwrite-cancel(); }
+    }
+    // #398: the graph block's hover card, declared last so it paints above
+    // the chain header, the rows and every overlay.
+    BlockHoverLayer {
+        width: root.width; height: root.height;
+        active: root.show-project-chains;
     }
 }

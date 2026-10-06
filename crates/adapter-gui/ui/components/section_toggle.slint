@@ -1,5 +1,6 @@
 // Responsibility: renders the clickable header of a collapsible section.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 // #1007 — a chevron (right = collapsed, down = expanded), the section's icon
 // and its title across the whole header; a click asks for the opposite state through
 // `toggled`. The owner keeps the state and feeds it back into `expanded`, so
@@ -55,7 +56,7 @@ export component SectionToggle inherits Rectangle {
         width: parent.width - 76px; height: parent.height;
         text: root.title;
         color: root.expanded || area.has-hover ? Theme.ink : Theme.ink-2;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: Theme.min-font;
         letter-spacing: 0.08 * Theme.min-font;
         vertical-alignment: center;

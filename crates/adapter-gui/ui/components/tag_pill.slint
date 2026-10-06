@@ -16,7 +16,7 @@ export component TagPill inherits Rectangle {
         x: 7px;
         width: self.preferred-width;
         height: parent.height;
-        text: root.text;
+        text: root.text.to-uppercase();
         color: root.tone;
         font-size: Theme.min-font;
         font-weight: 700;
