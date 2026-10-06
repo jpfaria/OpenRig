@@ -156,7 +156,9 @@ root-level overlay, never a `PopupWindow` (`ui-rules.md` §1).
 
 1. Render the component with `tools/slint-render` (standalone mock, both
    schemes) and look at the PNG.
-2. Open the app from the solver with an isolated `--config` / `--project`,
+2. Open the app from the solver with an isolated `HOME` and a copied
+   `--project` (`--config` alone still writes the owner's config; see
+   `docs/cli.md`),
    capture the window, and compare it with the T-numbered screen of the
    mockup side by side, in light and dark. The agent does this, not the
    owner (#398).
