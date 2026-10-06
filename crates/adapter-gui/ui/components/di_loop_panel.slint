@@ -68,6 +68,9 @@ export component DiLoopPanel inherits Rectangle {
     // Inside a compact-view section the section is the panel: no box of its
     // own, no title (the section header names it), no inset gutter.
     in property <bool> embedded: false;
+    // The most the panel may take: its host caps it to the window, and the
+    // body scrolls under the bar past that (#398).
+    in property <length> height-cap: 100000px;
 
     callback source-picked(int, string);
     callback choose-file();
@@ -100,7 +103,7 @@ export component DiLoopPanel inherits Rectangle {
     private property <length> list-max: 6 * root.row-h + 2px;
 
     width: 360px;
-    height: root.bar-h + body.preferred-height;
+    height: min(root.bar-h + body.preferred-height, root.height-cap);
     border-radius: root.embedded ? 0px : 6px;
     background: root.embedded ? transparent : Theme.panel;
     border-width: root.embedded ? 0px : 1px;
@@ -128,275 +131,286 @@ export component DiLoopPanel inherits Rectangle {
         title: @tr("di-loop-button-label");
     }
 
-    body := VerticalLayout {
-        x: 0; y: root.bar-h;
+    scroll := Flickable {
+        x: 0;
+        y: root.bar-h;
         width: parent.width;
-        height: self.preferred-height;
-        padding-left: root.embedded ? 0px : 16px;
-        padding-right: root.embedded ? 0px : 16px;
-        padding-top: root.embedded ? 0px : 14px;
-        padding-bottom: root.embedded ? 0px : 16px;
-        spacing: 12px;
+        height: parent.height - self.y;
+        viewport-width: self.width;
+        viewport-height: body.preferred-height;
+        // Wheel always; drag only when there is something to scroll, so a
+        // short panel's sliders are never taken for a flick.
+        interactive: self.viewport-height > self.height;
 
-        // ── the source field + play / stop ───────────────────────────────
-        HorizontalLayout {
-            spacing: 10px;
+        body := VerticalLayout {
+            width: parent.width;
+            height: self.preferred-height;
+            padding-left: root.embedded ? 0px : 16px;
+            padding-right: root.embedded ? 0px : 16px;
+            padding-top: root.embedded ? 0px : 14px;
+            padding-bottom: root.embedded ? 0px : 16px;
+            spacing: 12px;
 
-            VerticalLayout {
-                horizontal-stretch: 1;
-                spacing: 6px;
+            // ── the source field + play / stop ───────────────────────────────
+            HorizontalLayout {
+                spacing: 10px;
 
-                FieldCaption { text: @tr("di-source-label"); }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 6px;
 
-                select-field := SelectBox {
-                    value: root.selected-source;
-                    open: root.expanded;
-                    hovered: sel-ta.has-hover;
+                    FieldCaption { text: @tr("di-source-label"); }
 
-                    sel-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.expanded = !root.expanded;
-                            root.out-expanded = false;
-                            root.armed-delete = -1;
-                        }
-                    }
-                    accessible-role: combobox;
-                    accessible-label: @tr("di-source-label");
-                    accessible-value: root.selected-source;
-                }
-            }
+                    select-field := SelectBox {
+                        value: root.selected-source;
+                        open: root.expanded;
+                        hovered: sel-ta.has-hover;
 
-            // Once a source is picked: the round transport button.
-            if root.has-selection : VerticalLayout {
-                alignment: end;
-
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    background: root.playing ? Theme.in
-                        : play-ta.has-hover ? Theme.panel-hi
-                        : Theme.field;
-                    border-width: root.playing ? 0px : 1px;
-                    border-color: Theme.field-line;
-
-                    Image {
-                        x: 11px; y: 11px;
-                        width: 18px; height: 18px;
-                        source: root.playing
-                            ? @image-url("../assets/stop.svg")
-                            : @image-url("../assets/play.svg");
-                        colorize: root.playing ? Gear.white : Theme.ink-2;
-                    }
-
-                    play-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            if root.playing {
-                                root.stop();
-                            } else {
-                                root.play();
-                            }
-                        }
-                    }
-                    accessible-role: button;
-                    accessible-label: root.playing ? @tr("looper-stop") : @tr("looper-play");
-                }
-            }
-        }
-
-        // ── the source options (inline, only when expanded) ──────────────
-        if root.expanded : Rectangle {
-            height: min(root.sources.length * root.row-h + 2px, root.list-max);
-            border-radius: 4px;
-            background: Theme.field;
-            border-width: 1px;
-            border-color: Theme.hair;
-            clip: true;
-
-            Flickable {
-                x: 1px; y: 1px;
-                width: parent.width - 2px;
-                height: parent.height - 2px;
-                viewport-width: self.width;
-                viewport-height: root.sources.length * root.row-h;
-
-                for src[i] in root.sources : Rectangle {
-                    property <bool> is-take: i < root.take-rows.length && root.take-rows[i];
-                    property <bool> is-file: src == "Choose file…";
-
-                    x: 0;
-                    y: i * root.row-h;
-                    width: parent.width;
-                    height: root.row-h;
-                    background: i == root.selected-index ? Theme.accent-soft
-                        : row-ta.has-hover ? Theme.hover
-                        : transparent;
-
-                    if i > 0 : Rectangle {
-                        x: 0; y: 0;
-                        width: parent.width; height: 1px;
-                        background: Theme.hair-2;
-                    }
-                    if i == root.selected-index : Rectangle {
-                        x: 0; y: 0;
-                        width: 3px; height: parent.height;
-                        background: Theme.accent;
-                    }
-
-                    Text {
-                        x: 12px;
-                        width: parent.width - 24px - (parent.is-take
-                            ? (root.armed-delete == i ? root.armed-w + 8px : 34px) : 0px);
-                        height: parent.height;
-                        text: src;
-                        color: parent.is-file ? Theme.ink-2 : Theme.ink;
-                        font-size: Theme.min-font;
-                        font-weight: i == root.selected-index ? 600 : 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    row-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            if src == "Choose file…" {
-                                root.choose-file();
-                            } else {
-                                root.source-picked(i, src);
-                            }
-                            root.expanded = false;
-                            root.armed-delete = -1;
-                        }
-                    }
-                    accessible-role: button;
-                    accessible-label: src;
-
-                    // A saved take's trash — first click arms, second deletes.
-                    if i < root.take-rows.length && root.take-rows[i] : Rectangle {
-                        x: parent.width - self.width - 8px;
-                        y: (parent.height - self.height) / 2;
-                        width: root.armed-delete == i ? root.armed-w : 26px;
-                        height: 26px;
-                        border-radius: 4px;
-                        background: root.armed-delete == i ? Theme.bad
-                            : del-ta.has-hover ? Theme.panel-lo : transparent;
-
-                        if root.armed-delete != i : Image {
-                            x: 5px; y: 5px;
-                            width: 16px; height: 16px;
-                            source: @image-url("../assets/trash.svg");
-                            colorize: del-ta.has-hover ? Theme.ink : Theme.ink-3;
-                        }
-                        if root.armed-delete == i : del-confirm := Text {
-                            width: parent.width;
-                            height: parent.height;
-                            text: @tr("di-take-delete-confirm");
-                            color: Gear.white;
-                            font-size: Theme.min-font;
-                            font-weight: 700;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            overflow: elide;
-                        }
-                        del-ta := TouchArea {
+                        sel-ta := TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
-                                if root.armed-delete == i {
-                                    root.armed-delete = -1;
-                                    root.delete-take(i, src);
+                                root.expanded = !root.expanded;
+                                root.out-expanded = false;
+                                root.armed-delete = -1;
+                            }
+                        }
+                        accessible-role: combobox;
+                        accessible-label: @tr("di-source-label");
+                        accessible-value: root.selected-source;
+                    }
+                }
+
+                // Once a source is picked: the round transport button.
+                if root.has-selection : VerticalLayout {
+                    alignment: end;
+
+                    Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 20px;
+                        background: root.playing ? Theme.in
+                            : play-ta.has-hover ? Theme.panel-hi
+                            : Theme.field;
+                        border-width: root.playing ? 0px : 1px;
+                        border-color: Theme.field-line;
+
+                        Image {
+                            x: 11px; y: 11px;
+                            width: 18px; height: 18px;
+                            source: root.playing
+                                ? @image-url("../assets/stop.svg")
+                                : @image-url("../assets/play.svg");
+                            colorize: root.playing ? Gear.white : Theme.ink-2;
+                        }
+
+                        play-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if root.playing {
+                                    root.stop();
                                 } else {
-                                    root.armed-delete = i;
+                                    root.play();
                                 }
                             }
                         }
                         accessible-role: button;
-                        accessible-label: @tr("di-take-delete-label");
+                        accessible-label: root.playing ? @tr("looper-stop") : @tr("looper-play");
                     }
                 }
             }
-        }
 
-        // ── #771: the OUTPUT select (chain's bound output endpoints) ─────
-        if root.has-outputs : VerticalLayout {
-            spacing: 6px;
+            // ── the source options (inline, only when expanded) ──────────────
+            if root.expanded : Rectangle {
+                height: min(root.sources.length * root.row-h + 2px, root.list-max);
+                border-radius: 4px;
+                background: Theme.field;
+                border-width: 1px;
+                border-color: Theme.hair;
+                clip: true;
 
-            FieldCaption { text: @tr("di-output-select-label"); }
+                Flickable {
+                    x: 1px; y: 1px;
+                    width: parent.width - 2px;
+                    height: parent.height - 2px;
+                    viewport-width: self.width;
+                    viewport-height: root.sources.length * root.row-h;
 
-            SelectBox {
-                value: root.selected-output;
-                open: root.out-expanded;
-                hovered: out-sel-ta.has-hover;
+                    for src[i] in root.sources : Rectangle {
+                        property <bool> is-take: i < root.take-rows.length && root.take-rows[i];
+                        property <bool> is-file: src == "Choose file…";
 
-                out-sel-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.out-expanded = !root.out-expanded;
-                        root.expanded = false;
-                    }
-                }
-                accessible-role: combobox;
-                accessible-label: @tr("di-output-select-label");
-                accessible-value: root.selected-output;
-            }
-        }
+                        x: 0;
+                        y: i * root.row-h;
+                        width: parent.width;
+                        height: root.row-h;
+                        background: i == root.selected-index ? Theme.accent-soft
+                            : row-ta.has-hover ? Theme.hover
+                            : transparent;
 
-        // ── #771: the OUTPUT select's options (inline, only when expanded) ─
-        if root.out-expanded : Rectangle {
-            height: min(root.outputs.length * root.row-h + 2px, root.list-max);
-            border-radius: 4px;
-            background: Theme.field;
-            border-width: 1px;
-            border-color: Theme.hair;
-            clip: true;
+                        if i > 0 : Rectangle {
+                            x: 0; y: 0;
+                            width: parent.width; height: 1px;
+                            background: Theme.hair-2;
+                        }
+                        if i == root.selected-index : Rectangle {
+                            x: 0; y: 0;
+                            width: 3px; height: parent.height;
+                            background: Theme.accent;
+                        }
 
-            Flickable {
-                x: 1px; y: 1px;
-                width: parent.width - 2px;
-                height: parent.height - 2px;
-                viewport-width: self.width;
-                viewport-height: root.outputs.length * root.row-h;
+                        Text {
+                            x: 12px;
+                            width: parent.width - 24px - (parent.is-take
+                                ? (root.armed-delete == i ? root.armed-w + 8px : 34px) : 0px);
+                            height: parent.height;
+                            text: src;
+                            color: parent.is-file ? Theme.ink-2 : Theme.ink;
+                            font-size: Theme.min-font;
+                            font-weight: i == root.selected-index ? 600 : 500;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        row-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if src == "Choose file…" {
+                                    root.choose-file();
+                                } else {
+                                    root.source-picked(i, src);
+                                }
+                                root.expanded = false;
+                                root.armed-delete = -1;
+                            }
+                        }
+                        accessible-role: button;
+                        accessible-label: src;
 
-                for out[i] in root.outputs : Rectangle {
-                    x: 0;
-                    y: i * root.row-h;
-                    width: parent.width;
-                    height: root.row-h;
-                    background: i == root.output-selected-index ? Theme.accent-soft
-                        : out-row-ta.has-hover ? Theme.hover
-                        : transparent;
+                        // A saved take's trash — first click arms, second deletes.
+                        if i < root.take-rows.length && root.take-rows[i] : Rectangle {
+                            x: parent.width - self.width - 8px;
+                            y: (parent.height - self.height) / 2;
+                            width: root.armed-delete == i ? root.armed-w : 26px;
+                            height: 26px;
+                            border-radius: 4px;
+                            background: root.armed-delete == i ? Theme.bad
+                                : del-ta.has-hover ? Theme.panel-lo : transparent;
 
-                    if i > 0 : Rectangle {
-                        x: 0; y: 0;
-                        width: parent.width; height: 1px;
-                        background: Theme.hair-2;
-                    }
-                    if i == root.output-selected-index : Rectangle {
-                        x: 0; y: 0;
-                        width: 3px; height: parent.height;
-                        background: Theme.accent;
-                    }
-
-                    Text {
-                        x: 12px;
-                        width: parent.width - 24px;
-                        height: parent.height;
-                        text: out;
-                        color: Theme.ink;
-                        font-size: Theme.min-font;
-                        font-weight: i == root.output-selected-index ? 600 : 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    out-row-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.output-picked(i, out);
-                            root.out-expanded = false;
+                            if root.armed-delete != i : Image {
+                                x: 5px; y: 5px;
+                                width: 16px; height: 16px;
+                                source: @image-url("../assets/trash.svg");
+                                colorize: del-ta.has-hover ? Theme.ink : Theme.ink-3;
+                            }
+                            if root.armed-delete == i : del-confirm := Text {
+                                width: parent.width;
+                                height: parent.height;
+                                text: @tr("di-take-delete-confirm");
+                                color: Gear.white;
+                                font-size: Theme.min-font;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            del-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    if root.armed-delete == i {
+                                        root.armed-delete = -1;
+                                        root.delete-take(i, src);
+                                    } else {
+                                        root.armed-delete = i;
+                                    }
+                                }
+                            }
+                            accessible-role: button;
+                            accessible-label: @tr("di-take-delete-label");
                         }
                     }
-                    accessible-role: button;
-                    accessible-label: out;
+                }
+            }
+
+            // ── #771: the OUTPUT select (chain's bound output endpoints) ─────
+            if root.has-outputs : VerticalLayout {
+                spacing: 6px;
+
+                FieldCaption { text: @tr("di-output-select-label"); }
+
+                SelectBox {
+                    value: root.selected-output;
+                    open: root.out-expanded;
+                    hovered: out-sel-ta.has-hover;
+
+                    out-sel-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.out-expanded = !root.out-expanded;
+                            root.expanded = false;
+                        }
+                    }
+                    accessible-role: combobox;
+                    accessible-label: @tr("di-output-select-label");
+                    accessible-value: root.selected-output;
+                }
+            }
+
+            // ── #771: the OUTPUT select's options (inline, only when expanded) ─
+            if root.out-expanded : Rectangle {
+                height: min(root.outputs.length * root.row-h + 2px, root.list-max);
+                border-radius: 4px;
+                background: Theme.field;
+                border-width: 1px;
+                border-color: Theme.hair;
+                clip: true;
+
+                Flickable {
+                    x: 1px; y: 1px;
+                    width: parent.width - 2px;
+                    height: parent.height - 2px;
+                    viewport-width: self.width;
+                    viewport-height: root.outputs.length * root.row-h;
+
+                    for out[i] in root.outputs : Rectangle {
+                        x: 0;
+                        y: i * root.row-h;
+                        width: parent.width;
+                        height: root.row-h;
+                        background: i == root.output-selected-index ? Theme.accent-soft
+                            : out-row-ta.has-hover ? Theme.hover
+                            : transparent;
+
+                        if i > 0 : Rectangle {
+                            x: 0; y: 0;
+                            width: parent.width; height: 1px;
+                            background: Theme.hair-2;
+                        }
+                        if i == root.output-selected-index : Rectangle {
+                            x: 0; y: 0;
+                            width: 3px; height: parent.height;
+                            background: Theme.accent;
+                        }
+
+                        Text {
+                            x: 12px;
+                            width: parent.width - 24px;
+                            height: parent.height;
+                            text: out;
+                            color: Theme.ink;
+                            font-size: Theme.min-font;
+                            font-weight: i == root.output-selected-index ? 600 : 500;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        out-row-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.output-picked(i, out);
+                                root.out-expanded = false;
+                            }
+                        }
+                        accessible-role: button;
+                        accessible-label: out;
+                    }
                 }
             }
         }

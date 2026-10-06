@@ -14,6 +14,8 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 export { SpectrumRow }
 
 // One decade label under the bars, centred on its band and kept inside.
@@ -224,4 +226,7 @@ export component SpectrumWindow inherits Window {
         close-spectrum => { root.close-spectrum-window(); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

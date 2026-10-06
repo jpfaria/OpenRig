@@ -14,6 +14,8 @@
 
 import { Theme } from "../theme.slint";
 import { PresetOption } from "../models.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 import { PresetPicker } from "../preset_picker_globals.slint";
 
 export component PresetSelect inherits Rectangle {
@@ -80,13 +82,15 @@ export component PresetSelect inherits Rectangle {
 
     pop := PopupWindow {
         x: 0px;
-        y: root.height + 4px;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
         // PopupWindow has no intrinsic size — size it explicitly or it
-        // collapses to 0. Cap to `max-popup-height` so it fits the screen.
+        // collapses to 0. Cap to `max-popup-height` and to the window.
         width: root.width;
-        height: min(
+        height: OverlayPlacement.fit(min(
             root.header-height + root.list-height + 8px,
-            root.max-popup-height);
+            root.max-popup-height), WindowBounds.height);
         close-policy: close-on-click-outside;
         Rectangle {
             width: 100%;

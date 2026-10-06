@@ -1,6 +1,9 @@
 // Responsibility: renders the language selector.
 import { Theme } from "../theme.slint";
 import { Locale } from "../locale_globals.slint";
+import { IconTooltip } from "icon_tooltip.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 // Language selector with two visual modes:
 //  - compact (24x24, flat) — matches HeaderIconAction (chain editor headers).
 //  - default (40x40, bordered) — matches IconLauncherButton (project launcher).
@@ -57,43 +60,18 @@ export component LanguageSelector inherits Rectangle {
     accessible-role: combobox;
     accessible-label: @tr("accessible-language-selector");
 
-    // Hover tooltip — shows current language while not open. Right-anchored
-    // so it never overflows the window edge (the selector lives at the
-    // top-right corner on every screen).
-    if hover-area.has-hover && !root.dropdown-open && root.current-label != "" : Rectangle {
-        // The box follows the (translated) language name.
-        x: parent.width - self.width;
-        y: parent.height + 4px;
-        width: max(136px, tip-label.preferred-width + 12px);
-        height: tip-label.preferred-height + 6px;
-        background: Theme.panel-lo.with-alpha(0.85);
-        border-width: 1px;
-        border-color: Theme.field-line;
-        border-radius: 4px;
-        z: 1000;
-
-        tip-label := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.current-label;
-            color: Theme.ink;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            overflow: elide;
-            // Override AppWindow's Bebas Neue so CJK/Hindi tooltips render.
-            font-family: Locale.font-family;
-        }
-    }
+    // Hover label — the current language while the list is closed.
+    IconTooltip { text: root.current-label; show: hover-area.has-hover && !root.dropdown-open; }
 
     // Dropdown anchored to the right edge so it grows leftward.
+    // Below the selector, or above it when the list does not fit (#398).
     if root.dropdown-open : Rectangle {
         // Width follows the widest (translated) language name.
-        x: parent.width - self.width;
-        y: parent.height + 4px;
+        x: OverlayPlacement.left(root.absolute-position.x + root.width - self.width, self.width,
+            WindowBounds.width) - root.absolute-position.x;
+        y: OverlayPlacement.top(root.absolute-position.y - 4px,
+            root.absolute-position.y + root.height + 4px, self.height, WindowBounds.height)
+            - root.absolute-position.y;
         width: max(200px, list-layout.preferred-width);
         height: list-layout.preferred-height;
         background: Theme.panel-hi;
@@ -117,20 +95,16 @@ export component LanguageSelector inherits Rectangle {
                     padding-right: 8px;
                     spacing: 4px;
 
-                    // Selected indicator (✓) on the left so the user sees
-                    // which locale is currently active.
-                    Text {
-                        text: i == root.selected-language-index ? "✓" : "";
-                        color: Theme.ok;
-                        font-size: 18px;
-                        font-weight: 700;
-                        width: 16px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        // Override the AppWindow's Bebas Neue (Latin-only
-                        // display font) so glyphs render against the system
-                        // fallback chain — required for CJK/Hindi names.
-                        font-family: Locale.font-family;
+                    // The active locale carries a check on the left.
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            width: 16px;
+                            height: 16px;
+                            source: @image-url("../assets/check.svg");
+                            colorize: Theme.ok;
+                            opacity: i == root.selected-language-index ? 1 : 0;
+                        }
                     }
 
                     // Country flag SVG. @image-url requires compile-time

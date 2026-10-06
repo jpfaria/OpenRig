@@ -26,10 +26,14 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
 
         DialogFoot {
             cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }
             confirm-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/trash.svg");
                 kind: FormButtonKind.danger;
                 label: @tr("btn-delete");
                 clicked => { root.confirm(); }

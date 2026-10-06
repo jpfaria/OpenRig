@@ -14,6 +14,8 @@ import { LooperEditorOverlay } from "components/looper_editor_overlay.slint";
 import { LooperPresetPicker } from "components/looper_preset_picker.slint";
 import { LooperEndpointPicker } from "components/looper_endpoint_picker.slint";
 import { LooperTakeSaveDialog } from "components/looper_take_save_dialog.slint";
+import { WindowBoundsProbe } from "components/window_bounds.slint";
+import { HoverTipLayer } from "components/hover_tip_layer.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -112,6 +114,9 @@ export component BlockEditorWindow inherits Window {
         confirm => { OverlayBridge.confirm-delete-block(); }
         cancel => { OverlayBridge.cancel-delete-block(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }
 
 export component CompactChainViewWindow inherits Window {
@@ -312,4 +317,7 @@ export component CompactChainViewWindow inherits Window {
         undo(ci, uid) => { CompactLooper.edit-undo(ci, uid); }
         redo(ci, uid) => { CompactLooper.edit-redo(ci, uid); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

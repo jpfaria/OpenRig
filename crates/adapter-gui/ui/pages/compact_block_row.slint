@@ -14,7 +14,7 @@ import { CompactBlockParamStrip } from "compact_block_param_strip.slint";
 // CompactChainViewPage (in compact_chain_view.slint) can use it.
 //
 // #398: a module card. A row that opens a split lane carries the lane bar
-// ("PATH A", "MIX") on top. The card's side column holds the category strip
+// (its icon and colour) on top. The card's side column holds the category strip
 // (power, icon, category, badge), then the brand and the model field, then the
 // parameter tabs; the knobs read left to right beside it.
 export component CompactBlockRow inherits Rectangle {
@@ -63,47 +63,37 @@ export component CompactBlockRow inherits Rectangle {
     background: transparent;
 
     // ── Lane bar: the path this row opens ──
+    // Told apart by colour and icon, never by a written "PATH A" (#398): the
+    // split icon opens a path, the mix icon closes them; the line carries the
+    // lane's colour across the row.
+    private property <color> lane-color: root.block-data.path-label == "A" ? Theme.accent
+        : root.block-data.path-label == "B" ? Theme.c-rvb
+        : root.block-data.path-label == "C" ? Theme.c-dly
+        : root.block-data.path-label == "" ? Theme.ink-3
+        : Theme.c-mod;
     if root.block-data.lane-bar : Rectangle {
         x: 4px;
         y: 0;
         width: root.width - 8px;
         height: root.lane-h;
 
-        lane-text := Text {
+        lane-icon := Image {
             x: 0;
-            y: 2px;
-            height: parent.height - 8px;
-            text: root.block-data.path-label != ""
-                ? @tr("compact-lane-path", root.block-data.path-label)
-                : @tr("compact-lane-mix");
-            color: Theme.ink;
-            font-size: Theme.min-font;
-            font-weight: 700;
-            letter-spacing: 0.16 * Theme.min-font;
-            vertical-alignment: center;
+            y: (parent.height - 6px - self.height) / 2;
+            width: 16px;
+            height: 16px;
+            source: root.block-data.path-label != ""
+                ? @image-url("../assets/graph-split.svg")
+                : @image-url("../assets/graph-mix.svg");
+            colorize: root.lane-color;
         }
 
         Rectangle {
-            x: 0;
-            y: parent.height - 6px;
-            width: lane-text.preferred-width;
+            x: lane-icon.width + 8px;
+            y: lane-icon.y + (lane-icon.height - self.height) / 2;
+            width: parent.width - self.x;
             height: 1.5px;
-            background: root.block-data.path-label == "A" ? Theme.accent
-                : root.block-data.path-label == "B" ? Theme.c-rvb
-                : root.block-data.path-label == "C" ? Theme.c-dly
-                : root.block-data.path-label == "" ? Theme.ink-3
-                : Theme.c-mod;
-        }
-
-        if root.block-data.path-label == "A" : Text {
-            x: lane-text.preferred-width + 12px;
-            y: 2px;
-            height: parent.height - 8px;
-            text: @tr("compact-lane-split");
-            color: Theme.ink-3;
-            font-size: Theme.min-font;
-            font-weight: 500;
-            vertical-alignment: center;
+            background: root.lane-color;
         }
     }
 

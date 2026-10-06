@@ -3,6 +3,8 @@ import { Theme, Gear } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
 import { TextField } from "text_field.slint";
 import { ModelPickRow } from "model_pick_row.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 // Reusable model picker with embedded search field.
 //
@@ -140,9 +142,11 @@ export component ModelSelectWithSearch inherits Rectangle {
     // by block type, each model with its backend as a solid badge.
     popup := PopupWindow {
         x: 0;
-        y: root.height + 4px;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
         width: max(root.width, 320px);
-        height: root.popup-height;
+        height: OverlayPlacement.fit(root.popup-height, WindowBounds.height);
         close-policy: close-on-click-outside;
 
         Rectangle {

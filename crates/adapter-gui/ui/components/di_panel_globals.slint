@@ -7,6 +7,9 @@ export global DiPanel {
     // window-absolute position, from the triggering fone's `absolute-position`.
     in-out property <length> x;
     in-out property <length> y;
+    // The fone's top edge: the panel opens above it when there is no room
+    // below (#398).
+    in-out property <length> anchor-top;
     // routes the overlay's pick / play / stop back to the right chain.
     in-out property <int> chain-index;
     in-out property <[string]> sources;

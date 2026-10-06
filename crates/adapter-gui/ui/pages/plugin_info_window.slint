@@ -13,6 +13,8 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FieldCaption } from "../components/field_caption.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component PluginInfoPanel inherits Rectangle {
     in property <image> screenshot;
@@ -288,4 +290,7 @@ export component PluginInfoWindow inherits Window {
         open-homepage => { root.open-homepage(); }
         close-window => { root.close-window(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

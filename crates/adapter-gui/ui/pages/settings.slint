@@ -285,10 +285,14 @@ export component SettingsPage inherits Rectangle {
                         alignment: end;
 
                         FormButton {
+                            icon-only: true;
+                            icon: @image-url("../assets/close.svg");
                             label: @tr("btn-close");
                             clicked => { root.close-settings(); }
                         }
                         if root.selected-section == 0 : FormButton {
+                            icon-only: true;
+                            icon: @image-url("../assets/save.svg");
                             kind: FormButtonKind.primary;
                             label: @tr("btn-save-audio-settings");
                             clicked => { root.save-audio-settings(); }

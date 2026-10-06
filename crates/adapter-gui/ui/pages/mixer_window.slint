@@ -13,6 +13,8 @@ import { MixerSection } from "../components/mixer_section.slint";
 import { ParamTabBar } from "../components/param_tab_bar.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component MixerPanel inherits Rectangle {
     // The inline overlay needs a close button; the standalone window closes via
@@ -124,4 +126,7 @@ export component MixerWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

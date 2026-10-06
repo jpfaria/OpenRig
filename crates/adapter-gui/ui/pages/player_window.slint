@@ -21,6 +21,8 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FieldCaption } from "../components/field_caption.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component PlayerPanel inherits Rectangle {
     in property <bool> show-close-button: false;
@@ -296,4 +298,7 @@ export component PlayerWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

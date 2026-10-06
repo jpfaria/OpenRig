@@ -7,6 +7,7 @@
 
 import { DiPanel } from "di_panel_globals.slint";
 import { DiLoopPanel } from "di_loop_panel.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
 
 export component DiLoopOverlay inherits Rectangle {
     callback source-selected(int, string);
@@ -18,9 +19,12 @@ export component DiLoopOverlay inherits Rectangle {
     x: 0; y: 0;
     visible: DiPanel.open;
     TouchArea { clicked => { DiPanel.open = false; } }
-    if DiPanel.open : DiLoopPanel {
-        x: DiPanel.x;
-        y: DiPanel.y;
+    // Below the fone, above it when there is no room, never past the window's
+    // edges; taller than the window, it scrolls (#398).
+    if DiPanel.open : panel := DiLoopPanel {
+        x: OverlayPlacement.left(DiPanel.x, self.width, root.width);
+        y: OverlayPlacement.top(DiPanel.anchor-top, DiPanel.y, self.height, root.height);
+        height-cap: OverlayPlacement.fit(100000px, root.height);
         sources: DiPanel.sources;
         selected-index: DiPanel.selected-index;
         playing: DiPanel.playing;

@@ -3,6 +3,7 @@ import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
 import { AppVersionBadge } from "../components/app_version_badge.slint";
 import { Theme } from "../theme.slint";
+import { IconTooltip } from "../components/icon_tooltip.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -59,32 +60,8 @@ component IconLauncherButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below — launcher header sits at the top of the page (#329).
-    // #954: the tooltip follows its translated text, centred under the button.
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: (root.width - self.width) / 2;
-        y: 44px;
-        width: max(76px, tip-lbl.preferred-width + 12px);
-        height: 24px;
-        background: Theme.chrome;
-        border-width: 1px;
-        border-color: Theme.chrome-line;
-        border-radius: 4px;
-        z: 50;
-
-        tip-lbl := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: Theme.chrome-fg;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: hover-area.has-hover; }
 }
 
 component RecentProjectRow inherits Rectangle {

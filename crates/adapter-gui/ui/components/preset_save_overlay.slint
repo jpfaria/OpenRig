@@ -49,10 +49,14 @@ export component PresetSaveOverlay inherits Rectangle {
 
         DialogFoot {
             cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }
             confirm-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/save.svg");
                 kind: FormButtonKind.primary;
                 label: @tr("btn-save");
                 clicked => {
@@ -118,6 +122,8 @@ export component PresetOverwriteOverlay inherits Rectangle {
 
         DialogFoot {
             cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }

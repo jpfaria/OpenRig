@@ -50,6 +50,8 @@ export component SectionProjectMeta inherits Rectangle {
         HorizontalLayout {
             alignment: start;
             FormButton {
+                icon-only: true;
+                icon: @image-url("../../assets/save.svg");
                 label: @tr("btn-save-project");
                 clicked => { root.save-project(); }
             }

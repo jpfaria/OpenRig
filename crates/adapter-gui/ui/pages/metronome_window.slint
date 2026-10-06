@@ -24,6 +24,8 @@ import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
 import { FieldCaption } from "../components/field_caption.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 // ── MetronomePanel — reusable content (Window and inline modes) ───────────
 export component MetronomePanel inherits Rectangle {
@@ -327,4 +329,7 @@ export component MetronomeWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

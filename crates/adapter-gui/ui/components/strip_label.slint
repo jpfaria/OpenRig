@@ -6,6 +6,8 @@
 // #398: a hairline above, the name in the UI face, the channels spaced out.
 
 import { Theme } from "../theme.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 export component StripLabel inherits Rectangle {
     in property <string> name;
@@ -53,9 +55,14 @@ export component StripLabel inherits Rectangle {
         }
     }
 
+    // Above the box, or below it when there is no room (#398).
     if name-ta.has-hover : Rectangle {
-        x: -2px;
-        y: -self.height - 2px;
+        x: OverlayPlacement.left(root.absolute-position.x - 2px, self.width, WindowBounds.width)
+            - root.absolute-position.x;
+        y: OverlayPlacement.top-above(root.absolute-position.y - 2px,
+            root.absolute-position.y + root.height + 2px, self.height, WindowBounds.height)
+            - root.absolute-position.y;
+        z: 60;
         width: parent.width + 4px;
         height: full-name.preferred-height + 8px;
         background: Theme.panel-lo.with-alpha(0.94);

@@ -9,6 +9,7 @@ import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
 import { CompactChainSections } from "../components/compact_chain_sections.slint";
+import { OverlayPlacement } from "../components/overlay_placement.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -434,10 +435,13 @@ export component CompactChainViewPage inherits Rectangle {
             clicked => { root.model-select-open = false; }
         }
 
+        // Under the field, above it when there is no room (#398).
         CompactModelSelectOverlay {
-            x: root.model-select-x - root.absolute-position.x;
-            y: root.model-select-y - root.absolute-position.y + 44px;
+            x: OverlayPlacement.left(root.model-select-x - root.absolute-position.x, self.width, parent.width);
+            y: OverlayPlacement.top(root.model-select-y - root.absolute-position.y,
+                root.model-select-y - root.absolute-position.y + 44px, self.height, parent.height);
             width: root.model-select-width;
+            popup-height: OverlayPlacement.fit(320px, parent.height);
             filtered-models: root.model-select-array-index >= 0
                 && root.model-select-array-index < root.compact-blocks.length
                 ? root.compact-blocks[root.model-select-array-index].filtered-models : [];

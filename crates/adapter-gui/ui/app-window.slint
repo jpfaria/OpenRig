@@ -28,22 +28,10 @@ import { MetronomeBridge } from "components/metronome_globals.slint";
 import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint"; import { BlockParamTabs } from "components/block_param_tabs_globals.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
-// #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
-import { DiLoopHarness } from "components/di_loop_test_harness.slint";
-import { LooperHarness } from "components/looper_panel_test_harness.slint";
-import { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
-import { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
-import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
-import { GraphViewHarness, GraphViewScrollHarness } from "components/graph_view_test_harness.slint";
-import { ChainRowGraphSplitMixHarness } from "components/chain_row_graph_test_harness.slint";
 import { SplitEditorOverlay } from "components/split_editor_overlay.slint";
-import { SplitEditorHarness } from "components/split_editor_test_harness.slint";
 import { EndpointChecklistOverlay } from "components/endpoint_checklist_overlay.slint";
-import { EndpointChecklistHarness } from "components/endpoint_checklist_test_harness.slint";
-import { MixerHarness } from "components/mixer_test_harness.slint";
-import { PlayerHarness } from "components/player_test_harness.slint";
-import { ProjectChainsHarness } from "components/project_chains_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, PlayerHarness, ProjectChainsHarness }
+// #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, PlayerHarness, ProjectChainsHarness, OverlayPlacementHarness } from "test_harnesses.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -54,6 +42,8 @@ import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_sav
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
+import { WindowBoundsProbe } from "components/window_bounds.slint";
+import { HoverTipLayer } from "components/hover_tip_layer.slint";
 export { AppUpdate } from "components/app_update_globals.slint";
 export { ChainMixerBridge } from "components/chain_mixer_globals.slint"; export { ChainMixerPanel } from "components/chain_mixer_panel_globals.slint";
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs, MixerBridge, MixerStripRow, PlayerBridge, PlayerTrackRow, DrumsBridge, DrumPickRow }
@@ -476,4 +466,7 @@ export component AppWindow inherits Window {
         width: root.width; height: root.height;
         active: root.show-project-chains;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

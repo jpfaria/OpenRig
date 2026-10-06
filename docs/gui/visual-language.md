@@ -120,6 +120,9 @@ Build from these; a near-duplicate is a bug (`ui-rules.md` §3).
 | Tool window (tuner, metronome, drums, player, spectrum, mixer, looper, DI, Tone Doctor) | `ToolBar` + `ToolBarClose` over a body on `Theme.well`; readouts in `LcdGlass` |
 | Knob | `PanelKnob` / `KnobArc`; a stepped choice is `SelectorKnob` |
 | Small button on a dark bar | `BarButton`; header icons use `HeaderIconStyle` and `IconTooltip` |
+| Action an icon says alone (save, delete, add, cancel, close, refresh, play) | `FormButton` / `EditorButton` / `PanelActionButton` with `icon-only: true` and an `icon`; the `label` stays as hover label and accessible label (`ui-rules.md` §8) |
+| Hover label | `IconTooltip` inside the control; the window's `HoverTipLayer` draws it |
+| Placing an overlay | `OverlayPlacement` (`top`, `top-above`, `left`, `fit`) against the window size; a `PopupWindow` reads it from `WindowBounds` (`ui-rules.md` §9) |
 | Tag / badge | `TagPill` |
 | Settings item | `SettingsCard` |
 | Transient message | `Toast` |
@@ -161,17 +164,24 @@ Spec of the canvas itself: `docs/gui/graph-view.md`. The visual rules:
 - Split and mixer are the `GraphHub`: a slate tile with one port and one
   letter per path, any number of paths.
 - Under a block: the power disc and the category in its colour, then the
-  model name. The first block of the outer paths carries a `PATH A` / last
-  path tag in the lane colour.
+  model name. A path is told apart by its lane colour only, never by a
+  written `PATH A` (#398); in the compact view the lane bar is the split or
+  mix icon and a line, both in the lane colour.
 - Input/output are jacks with IN / OUT under them; a port block is named
   after its binding.
 
 ## Overlays and paint order
 
-A bar whose hover labels hang below it (chain header, top bar, compact
-header, block editor header) declares `z: 10` so its tooltip paints over the
-page below (`src/issue_398_paint_order_tests.rs`). A list a user clicks is a
-root-level overlay, never a `PopupWindow` (`ui-rules.md` §1).
+Nothing leaves the window (`ui-rules.md` §9). Every window declares
+`WindowBoundsProbe { }` and `HoverTipLayer { }`: the probe tells its
+`PopupWindow`s where the window's edges are, and the layer draws every hover
+label of the window above everything, so no dialog clip, scroll view or
+later sibling can cover or cut it. `IconTooltip` only hands its text and its
+control's position to that layer; it draws nothing in place. A bar whose
+hover labels hang below it (chain header, top bar, compact header, block
+editor header) still declares `z: 10` (`src/issue_398_paint_order_tests.rs`).
+A list a user clicks is a root-level overlay, never a `PopupWindow`
+(`ui-rules.md` §1).
 
 The hover card of a graph block is a window-level layer too: the canvas
 writes the hovered block and its window position into `BlockHoverState`,

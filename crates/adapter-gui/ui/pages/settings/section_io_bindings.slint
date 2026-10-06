@@ -82,6 +82,7 @@ export component SectionSystemIoBindings inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 new-binding-btn := FormButton {
+                    icon-only: true;
                     icon: @image-url("../../assets/plus.svg");
                     label: @tr("btn-new-binding");
                     clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); }
@@ -284,6 +285,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                         }
                         if root.active-add != (binding.id + "|in") : HorizontalLayout { alignment: start;
                             add-input-btn := FormButton {
+                                icon-only: true;
+                                icon: @image-url("../../assets/plus.svg");
                                 kind: FormButtonKind.ghost;
                                 small: true;
                                 label: @tr("btn-add-input");
@@ -307,8 +310,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                                     toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                         root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
                             HorizontalLayout { spacing: 8px; alignment: end;
-                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                                add-input-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                FormButton { icon-only: true; icon: @image-url("../../assets/close.svg"); label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-input-submit-btn := FormButton { icon-only: true; icon: root.editing-endpoint != "" ? @image-url("../../assets/save.svg") : @image-url("../../assets/plus.svg"); kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
                                     // Close the form BEFORE dispatching. The handler
                                     // re-projects the binding list, which rebuilds this
                                     // repeater synchronously and tears this button down
@@ -344,6 +347,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                         }
                         if root.active-add != (binding.id + "|out") : HorizontalLayout { alignment: start;
                             FormButton {
+                                icon-only: true;
+                                icon: @image-url("../../assets/plus.svg");
                                 kind: FormButtonKind.ghost;
                                 small: true;
                                 label: @tr("btn-add-output");
@@ -367,8 +372,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                                     toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                         root.add-mode-index == 0 ? "mono" : "stereo"); } } }
                             HorizontalLayout { spacing: 8px; alignment: end;
-                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                                add-output-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                FormButton { icon-only: true; icon: @image-url("../../assets/close.svg"); label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-output-submit-btn := FormButton { icon-only: true; icon: root.editing-endpoint != "" ? @image-url("../../assets/save.svg") : @image-url("../../assets/plus.svg"); kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
                                     // Close the form BEFORE dispatching — see the
                                     // add-input submit note: reproject rebuilds this
                                     // repeater and a reset after the call is lost.

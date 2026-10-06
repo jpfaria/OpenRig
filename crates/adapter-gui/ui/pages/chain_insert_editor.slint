@@ -74,10 +74,14 @@ export component ChainInsertEditorPage inherits Rectangle {
         DialogFoot {
             vertical-stretch: 0;
             FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }
             FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/check.svg");
                 kind: FormButtonKind.primary;
                 label: @tr("btn-ok");
                 clicked => { root.save(); }

@@ -224,10 +224,6 @@ msgstr "Out"
 msgid "graph-node-mixer"
 msgstr "Mix"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr "PFAD {}"
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "Block ein- oder ausschalten"
@@ -1299,15 +1295,6 @@ msgstr "Kette nach unten"
 
 msgid "accessible-chain-power"
 msgstr "Kette ein- oder ausschalten"
-
-msgid "compact-lane-path"
-msgstr "PFAD {}"
-
-msgid "compact-lane-mix"
-msgstr "MIX"
-
-msgid "compact-lane-split"
-msgstr "Aufteilung"
 
 msgid "compact-block-power"
 msgstr "Block ein- oder ausschalten"

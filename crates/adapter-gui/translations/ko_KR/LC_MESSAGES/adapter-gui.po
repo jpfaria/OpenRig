@@ -224,10 +224,6 @@ msgstr "Out"
 msgid "graph-node-mixer"
 msgstr "믹스"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr "경로 {}"
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "블록 켜기/끄기"
@@ -1291,15 +1287,6 @@ msgstr "체인을 아래로"
 
 msgid "accessible-chain-power"
 msgstr "체인 켜기/끄기"
-
-msgid "compact-lane-path"
-msgstr "경로 {}"
-
-msgid "compact-lane-mix"
-msgstr "믹스"
-
-msgid "compact-lane-split"
-msgstr "분기"
 
 msgid "compact-block-power"
 msgstr "블록 켜기/끄기"

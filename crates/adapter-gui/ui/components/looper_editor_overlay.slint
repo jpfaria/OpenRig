@@ -135,6 +135,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 Rectangle { min-width: 12px; horizontal-stretch: 1; }
 
                 EditorButton {
+                    icon-only: true;
                     icon: LooperEditor.playing
                         ? @image-url("../assets/stop.svg")
                         : @image-url("../assets/play.svg");
@@ -147,6 +148,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 }
 
                 EditorButton {
+                    icon-only: true;
                     icon: @image-url("../assets/undo.svg");
                     label: @tr("looper-editor-undo");
                     enabled: LooperEditor.can-undo;
@@ -154,6 +156,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 }
 
                 EditorButton {
+                    icon-only: true;
                     icon: @image-url("../assets/redo.svg");
                     label: @tr("looper-editor-redo");
                     enabled: LooperEditor.can-redo;
@@ -175,6 +178,8 @@ export component LooperEditorOverlay inherits Rectangle {
         // Close lives on the bar but is declared last, so the buttons keep
         // their order (fit … redo, close) for the interaction tests.
         close := EditorButton {
+            icon-only: true;
+            icon: @image-url("../assets/close.svg");
             x: parent.width - 12px - self.width;
             y: (root.bar-h - self.height) / 2;
             width: self.min-width;

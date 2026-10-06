@@ -224,10 +224,6 @@ msgstr "Out"
 msgid "graph-node-mixer"
 msgstr "मिक्स"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr "पथ {}"
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "ब्लॉक चालू या बंद करें"
@@ -1288,15 +1284,6 @@ msgstr "चेन नीचे ले जाएँ"
 
 msgid "accessible-chain-power"
 msgstr "चेन चालू या बंद करें"
-
-msgid "compact-lane-path"
-msgstr "पथ {}"
-
-msgid "compact-lane-mix"
-msgstr "मिक्स"
-
-msgid "compact-lane-split"
-msgstr "विभाजन"
 
 msgid "compact-block-power"
 msgstr "ब्लॉक चालू या बंद करें"

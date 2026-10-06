@@ -1,6 +1,7 @@
 // Responsibility: renders the chips that decorate a chain row.
 import { Theme } from "../theme.slint";
 import { HeaderIconStyle } from "header_icon_style.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 // Small, reusable chips that decorate a ChainRow header and inline action
 // surfaces — endpoint summary chips, the chain power toggle, header icons.
 // Pure visual primitives.
@@ -36,33 +37,8 @@ export component ChainActionIcon inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below the icon — anything above is covered by the project
-    // header, which paints last over the chain content. Issue #329.
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        // Sized from the translated tooltip, centred under the icon (#954).
-        width: action-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: root.height + 4px;
-        height: 24px;
-        background: Theme.panel-lo.with-alpha(0.85);
-        border-width: 1px;
-        border-color: Theme.field-line;
-        border-radius: 4px;
-        z: 50;
-
-        action-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: Theme.ink;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: hover-area.has-hover; }
 }
 
 
@@ -158,31 +134,8 @@ export component ChainPowerToggle inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below — anything above is covered by the project header (#329).
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        width: power-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: 32px;
-        height: 24px;
-        background: Theme.panel-lo.with-alpha(0.85);
-        border-width: 1px;
-        border-color: Theme.field-line;
-        border-radius: 4px;
-        z: 50;
-
-        power-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: Theme.ink;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: hover-area.has-hover; }
 }
 
 
@@ -234,32 +187,8 @@ export component HeaderIconAction inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below — header icons sit at the top of the page, tooltip
-    // above would be clipped by the window edge (#329).
-    if action-area.has-hover && root.tooltip != "" : Rectangle {
-        width: header-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: root.height + 4px;
-        height: 24px;
-        background: Theme.panel-lo.with-alpha(0.85);
-        border-width: 1px;
-        border-color: Theme.field-line;
-        border-radius: 4px;
-        z: 50;
-
-        header-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: Theme.ink;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: action-area.has-hover; }
 }
 
 

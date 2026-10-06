@@ -189,3 +189,39 @@ Two more traps the same render caught, worth checking first:
 - Texts inside a stretching container inflate it with their intrinsic width
   and push the trailing buttons out of the card. Give that container a
   `min-width` and `clip: true`.
+
+## 8. An action its icon already says is the icon alone (#398)
+
+Owner: "tudo que for óbvio você não precisa escrever … 'SALVAR', um disquete já
+representa isso". Save (floppy), delete (bin), add (plus), cancel and close
+(cross), confirm (check), refresh, choose folder, play / stop, undo / redo
+are icon-only: `FormButton`, `EditorButton` and `PanelActionButton` take
+`icon-only: true` plus an `icon`. The `label` stays: it is the hover label
+(through `IconTooltip`) and the accessible label. Only actions no icon can
+say keep their words (overwrite, reset to default, fit, trim, crop, cut,
+diagnose). The same goes for the split lanes: a path is its colour, never a
+written "PATH A". `tests/issue_398_icon_actions.rs` classifies every labelled
+button of the app; a new one must be added to its icon list or its worded
+list.
+
+## 9. Nothing leaves the window (#398)
+
+Owner: "nenhum componente pode sair da janela … se não cabe abrindo para baixo
+tem que abrir em outra direção". Every panel, list, popup, dialog and hover
+label stays fully inside its window and is never covered:
+
+- Place it with `OverlayPlacement` against the window size: `top()` opens
+  below the anchor, above it when there is no room, and clamps when neither
+  fits; `left()` keeps it inside sideways; `fit()` caps its height to the
+  window. A `PopupWindow` reads the window size from `WindowBounds`, which
+  the `WindowBoundsProbe { }` every window declares keeps current.
+- Content taller than the window scrolls inside it: the looper, DI and
+  Tone Doctor panels take a `height-cap` and scroll their body under their
+  bar; `DialogCard` scrolls its content.
+- A hover label is an `IconTooltip` inside the control, drawn by the window's
+  `HoverTipLayer { }` (declared in every window, after the probe), so no
+  clip or later sibling cuts it.
+
+`tests/issue_398_overlay_placement.rs` opens panels at each edge and checks
+they land inside; it also checks every window declares the probe and the
+layer.

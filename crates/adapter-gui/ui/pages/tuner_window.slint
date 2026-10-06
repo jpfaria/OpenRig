@@ -15,6 +15,8 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
 import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 export { TunerRow }
 
 // ── One input's LCD ──────────────────────────────────────────────────────
@@ -243,4 +245,7 @@ export component TunerWindow inherits Window {
         toggle-mute(m) => { root.toggle-mute(m); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

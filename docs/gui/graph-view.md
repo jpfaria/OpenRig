@@ -67,7 +67,7 @@ struct GraphNode {
     neighbor: bool;         // MIDI neighbor marker (parity with BlockChip)
     block: ChainBlockItem;  // the chain row's item for a block card; empty otherwise
     lanes: [string];        // split/mixer hub: one path letter per port ("A", "B", …)
-    path_tag: string;       // first block of an outer path: its letter (PATH A / PATH B tag)
+    path_tag: string;       // first block of an outer path: its letter (not drawn; the lane colour names the path, #398)
     path_index: int;        // that path's index (lane colour, tag above or below); -1 otherwise
 }
 
@@ -97,7 +97,7 @@ struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_ancho
 
 ### Node kinds
 
-`kind` picks the card face (#398): `block` — its piece of gear (`GearArt`: stomp box, amp head, cab, rack unit or expression pedal, sized by `GearShape`) with a power button and the category over the model name; a port block (insert, input, output) is named after its I/O binding, so an insert never reads INSERT / INSERT; `io_input` / `io_output` — a jack over IN / OUT; `split` / `mixer` — the `GraphHub`, drawn natively with one curve, letter and port per path (it grows `GraphPorts.pitch` per path, so 3, 4 or more paths each get their own port) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Wires end on the edge of what a node draws and on the hub port of their path (`GraphPorts.half` / `GraphPorts.dy`), never under a see-through bypassed piece, and take their lane colour from `GraphLanes`. The top path's first block carries a PATH A tag above it and the last path's a tag below it (`graph-lane-tag {}`); a middle path has lanes on both sides and no room, so its hub letter and wire colour name it. Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
+`kind` picks the card face (#398): `block` — its piece of gear (`GearArt`: stomp box, amp head, cab, rack unit or expression pedal, sized by `GearShape`) with a power button and the category over the model name; a port block (insert, input, output) is named after its I/O binding, so an insert never reads INSERT / INSERT; `io_input` / `io_output` — a jack over IN / OUT; `split` / `mixer` — the `GraphHub`, drawn natively with one curve, letter and port per path (it grows `GraphPorts.pitch` per path, so 3, 4 or more paths each get their own port) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Wires end on the edge of what a node draws and on the hub port of their path (`GraphPorts.half` / `GraphPorts.dy`), never under a see-through bypassed piece, and take their lane colour from `GraphLanes`. No block carries a written PATH tag (#398): every path is named by its wire colour and its hub letter. Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
 
 ### Block card parity
 
