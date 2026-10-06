@@ -400,3 +400,68 @@ fn a_meter_tick_keeps_the_graph_models() {
         "the tick replaced the graph model"
     );
 }
+
+/// A running rig: one stream per chain, and every subscription recorded.
+#[derive(Default)]
+struct RecordingTaps {
+    points: RefCell<Vec<application::audio_taps::TapPoint>>,
+}
+
+impl application::audio_taps::AudioTaps for RecordingTaps {
+    fn is_hosted(&self) -> bool {
+        true
+    }
+    fn stream_count(&self, _chain: &ChainId) -> usize {
+        1
+    }
+    fn subscribe(
+        &self,
+        point: &application::audio_taps::TapPoint,
+        _capacity: usize,
+    ) -> Option<std::sync::Arc<dyn application::audio_taps::AudioTap>> {
+        self.points.borrow_mut().push(point.clone());
+        None
+    }
+}
+
+/// On a running rig the tick subscribes one level per output each stream
+/// feeds, off the chain's own labels, then names the row it fills.
+#[test]
+fn a_tick_on_a_running_rig_subscribes_a_meter_per_output() {
+    i_slint_backend_testing::init_no_event_loop();
+    let taps = Rc::new(RecordingTaps::default());
+    let model = rows(1);
+
+    super::start_meter_polling(
+        Rc::clone(&taps) as Rc<dyn application::audio_taps::AudioTaps>,
+        Rc::new(FakeReads::default()),
+        Rc::new(NoWrites),
+        Rc::clone(&model),
+        Rc::new(RefCell::new(Some(session(vec![chain("chain:0", 100.0)])))),
+        std::env::temp_dir().join("openrig-meter-tick-takes"),
+    );
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(
+        crate::meter_wiring::METER_POLL_TICK_MS + 1,
+    ));
+
+    assert!(
+        taps.points
+            .borrow()
+            .contains(&application::audio_taps::TapPoint::RouteOutput {
+                chain: ChainId("chain:0".into()),
+                route: 0,
+            }),
+        "the output's level must be subscribed, got {:?}",
+        taps.points.borrow()
+    );
+    let row = model.row_data(0).expect("row");
+    assert_eq!(row.stream_meters.row_count(), 1, "one stream, one row");
+    assert_eq!(
+        row.stream_meters
+            .row_data(0)
+            .expect("meter")
+            .out_channels
+            .as_str(),
+        "1,2"
+    );
+}

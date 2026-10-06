@@ -22,6 +22,12 @@ pub(crate) fn list_output_devices() -> Vec<AudioDeviceDescriptor> {
     list_output_device_descriptors().unwrap_or_default()
 }
 
+/// The host's devices as last enumerated, without enumerating: what the meter
+/// rows read on every tick to name each interface.
+pub(crate) fn cached_devices() -> Vec<AudioDeviceDescriptor> {
+    infra_cpal::cached_device_descriptors()
+}
+
 pub(crate) fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
 ) -> Vec<AudioDeviceDescriptor> {

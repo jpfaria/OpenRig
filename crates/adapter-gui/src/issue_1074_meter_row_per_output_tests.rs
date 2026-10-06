@@ -11,6 +11,7 @@ fn out(route: usize, name: &str, channels: &str) -> OutputIoLabel {
         route,
         name: name.into(),
         channels: channels.into(),
+        device: String::new(),
     }
 }
 
@@ -25,6 +26,7 @@ fn labels() -> Vec<StreamIoLabels> {
             out(1, "FRFR", "25,26"),
             out(2, "SYN-5050", "5,6"),
         ],
+        ..Default::default()
     }]
 }
 
