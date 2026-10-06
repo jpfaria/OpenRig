@@ -75,8 +75,8 @@ impl LooperStore {
         }
         let before = entry.slot.export_raw().ok_or(LooperEditRefused::Empty)?;
         // The region is fixed on the edited loop, so the others get exactly it.
-        let (op, start, end) =
-            loop_edit::resolve_region(&before, op, start, end).map_err(LooperEditRefused::Edit)?;
+        let (op, start, end) = loop_edit::resolve_region(&before, op, start, end, self.sample_rate)
+            .map_err(LooperEditRefused::Edit)?;
         let edited =
             loop_edit::apply_edit(&before, op, start, end).map_err(LooperEditRefused::Edit)?;
         let new_len = edited.len() / 2;

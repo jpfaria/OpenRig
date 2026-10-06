@@ -7,6 +7,7 @@
 //! `LooperSlot::load_layer`.
 
 use crate::crossfade::head_weight;
+use crate::loop_fit::fit_region;
 
 /// Frames blended at a seam. ~1.3 ms at 48 kHz: long enough to kill the step,
 /// short enough that nothing musical is smeared.
@@ -26,10 +27,12 @@ pub enum LoopEditOp {
     Keep,
     /// Drop the region and join the two halves.
     Cut,
-    /// Find where the playing actually starts and ends and keep THAT — the
-    /// region argument is ignored. The one-button answer to "make the loop
-    /// right": a take carries a count-in at the head and a late release at the
-    /// tail, and neither belongs in a loop that repeats.
+    /// Keep whole passes of the pattern the take repeats, from its first
+    /// attack — the region argument is ignored. The one-button answer to "make
+    /// the loop right": a take carries a count-in at the head and a late
+    /// release or an unfinished pass at the tail, and none of it belongs in a
+    /// loop that repeats. A take with no repeat keeps where the playing starts
+    /// and ends.
     Fit,
 }
 
@@ -129,25 +132,30 @@ impl std::fmt::Display for LoopEditError {
 impl std::error::Error for LoopEditError {}
 
 /// The region an edit acts on, with `Fit` worked out into the `Keep` of the
-/// bounds it finds on `pcm` — the form that can be handed on to another loop.
+/// bounds it finds on `pcm` (recorded at `sample_rate`) — the form that can be
+/// handed on to another loop, and the only form the transforms below take.
 pub fn resolve_region(
     pcm: &[f32],
     op: LoopEditOp,
     start: usize,
     end: usize,
+    sample_rate: u32,
 ) -> Result<(LoopEditOp, usize, usize), LoopEditError> {
     match op {
         // `Fit` works out its own region: the caller has no way to know where
         // the music is, which is the whole point of the button.
         LoopEditOp::Fit => {
-            let (start, end) = content_bounds(pcm).ok_or(LoopEditError::EmptyRegion)?;
+            let (start, end) = fit_region(pcm, sample_rate)
+                .or_else(|| content_bounds(pcm))
+                .ok_or(LoopEditError::EmptyRegion)?;
             Ok((LoopEditOp::Keep, start, end))
         }
         _ => Ok((op, start, end)),
     }
 }
 
-/// Apply `edit` to an interleaved-stereo loop, returning the new loop.
+/// Apply a [`resolve_region`]d edit to an interleaved-stereo loop, returning
+/// the new loop.
 ///
 /// Every result is seam-blended so playback wraps (and a cut joins) without a
 /// step: the last [`SEAM_FRAMES`] are folded into the head with an equal-gain
@@ -159,17 +167,16 @@ pub fn apply_edit(
     start: usize,
     end: usize,
 ) -> Result<Vec<f32>, LoopEditError> {
-    let (op, start, end) = resolve_region(pcm, op, start, end)?;
     let kept = kept_region(pcm, op, start, end)?;
     Ok(seam_blend(&[&kept], SEAM_FRAMES))
 }
 
-/// Apply the same edit to every `cycle`-frame stretch of a loop that is a
+/// Apply the same resolved edit to every `cycle`-frame stretch of a loop that is a
 /// whole number of cycles long, returning the new loop: each cycle loses the
 /// region a one-cycle loop would, so the result is still a whole number of the
 /// new cycle. Each cycle's head is blended with the tail the cycle before it
 /// dropped, exactly as a one-cycle loop wraps onto itself. With one cycle this
-/// is [`apply_edit`]. `Fit` finds its bounds on the first cycle.
+/// is [`apply_edit`].
 pub fn apply_edit_per_cycle(
     pcm: &[f32],
     op: LoopEditOp,
@@ -181,7 +188,6 @@ pub fn apply_edit_per_cycle(
     if cycle == 0 || len == 0 || len % cycle != 0 {
         return Err(LoopEditError::OutOfRange);
     }
-    let (op, start, end) = resolve_region(&pcm[..cycle * 2], op, start, end)?;
     let kept = pcm
         .chunks_exact(cycle * 2)
         .map(|c| kept_region(c, op, start, end))

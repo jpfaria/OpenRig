@@ -157,6 +157,38 @@ fn a_fit_carries_the_bounds_it_found_on_the_edited_loop() {
     );
 }
 
+/// A 2 s phrase of four held notes, played 2.6 times between half a second of
+/// silence on each side, at the store's default 48 kHz.
+fn phrase_take() -> Vec<f32> {
+    let r = 48_000.0;
+    let (lead, played) = (24_000, 249_600);
+    let notes = [196.0, 247.0, 294.0, 330.0];
+    let mut pcm = vec![0.0f32; (lead + played + lead) * 2];
+    for i in 0..played {
+        let t = i as f64 / r;
+        let s = 0.3 * (std::f64::consts::TAU * notes[(t / 0.5) as usize % 4] * t).sin();
+        pcm[(lead + i) * 2] = s as f32;
+        pcm[(lead + i) * 2 + 1] = (s * 0.5) as f32;
+    }
+    pcm
+}
+
+#[test]
+fn a_fit_on_a_repeating_phrase_leaves_whole_passes_of_it() {
+    // The store hands FIT its sample rate: 2.6 passes of a 2 s phrase come
+    // out exactly two passes long, not the 5.2 s that were played.
+    let mut store = LooperStore::default();
+    let c = chain("acoustic");
+    install(&mut store, &c, 1, &phrase_take());
+
+    let new_len = store.apply_edit(&c, 1, LoopEditOp::Fit, 0, 0).unwrap();
+
+    assert!(
+        (new_len as i64 - 192_000).abs() < 240,
+        "two passes are 192000 frames, the loop is {new_len}"
+    );
+}
+
 #[test]
 fn undo_of_a_carried_edit_restores_every_loop_it_touched() {
     let mut store = LooperStore::default();

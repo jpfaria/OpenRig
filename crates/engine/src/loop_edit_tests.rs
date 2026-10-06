@@ -13,6 +13,24 @@ fn frame(pcm: &[f32], i: usize) -> [f32; 2] {
     [pcm[i * 2], pcm[i * 2 + 1]]
 }
 
+const RATE: u32 = 48_000;
+
+/// A 2 s phrase of four held notes (half a second each), played 2.6 times
+/// between half a second of silence on each side. Interleaved stereo.
+fn phrase_take() -> Vec<f32> {
+    let r = RATE as f64;
+    let (lead, played) = ((0.5 * r) as usize, (5.2 * r) as usize);
+    let notes = [196.0, 247.0, 294.0, 330.0];
+    let mut pcm = vec![0.0f32; (lead + played + lead) * 2];
+    for i in 0..played {
+        let t = i as f64 / r;
+        let s = 0.3 * (std::f64::consts::TAU * notes[(t / 0.5) as usize % 4] * t).sin();
+        pcm[(lead + i) * 2] = s as f32;
+        pcm[(lead + i) * 2 + 1] = (s * 0.5) as f32;
+    }
+    pcm
+}
+
 #[test]
 fn trim_keeps_only_the_selected_frames() {
     let pcm = ramp(1024);
@@ -203,7 +221,9 @@ fn fitting_a_take_trims_the_silence_off_both_ends() {
         pcm[f * 2 + 1] = -0.5;
     }
 
-    let out = apply_edit(&pcm, LoopEditOp::Fit, 0, 0).expect("a take with music can be fitted");
+    let (op, start, end) =
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE).expect("a take with music can be fitted");
+    let out = apply_edit(&pcm, op, start, end).unwrap();
     let fitted = out.len() / 2;
     assert!(
         (2100..=2300).contains(&fitted),
@@ -216,7 +236,7 @@ fn fitting_a_take_trims_the_silence_off_both_ends() {
 #[test]
 fn fitting_a_silent_take_is_refused_rather_than_leaving_a_click() {
     assert_eq!(
-        apply_edit(&vec![0.0f32; 4000 * 2], LoopEditOp::Fit, 0, 0),
+        resolve_region(&vec![0.0f32; 4000 * 2], LoopEditOp::Fit, 0, 0, RATE),
         Err(LoopEditError::EmptyRegion)
     );
 }
@@ -319,7 +339,7 @@ fn resolving_fit_gives_the_bounds_of_the_playing() {
     }
     let (start, end) = content_bounds(&pcm).unwrap();
     assert_eq!(
-        resolve_region(&pcm, LoopEditOp::Fit, 0, 0),
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE),
         Ok((LoopEditOp::Keep, start, end))
     );
 }
@@ -328,7 +348,7 @@ fn resolving_fit_gives_the_bounds_of_the_playing() {
 fn resolving_a_plain_region_keeps_it() {
     let pcm = ramp(1024);
     assert_eq!(
-        resolve_region(&pcm, LoopEditOp::Cut, 10, 200),
+        resolve_region(&pcm, LoopEditOp::Cut, 10, 200, RATE),
         Ok((LoopEditOp::Cut, 10, 200))
     );
 }
@@ -337,7 +357,25 @@ fn resolving_a_plain_region_keeps_it() {
 fn resolving_fit_on_silence_finds_nothing() {
     let pcm = vec![0.0f32; 1024 * 2];
     assert_eq!(
-        resolve_region(&pcm, LoopEditOp::Fit, 0, 0),
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE),
         Err(LoopEditError::EmptyRegion)
+    );
+}
+
+#[test]
+fn resolving_fit_on_a_repeating_phrase_keeps_whole_passes_of_it() {
+    // 2.6 passes of a 2 s phrase: FIT keeps two, from the first note, plus
+    // the seam's overlap into the third — so after the seam the loop is
+    // exactly two passes and its end runs into its start.
+    let pcm = phrase_take();
+    let (start, _) = content_bounds(&pcm).unwrap();
+
+    let (op, s, e) = resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE).unwrap();
+
+    assert_eq!((op, s), (LoopEditOp::Keep, start));
+    let loop_len = (e - s - SEAM_FRAMES) as i64;
+    assert!(
+        (loop_len - 4 * RATE as i64).abs() < 240,
+        "two passes are 4 s, kept {loop_len} frames"
     );
 }

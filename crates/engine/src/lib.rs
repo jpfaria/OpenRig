@@ -50,6 +50,7 @@ mod issue_928_two_bindings_one_tap_pairing_tests;
 #[path = "issue_979_input_seam_runtime_tests.rs"]
 mod issue_979_input_seam_runtime_tests;
 pub mod loop_edit;
+pub mod loop_fit;
 pub mod loop_pcm;
 pub mod looper;
 pub mod looper_bank;
