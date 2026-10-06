@@ -149,6 +149,9 @@ io_bindings:
             Lrs: { delay_ms: 0.0, gain_db: 3 }
 ```
 
+A surround mode is only offered when the device has enough output channels (7.1 = 8, 5.1.4 = 10,
+7.1.4 = 12); channels already used by another endpoint are flagged.
+
 UI label: "7.1", "5.1.4", "7.1.4" (avoid the Dolby trademark "Atmos" in the product). A `custom` mode
 (any speaker list with azimuth/elevation) covers partial test rigs.
 
