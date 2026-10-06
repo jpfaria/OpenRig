@@ -95,8 +95,8 @@ export component AppWindow inherits Window {
     // chain/block selection markers so they only show on footswitch activity.
     in property <bool> midi-selection-active: false;
     in-out property <string> status-message;
-    in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
-    in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000", "192000"];
+    in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024", "2048"];
     in property <[string]> bit-depth-options: ["16", "24", "32"];
     // Fullscreen inline project settings
     // System / MIDI devices section rows (#513). Built by Rust by merging

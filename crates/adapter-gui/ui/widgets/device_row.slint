@@ -27,6 +27,7 @@ export component DeviceRow inherits Rectangle {
             : value == "48000" ? 1
             : value == "88200" ? 2
             : value == "96000" ? 3
+            : value == "192000" ? 4
             : 1;
     }
 
@@ -37,6 +38,7 @@ export component DeviceRow inherits Rectangle {
             : value == "256" ? 3
             : value == "512" ? 4
             : value == "1024" ? 5
+            : value == "2048" ? 6
             : 3;
     }
 

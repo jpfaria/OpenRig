@@ -42,6 +42,14 @@ fn a_supported_setting_survives_normalization() {
 }
 
 #[test]
+fn the_highest_rate_and_largest_buffer_survive_normalization() {
+    let kept = normalize_device_settings(saved(192_000, 2048, 24));
+
+    assert_eq!(kept.sample_rate, 192_000);
+    assert_eq!(kept.buffer_size_frames, 2048);
+}
+
+#[test]
 fn an_unsupported_setting_falls_back_to_the_default() {
     let fixed = normalize_device_settings(saved(1, 7, 3));
 

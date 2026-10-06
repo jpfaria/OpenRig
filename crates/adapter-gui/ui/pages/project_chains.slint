@@ -7,7 +7,7 @@ import { BlockPanelEditor } from "./block_panel_editor.slint";
 import { ChainRow } from "./chain_row.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
-import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { BlockTypeCard, BlockTypeGrid } from "../components/block_value_widgets.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { MixerBridge } from "../components/mixer_globals.slint";
 import { PlayerBridge } from "../components/player_globals.slint";
@@ -407,10 +407,10 @@ export component ProjectChainsPage inherits Rectangle {
 
         picker-modal := Rectangle {
             property <int> row-count: Math.max(1, Math.floor((BlockEditorBridge.block-type-options.length - 1) / 4) + 1);
-            property <length> content-height: self.row-count * 100px;
-            x: (parent.width - 472px) / 2;
+            property <length> content-height: self.row-count * BlockTypeGrid.step - BlockTypeGrid.step + BlockTypeGrid.cell;
+            x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 472px;
+            width: 3 * BlockTypeGrid.step + BlockTypeGrid.cell + 56px;
             height: Math.min(parent.height - 80px, self.content-height + 40px);
             background: Theme.panel.with-alpha(0.97);
             border-width: 1px;
@@ -425,8 +425,8 @@ export component ProjectChainsPage inherits Rectangle {
                 viewport-height: picker-modal.content-height;
 
                 for type-item[index] in BlockEditorBridge.block-type-options : BlockTypeCard {
-                    x: Math.mod(index, 4) * 106px;
-                    y: Math.floor(index / 4) * 100px;
+                    x: Math.mod(index, 4) * BlockTypeGrid.step;
+                    y: Math.floor(index / 4) * BlockTypeGrid.step;
                     item: type-item;
                     selected: false;
                     clicked => { BlockEditorBridge.choose-block-type(index); }

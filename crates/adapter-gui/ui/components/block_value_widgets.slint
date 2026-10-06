@@ -374,48 +374,65 @@ export component BlockFootswitch inherits Rectangle {
 }
 
 
+// Add-block picker tile sizes, shared by the card and the grids that place it.
+export global BlockTypeGrid {
+    out property <length> cell: 132px;
+    out property <length> icon: 72px;
+    out property <length> step: 144px;
+}
+
 export component BlockTypeCard inherits Rectangle {
     in property <BlockTypePickerItem> item;
     in property <bool> selected: false;
     property <color> accent-color: root.item.accent-color;
     callback clicked();
 
-    width: 88px;
-    height: 88px;
-    background: Theme.panel-lo;
-    border-width: 1px;
-    border-color: root.accent-color;
+    width: BlockTypeGrid.cell;
+    height: BlockTypeGrid.cell;
+    background: touch.has-hover ? Theme.panel : Theme.panel-hi;
+    border-width: Theme.line;
+    border-color: touch.has-hover ? root.accent-color : Theme.hair;
     border-radius: 4px;
 
+    // Category strip along the top edge (#398 mockup tile).
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: Theme.mark;
+        background: root.accent-color;
+    }
+
+    // Label under the icon (#398): the icon is what the eye scans first.
     Text {
-        x: 8px;
-        y: 2px;
-        width: parent.width - 16px;
+        x: 6px;
+        y: parent.height - 30px;
+        width: parent.width - 12px;
         height: 22px;
         text: root.item.label;
         color: Theme.ink;
         font-size: 18px;
-        font-weight: 900;
+        font-weight: 700;
+        horizontal-alignment: center;
         vertical-alignment: center;
         overflow: elide;
     }
 
-    // Icon sits below the 22px label (#954).
     if root.item.icon-kind == "vst3" : Image {
-        x: 16px;
-        y: 26px;
-        width: 56px;
-        height: 56px;
+        x: (parent.width - BlockTypeGrid.icon) / 2;
+        y: 14px;
+        width: BlockTypeGrid.icon;
+        height: BlockTypeGrid.icon;
         source: @image-url("../assets/vst3-logo.svg");
         image-fit: contain;
         colorize: root.accent-color;
     }
 
     if root.item.icon-kind != "vst3" : Image {
-        x: 16px;
-        y: 26px;
-        width: 56px;
-        height: 56px;
+        x: (parent.width - BlockTypeGrid.icon) / 2;
+        y: 14px;
+        width: BlockTypeGrid.icon;
+        height: BlockTypeGrid.icon;
         source: root.item.icon-kind == "input"        ? @image-url("../assets/input.svg")
             : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
             : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
@@ -441,7 +458,7 @@ export component BlockTypeCard inherits Rectangle {
         colorize: root.accent-color;
     }
 
-    TouchArea {
+    touch := TouchArea {
         x: 0px;
         y: 0px;
         width: parent.width;

@@ -2,7 +2,7 @@
 import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter } from "../models.slint";
-import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { BlockTypeCard, BlockTypeGrid } from "../components/block_value_widgets.slint";
 import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
@@ -368,10 +368,10 @@ export component CompactChainViewPage inherits Rectangle {
 
         Rectangle {
             property <int> row-count: Math.max(1, Math.floor((root.block-type-options.length - 1) / 4) + 1);
-            property <length> content-height: self.row-count * 100px;
-            x: (parent.width - 472px) / 2;
+            property <length> content-height: self.row-count * BlockTypeGrid.step - BlockTypeGrid.step + BlockTypeGrid.cell;
+            x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 472px;
+            width: 3 * BlockTypeGrid.step + BlockTypeGrid.cell + 56px;
             height: Math.min(parent.height - 80px, self.content-height + 40px);
             background: Theme.panel.with-alpha(0.97);
             border-width: 1px;
@@ -388,8 +388,8 @@ export component CompactChainViewPage inherits Rectangle {
                 // single source of truth for the tile icons, so VST3 /
                 // input / output / insert match across both pickers.
                 for type-item[index] in root.block-type-options : BlockTypeCard {
-                    x: Math.mod(index, 4) * 106px;
-                    y: Math.floor(index / 4) * 100px;
+                    x: Math.mod(index, 4) * BlockTypeGrid.step;
+                    y: Math.floor(index / 4) * BlockTypeGrid.step;
                     item: type-item;
                     selected: false;
                     clicked => {
