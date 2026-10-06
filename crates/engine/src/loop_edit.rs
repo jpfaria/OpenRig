@@ -1,6 +1,6 @@
 //! Responsibility: reshapes a recorded loop.
-//! #826 — reshaping a recorded loop: trim / crop / cut, on the control thread.
 //!
+//! Trim / crop / cut, on the control thread.
 //! Pure transforms over an interleaved-stereo buffer: frame indices in, a new
 //! buffer out. No engine state, no I/O — the caller reads the loop with
 //! `LooperSlot::export_raw` and installs the result with
@@ -128,11 +128,30 @@ impl std::fmt::Display for LoopEditError {
 
 impl std::error::Error for LoopEditError {}
 
+/// The region an edit acts on, with `Fit` worked out into the `Keep` of the
+/// bounds it finds on `pcm` — the form that can be handed on to another loop.
+pub fn resolve_region(
+    pcm: &[f32],
+    op: LoopEditOp,
+    start: usize,
+    end: usize,
+) -> Result<(LoopEditOp, usize, usize), LoopEditError> {
+    match op {
+        // `Fit` works out its own region: the caller has no way to know where
+        // the music is, which is the whole point of the button.
+        LoopEditOp::Fit => {
+            let (start, end) = content_bounds(pcm).ok_or(LoopEditError::EmptyRegion)?;
+            Ok((LoopEditOp::Keep, start, end))
+        }
+        _ => Ok((op, start, end)),
+    }
+}
+
 /// Apply `edit` to an interleaved-stereo loop, returning the new loop.
 ///
 /// Every result is seam-blended so playback wraps (and a cut joins) without a
-/// step: the last [`SEAM_FRAMES`] are folded into the head with the equal-gain
-/// overlap-add of #614, so the result is `SEAM_FRAMES` shorter than the naive
+/// step: the last [`SEAM_FRAMES`] are folded into the head with an equal-gain
+/// overlap-add, so the result is `SEAM_FRAMES` shorter than the naive
 /// selection.
 pub fn apply_edit(
     pcm: &[f32],
@@ -140,14 +159,45 @@ pub fn apply_edit(
     start: usize,
     end: usize,
 ) -> Result<Vec<f32>, LoopEditError> {
+    let (op, start, end) = resolve_region(pcm, op, start, end)?;
+    let kept = kept_region(pcm, op, start, end)?;
+    Ok(seam_blend(&[&kept], SEAM_FRAMES))
+}
+
+/// Apply the same edit to every `cycle`-frame stretch of a loop that is a
+/// whole number of cycles long, returning the new loop: each cycle loses the
+/// region a one-cycle loop would, so the result is still a whole number of the
+/// new cycle. Each cycle's head is blended with the tail the cycle before it
+/// dropped, exactly as a one-cycle loop wraps onto itself. With one cycle this
+/// is [`apply_edit`]. `Fit` finds its bounds on the first cycle.
+pub fn apply_edit_per_cycle(
+    pcm: &[f32],
+    op: LoopEditOp,
+    start: usize,
+    end: usize,
+    cycle: usize,
+) -> Result<Vec<f32>, LoopEditError> {
     let len = pcm.len() / 2;
-    // `Fit` works out its own region: the caller has no way to know where the
-    // music is, which is the whole point of the button.
-    let (start, end) = if matches!(op, LoopEditOp::Fit) {
-        content_bounds(pcm).ok_or(LoopEditError::EmptyRegion)?
-    } else {
-        (start, end)
-    };
+    if cycle == 0 || len == 0 || len % cycle != 0 {
+        return Err(LoopEditError::OutOfRange);
+    }
+    let (op, start, end) = resolve_region(&pcm[..cycle * 2], op, start, end)?;
+    let kept = pcm
+        .chunks_exact(cycle * 2)
+        .map(|c| kept_region(c, op, start, end))
+        .collect::<Result<Vec<_>, _>>()?;
+    let cycles: Vec<&[f32]> = kept.iter().map(Vec::as_slice).collect();
+    Ok(seam_blend(&cycles, SEAM_FRAMES))
+}
+
+/// What a resolved edit leaves of `pcm` before the wrap seam is blended.
+fn kept_region(
+    pcm: &[f32],
+    op: LoopEditOp,
+    start: usize,
+    end: usize,
+) -> Result<Vec<f32>, LoopEditError> {
+    let len = pcm.len() / 2;
     if start >= end {
         return Err(LoopEditError::EmptyRegion);
     }
@@ -155,12 +205,12 @@ pub fn apply_edit(
         return Err(LoopEditError::OutOfRange);
     }
 
-    let kept: Vec<f32> = match op {
+    match op {
         LoopEditOp::Keep | LoopEditOp::Fit => {
             if (end - start) < MIN_LOOP_FRAMES + SEAM_FRAMES {
                 return Err(LoopEditError::ResultTooShort);
             }
-            pcm[start * 2..end * 2].to_vec()
+            Ok(pcm[start * 2..end * 2].to_vec())
         }
         LoopEditOp::Cut => {
             let head = &pcm[..start * 2];
@@ -173,11 +223,9 @@ pub fn apply_edit(
             {
                 return Err(LoopEditError::ResultTooShort);
             }
-            join_blend(head, tail, SEAM_FRAMES)
+            Ok(join_blend(head, tail, SEAM_FRAMES))
         }
-    };
-
-    Ok(seam_blend(&kept, SEAM_FRAMES))
+    }
 }
 
 /// Overlap-add `tail` onto the end of `head`, returning a buffer `xfade`
@@ -199,23 +247,29 @@ fn join_blend(head: &[f32], tail: &[f32], xfade: usize) -> Vec<f32> {
     out
 }
 
-/// Overlap-add the last `xfade` frames into the head, returning a buffer
-/// `xfade` frames shorter. The new first frame is ~the source frame that
-/// followed the new last frame, so the loop wraps continuously (#614).
-fn seam_blend(pcm: &[f32], xfade: usize) -> Vec<f32> {
-    let n = pcm.len() / 2;
+/// Seam-blend a loop made of `cycles` played back to back, all the same
+/// length: each cycle's head is overlap-added with the last `xfade` frames of
+/// the cycle before it — the first cycle's with the last one's, where the loop
+/// wraps — and those frames are dropped, so every cycle comes out `xfade`
+/// shorter. Each new first frame is ~the source frame that followed the new
+/// last frame of the cycle before, so the loop runs on continuously.
+fn seam_blend(cycles: &[&[f32]], xfade: usize) -> Vec<f32> {
+    let n = cycles.first().map_or(0, |c| c.len() / 2);
     if xfade == 0 || n < xfade * 2 + 1 {
-        return pcm.to_vec();
+        return cycles.concat();
     }
     let m = n - xfade;
-    let mut out = Vec::with_capacity(m * 2);
-    for i in 0..xfade {
-        let w = head_weight(i, xfade);
-        for ch in 0..2 {
-            out.push(pcm[i * 2 + ch] * w + pcm[(m + i) * 2 + ch] * (1.0 - w));
+    let mut out = Vec::with_capacity(cycles.len() * m * 2);
+    for (c, cur) in cycles.iter().enumerate() {
+        let prev = cycles[(c + cycles.len() - 1) % cycles.len()];
+        for i in 0..xfade {
+            let w = head_weight(i, xfade);
+            for ch in 0..2 {
+                out.push(cur[i * 2 + ch] * w + prev[(m + i) * 2 + ch] * (1.0 - w));
+            }
         }
+        out.extend_from_slice(&cur[xfade * 2..m * 2]);
     }
-    out.extend_from_slice(&pcm[xfade * 2..m * 2]);
     out
 }
 
