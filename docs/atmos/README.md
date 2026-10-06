@@ -73,6 +73,22 @@ guitar front → back), or a scripted path. A random mode can exist as an explic
 6. **Height for the lead:** rhythm guitar stays at ear level; the lead gets its reverb/delay on the
    heights so it floats above the band.
 
+## Monitoring for the player
+
+The player is on stage, outside the sweet spot: from there the rears and heights are far away or behind
+the PA, so the room mix is not what the player hears. The spatial output therefore has a separate
+**monitor output**, per stream:
+
+- **In-ear (main case): binaural render.** The same scene rendered with HRTF to 2 channels, with the
+  listener placed in the middle of the audience (hear what they hear) or at the player position. On
+  in-ears the movement (delay travelling, guitar rotating) is audible in 3D.
+- **Wedge / stereo monitor:** stereo fold-down of the scene (no 3D, but nothing is lost).
+- **Dry guitar in the monitor stays on the low-latency path.** Binaural rendering and multichannel reverb
+  only affect the wet/ambience part; the dry tone the player plays against must not get any extra
+  latency (invariant 1).
+- Each player's monitor is part of their own stream (isolation): a bass player's binaural mix does not
+  depend on the guitar stream.
+
 ## Two output modes
 
 1. **Direct render (small room, home studio, own rig):** OpenRig renders to a fixed layout
