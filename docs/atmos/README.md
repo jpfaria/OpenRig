@@ -127,26 +127,30 @@ what they hear. This is the direct-render mode and the first target (the owner's
 
 ## Sketch: how it would look in OpenRig
 
-**System (`config.yaml`, describes the room, ADR 0003):** a speaker layout bound to device outputs, with
-the calibration measured at the chair.
+**System (`config.yaml`, describes the room, ADR 0003):** the layout is an **output endpoint mode** in
+the I/O binding, next to the existing ones: `mono`, `dual_mono`, `stereo`, `surround_7_1`,
+`surround_5_1_4`, `surround_7_1_4`. A surround mode takes one device channel per speaker (fixed order)
+and the per-speaker calibration measured at the chair. Input endpoints keep the current modes.
 
 ```yaml
-speaker_layouts:
-  - id: studio_714
-    io: hd8
-    speakers:
-      - { name: L,   azimuth: -30,  elevation: 0,  endpoint: Out1,  delay_ms: 0.0, gain_db: 0 }
-      - { name: R,   azimuth: 30,   elevation: 0,  endpoint: Out2,  delay_ms: 0.0, gain_db: 0 }
-      - { name: C,   azimuth: 0,    elevation: 0,  endpoint: Out3,  delay_ms: 0.4, gain_db: -1 }
-      - { name: Ls,  azimuth: -100, elevation: 0,  endpoint: Out5 }
-      # ... Rs, Lrs, Rrs, Ltf, Rtf, Ltr, Rtr
-    sub: { endpoint: Out4, crossover_hz: 80 }
+io_bindings:
+  - id: hd8
+    name: "Quantum HD 8"
+    outputs:
+      - name: Room
+        device_id: "coreaudio:..."
+        mode: surround_7_1_4
+        # order: L R C LFE Ls Rs Lrs Rrs Ltf Rtf Ltr Rtr
+        channels: [0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17]
+        calibration:
+          crossover_hz: 80
+          speakers:
+            C:   { delay_ms: 0.4, gain_db: -1 }
+            Lrs: { delay_ms: 0.0, gain_db: 3 }
 ```
 
-**Supported layouts:** built-in presets `5.1`, `7.1`, `5.1.4`, `7.1.4` (Dolby angles, editable) plus
-`custom` (any speaker list with azimuth/elevation, e.g. a partial test rig). The panner works on whatever
-speakers the layout has, so the same project plays on any of them: a project made on 7.1.4 still plays
-on 5.1 (positions fall on the nearest speakers) and folds down to stereo/binaural.
+UI label: "7.1", "5.1.4", "7.1.4" (avoid the Dolby trademark "Atmos" in the product). A `custom` mode
+(any speaker list with azimuth/elevation) covers partial test rigs.
 
 **Project (`project.yaml`, travels with the song):** the chain ends in a `spatial_output` block. Positions
 and sends are block parameters, so they live in presets and can be MIDI/expression mapped.
@@ -161,7 +165,8 @@ chains:
       - { type: delay,  model: digital_clean, params: { mix: 100 }, spatial_send: true }
       - { type: reverb, model: plate,         params: { mix: 100 }, spatial_send: true }
       - type: spatial_output
-        layout: studio_714            # or adm_osc (venue renderer)
+        io: hd8
+        endpoint: Room                # surround endpoint; or adm_osc (venue renderer)
         params:
           dry:    { azimuth: 0, elevation: 0, width: 20 }
           motion: { mode: off }       # off | lfo (tempo-synced) | expression
