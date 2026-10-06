@@ -101,6 +101,11 @@ what they hear. This is the direct-render mode and the first target (the owner's
 - **Alignment delay only on the ambience:** time alignment delays the nearer speakers to match the
   farthest one. The dry guitar stays on the front speakers without that extra delay, so playing feel is
   not affected; only the wet/ambience is aligned.
+- **Mismatched speakers:** with different speakers, a moving sound changes timbre as it passes from one
+  to another (a guitar 1x12 has no real highs or lows). Per-speaker correction EQ measured at the chair
+  narrows the gap but cannot add range a speaker lacks. Until the layout uses identical speakers, keep
+  moving effects (rotation, travelling delay) on matched speakers and use the odd ones for ambience
+  (reverb), where timbre mismatch is less audible.
 - **"Inside the guitar" option:** place the dry object at the listener position (all speakers around)
   instead of in front.
 
