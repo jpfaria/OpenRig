@@ -117,3 +117,15 @@ fn knob_row_carries_the_plugin_value_texts_as_its_labels() {
     let labels: Vec<String> = row.option_labels.iter().map(|l| l.to_string()).collect();
     assert_eq!(labels, ["0.1 s", "2.5 s"]);
 }
+
+#[test]
+fn a_knob_caption_keeps_the_case_the_model_names_it_with() {
+    // #398: the mockup prints a knob's caption as the model names it
+    // ("Treble", "Level to A"), never shouted in capitals.
+    let schema = schema_for_block_model("amp", "blackface_clean").unwrap();
+    let items = block_parameter_items_for_specs(&schema.parameters, &ParameterSet::default());
+    let specs = schema.parameters.iter().filter(|s| s.path != "enabled");
+    for (spec, item) in specs.zip(&items) {
+        assert_eq!(item.label.as_str(), spec.label.as_str(), "{}", spec.path);
+    }
+}

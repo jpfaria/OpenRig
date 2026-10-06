@@ -102,7 +102,8 @@ Two faces, as in the approved mockup (owner's decision, #398):
 Barlow prints the case it is given. Labels the mockup sets in upper case
 (`FieldCaption`, `TagPill`, the graph's category caption) apply
 `.to-uppercase()` in the component, so callers pass the normal translated
-string. Labels are bold (700) with 1.5–2px letter spacing; names and values
+string. A knob's caption is printed as the model names it ("Treble",
+"Level to A"), never upper-cased. Labels are bold (700) with 1.5–2px letter spacing; names and values
 are 600; body text is 400. One size: `Theme.min-font`, with hierarchy from
 weight, case and colour (`ink` → `ink-2` → `ink-3`), not from small text.
 The fonts live in `ui/fonts/Barlow/` with their licence (`OFL.txt`).
@@ -123,6 +124,7 @@ Build from these; a near-duplicate is a bug (`ui-rules.md` §3).
 | Action an icon says alone (save, delete, add, cancel, close, refresh, play) | `FormButton` / `EditorButton` / `PanelActionButton` with `icon-only: true` and an `icon`; the `label` stays as hover label and accessible label (`ui-rules.md` §8) |
 | Hover label | `IconTooltip` inside the control; the window's `HoverTipLayer` draws it |
 | Placing an overlay | `OverlayPlacement` (`top`, `top-above`, `left`, `fit`) against the window size; a `PopupWindow` reads it from `WindowBounds` (`ui-rules.md` §9) |
+| Parameter tabs | `ParamTabBar`; a row wider than the bar scrolls sideways and its right edge fades into `fade-into` while more tabs wait there |
 | Tag / badge | `TagPill` |
 | Settings item | `SettingsCard` |
 | Transient message | `Toast` |

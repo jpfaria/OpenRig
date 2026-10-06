@@ -94,6 +94,9 @@ export global Theme {
     // The dot grid of the graph well, and the tint of a side rail.
     out property <color> dot: dark ? #ffffff0f : #00000017;
     out property <color> side-tint: dark ? #ffffff08 : #ffffff73;
+    // panel-hi under side-tint: the side column's own tone, for edges that
+    // fade into it.
+    out property <color> side-ground: dark ? #313842 : #f6f7f9;
 
     // Text, strongest first.
     out property <color> ink: dark ? #e8ecf1 : #18202b;

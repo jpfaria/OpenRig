@@ -15,6 +15,9 @@ export component ParamTabBar inherits Rectangle {
     in property <int> active: 0;
     in property <bool> boxed: false;
     in property <bool> display: false;
+    // The tone the bar sits on; the right edge fades into it while more tabs
+    // wait past it (#398).
+    in property <color> fade-into: root.boxed ? Theme.panel-lo : Theme.panel;
     callback select(int);
 
     background: root.boxed ? Theme.panel-lo : transparent;
@@ -33,7 +36,7 @@ export component ParamTabBar inherits Rectangle {
         background: Theme.hair;
     }
 
-    Flickable {
+    flick := Flickable {
         width: 100%;
         height: 100%;
         viewport-width: max(self.width, tabs.preferred-width);
@@ -82,5 +85,14 @@ export component ParamTabBar inherits Rectangle {
                 accessible-label: group;
             }
         }
+    }
+
+    // A row wider than the bar scrolls; while tabs wait past the right edge,
+    // that edge fades so the cut tab reads as "more this way" (#398).
+    if flick.viewport-x + flick.viewport-width > flick.width + 0.5px : more := Rectangle {
+        x: root.width - self.width;
+        width: 40px;
+        height: root.height;
+        background: @linear-gradient(90deg, root.fade-into.with-alpha(0) 0%, root.fade-into 85%);
     }
 }

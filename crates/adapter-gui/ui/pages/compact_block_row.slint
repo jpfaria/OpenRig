@@ -290,6 +290,7 @@ export component CompactBlockRow inherits Rectangle {
                     height: 30px;
                     groups: root.block-data.parameter-groups;
                     active: root.block-data.active-parameter-group;
+                    fade-into: Theme.side-ground;
                     select(i) => {
                         root.select-parameter-group(root.block-data.chain-index, root.block-data.block-index, i);
                     }
