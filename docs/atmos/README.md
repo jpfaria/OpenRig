@@ -60,6 +60,10 @@ guitar front → back), or a scripted path. A random mode can exist as an explic
 
 ## Recipes: making the guitar feel spatial
 
+Spatial does not mean wetter. The wet amount stays the player's choice; the layout only changes where
+the wet goes. With the reverb on other speakers, it no longer masks the dry tone in the same two
+speakers, so the same mix sounds clearer than in stereo (spatial unmasking), and a drier setting works.
+
 1. **Wrap-around ambience:** dry front center; reverb wet on sides + rears + heights, with a few ms more
    pre-delay on the rears and heights. The guitar stays in front, the room surrounds the audience.
 2. **Delay that travels:** each repeat lands on the next speaker (front → side → rear → top), synced to
