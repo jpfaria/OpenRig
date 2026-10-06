@@ -59,8 +59,9 @@ export component SectionSystemIoBindings inherits Rectangle {
     private property <string> rename-draft: "";
     // Accordion (#716): id of the expanded binding ("" = all collapsed). Each
     // E/S shows only its name + In/Out counts until opened — progressive
-    // disclosure to keep the list readable when several bindings exist.
-    private property <string> expanded-binding-id: "";
+    // disclosure to keep the list readable when several bindings exist. The
+    // shell's "New binding" (on the title row) opens the one it creates.
+    in-out property <string> expanded-binding-id: "";
 
     background: transparent;
 
@@ -68,26 +69,12 @@ export component SectionSystemIoBindings inherits Rectangle {
         spacing: 12px;
         alignment: start;
 
-        // Helper + primary action (the page title is the shell's heading).
-        HorizontalLayout {
-            spacing: 16px;
-            Text {
-                horizontal-stretch: 1;
-                text: @tr("help-io-bindings");
-                color: Theme.ink-3;
-                font-size: Theme.min-font;
-                vertical-alignment: center;
-                wrap: word-wrap;
-            }
-            VerticalLayout {
-                alignment: center;
-                new-binding-btn := FormButton {
-                    icon-only: true;
-                    icon: @image-url("../../assets/plus.svg");
-                    label: @tr("btn-new-binding");
-                    clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); }
-                }
-            }
+        // Helper (the page title and "New binding" are the shell's heading row).
+        Text {
+            text: @tr("help-io-bindings");
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
+            wrap: word-wrap;
         }
 
         if SettingsBridge.io-binding-error != "" : Rectangle {

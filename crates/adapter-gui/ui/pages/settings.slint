@@ -4,8 +4,9 @@
 //
 // #398: a dark bar titled SETTINGS with a close cross; the list is a darker
 // rail with a scope label per group and an icon per section, the chosen one
-// lit by an accent edge; the section name is a display heading; Close and
-// Apply sit in a footer strip under the content.
+// lit by an accent edge; the section name is a display heading, with the
+// section's primary action at the right end of its row; Close and Apply sit
+// in a footer strip under the content.
 
 import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
@@ -21,6 +22,7 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FormButton, FormButtonKind } from "../components/form_button.slint";
 import { Locale } from "../locale_globals.slint";
+import { SettingsBridge } from "../settings_globals.slint";
 
 // A group label of the rail (SYSTEM, PROJECT).
 component NavScope inherits Rectangle {
@@ -118,6 +120,9 @@ export component SettingsPage inherits Rectangle {
 
     // Active section index (sidebar selection). 0 = Audio, default.
     in-out property <int> selected-section: 0;
+    // The I/O binding opened on the bindings page, so the title row's
+    // "New binding" can open the one it creates.
+    private property <string> io-expanded-binding: "";
 
     background: Theme.panel;
 
@@ -216,21 +221,37 @@ export component SettingsPage inherits Rectangle {
                     padding-right: 22px;
                     spacing: 14px;
 
-                    Text {
+                    HorizontalLayout {
                         vertical-stretch: 0;
-                        text:
-                            root.selected-section == 0 ? @tr("title-section-audio-interface")
-                            : root.selected-section == 1 ? @tr("title-section-language")
-                            : root.selected-section == 2 ? @tr("title-section-midi-devices")
-                            : root.selected-section == 3 ? @tr("title-section-paths")
-                            : root.selected-section == 5 ? @tr("title-section-integrations")
-                            : root.selected-section == 6 ? @tr("title-section-io-bindings")
-                            : root.selected-section == 7 ? @tr("title-section-appearance")
-                            : @tr("title-section-project-meta");
-                        color: Theme.ink;
-                        font-family: Locale.display-font-family;
-                        font-size: 26px;
-                        letter-spacing: 0.05 * 26px;
+                        spacing: 16px;
+
+                        section-title := Text {
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                            text:
+                                root.selected-section == 0 ? @tr("title-section-audio-interface")
+                                : root.selected-section == 1 ? @tr("title-section-language")
+                                : root.selected-section == 2 ? @tr("title-section-midi-devices")
+                                : root.selected-section == 3 ? @tr("title-section-paths")
+                                : root.selected-section == 5 ? @tr("title-section-integrations")
+                                : root.selected-section == 6 ? @tr("title-section-io-bindings")
+                                : root.selected-section == 7 ? @tr("title-section-appearance")
+                                : @tr("title-section-project-meta");
+                            color: Theme.ink;
+                            font-family: Locale.display-font-family;
+                            font-size: 26px;
+                            letter-spacing: 0.05 * 26px;
+                        }
+
+                        if root.selected-section == 6 : VerticalLayout {
+                            alignment: center;
+                            new-binding-btn := FormButton {
+                                icon-only: true;
+                                icon: @image-url("../assets/plus.svg");
+                                label: @tr("btn-new-binding");
+                                clicked => { root.io-expanded-binding = SettingsBridge.create-io-binding(""); }
+                            }
+                        }
                     }
 
                     // Over-tall sections scroll inside the pane.
@@ -256,7 +277,9 @@ export component SettingsPage inherits Rectangle {
                             if root.selected-section == 2 : SectionSystemMidiDevices {}
                             if root.selected-section == 3 : SectionSystemPaths {}
                             if root.selected-section == 5 : SectionSystemIntegrations {}
-                            if root.selected-section == 6 : SectionSystemIoBindings {}
+                            if root.selected-section == 6 : SectionSystemIoBindings {
+                                expanded-binding-id <=> root.io-expanded-binding;
+                            }
                             if root.selected-section == 4 : SectionProjectMeta {
                                 save-project => { root.save-project(); }
                             }

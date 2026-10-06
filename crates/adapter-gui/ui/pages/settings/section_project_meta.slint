@@ -6,8 +6,8 @@
 // but the user expects a Save affordance — the button forwards to
 // AppWindow.save-project (Command::SaveProject).
 //
-// #398: captioned fields stacked on the left — the name editable, the file
-// read-only — and the save button under them.
+// #398: captioned fields of one width stacked on the left — the name
+// editable, the file read-only — and the save button under them.
 
 import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
@@ -40,10 +40,14 @@ export component SectionProjectMeta inherits Rectangle {
         VerticalLayout {
             spacing: 6px;
             FieldCaption { text: @tr("label-file"); }
-            TextField {
-                read-only: true;
-                text: SettingsBridge.project-path-display;
-                placeholder: @tr("placeholder-project-unsaved");
+            HorizontalLayout {
+                alignment: start;
+                file-field := TextField {
+                    width: name-edit.width;
+                    read-only: true;
+                    text: SettingsBridge.project-path-display;
+                    placeholder: @tr("placeholder-project-unsaved");
+                }
             }
         }
 

@@ -93,7 +93,7 @@ fn io_bindings_ui_interactions() {
             slint::SharedString::new()
         });
         assert!(
-            click_element(&w, "SectionSystemIoBindings::new-binding-btn"),
+            click_element(&w, "SettingsPage::new-binding-btn"),
             "new-binding button element not found"
         );
         assert!(
