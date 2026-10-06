@@ -4,6 +4,14 @@ Status: idea / design. Issue #1079.
 
 Goal: OpenRig as the first pedalboard able to play a show in an immersive (Atmos-like) format.
 
+## Prior art (searched 2026-10-06)
+
+- No guitar multi-effects unit found with multichannel/immersive output: Helix, Axe-FX, GT-1000 and
+  similar are stereo (several outputs can be routed by hand, but there is no spatial panner).
+- Immersive live today lives at front of house: L-ISA (object panning plus spatial effects, e.g. a solo
+  panned across the venue), d&b Soundscape, Spat Revolution. The guitarist does not control it.
+- Historical: Pink Floyd's Azimuth Coordinator (1967), a quad joystick panner operated live.
+
 ## What changes in OpenRig
 
 1. **Invariant 5 exception.** Today every stream is stereo internally. A stream may now end in an
