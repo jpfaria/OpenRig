@@ -221,6 +221,8 @@ meters show level per speaker. MCP/gRPC get the same Commands (move object, set 
 
 ## Open questions
 
-- Layout definition: per project (travels with `project.yaml`) or per system? By ADR 0003 the speaker
-  layout is per system (it describes the room), the object positions are per project.
+- Decided: the speaker layout is per system (output endpoint mode in `config.yaml`, it describes the
+  room); object positions, sends and motion are per project (block params, ADR 0003).
+- How a send keeps dry and wet apart in a serial chain: `spatial_send` on an effect block, or the existing
+  split paths (one path per send)?
 - Real-time cost of the panner and the multichannel reverb on the audio thread.
