@@ -161,7 +161,11 @@ pub(crate) fn replace_project_chains(
                     // #928: the rows are named from the first paint, before
                     // the meter timer fills a single reading — laid out by
                     // the same rule the timer uses (#1074: one row per output).
-                    let labels = crate::meter_wiring::project_stream_labels(chain, io_bindings);
+                    let labels = crate::meter_wiring::project_stream_labels(
+                        chain,
+                        io_bindings,
+                        &infra_cpal::cached_device_descriptors(),
+                    );
                     let rows = crate::meter_wiring::rebuild_stream_meters_row(
                         &[],
                         crate::meter_wiring::project_stream_count(chain, io_bindings),
