@@ -164,7 +164,7 @@ pub(crate) fn replace_project_chains(
                     let labels = crate::meter_wiring::project_stream_labels(
                         chain,
                         io_bindings,
-                        &infra_cpal::cached_device_descriptors(),
+                        &crate::device_refresh_list::cached_devices(),
                     );
                     let rows = crate::meter_wiring::rebuild_stream_meters_row(
                         &[],

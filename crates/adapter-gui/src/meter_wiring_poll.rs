@@ -241,7 +241,7 @@ fn refresh_chain_meter_row(
     let stream_labels = project_stream_labels(
         &project.chains[idx],
         &session.io_bindings.borrow(),
-        &infra_cpal::cached_device_descriptors(),
+        &crate::device_refresh_list::cached_devices(),
     );
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
