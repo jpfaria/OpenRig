@@ -125,6 +125,51 @@ what they hear. This is the direct-render mode and the first target (the owner's
    position over **ADM-OSC** (open standard), and the venue processor renders to its speakers. This is
    the path to "a show in Atmos" without owning the PA.
 
+## Sketch: how it would look in OpenRig
+
+**System (`config.yaml`, describes the room, ADR 0003):** a speaker layout bound to device outputs, with
+the calibration measured at the chair.
+
+```yaml
+speaker_layouts:
+  - id: studio_714
+    io: hd8
+    speakers:
+      - { name: L,   azimuth: -30,  elevation: 0,  endpoint: Out1,  delay_ms: 0.0, gain_db: 0 }
+      - { name: R,   azimuth: 30,   elevation: 0,  endpoint: Out2,  delay_ms: 0.0, gain_db: 0 }
+      - { name: C,   azimuth: 0,    elevation: 0,  endpoint: Out3,  delay_ms: 0.4, gain_db: -1 }
+      - { name: Ls,  azimuth: -100, elevation: 0,  endpoint: Out5 }
+      # ... Rs, Lrs, Rrs, Ltf, Rtf, Ltr, Rtr
+    sub: { endpoint: Out4, crossover_hz: 80 }
+```
+
+**Project (`project.yaml`, travels with the song):** the chain ends in a `spatial_output` block. Positions
+and sends are block parameters, so they live in presets and can be MIDI/expression mapped.
+
+```yaml
+chains:
+  - description: guitar 1
+    blocks:
+      - { type: input,  io: hd8, endpoint: In1 }
+      - { type: preamp, model: marshall_jcm_800_2203 }
+      - { type: cab,    model: ... }
+      - { type: delay,  model: digital_clean, params: { mix: 100 }, spatial_send: true }
+      - { type: reverb, model: plate,         params: { mix: 100 }, spatial_send: true }
+      - type: spatial_output
+        layout: studio_714            # or adm_osc (venue renderer)
+        params:
+          dry:    { azimuth: 0, elevation: 0, width: 20 }
+          motion: { mode: off }       # off | lfo (tempo-synced) | expression
+          sends:
+            delay:  { zone: travel, level_db: -6 }   # repeats hop speaker to speaker
+            reverb: { zone: rear_and_top, level_db: -9 }
+        monitor: { io: hd8, endpoint: Out11, mode: binaural }
+```
+
+**Screen:** the `spatial_output` block editor shows the room from above (plus a height slider): the dry
+guitar is a dot to drag, each send is a coloured zone, the speakers are drawn from the layout, and the
+meters show level per speaker. MCP/gRPC get the same Commands (move object, set send zone, set motion).
+
 ## Open questions
 
 - Layout definition: per project (travels with `project.yaml`) or per system? By ADR 0003 the speaker
