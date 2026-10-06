@@ -77,6 +77,18 @@ speakers, so the same mix sounds clearer than in stereo (spatial unmasking), and
 6. **Height for the lead:** rhythm guitar stays at ear level; the lead gets its reverb/delay on the
    heights so it floats above the band.
 
+## Making it work in a song
+
+- **Anchor first:** the main guitar stays put in front most of the time; the room is the exception, not
+  the rule. Constant movement tires the ear and stops meaning anything.
+- **Space follows the song form:** each section is a preset/scene with its own space. Verse narrow and
+  dry in front; chorus opens (reverb and wide chorus around the room); bridge one effect moves; solo
+  rises to the heights; back to the front for the last verse.
+- **Movement is an event, synced to the tempo:** a delay that circles the room for one bar, a sweep up
+  on the build-up, a rotation that lasts exactly the fill. It starts and ends on the beat.
+- **One moving thing at a time:** if the delay travels, the dry and the reverb stay still.
+- **Always return home:** after a movement, the guitar comes back to its place.
+
 ## Monitoring for the player
 
 The player is on stage, outside the sweet spot: from there the rears and heights are far away or behind
