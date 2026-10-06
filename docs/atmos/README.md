@@ -144,6 +144,11 @@ what they hear. This is the direct-render mode and the first target (the owner's
 - **Bass management:** in direct render, the spatial output applies an 80 Hz crossover on every speaker
   channel and sums the lows into the sub (LFE) output, so small speakers only play from 80 Hz up and the
   sub is placed once for the whole layout.
+- **Two or more players in the same room:** each player is a stream with its own object (guitar 1 front
+  left, guitar 2 front right) on the same surround endpoint; streams stay isolated and the backend sums
+  them. The sweet spot is a single point, so either both sit close to the center (fine in a small room) or
+  each one uses the binaural in-ear monitor rendered from their own position, and the speakers serve the
+  room.
 - **"Inside the guitar" option:** place the dry object at the listener position (all speakers around)
   instead of in front.
 
