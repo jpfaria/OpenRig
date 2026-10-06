@@ -103,7 +103,7 @@ fn list_stages(blocks: &[AudioBlock], labels: &IoLabels) -> Vec<ChainStage> {
                     end,
                 }
             }
-            _ => ChainStage::Single(blueprint(block)),
+            _ => ChainStage::Single(blueprint(block, labels)),
         })
         .collect()
 }
@@ -128,8 +128,11 @@ pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
     }
 }
 
-fn blueprint(block: &AudioBlock) -> BlockBlueprint {
+/// A port block (insert, mid-chain input/output) is named after its binding.
+fn blueprint(block: &AudioBlock, labels: &IoLabels) -> BlockBlueprint {
+    let port = labels.port(&block.id.0);
     let label = match block.model_ref() {
+        _ if !port.is_empty() => port.to_string(),
         Some(model) => project::catalog::model_display_name(model.effect_type, model.model),
         None => block.kind.label().to_uppercase(),
     };

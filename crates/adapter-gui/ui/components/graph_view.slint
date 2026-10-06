@@ -14,6 +14,8 @@ import { Theme } from "../theme.slint";
 import { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor } from "graph_view_types.slint";
 import { GraphNodeCard } from "graph_node_card.slint";
 import { GraphWire } from "graph_wire.slint";
+import { GraphLanes } from "graph_lanes.slint";
+import { GraphPorts } from "graph_ports.slint";
 import { BlockHoverTooltip } from "block_hover_tooltip.slint";
 import { BlockInsertSlot } from "block_insert_slot.slint";
 
@@ -194,21 +196,22 @@ export component GraphView inherits Rectangle {
     // Each GraphWire fills the canvas with viewbox in pixel coords so
     // the absolute MoveTo/CubicTo lands at the right place. See the
     // note on GraphWire for why this matters.
+    //
+    // #398: a wire ends on the edge of what each node draws, on the port
+    // it plugs into (graph_ports.slint), never under a see-through bypassed
+    // piece; a bend point (index -1) is a plain point.
     for edge in root.edges : GraphWire {
+        property <GraphNode> from-node: edge.from_index < 0 ? root.nodes[0] : root.nodes[edge.from_index];
+        property <GraphNode> to-node: edge.to_index < 0 ? root.nodes[0] : root.nodes[edge.to_index];
         canvas_width: root.width;
         canvas_height: root.height;
-        from_x: root.pan_x + edge.from_x * root.zoom;
-        from_y: root.pan_y + edge.from_y * root.zoom;
-        to_x: root.pan_x + edge.to_x * root.zoom;
-        to_y: root.pan_y + edge.to_y * root.zoom;
-        // #398: hairline wires; lane A in the accent, lane B in the reverb
-        // blue, the trunk in the wire grey.
+        from_x: root.pan_x + (edge.from_x + (edge.from_index < 0 ? 0px : GraphPorts.half(self.from-node))) * root.zoom;
+        from_y: root.pan_y + (edge.from_y + (edge.from_index < 0 ? 0px : GraphPorts.dy(edge.from_port, self.from-node.lanes.length))) * root.zoom;
+        to_x: root.pan_x + (edge.to_x - (edge.to_index < 0 ? 0px : GraphPorts.half(self.to-node))) * root.zoom;
+        to_y: root.pan_y + (edge.to_y + (edge.to_index < 0 ? 0px : GraphPorts.dy(edge.to_port, self.to-node.lanes.length))) * root.zoom;
+        // Hairline wires, coloured by lane (graph_lanes.slint).
         stroke_thickness: max(1px, Theme.wire-width * root.zoom);
-        stroke_color: edge.path == 0 ? Theme.accent
-            : edge.path == 1 ? Theme.c-rvb
-            : edge.path == 2 ? Theme.c-mod
-            : edge.path == 3 ? Theme.c-dly
-            : Theme.wire;
+        stroke_color: GraphLanes.color(edge.path);
     }
 
     // ── Nodes ──────────────────────────────────────────────────────

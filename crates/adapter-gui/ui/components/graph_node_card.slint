@@ -1,19 +1,24 @@
 // Responsibility: draws one node card of the graph view.
 // Node card of the graph chain editor (#435, #328, #398). `node.kind` picks
 // the face: a block is its piece of gear (GearArt) with the category and the
-// model name printed below it; the input and output are jacks with a
-// translated IN / OUT under them; the split and the mixer are the routing
-// hub. The gear sits centred on the wire, opaque, so the wire runs into it;
-// the caption hangs below the card. Every marker colour comes from
-// BlockTileStyle so the graph and the chain row never disagree.
+// model name printed below it, a power button beside the category; the input
+// and output are jacks with a translated IN / OUT under them; the split and
+// the mixer are the routing hub, one port per path. The wires end on the
+// edge of what the card draws (graph_ports.slint); the caption hangs below
+// the card, and the first block of an outer path carries its PATH tag. Every
+// marker colour comes from BlockTileStyle so the graph and the chain row
+// never disagree.
 //
 // Input: the canvas's node TouchArea is declared UNDER this card and owns
-// click and drag. The card's only TouchAreas are the gear's switch (bypass)
+// click and drag. The card's only TouchAreas are the power button (bypass)
 // and the × (remove) of a block or a split, which win there.
 
 import { GraphNode } from "graph_view_types.slint";
 import { BlockTileStyle } from "block_tile_style.slint";
 import { GearArt } from "gear_art.slint";
+import { GraphHub } from "graph_hub.slint";
+import { GraphLanes } from "graph_lanes.slint";
+import { GraphPorts } from "graph_ports.slint";
 import { Theme, Gear } from "../theme.slint";
 
 export component GraphNodeCard inherits Rectangle {
@@ -49,8 +54,8 @@ export component GraphNodeCard inherits Rectangle {
     // A split is removed from its node (RemoveSplit); the mixer is the same
     // split, so it carries no second ×.
     property <bool> removable: root.is-block || root.node.kind == "split";
-    property <length> jack: 30px * root.zoom;
-    property <length> hub: 54px * root.zoom;
+    property <length> jack: GraphPorts.jack * root.zoom;
+    property <length> hub: GraphPorts.hub-height(root.node.lanes.length) * root.zoom;
 
     width: root.card_width;
     height: root.card_height;
@@ -86,26 +91,63 @@ export component GraphNodeCard inherits Rectangle {
             s: root.zoom;
         }
 
-        // The caption below the gear: the category in its colour, then
-        // the model name.
-        VerticalLayout {
+        // The caption below the gear: the power button and the category in
+        // its colour, then the model name. A bypassed block dims its text;
+        // the category keeps its colour and the button stays bright.
+        caption := VerticalLayout {
             x: (parent.width - self.width) / 2;
             y: gear.y + gear.height + 4px * root.zoom;
-            width: 124px;
+            width: 140px;
             height: self.preferred-height;
             spacing: 0px;
-            Text {
-                text: root.node.block.type-label;
-                color: root.node.bypass ? Theme.ink-3 : root.node.block.accent-color;
-                font-size: Theme.min-font;
-                font-weight: 700;
-                letter-spacing: 1.5px;
-                horizontal-alignment: center;
-                overflow: elide;
+            HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+                VerticalLayout {
+                    alignment: center;
+                    // The power button (#328 §5.2 `bypass-toggled`), the
+                    // rack module's power disc.
+                    bypass-ta := TouchArea {
+                        width: 20px * root.zoom;
+                        height: 20px * root.zoom;
+                        mouse-cursor: pointer;
+                        clicked => { root.bypass-toggled(); }
+                        accessible-role: switch;
+                        accessible-checked: root.enabled;
+                        accessible-label: @tr("accessible-graph-node-bypass");
+
+                        Rectangle {
+                            border-radius: self.width / 2;
+                            background: bypass-ta.has-hover ? Theme.hover : Theme.field;
+                            border-width: 1px;
+                            border-color: Theme.field-line;
+
+                            Image {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                width: 12px * root.zoom;
+                                height: 12px * root.zoom;
+                                source: @image-url("../assets/power-line.svg");
+                                colorize: root.enabled ? Theme.accent : Gear.off;
+                            }
+                        }
+                    }
+                }
+                Text {
+                    text: root.node.block.type-label;
+                    color: root.node.block.accent-color;
+                    opacity: root.node.bypass ? 0.5 : 1.0;
+                    font-size: Theme.min-font;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
             }
             Text {
                 text: root.node.block.display-name != "" ? root.node.block.display-name : root.node.label;
-                color: root.node.bypass ? Theme.ink-3 : Theme.ink;
+                color: Theme.ink;
+                opacity: root.node.bypass ? 0.5 : 1.0;
                 font-size: Theme.min-font;
                 font-weight: 600;
                 horizontal-alignment: center;
@@ -113,18 +155,26 @@ export component GraphNodeCard inherits Rectangle {
             }
         }
 
-        // The piece's switch toggles bypass (#328 §5.2 `bypass-toggled`):
-        // a stomp box's footswitch, the bottom of every other piece.
-        bypass-ta := TouchArea {
-            x: gear.x + gear.switch-x;
-            y: gear.y + gear.switch-y;
-            width: 28px * root.zoom;
-            height: 20px * root.zoom;
-            mouse-cursor: pointer;
-            clicked => { root.bypass-toggled(); }
-            accessible-role: switch;
-            accessible-checked: root.enabled;
-            accessible-label: @tr("accessible-graph-node-bypass");
+        // PATH A over the top lane's first block, the last path's tag under
+        // the bottom lane's (chain_graph_lanes::path_tags).
+        if root.node.path_tag != "" : Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: root.node.path_index == 0
+                ? gear.y - 10px * root.zoom - self.height
+                : caption.y + caption.height + 6px * root.zoom;
+            width: tag.preferred-width + 12px;
+            height: tag.preferred-height + 4px;
+            border-radius: 2px;
+            background: GraphLanes.color(root.node.path_index);
+            tag := Text {
+                x: 6px;
+                y: 2px;
+                text: @tr("graph-lane-tag {}", root.node.path_tag);
+                color: Gear.white;
+                font-size: Theme.min-font;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+            }
         }
     }
 
@@ -165,17 +215,14 @@ export component GraphNodeCard inherits Rectangle {
         }
     }
 
-    // ── Split / mixer: the routing hub ───────────────────────────────
-    if root.is-routing : Image {
+    // ── Split / mixer: the routing hub, one port per path ────────────
+    if root.is-routing : GraphHub {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        width: root.hub * 64 / 54;
-        height: root.hub;
-        source: root.node.kind == "split"
-            ? @image-url("../assets/hub-graph-split.svg")
-            : @image-url("../assets/hub-graph-mix.svg");
-        image-fit: contain;
-        opacity: root.node.bypass ? 0.45 : 1.0;
+        mix: root.node.kind == "mixer";
+        lanes: root.node.lanes;
+        zoom: root.zoom;
+        bypassed: root.node.bypass;
     }
 
     // ── Input / output: a jack with IN / OUT under it ────────────────

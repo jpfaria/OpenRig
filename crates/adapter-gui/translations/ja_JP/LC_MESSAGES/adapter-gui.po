@@ -222,7 +222,11 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "ミキサー"
+msgstr "ミックス"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:150
+msgid "graph-lane-tag {}"
+msgstr "パス {}"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1379,3 +1383,18 @@ msgstr "ブロックを追加"
 
 msgid "di-source-label"
 msgstr "ソース"
+
+msgid "title-section-appearance"
+msgstr "外観"
+
+msgid "label-theme"
+msgstr "テーマ"
+
+msgid "appearance-system"
+msgstr "システム"
+
+msgid "appearance-light"
+msgstr "ライト"
+
+msgid "appearance-dark"
+msgstr "ダーク"

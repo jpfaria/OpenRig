@@ -95,8 +95,10 @@ export component ProjectChainsPage inherits Rectangle {
     }
 
     // #398: the dark top bar, edge to edge: the project name in the display
-    // face, then the tempo and the project actions.
-    Rectangle {
+    // face, then the tempo and the project actions. Painted over the list so
+    // its hover labels are never covered.
+    top-bar := Rectangle {
+        z: 10;
         x: 0px;
         y: 0px;
         width: parent.width;

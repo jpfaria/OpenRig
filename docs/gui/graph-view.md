@@ -66,6 +66,9 @@ struct GraphNode {
     kind: string;           // "block" | "io_input" | "io_output" | "split" | "mixer"
     neighbor: bool;         // MIDI neighbor marker (parity with BlockChip)
     block: ChainBlockItem;  // the chain row's item for a block card; empty otherwise
+    lanes: [string];        // split/mixer hub: one path letter per port ("A", "B", …)
+    path_tag: string;       // first block of an outer path: its letter (PATH A / PATH B tag)
+    path_index: int;        // that path's index (lane colour, tag above or below); -1 otherwise
 }
 
 struct GraphEdgeGeometry {
@@ -75,6 +78,11 @@ struct GraphEdgeGeometry {
     from_y: length;
     to_x: length;
     to_y: length;
+    path: int;              // lane the wire runs in (colour); -1 = trunk
+    from_index: int;        // end nodes by index in `nodes`; -1 = a bend point
+    to_index: int;
+    from_port: int;         // hub port the end plugs into (path index); -1 = centre line
+    to_port: int;
 }
 
 struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_anchors)
@@ -89,11 +97,11 @@ struct GraphAnchor {        // one "+" on a wire (graph_view_model::insert_ancho
 
 ### Node kinds
 
-`kind` picks the card face: `block` — the block tile; `io_input` / `io_output` — connector artwork over the endpoint names (`label`); `split` / `mixer` — routing artwork (`ui/assets/graph-split.svg` / `graph-mix.svg`, text-free and colorized) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
+`kind` picks the card face (#398): `block` — its piece of gear (`GearArt`: stomp box, amp head, cab, rack unit or expression pedal, sized by `GearShape`) with a power button and the category over the model name; a port block (insert, input, output) is named after its I/O binding, so an insert never reads INSERT / INSERT; `io_input` / `io_output` — a jack over IN / OUT; `split` / `mixer` — the `GraphHub`, drawn natively with one curve, letter and port per path (it grows `GraphPorts.pitch` per path, so 3, 4 or more paths each get their own port) over a translated name (`graph-node-split` / `graph-node-mixer`; the host leaves `label` empty). Wires end on the edge of what a node draws and on the hub port of their path (`GraphPorts.half` / `GraphPorts.dy`), never under a see-through bypassed piece, and take their lane colour from `GraphLanes`. The top path's first block carries a PATH A tag above it and the last path's a tag below it (`graph-lane-tag {}`); a middle path has lanes on both sides and no room, so its hub letter and wire colour name it. Every node is a clickable card: the earlier `label == "" && category == "util"` routing dot, which had no hit area, is gone. The canvas's accessible label is `@tr("accessible-graph-view")`.
 
 ### Block card parity
 
-A `block` card draws what the chain row's `BlockChip` draws, from the same `ChainBlockItem` (`node.block`): type label, icon or thumbnail, the LED (driven by `bypass`), the amber unavailable tint at half opacity, the MIDI selected / neighbor markers, and the `BlockHoverTooltip` on hover (drawn by the canvas after every node, only for a block with a `display_name`, never during a drag). State colours come from `BlockTileStyle` (`ui/components/block_tile_style.slint`), the global `BlockChip` reads too. The canvas's node TouchArea sits UNDER the card, so the LED and the × win on their spots and the rest of the card clicks and drags through. The LED and × hit zones scale with the zoom.
+A `block` card draws what the chain row's `BlockChip` draws, from the same `ChainBlockItem` (`node.block`): type label, the power button (driven by `bypass`; a bypassed block greys its gear and dims its caption, the category keeps its colour), the amber unavailable tint at half opacity, the MIDI selected / neighbor markers, and the `BlockHoverTooltip` on hover (drawn by the canvas after every node, only for a block with a `display_name`, never during a drag). State colours come from `BlockTileStyle` (`ui/components/block_tile_style.slint`), the global `BlockChip` reads too. The canvas's node TouchArea sits UNDER the card, so the power button and the × win on their spots and the rest of the card clicks and drags through. The power button and × hit zones scale with the zoom.
 
 ### Properties
 
@@ -120,7 +128,7 @@ A `block` card draws what the chain row's `BlockChip` draws, from the same `Chai
 | `node_dragged(string, length, length)` | id, new layout-space x, y | continuously while drag in progress |
 | `node_drag_ended(string, length, length)` | id, layout x, y | on mouse up after drag |
 | `viewport_changed(float, length, length)` | zoom, pan_x, pan_y | after pan release or wheel zoom step |
-| `bypass-toggled(string)` | node id | a block card's LED was clicked |
+| `bypass-toggled(string)` | node id | a block card's power button was clicked |
 | `remove-requested(string)` | node id | a block card's × was clicked; the × is live only while the card is hovered, so a touch tap never removes |
 | `add-requested(string)` | anchor id | a "+" was clicked — the host opens the add-block picker for that slot |
 | `node-dropped(string, string)` | node id, anchor id | a dragged block was released on an anchor; fired after `node_drag_ended` |
@@ -194,7 +202,7 @@ Slint — REAL pointer, wheel and key events through `i-slint-backend-testing` a
 
 - click vs drag; every node kind is a clickable card
 - a plain wheel scrolls the surrounding list, Cmd/Ctrl + wheel zooms
-- the LED toggles bypass, the × removes (hover only), both hit zones scale with the zoom, the tooltip shows on hover, an unavailable block reads as disabled
+- the power button toggles bypass, the × removes (hover only), both hit zones scale with the zoom, the tooltip shows on hover, an unavailable block reads as disabled
 - a "+" fires `add-requested`; a block dragged onto another lane's anchor fires `node-dropped`; a drop on its own wire fires nothing
 
 Source pins — `tests/issue_328_graph_view_sources.rs`: the file split, no empty-label routing dots, translated accessible labels, text-free split/mixer artwork, block tile colours from `BlockTileStyle`.

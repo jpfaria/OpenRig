@@ -110,6 +110,7 @@ pub(crate) fn create_and_wire(
     } = ctx;
 
     let win = BlockEditorWindow::new()?;
+    crate::settings::appearance_current::apply(&win);
     // Per-window models (independent copies of the data)
     let win_model_options = Rc::new(VecModel::from(block_model_picker_items(
         &effect_type,

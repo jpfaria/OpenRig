@@ -67,6 +67,12 @@ pub enum SettingsCommand {
     /// contract as [`Command::SetMidiEnabled`].
     SetMcpEnabled { enabled: bool },
 
+    /// #398: the light/dark scheme of the interface, persisted into
+    /// `config.yaml` (`appearance`). `System` follows the operating system.
+    SetAppearance {
+        appearance: infra_filesystem::Appearance,
+    },
+
     /// #829: re-enumerate the audio interfaces (USB hot-swap).
     ///
     /// The GUI had this behind a refresh button only. The dispatcher

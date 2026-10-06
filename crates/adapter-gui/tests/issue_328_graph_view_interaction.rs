@@ -419,8 +419,8 @@ fn a_block_cards_led_and_remove_hit_zones_scale_with_the_zoom() {
     );
     assert_eq!(
         size("GraphNodeCard::bypass-ta"),
-        Some((14.0, 10.0)),
-        "at half zoom the LED switch is half size"
+        Some((10.0, 10.0)),
+        "at half zoom the power button is half size"
     );
 }
 
@@ -501,6 +501,16 @@ fn canvas_for(
                 to_x,
                 to_y,
                 path: -1,
+                from_index: nodes
+                    .iter()
+                    .position(|n| n.id == e.from_id)
+                    .map_or(-1, |i| i as i32),
+                to_index: nodes
+                    .iter()
+                    .position(|n| n.id == e.to_id)
+                    .map_or(-1, |i| i as i32),
+                from_port: -1,
+                to_port: -1,
             }
         })
         .collect();
@@ -582,4 +592,20 @@ fn dropping_a_block_on_its_own_wire_fires_no_node_dropped() {
         dropped.borrow()
     );
     assert_eq!(*ended.borrow(), ["a1"], "the drag itself still ends");
+}
+
+/// #398: a split hub grows one port per path — four paths, four output
+/// ports, four lane letters — instead of a fixed two-way drawing.
+#[test]
+fn a_split_hub_has_one_port_per_path() {
+    let mut split = typed("__split_sp", "split", "", 240.0, 200.0);
+    split.lanes = ModelRc::new(VecModel::from(
+        ["A", "B", "C", "D"]
+            .into_iter()
+            .map(SharedString::from)
+            .collect::<Vec<_>>(),
+    ));
+    let w = harness(vec![split]);
+    assert_eq!(handles(&w, "GraphHub::lane-port").len(), 4);
+    assert_eq!(handles(&w, "GraphHub::lane-letter").len(), 4);
 }

@@ -38,6 +38,13 @@ export struct GraphNode {
     // host passes the same ChainBlockItem the chain row renders; empty for
     // the other kinds. The LED follows `bypass`, never `block.enabled`.
     block: ChainBlockItem,
+    // #398: a split or mixer hub's path letters ("A", "B", …), one port
+    // each; empty for every other kind.
+    lanes: [string],
+    // #398: the first block of a top-level split path carries that path's
+    // letter and index (the PATH A / PATH B tag); "" and -1 otherwise.
+    path_tag: string,
+    path_index: int,
 }
 
 export struct GraphEdge {
@@ -59,6 +66,14 @@ export struct GraphEdgeGeometry {
     // #398: the split path the wire runs in (0 = lane A, 1 = lane B, …),
     // -1 for the trunk before and after a split. Picks the wire colour.
     path: int,
+    // #398: the nodes the wire joins, by index in the node list (-1 for a
+    // bend point), so the canvas can end it on the node's edge.
+    from_index: int,
+    to_index: int,
+    // #398: the hub port each end plugs into (the path index on a split or
+    // mixer), -1 on a node's centre line.
+    from_port: int,
+    to_port: int,
 }
 
 // Host-supplied category → colour map. The component owns NO colours;

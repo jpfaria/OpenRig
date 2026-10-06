@@ -222,7 +222,11 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "Mixer"
+msgstr "Mix"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:150
+msgid "graph-lane-tag {}"
+msgstr "PFAD {}"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1385,3 +1389,18 @@ msgstr "Block hinzufügen"
 
 msgid "di-source-label"
 msgstr "Quelle"
+
+msgid "title-section-appearance"
+msgstr "Darstellung"
+
+msgid "label-theme"
+msgstr "Design"
+
+msgid "appearance-system"
+msgstr "System"
+
+msgid "appearance-light"
+msgstr "Hell"
+
+msgid "appearance-dark"
+msgstr "Dunkel"

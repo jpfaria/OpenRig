@@ -48,7 +48,9 @@ Read with `docs/development/ui-rules.md` (the owner's standing UI rules) and
    LCD glass. Everything else (pages, panels, fields, lists) is a flat
    surface with a hairline.
 3. **Both schemes, always.** The app follows the system light/dark scheme
-   through `Theme.dark`. A screen is not done until it reads in both.
+   through `Theme.dark`, unless Settings → Appearance forces Light or Dark
+   (`Theme.mode`, set by Rust on every window). A screen is not done until
+   it reads in both; flip the setting to check.
 4. **Colour carries meaning.** The accent marks the active/selected thing;
    the category colours (`c-*`) mark a block's type everywhere (chip, graph
    caption, compact row, editor); `in` / `out` mark I/O; `ok` / `warn` /

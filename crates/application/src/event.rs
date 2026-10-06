@@ -351,6 +351,11 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #398: the light/dark scheme was set via `SetAppearance`.
+    AppearanceChanged {
+        appearance: infra_filesystem::Appearance,
+    },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
