@@ -143,6 +143,11 @@ speaker_layouts:
     sub: { endpoint: Out4, crossover_hz: 80 }
 ```
 
+**Supported layouts:** built-in presets `5.1`, `7.1`, `5.1.4`, `7.1.4` (Dolby angles, editable) plus
+`custom` (any speaker list with azimuth/elevation, e.g. a partial test rig). The panner works on whatever
+speakers the layout has, so the same project plays on any of them: a project made on 7.1.4 still plays
+on 5.1 (positions fall on the nearest speakers) and folds down to stereo/binaural.
+
 **Project (`project.yaml`, travels with the song):** the chain ends in a `spatial_output` block. Positions
 and sends are block parameters, so they live in presets and can be MIDI/expression mapped.
 
