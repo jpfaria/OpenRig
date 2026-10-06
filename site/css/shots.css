@@ -1,0 +1,9 @@
+/* Responsibility: the frame that presents an app screenshot. */
+.shot{margin:0}
+.shot img{width:100%;height:auto;border-radius:8px;box-shadow:var(--shadow);background:var(--chrome)}
+.shot figcaption{margin-top:12px;font-size:14px;line-height:1.5;color:var(--page-fg-2);max-width:70ch}
+.hero .shot figcaption{color:var(--page-fg-2)}
+/* Each figure grows by its image's aspect ratio (--ar), so a row of shots lines up at one height. */
+.shot-row{display:flex;gap:16px;align-items:flex-start}
+.shot-row .shot{flex:var(--ar,1) 1 0;min-width:0}
+@media (max-width:720px){.shot-row{flex-direction:column}.shot-row .shot{flex:none;width:100%}}

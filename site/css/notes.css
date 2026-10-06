@@ -1,0 +1,6 @@
+/* Responsibility: the short numbered notes that sit beside a screenshot. */
+.notes{list-style:none;margin:0;padding:0;display:grid;gap:4px;counter-reset:note}
+.notes li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;padding:16px 0;border-top:1px solid var(--hair);counter-increment:note}
+.notes li::before{content:counter(note,decimal-leading-zero);grid-row:span 2;font:500 13px/1.6 var(--mono);color:var(--accent)}
+.notes b{font:600 17px/1.3 var(--body);color:var(--page-h)}
+.notes p{margin:0;font-size:15.5px;line-height:1.5;color:var(--page-fg-2)}
