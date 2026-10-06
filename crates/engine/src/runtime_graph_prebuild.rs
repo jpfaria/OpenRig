@@ -10,10 +10,11 @@
 //! swap is moving nodes, which is short enough to happen in one critical
 //! section.
 //!
-//! A VST3 is never built here: creating an instance while live instances of
-//! the same bundle are inside `process()` is the #779 crash, so an edit that
-//! needs a fresh VST3 keeps the quiesced path. A `Select` keeps it too — its
-//! option nodes are reused by rules this walk does not model.
+//! A fresh VST3 is built here only when no live node of this runtime holds an
+//! instance of its bundle (`runtime_vst3_prebuild_guard`, #1081): creating an
+//! instance while one of the same bundle is inside `process()` is the #779
+//! crash, so such an edit keeps the quiesced path. A `Select` keeps it too —
+//! its option nodes are reused by rules this walk does not model.
 
 use std::collections::HashMap;
 
@@ -28,6 +29,7 @@ use crate::runtime_block_builders::build_block_runtime_node;
 use crate::runtime_graph_assemble::segment_bus;
 use crate::runtime_segments::ChainSegment;
 use crate::runtime_state::{lock_recover, BlockRuntimeNode, RuntimeProcessor};
+use crate::runtime_vst3_prebuild_guard::{fresh_vst3_may_prebuild, LiveInstance};
 
 /// What the edit's walk needs to know about one live node — copied under a
 /// brief lock so the walk itself never holds it.
@@ -39,6 +41,7 @@ struct LiveNodeFacts {
     content_mono: bool,
     output_layout: AudioChannelLayout,
     emits: Emits,
+    instance: LiveInstance,
 }
 
 /// How a node changes the effective-mono content that flows through it (#588),
@@ -112,8 +115,8 @@ impl PrebuiltNodes {
 pub(crate) enum Prebuild {
     /// Every fresh node is built; the swap only moves nodes.
     Ready(PrebuiltNodes),
-    /// The edit needs a fresh VST3 or touches a `Select`: keep the quiesced
-    /// in-place path.
+    /// The edit needs a fresh VST3 whose bundle is live, or touches a
+    /// `Select`: keep the quiesced in-place path.
     Quiesce,
 }
 
@@ -127,6 +130,11 @@ pub(crate) fn prebuild_fresh_nodes(
     segment_output_channels: &[Vec<usize>],
 ) -> Prebuild {
     let mut pool = live_node_facts(runtime);
+    let live_instances: Vec<LiveInstance> = pool
+        .iter()
+        .flatten()
+        .map(|facts| facts.instance.clone())
+        .collect();
     let mut prebuilt = PrebuiltNodes {
         nodes: HashMap::new(),
         under_lock: true,
@@ -202,7 +210,7 @@ pub(crate) fn prebuild_fresh_nodes(
                     Reuse::Rebuilt => {}
                 }
             }
-            if is_vst3(block) {
+            if is_vst3(block) && !fresh_vst3_may_prebuild(block, &live_instances) {
                 return Prebuild::Quiesce;
             }
             log::info!(
@@ -292,6 +300,7 @@ fn live_node_facts(runtime: &ChainRuntimeState) -> Vec<Vec<LiveNodeFacts>> {
                     content_mono: node.content_mono,
                     output_layout: node.output_layout,
                     emits: Emits::of(node),
+                    instance: LiveInstance::of(node),
                 })
                 .collect()
         })

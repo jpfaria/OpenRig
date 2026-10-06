@@ -197,6 +197,8 @@ impl ProjectRuntimeController {
                 &self.io_bindings,
                 &di_cells,
                 self.stream_generation,
+                // The previous set was torn down above: nothing to fade from.
+                crate::retired_streams::StreamSwap::default(),
             )?;
             // #929: the index knows what this chain owns from now on.
             self.streams.streams_built(
