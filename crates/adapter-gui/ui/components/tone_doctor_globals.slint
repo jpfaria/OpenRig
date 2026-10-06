@@ -7,7 +7,8 @@ import { SelectOption } from "../models.slint";
 
 export global ToneDoctorState {
     in-out property <bool> open;
-    // window-absolute position, from the triggering icon's `absolute-position`.
+    // window-absolute anchor from the triggering icon: `x` is the icon's right
+    // edge (the panel's right edge goes there), `y` the top of the panel.
     in-out property <length> x;
     in-out property <length> y;
     // routes the panel's diagnose / apply back to the right chain.

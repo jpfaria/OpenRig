@@ -1,57 +1,42 @@
-// Responsibility: renders a toggle switch.
-// Sprite-based toggle switch (on/off) with LED indicator below.
-// Toggle: 66×45 px, 2 frames horizontal (each 33×45). Left=off, right=on.
-// LED: 64×32 px, 2 frames horizontal (each 32×32). Left=off, right=on.
+// Responsibility: renders a pill switch.
+// #398: a slim pill — accent while on with its knob on the right, a grey
+// track with the knob on the left while off. The owner keeps the state.
+
+import { Theme, Gear } from "../theme.slint";
+
 export component ToggleSwitch inherits Rectangle {
-    in property <bool> checked;
+    in property <bool> on;
+    in property <string> label;
+    // The track while off; a settings row uses the field outline colour.
+    in property <brush> off-track: Gear.off;
     callback toggled();
 
-    private property <length> sw-width: root.width;
-    private property <length> sw-height: root.width * 45 / 33;
-    private property <length> led-size: root.width * 0.3;
+    width: 40px;
+    height: 20px;
+    border-radius: self.height / 2;
+    background: root.on ? Theme.accent : root.off-track;
+    animate background { duration: 150ms; }
 
-    background: transparent;
-
-    // ── Toggle switch ──
-    Rectangle {
-        x: 0;
-        y: 0;
-        width: root.sw-width;
-        height: root.sw-height;
-        clip: true;
-
-        Image {
-            source: @image-url("../assets/sprites/toggleswitch.png");
-            x: root.checked ? -parent.width : 0;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-    }
-
-    // ── LED indicator below switch ──
-    Rectangle {
-        x: (root.width - root.led-size) / 2;
-        y: root.sw-height + 4px;
-        width: root.led-size;
-        height: root.led-size;
-        clip: true;
-
-        Image {
-            source: @image-url("../assets/sprites/led-red.png");
-            x: root.checked ? 0 : -parent.width;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
+    knob := Rectangle {
+        x: root.on ? root.width - self.width - 2px : 2px;
+        y: 2px;
+        width: root.height - 4px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Gear.switch-hi;
+        drop-shadow-offset-y: 1px;
+        drop-shadow-blur: 2px;
+        drop-shadow-color: Gear.switch-shadow;
+        animate x { duration: 150ms; easing: ease-out; }
     }
 
     TouchArea {
         mouse-cursor: pointer;
         clicked => { root.toggled(); }
     }
+
+    accessible-role: switch;
+    accessible-checked: root.on;
+    accessible-label: root.label;
+    accessible-action-default => { root.toggled(); }
 }

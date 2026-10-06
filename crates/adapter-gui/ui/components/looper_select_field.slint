@@ -1,62 +1,74 @@
-// Responsibility: renders a labelled select field of a looper drawer row.
-// A field showing the current value with a caret; pressing it asks the host to
-// open the option list as a root-level modal (never a PopupWindow, so every
-// option stays a reachable in-tree TouchArea).
+// Responsibility: renders a select field of a looper drawer.
+// The caption above, the closed field below (its value and a chevron);
+// pressing it asks the host to open the option list as a root-level modal
+// (never a PopupWindow, so every option stays a reachable in-tree TouchArea).
+//
+// #398: the field look lives in `LooperSelectBox`, so the preset field (whose
+// touch target belongs to the row) draws the same box.
 
 import { Theme } from "../theme.slint";
+import { FieldCaption } from "field_caption.slint";
+
+// The closed field: the value, elided, and a chevron. The host puts the touch
+// target inside it.
+export component LooperSelectBox inherits Rectangle {
+    in property <string> value;
+    in property <bool> hovered;
+    // A default value ("follow the chain") reads quieter than a picked one.
+    in property <bool> muted;
+
+    height: 32px;
+    border-radius: 3px;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: root.hovered ? Theme.ink-3 : Theme.field-line;
+
+    Text {
+        x: 10px;
+        width: parent.width - 36px;
+        height: parent.height;
+        vertical-alignment: center;
+        text: root.value;
+        color: root.muted ? Theme.ink-3 : Theme.ink;
+        font-size: Theme.min-font;
+        font-weight: 500;
+        overflow: elide;
+    }
+
+    Image {
+        x: parent.width - 21px;
+        y: (parent.height - 11px) / 2;
+        width: 11px;
+        height: 11px;
+        source: @image-url("../assets/chevron-down.svg");
+        image-fit: contain;
+        colorize: Theme.ink-3;
+    }
+
+    @children
+}
 
 export component LooperSelectField inherits Rectangle {
     in property <string> label;
     in property <string> value;
     callback open();
-    // The label column width shared with sibling rows (so columns line up);
-    // the column still grows to fit this row's own (translated) label.
-    in property <length> label-width: 74px;
-    out property <length> label-natural: label-text.preferred-width;
 
-    private property <length> label-w: max(root.label-width, root.label-natural);
+    height: 60px;
 
-    height: max(28px, label-text.preferred-height);
-
-    label-text := Text {
+    FieldCaption {
         x: 0;
-        width: root.label-w;
-        height: parent.height;
-        vertical-alignment: center;
+        y: 0;
+        width: parent.width;
+        height: 22px;
         text: root.label;
-        color: Theme.palette.text-muted;
-        font-size: Theme.min-font;
     }
 
-    Rectangle {
-        x: root.label-w + 6px;
-        width: parent.width - root.label-w - 6px;
-        height: parent.height;
-        border-radius: 6px;
-        border-width: 1px;
-        border-color: field-ta.has-hover ? Theme.accent : Theme.palette.border;
-        background: field-ta.has-hover ? Theme.accent-soft : transparent;
-
-        Text {
-            x: 10px;
-            width: parent.width - 34px;
-            height: parent.height;
-            vertical-alignment: center;
-            text: root.value;
-            color: Theme.palette.text-primary;
-            font-size: Theme.min-font;
-            overflow: elide;
-        }
-
-        Image {
-            x: parent.width - 24px;
-            y: (parent.height - 14px) / 2;
-            width: 14px;
-            height: 14px;
-            source: @image-url("../assets/arrow-down.svg");
-            image-fit: contain;
-            colorize: Theme.palette.text-muted;
-        }
+    LooperSelectBox {
+        x: 0;
+        y: 28px;
+        width: parent.width;
+        value: root.value;
+        hovered: field-ta.has-hover;
 
         field-ta := TouchArea {
             mouse-cursor: pointer;

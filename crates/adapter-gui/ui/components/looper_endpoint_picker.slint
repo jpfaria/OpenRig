@@ -2,9 +2,13 @@
 // The option list of a loop's record-from or play-to select: a root-level
 // overlay (never a PopupWindow, so every option is a reachable in-tree
 // TouchArea). Shared by the main window's looper overlay and the compact view.
+//
+// #398: the same dialog card as the preset picker — the title in the display
+// face over one framed list, the current endpoint tinted with an accent edge.
 
 import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
+import { ListBox, ListRow } from "list_box.slint";
 
 export component LooperEndpointPicker inherits Rectangle {
     in property <[string]> input-options;
@@ -24,59 +28,42 @@ export component LooperEndpointPicker inherits Rectangle {
     Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: 360px;
-        height: min(root.height - 80px, 96px + root.options.length * 48px);
+        width: min(root.width - 32px, 420px);
+        height: min(root.height - 80px, 18px + 24px + 10px + root.options.length * 44px + 2px + 18px);
         background: Theme.panel;
-        border-radius: 12px;
+        border-radius: 6px;
+        clip: true;
         border-width: 1px;
-        border-color: Theme.palette.border-strong;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+
+        // Swallow clicks on the card so only the scrim closes it.
+        TouchArea { }
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 8px;
+            padding: 18px;
+            spacing: 10px;
 
             Text {
+                height: 24px;
                 text: root.is-output ? @tr("looper-output") : @tr("looper-input");
-                color: Theme.palette.text-primary;
-                font-size: Theme.min-font;
-                font-weight: 700;
+                color: Theme.ink;
+                font-family: "Bebas Neue";
+                font-size: 24px;
+                letter-spacing: 0.05 * 24px;
+                vertical-alignment: center;
             }
 
             Flickable {
-                viewport-height: options-col.preferred-height;
-                options-col := VerticalLayout {
-                    spacing: 4px;
+                viewport-height: options-box.preferred-height;
+                options-box := ListBox {
+                    width: parent.width;
 
                     for option[i] in root.options : Rectangle {
-                        height: 44px;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: i == LooperPanel.endpoint-picker-selected
-                            ? Theme.accent : transparent;
-                        background: opt-ta.has-hover
-                            ? Theme.accent-soft
-                            : (i == LooperPanel.endpoint-picker-selected ? Theme.accent.with-alpha(0.08) : Theme.panel-hi);
-
-                        Text {
-                            x: 12px;
-                            width: parent.width - 44px;
-                            height: parent.height;
-                            vertical-alignment: center;
-                            text: option;
-                            color: Theme.palette.text-primary;
-                            font-size: Theme.min-font;
-                            overflow: elide;
-                        }
-
-                        if i == LooperPanel.endpoint-picker-selected : Image {
-                            x: parent.width - 30px;
-                            y: (parent.height - 16px) / 2;
-                            width: 16px;
-                            height: 16px;
-                            source: @image-url("../assets/check.svg");
-                            image-fit: contain;
-                            colorize: Theme.accent;
-                        }
+                        min-height: 44px;
+                        background: opt-ta.has-hover ? Theme.hover : transparent;
 
                         opt-ta := TouchArea {
                             mouse-cursor: pointer;
@@ -90,8 +77,24 @@ export component LooperEndpointPicker inherits Rectangle {
                             }
                         }
 
+                        ListRow {
+                            width: parent.width;
+                            height: parent.height;
+                            divided: i > 0;
+                            on: i == LooperPanel.endpoint-picker-selected;
+                            Text {
+                                horizontal-stretch: 1;
+                                text: option;
+                                color: Theme.ink;
+                                font-size: Theme.min-font;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
                         accessible-role: button;
                         accessible-label: option;
+                        accessible-checked: i == LooperPanel.endpoint-picker-selected;
                     }
                 }
             }

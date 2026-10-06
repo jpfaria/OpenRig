@@ -95,6 +95,45 @@ fn every_wire_joins_its_two_node_centres() {
     }
 }
 
+/// #398: every wire names the lane it runs in, so the canvas colours lane A
+/// and lane B apart; the trunk before and after the split is -1.
+#[test]
+fn every_wire_names_its_lane() {
+    let c = mix_chain();
+    let models = models_of(&c);
+    let lane = |from: &str, to: &str| {
+        models
+            .edges
+            .iter()
+            .find(|e| e.from_id.as_str() == from && e.to_id.as_str() == to)
+            .unwrap_or_else(|| panic!("no wire {from} → {to}"))
+            .path
+    };
+    assert_eq!(lane(INPUT_NODE_ID, "pre"), -1);
+    assert_eq!(lane("pre", FIRST_SPLIT_NODE_ID), -1);
+    assert_eq!(lane(FIRST_SPLIT_NODE_ID, "a1"), 0);
+    assert_eq!(lane("a1", "a2"), 0);
+    assert_eq!(lane("a2", FIRST_MIXER_NODE_ID), 0);
+    assert_eq!(lane(FIRST_SPLIT_NODE_ID, "b1"), 1);
+    assert_eq!(lane("b1", FIRST_MIXER_NODE_ID), 1);
+    assert_eq!(lane(FIRST_MIXER_NODE_ID, "post"), -1);
+
+    let empty = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a1")], vec![]],
+    )]);
+    let models = models_of(&empty);
+    assert!(
+        models
+            .edges
+            .iter()
+            .filter(|e| e.from_id.as_str() == "" || e.to_id.as_str() == "")
+            .all(|e| e.path == 1),
+        "the empty lane's bent wire is lane 1"
+    );
+}
+
 /// An empty path draws its own lane: its "+" sits on its own row, below the
 /// lanes before it, and its wire bends through that "+" instead of running
 /// straight over another lane.

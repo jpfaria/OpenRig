@@ -19,6 +19,7 @@ fn row(name: &str, selected: bool, rate: &str, buffer: &str) -> DeviceSelectionI
         sample_rate_text: SharedString::from(rate),
         buffer_size_text: SharedString::from(buffer),
         bit_depth_text: SharedString::from("24"),
+        ..Default::default()
     }
 }
 

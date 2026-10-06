@@ -12,7 +12,9 @@ export component SectionToggle inherits Rectangle {
     in property <bool> expanded: false;
     callback toggled(bool);
 
-    background: area.has-hover ? Theme.panel-lo : transparent;
+    // #398: a raised strip with a hairline under it; the chevron turns down
+    // when the section is open.
+    background: Theme.panel-hi;
     accessible-role: button;
     accessible-label: root.title;
     accessible-action-default => { root.flip(); }
@@ -21,34 +23,51 @@ export component SectionToggle inherits Rectangle {
         root.toggled(!root.expanded);
     }
 
-    Image {
-        x: 16px;
+    Rectangle {
+        background: area.has-hover ? Theme.hover : transparent;
+    }
+
+    Path {
+        x: 14px;
         y: (parent.height - self.height) / 2;
-        width: 16px; height: 16px;
-        source: root.expanded
-            ? @image-url("../assets/chevron-down.svg")
-            : @image-url("../assets/arrow-right.svg");
-        colorize: area.has-hover ? Theme.ink : Theme.ink-2;
+        width: 10px;
+        height: 10px;
+        viewbox-width: 10;
+        viewbox-height: 10;
+        fill: transparent;
+        stroke: Theme.ink-3;
+        stroke-width: 1.6px;
+        MoveTo { x: root.expanded ? 1 : 3; y: root.expanded ? 3 : 1; }
+        LineTo { x: root.expanded ? 5 : 7; y: root.expanded ? 7 : 5; }
+        LineTo { x: root.expanded ? 9 : 3; y: root.expanded ? 3 : 9; }
     }
 
     icon := Image {
-        x: 40px;
+        x: 34px;
         y: (parent.height - self.height) / 2;
         width: 18px; height: 18px;
         source: root.icon;
-        colorize: area.has-hover ? Theme.ink : Theme.ink-2;
+        colorize: Theme.ink-3;
     }
 
     Text {
-        x: 68px; y: 0;
-        width: parent.width - 84px; height: parent.height;
+        x: 62px; y: 0;
+        width: parent.width - 76px; height: parent.height;
         text: root.title;
-        color: area.has-hover ? Theme.ink : Theme.ink-2;
+        color: root.expanded || area.has-hover ? Theme.ink : Theme.ink-2;
         font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.0px;
+        font-size: Theme.min-font;
+        letter-spacing: 0.08 * Theme.min-font;
         vertical-alignment: center;
         overflow: elide;
+    }
+
+    Rectangle {
+        x: 0;
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: Theme.hair-2;
     }
 
     area := TouchArea {

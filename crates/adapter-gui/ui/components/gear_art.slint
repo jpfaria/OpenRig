@@ -1,0 +1,362 @@
+// Responsibility: draws a block as its piece of gear.
+// #398: the graph draws every block as the hardware it stands for — a stomp
+// box, an amp head, a cab, a rack unit or an expression pedal — flat, with a
+// hairline outline and white knob caps. `icon-kind` picks the piece the same
+// way EffectTypeIcon picks the icon; `s` scales the drawing with the zoom.
+// Text printed on the gear (the pedal window, the rack screen) is drawn at
+// the knob-option size, like the labels printed around a selector knob.
+
+import { Theme, Gear } from "../theme.slint";
+import { BrandLogo } from "brand_logo.slint";
+
+// One white knob cap with its dark pointer.
+component GearKnob inherits Rectangle {
+    in property <length> d;
+    in property <angle> turn;
+    width: root.d;
+    height: root.d;
+    border-radius: root.d / 2;
+    background: @radial-gradient(circle, Gear.white 0%, Gear.knob-lo 100%);
+    border-width: 1px;
+    border-color: Gear.edge-soft;
+
+    Path {
+        width: root.d;
+        height: root.d;
+        viewbox-width: 10;
+        viewbox-height: 10;
+        stroke: Gear.pointer;
+        stroke-width: 1px;
+        MoveTo { x: 5 + Math.sin(root.turn) * 1.5; y: 5 - Math.cos(root.turn) * 1.5; }
+        LineTo { x: 5 + Math.sin(root.turn) * 4.2; y: 5 - Math.cos(root.turn) * 4.2; }
+    }
+}
+
+export component GearArt inherits Rectangle {
+    in property <string> icon-kind;
+    in property <color> tint;
+    // The model's short name, printed in the pedal window or the rack screen.
+    in property <string> short-label;
+    in property <string> brand;
+    // How many knobs a stomp box shows (1–3).
+    in property <int> knob-count: 3;
+    in property <bool> bypassed: false;
+    in property <float> s: 1.0;
+
+    out property <string> piece: root.icon-kind == "amp" || root.icon-kind == "preamp"
+            || root.icon-kind == "full_rig" || root.icon-kind == "nam" ? "head"
+        : root.icon-kind == "cab" || root.icon-kind == "ir" || root.icon-kind == "body" ? "cab"
+        : root.icon-kind == "reverb" || root.icon-kind == "insert" ? "rack"
+        : root.icon-kind == "wah" || root.icon-kind == "utility" ? "exp"
+        : "stomp";
+    out property <length> art-width: (root.piece == "head" || root.piece == "rack" ? 104px
+        : root.piece == "cab" ? 78px
+        : root.piece == "exp" ? 46px
+        : 58px) * root.s;
+    out property <length> art-height: (root.piece == "head" ? 58px
+        : root.piece == "cab" ? 80px
+        : root.piece == "rack" ? 40px
+        : root.piece == "exp" ? 80px
+        : 84px) * root.s;
+
+    // Where the piece's bypass switch sits (a stomp box's footswitch; the
+    // bottom of every other piece), unscaled 28 × 20 zone.
+    out property <length> switch-x: (root.piece == "stomp" ? 15px
+        : root.piece == "cab" ? 25px
+        : root.piece == "exp" ? 9px
+        : 38px) * root.s;
+    out property <length> switch-y: root.art-height - (root.piece == "stomp" ? 28px : 20px) * root.s;
+
+    // A bypassed piece loses its colour (the mockup's grayscale).
+    property <color> c: root.bypassed ? Gear.off : root.tint;
+    property <length> u: 1px * root.s;
+    property <bool> print: root.s >= 0.9;
+
+    width: root.art-width;
+    height: root.art-height;
+    background: transparent;
+    opacity: root.bypassed ? 0.45 : 1.0;
+
+    // ── Stomp box ──
+    if root.piece == "stomp" : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6 * root.u;
+        background: @linear-gradient(180deg, root.c.mix(Gear.white, 0.92) 0%, root.c 55%, root.c.mix(Gear.black, 0.85) 100%);
+        border-width: 1px;
+        border-color: root.c.mix(Gear.black, 0.55);
+        drop-shadow-offset-y: 3 * root.u;
+        drop-shadow-blur: 6 * root.u;
+        drop-shadow-color: Gear.shadow;
+
+        for i in Math.max(1, Math.min(3, root.knob-count)) : GearKnob {
+            x: (58 / (Math.max(1, Math.min(3, root.knob-count)) + 1) * (i + 1) - 5.5) * root.u;
+            y: 8 * root.u;
+            d: 11 * root.u;
+            turn: (-120 + Math.mod(i * 83, 240)) * 1deg;
+        }
+        Rectangle {
+            x: 7 * root.u;
+            y: 27 * root.u;
+            width: 44 * root.u;
+            height: 15 * root.u;
+            border-radius: 2 * root.u;
+            background: Gear.window;
+            clip: true;
+            if root.print : Text {
+                text: root.short-label;
+                color: root.c.mix(Gear.black, 0.6);
+                font-size: Theme.knob-option-font;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        Rectangle {
+            x: 26.5 * root.u;
+            y: 47 * root.u;
+            width: 5 * root.u;
+            height: 5 * root.u;
+            border-radius: 2.5 * root.u;
+            background: root.bypassed ? Gear.led-off : Gear.led;
+            drop-shadow-blur: root.bypassed ? 0px : 5 * root.u;
+            drop-shadow-color: Gear.led;
+        }
+        Rectangle {
+            x: 19 * root.u;
+            y: 56 * root.u;
+            width: 20 * root.u;
+            height: 20 * root.u;
+            border-radius: 10 * root.u;
+            background: @radial-gradient(circle, Gear.switch-hi 0%, Gear.switch-lo 100%);
+            border-width: 1px;
+            border-color: Gear.switch-edge;
+            drop-shadow-offset-y: 2 * root.u;
+            drop-shadow-color: Gear.switch-shadow;
+        }
+    }
+
+    // ── Amp head ──
+    if root.piece == "head" : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 5 * root.u;
+        background: Gear.tolex;
+        border-width: 1px;
+        border-color: Gear.edge;
+        drop-shadow-offset-y: 3 * root.u;
+        drop-shadow-blur: 6 * root.u;
+        drop-shadow-color: Gear.shadow;
+
+        Rectangle {
+            x: 40 * root.u;
+            y: 4 * root.u;
+            width: 24 * root.u;
+            height: 3 * root.u;
+            border-radius: 2 * root.u;
+            background: Gear.panel;
+        }
+        Rectangle {
+            x: 5 * root.u;
+            y: 11 * root.u;
+            width: 94 * root.u;
+            height: 42 * root.u;
+            border-radius: 3 * root.u;
+            background: @linear-gradient(180deg, Gear.plate-hi 0%, Gear.plate-lo 100%);
+            border-width: 1px;
+            border-color: Gear.plate-edge;
+            clip: true;
+
+            BrandLogo {
+                x: 8 * root.u;
+                y: 4 * root.u;
+                width: 78 * root.u;
+                height: 12 * root.u;
+                brand: root.brand;
+                tint: Gear.print;
+            }
+            for i in 5 : GearKnob {
+                x: (94 / 6 * (i + 1) - 5) * root.u;
+                y: 22 * root.u;
+                d: 10 * root.u;
+                turn: (-120 + Math.mod(i * 83, 240)) * 1deg;
+            }
+            Rectangle {
+                y: parent.height - self.height;
+                width: parent.width;
+                height: 3 * root.u;
+                background: root.c;
+            }
+        }
+    }
+
+    // ── Cabinet ──
+    if root.piece == "cab" : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 5 * root.u;
+        background: Gear.cab;
+        border-width: 1px;
+        border-color: Gear.edge;
+        drop-shadow-offset-y: 3 * root.u;
+        drop-shadow-blur: 6 * root.u;
+        drop-shadow-color: Gear.shadow;
+
+        Rectangle {
+            x: 6 * root.u;
+            y: 6 * root.u;
+            width: 66 * root.u;
+            height: 56 * root.u;
+            border-radius: 2 * root.u;
+            background: Gear.grille;
+            clip: true;
+
+            Path {
+                width: parent.width;
+                height: parent.height;
+                viewbox-width: 66;
+                viewbox-height: 56;
+                stroke: Gear.grille-line;
+                stroke-width: 1px * root.s;
+                commands: "M0 0 L-56 56 M3 0 L-53 56 M6 0 L-50 56 M9 0 L-47 56 M12 0 L-44 56 M15 0 L-41 56 M18 0 L-38 56 M21 0 L-35 56 M24 0 L-32 56 M27 0 L-29 56 M30 0 L-26 56 M33 0 L-23 56 M36 0 L-20 56 M39 0 L-17 56 M42 0 L-14 56 M45 0 L-11 56 M48 0 L-8 56 M51 0 L-5 56 M54 0 L-2 56 M57 0 L1 56 M60 0 L4 56 M63 0 L7 56 M66 0 L10 56 M69 0 L13 56 M72 0 L16 56 M75 0 L19 56 M78 0 L22 56 M81 0 L25 56 M84 0 L28 56 M87 0 L31 56 M90 0 L34 56 M93 0 L37 56 M96 0 L40 56 M99 0 L43 56 M102 0 L46 56 M105 0 L49 56 M108 0 L52 56 M111 0 L55 56 M114 0 L58 56 M117 0 L61 56 M120 0 L64 56";
+            }
+            for i in 2 : Rectangle {
+                x: (i == 0 ? 5.5 : 38.5) * root.u;
+                y: 17 * root.u;
+                width: 22 * root.u;
+                height: 22 * root.u;
+                border-radius: 11 * root.u;
+                border-width: 2 * root.u;
+                border-color: Gear.shadow;
+                Rectangle {
+                    x: 6 * root.u;
+                    y: 6 * root.u;
+                    width: 10 * root.u;
+                    height: 10 * root.u;
+                    border-radius: 5 * root.u;
+                    background: Gear.edge-soft;
+                }
+            }
+        }
+        Rectangle {
+            x: 20 * root.u;
+            y: 66 * root.u;
+            width: 38 * root.u;
+            height: 9 * root.u;
+            border-radius: 1 * root.u;
+            background: Gear.badge;
+
+            BrandLogo {
+                x: 3 * root.u;
+                y: 1 * root.u;
+                width: parent.width - 6 * root.u;
+                height: parent.height - 2 * root.u;
+                brand: root.brand;
+                tint: Gear.print;
+            }
+        }
+    }
+
+    // ── Rack unit ──
+    if root.piece == "rack" : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 3 * root.u;
+        background: @linear-gradient(180deg, Gear.rack-hi 0%, Gear.rack-lo 100%);
+        border-width: 1px;
+        border-color: Gear.rack-edge;
+        drop-shadow-offset-y: 3 * root.u;
+        drop-shadow-blur: 6 * root.u;
+        drop-shadow-color: Gear.shadow;
+
+        for side in 2 : Rectangle {
+            x: side == 0 ? 0px : parent.width - self.width;
+            width: 9 * root.u;
+            height: parent.height;
+            background: Gear.ear;
+            border-width: 1px;
+            border-color: Gear.ear-edge;
+            for screw in 2 : Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (screw == 0 ? 8.4 : 28.4) * root.u;
+                width: 3.2 * root.u;
+                height: 3.2 * root.u;
+                border-radius: 1.6 * root.u;
+                background: Gear.screw;
+            }
+        }
+        Rectangle {
+            x: 14 * root.u;
+            y: 8 * root.u;
+            width: 34 * root.u;
+            height: 13 * root.u;
+            border-radius: 2 * root.u;
+            background: Gear.screen;
+            border-width: 1px;
+            border-color: Gear.black;
+            clip: true;
+            if root.print : Text {
+                text: root.short-label;
+                color: Gear.screen-text;
+                font-size: Theme.knob-option-font;
+                font-weight: 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        Rectangle {
+            x: 14 * root.u;
+            y: 31 * root.u;
+            width: 34 * root.u;
+            height: 3 * root.u;
+            border-radius: 1 * root.u;
+            background: root.c;
+        }
+        for i in 3 : GearKnob {
+            x: (52 + 50 / 4 * (i + 1) - 5.5) * root.u;
+            y: 14 * root.u;
+            d: 11 * root.u;
+            turn: (-120 + Math.mod(i * 83, 240)) * 1deg;
+        }
+    }
+
+    // ── Expression / volume pedal ──
+    if root.piece == "exp" : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6 * root.u;
+        background: Gear.cab;
+        border-width: 1px;
+        border-color: Gear.edge;
+        drop-shadow-offset-y: 3 * root.u;
+        drop-shadow-blur: 6 * root.u;
+        drop-shadow-color: Gear.shadow;
+
+        Rectangle {
+            x: 7 * root.u;
+            y: 6 * root.u;
+            width: 32 * root.u;
+            height: 60 * root.u;
+            border-radius: 3 * root.u;
+            background: Gear.tread;
+            clip: true;
+            for i in 12 : Rectangle {
+                y: i * 5 * root.u;
+                width: parent.width;
+                height: 2 * root.u;
+                background: Gear.tread-line;
+            }
+        }
+        Rectangle {
+            x: 7 * root.u;
+            y: 72 * root.u;
+            width: 32 * root.u;
+            height: 3 * root.u;
+            border-radius: 1 * root.u;
+            background: root.c;
+        }
+    }
+}

@@ -1,5 +1,7 @@
 // Responsibility: renders the chains page.
 import { Theme } from "../theme.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { ListView, ScrollView } from "std-widgets.slint";
 import { BlockEditorBridge } from "../block_editor_globals.slint";
 import { ProjectChainItem, ChainRigNav, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
@@ -31,6 +33,7 @@ export component ProjectChainsPage inherits Rectangle {
     property <int> dragging-chain-index: -1;
     property <int> dragging-block-index: -1;
     property <int> drag-hover-before-index: -1;
+    property <length> bar-height: 52px;
     callback back-to-launcher();
     callback add-chain();
     callback save-project();
@@ -91,135 +94,130 @@ export component ProjectChainsPage inherits Rectangle {
         }
     }
 
+    // #398: the dark top bar, edge to edge: the project name in the display
+    // face, then the tempo and the project actions.
     Rectangle {
-        x: 24px;
-        y: 18px;
-        width: parent.width - 48px;
-        height: 52px;
-        background: transparent;
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: root.bar-height;
+        background: Theme.chrome;
 
-        Text {
+        Rectangle {
             x: 0px;
-            y: 6px;
-            width: 360px;
-            height: 36px;
-            text: root.project-title;
-            color: Theme.ink;
-            font-size: 28px;
-            font-weight: 700;
-            vertical-alignment: center;
+            y: parent.height - 1px;
+            width: parent.width;
+            height: 1px;
+            background: Theme.chrome-line;
         }
 
-        ProjectTempo {
-            x: parent.width - 400px - 16px - self.width;
-            y: 14px;
-        }
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 10px;
+            padding-top: (root.bar-height - 30px) / 2;
+            padding-bottom: (root.bar-height - 30px) / 2;
+            spacing: 4px;
 
-        if !root.skip-launcher : HeaderIconAction {
-            x: parent.width - 400px;
-            y: 14px;
-            icon: @image-url("../assets/arrow-left.svg");
-            tooltip: @tr("tooltip-back");
-            clicked => { root.back-to-launcher(); }
-        }
+            // The name gets the bar's full height: an elided Text shorter
+            // than the display face's line draws nothing.
+            Rectangle {
+                horizontal-stretch: 1;
+                Text {
+                    y: (parent.height - root.bar-height) / 2;
+                    width: parent.width;
+                    height: root.bar-height;
+                    text: root.project-title;
+                    color: Theme.chrome-fg;
+                    font-family: "Bebas Neue";
+                    font-size: 28px;
+                    letter-spacing: 1px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
 
-        HeaderIconAction {
-            x: parent.width - 360px;
-            y: 14px;
-            icon: @image-url("../assets/spectrum.svg");
-            tooltip: @tr("tooltip-spectrum");
-            clicked => { root.open-spectrum-window(); }
-        }
+            ProjectTempo { }
 
-        HeaderIconAction {
-            x: parent.width - 320px;
-            y: 14px;
-            icon: @image-url("../assets/tuner.svg");
-            tooltip: @tr("tooltip-tuner");
-            clicked => { root.open-tuner-window(); }
-        }
+            Rectangle { width: 10px; }
 
-        HeaderIconAction {
-            x: parent.width - 280px;
-            y: 14px;
-            icon: @image-url("../assets/metronome.svg");
-            // Lit while the click is playing, so a closed metronome is still
+            if !root.skip-launcher : HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/arrow-left.svg");
+                tooltip: @tr("tooltip-back");
+                clicked => { root.back-to-launcher(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/spectrum.svg");
+                tooltip: @tr("tooltip-spectrum");
+                clicked => { root.open-spectrum-window(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/tuner.svg");
+                tooltip: @tr("tooltip-tuner");
+                clicked => { root.open-tuner-window(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/metronome.svg");
+                // Lit while the click is playing, so a closed metronome is still
+                // visibly running from the top bar.
+                active: MetronomeBridge.metronome-enabled;
+                tooltip: @tr("tooltip-metronome");
+                clicked => { root.open-metronome-window(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/drums.svg");
+                // Lit while a groove plays, like the metronome beside it.
+                active: DrumsBridge.playing;
+                tooltip: @tr("tooltip-drums");
+                clicked => { DrumsBridge.open-drums-window(); }
+            }
+            // Lit while a backing track plays, so a closed player is still
             // visibly running from the top bar.
-            active: MetronomeBridge.metronome-enabled;
-            tooltip: @tr("tooltip-metronome");
-            clicked => { root.open-metronome-window(); }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/backing-track.svg");
+                active: PlayerBridge.playing;
+                tooltip: @tr("tooltip-backing-tracks");
+                clicked => { PlayerBridge.open-player-window(); }
+            }
+            // #1007: the global mixer.
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/mixer-faders.svg");
+                tooltip: @tr("tooltip-mixer");
+                clicked => { MixerBridge.open-mixer-window(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/gear.svg");
+                tooltip: @tr("tooltip-project-settings");
+                clicked => { root.configure-project(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/save.svg");
+                warn: root.project-dirty;
+                tooltip: @tr("tooltip-save");
+                clicked => { root.save-project(); }
+            }
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/plus.svg");
+                tooltip: @tr("tooltip-new-chain");
+                clicked => { root.add-chain(); }
+            }
         }
-
-        HeaderIconAction {
-            x: parent.width - 240px;
-            y: 14px;
-            icon: @image-url("../assets/drums.svg");
-            // Lit while a groove plays, like the metronome beside it.
-            active: DrumsBridge.playing;
-            tooltip: @tr("tooltip-drums");
-            clicked => { DrumsBridge.open-drums-window(); }
-        }
-
-        // Lit while a backing track plays, so a closed player is still
-        // visibly running from the top bar.
-        HeaderIconAction {
-            x: parent.width - 200px;
-            y: 14px;
-            icon: @image-url("../assets/backing-track.svg");
-            active: PlayerBridge.playing;
-            tooltip: @tr("tooltip-backing-tracks");
-            clicked => { PlayerBridge.open-player-window(); }
-        }
-
-        // #1007: the global mixer.
-        HeaderIconAction {
-            x: parent.width - 160px;
-            y: 14px;
-            icon: @image-url("../assets/mixer-faders.svg");
-            tooltip: @tr("tooltip-mixer");
-            clicked => { MixerBridge.open-mixer-window(); }
-        }
-
-        HeaderIconAction {
-            x: parent.width - 120px;
-            y: 14px;
-            icon: @image-url("../assets/gear.svg");
-            tooltip: @tr("tooltip-project-settings");
-            clicked => { root.configure-project(); }
-        }
-
-        HeaderIconAction {
-            x: parent.width - 80px;
-            y: 14px;
-            icon: @image-url("../assets/save.svg");
-            tint: root.project-dirty ? Theme.warn : Theme.ink;
-            tooltip: @tr("tooltip-save");
-            clicked => { root.save-project(); }
-        }
-
-        HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("../assets/plus.svg");
-            tooltip: @tr("tooltip-new-chain");
-            clicked => { root.add-chain(); }
-        }
-
-    }
-
-    Rectangle {
-        x: 24px;
-        y: 78px;
-        width: parent.width - 48px;
-        height: 1px;
-        background: Theme.ktrack;
     }
 
     TouchArea {
-        x: 24px;
-        y: 96px;
-        width: parent.width - 48px;
-        height: parent.height - 96px;
+        x: 0px;
+        y: root.bar-height;
+        width: parent.width;
+        height: parent.height - root.bar-height;
         clicked => {
             if root.dragging-block-index >= 0 {
                 root.dragging-chain-index = -1;
@@ -230,19 +228,19 @@ export component ProjectChainsPage inherits Rectangle {
     }
 
     // Virtualized chains list: ListView only instantiates ChainRow instances
-    // visible in the viewport. Each row is wrapped in a Rectangle to add 12px
-    // of bottom spacing (ListView does not support `spacing` like VerticalBox).
-    // Fixes #290 — previous ScrollView + for instantiated every ChainRow upfront,
-    // causing heavy SVG rasterization per frame on macOS retina during scroll.
+    // visible in the viewport. Fixes #290 — previous ScrollView + for
+    // instantiated every ChainRow upfront, causing heavy SVG rasterization per
+    // frame on macOS retina during scroll. #398: the chains stack flush under
+    // the bar, each closing on its own hairline.
     ListView {
-        x: 24px;
-        y: 96px;
-        width: parent.width - 48px;
-        height: parent.height - 96px;
+        x: 0px;
+        y: root.bar-height;
+        width: parent.width;
+        height: parent.height - root.bar-height;
 
         for chain[index] in root.project-chains : Rectangle {
             background: transparent;
-            height: row.height + 12px;
+            height: row.height;
 
             row := ChainRow {
                 x: 0px;
@@ -411,17 +409,34 @@ export component ProjectChainsPage inherits Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             width: 3 * BlockTypeGrid.step + BlockTypeGrid.cell + 56px;
-            height: Math.min(parent.height - 80px, self.content-height + 40px);
-            background: Theme.panel.with-alpha(0.97);
+            height: Math.min(parent.height - 80px, self.content-height + 46px + 36px);
+            background: Theme.panel;
             border-width: 1px;
             border-color: Theme.hair;
             border-radius: 6px;
+            clip: true;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: Theme.shadow;
+
+            // Swallow clicks on the card so only the scrim cancels.
+            TouchArea { }
+
+            // #398: the dialog's dark bar with its title and close cross.
+            ToolBar {
+                x: 0; y: 0;
+                width: parent.width;
+                title: @tr("title-add-block");
+                ToolBarClose {
+                    clicked => { BlockEditorBridge.cancel-block-picker(); }
+                }
+            }
 
             ScrollView {
-                x: 20px;
-                y: 20px;
-                width: parent.width - 40px;
-                height: parent.height - 40px;
+                x: 18px;
+                y: 46px + 18px;
+                width: parent.width - 36px;
+                height: parent.height - 46px - 36px;
                 viewport-height: picker-modal.content-height;
 
                 for type-item[index] in BlockEditorBridge.block-type-options : BlockTypeCard {

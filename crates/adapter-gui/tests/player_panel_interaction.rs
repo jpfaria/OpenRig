@@ -181,7 +181,7 @@ fn clicking_the_middle_of_the_seek_bar_seeks_to_half_the_track() {
 fn the_close_button_closes_the_player() {
     let w = harness(true);
     let hits = presses(&w, |b, h| b.on_close_player(move || *h.borrow_mut() += 1));
-    press_release(&w, center(&w, "PlayerPanel::close-ta", 0));
+    press_release(&w, center(&w, "ToolBarClose::close-ta", 0));
     assert_eq!(*hits.borrow(), 1);
 }
 

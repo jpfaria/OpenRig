@@ -4,7 +4,7 @@
 // `LooperPanel` global, seeded with this chain's rows and the button's
 // absolute position (the DI button's proven pattern, #749).
 
-import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 
@@ -16,24 +16,20 @@ export component ChainLooperButton inherits Rectangle {
     in property <[string]> input-options;
     in property <[string]> output-options;
 
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    background: root.active ? Theme.accent-soft
-                : ta.has-hover ? Theme.hover
-                : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: HeaderIconStyle.fill(ta.has-hover);
     animate background { duration: 150ms; }
 
     Image {
-        x: 5px;
-        y: 5px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: @image-url("../assets/loop.svg");
         image-fit: contain;
-        colorize: root.active ? Theme.accent
-                  : ta.has-hover ? Theme.ink
-                  : Theme.ink-2;
+        colorize: HeaderIconStyle.tint(root.active, ta.has-hover);
         animate colorize { duration: 150ms; }
     }
 

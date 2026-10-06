@@ -3,31 +3,27 @@
 // chain's IN / OUT meter rows through `toggled`. The owner keeps the state and
 // feeds it back into `shown`; the header only offers it on a running chain.
 
-import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 
 export component ChainMetersButton inherits Rectangle {
     in property <bool> shown: false;
     callback toggled(bool);
 
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    background: root.shown ? Theme.accent-soft
-                : ta.has-hover ? Theme.hover
-                : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: HeaderIconStyle.fill(ta.has-hover);
     animate background { duration: 150ms; }
 
     Image {
-        x: 5px;
-        y: 5px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: @image-url("../assets/meters.svg");
         image-fit: contain;
-        colorize: root.shown ? Theme.accent
-                  : ta.has-hover ? Theme.ink
-                  : Theme.ink-2;
+        colorize: HeaderIconStyle.tint(root.shown, ta.has-hover);
         animate colorize { duration: 150ms; }
     }
 

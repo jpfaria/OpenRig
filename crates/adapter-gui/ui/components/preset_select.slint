@@ -1,6 +1,6 @@
 // Responsibility: renders the preset bank dropdown.
-// The chain preset bank dropdown. Dark/near-black field with big bold type
-// (matches the chain title) and a caret. The popup is a search-as-you-type
+// The chain preset bank dropdown. #398: a field (the same input surface as
+// every form control) with a chevron. The popup is a search-as-you-type
 // finder with a bounded, scrolling list — mirrors the block model picker
 // (`ModelSelectWithSearch`) so a large bank no longer overflows the screen
 // (issue #659). Extracted from chain_title_preset.slint to keep that file
@@ -22,12 +22,16 @@ export component PresetSelect inherits Rectangle {
     // Caps the popup so it never runs past the screen; it shrinks for short
     // banks and scrolls for long ones.
     in property <length> max-popup-height: 380px;
+    // #398: sits on the dark chrome bar (the compact view's header).
+    in property <bool> on-chrome: false;
     callback picked(int);
-    height: 38px;
-    border-radius: 6px;
-    background: Theme.well;
+    height: 32px;
+    border-radius: 3px;
+    background: root.on-chrome ? Theme.chrome-field : Theme.field;
     border-width: 1px;
-    border-color: ta.has-hover ? Theme.field-line : Theme.hair;
+    border-color: root.on-chrome
+        ? (ta.has-hover ? Theme.chrome-fg-2 : Theme.chrome-field-line)
+        : (ta.has-hover ? Theme.ink-3 : Theme.field-line);
     animate border-color { duration: 150ms; }
 
     private property <length> header-height: 54px;
@@ -38,26 +42,28 @@ export component PresetSelect inherits Rectangle {
             : root.row-height;
 
     Text {
-        x: 14px;
-        width: parent.width - 44px;
+        x: 10px;
+        width: parent.width - 36px;
         height: parent.height;
         text: root.active-index >= 0 && root.active-index < root.labels.length
             ? root.labels[root.active-index]
             : "";
-        color: Theme.ink;
-        font-size: 18px;
-        font-weight: 800;
+        color: root.on-chrome ? Theme.chrome-fg : Theme.ink;
+        font-size: Theme.min-font;
+        font-weight: 600;
         vertical-alignment: center;
         overflow: elide;
     }
     Image {
-        x: parent.width - 30px;
-        y: (parent.height - 16px) / 2;
-        width: 16px;
-        height: 16px;
-        source: @image-url("../assets/arrow-down.svg");
+        x: parent.width - 24px;
+        y: (parent.height - 14px) / 2;
+        width: 14px;
+        height: 14px;
+        source: @image-url("../assets/chevron-down.svg");
         image-fit: contain;
-        colorize: ta.has-hover ? Theme.ink : Theme.ink-2;
+        colorize: root.on-chrome
+            ? (ta.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2)
+            : (ta.has-hover ? Theme.ink : Theme.ink-3);
     }
     ta := TouchArea {
         mouse-cursor: pointer;
@@ -85,10 +91,10 @@ export component PresetSelect inherits Rectangle {
         Rectangle {
             width: 100%;
             height: 100%;
-            background: Theme.well;
+            background: Theme.panel-hi;
             border-width: 1px;
             border-color: Theme.hair;
-            border-radius: 6px;
+            border-radius: 4px;
             drop-shadow-blur: 20px;
             drop-shadow-color: Theme.shadow;
             drop-shadow-offset-y: 6px;
@@ -100,10 +106,10 @@ export component PresetSelect inherits Rectangle {
                 y: 6px;
                 width: parent.width - 12px;
                 height: 40px;
-                background: Theme.panel-lo;
+                background: Theme.field;
                 border-width: 1px;
-                border-color: Theme.hair;
-                border-radius: 6px;
+                border-color: Theme.field-line;
+                border-radius: 3px;
 
                 Image {
                     x: 10px;
@@ -190,18 +196,18 @@ export component PresetSelect inherits Rectangle {
                     y: i * root.row-height;
                     width: parent.width - 8px;
                     height: root.row-height;
-                    border-radius: 4px;
+                    border-radius: 3px;
                     background: option.slot == root.active-index
-                        ? Theme.palette.accent-end
-                        : (row-ta.has-hover ? Theme.panel-hi : transparent);
+                        ? Theme.accent
+                        : (row-ta.has-hover ? Theme.panel-lo : transparent);
                     Text {
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
                         text: option.label;
-                        color: Theme.ink;
+                        color: option.slot == root.active-index ? Theme.on-accent : Theme.ink;
                         font-size: Theme.min-font;
-                        font-weight: option.slot == root.active-index ? 800 : 600;
+                        font-weight: option.slot == root.active-index ? 700 : 500;
                         vertical-alignment: center;
                         overflow: elide;
                     }

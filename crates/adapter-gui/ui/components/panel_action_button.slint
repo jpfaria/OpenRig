@@ -1,0 +1,65 @@
+// Responsibility: renders a small icon-and-label action button of a panel.
+// #398: the panel's header actions ("Play all", "New looper"). On the dark
+// bar it is a dark field with a hairline ring, on the panel a light field;
+// `primary` is the accent action. The host puts the TouchArea inside, so the
+// hit target keeps the host's id.
+import { Theme } from "../theme.slint";
+
+export component PanelActionButton inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> primary;
+    in property <bool> on-bar;
+    in property <bool> enabled: true;
+    in property <bool> hovered;
+    callback clicked();
+
+    private property <color> ink: root.primary ? Theme.on-accent
+        : root.on-bar ? Theme.chrome-fg
+        : Theme.ink;
+    private property <bool> lit: root.hovered && root.enabled;
+
+    width: row.preferred-width;
+    height: 28px;
+    border-radius: 4px;
+    opacity: root.enabled ? 1.0 : 0.45;
+    background: root.primary ? (root.lit ? Theme.accent.brighter(0.08) : Theme.accent)
+        : root.on-bar ? (root.lit ? Theme.chrome-2 : Theme.chrome-field)
+        : (root.lit ? Theme.panel-hi : Theme.field);
+    border-width: root.primary ? 0px : 1px;
+    border-color: root.on-bar ? Theme.chrome-field-line : Theme.hair;
+
+    row := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 6px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+
+            Image {
+                width: 14px;
+                height: 14px;
+                source: root.icon;
+                colorize: root.ink;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.ink;
+            font-size: Theme.min-font;
+            font-weight: 600;
+            letter-spacing: 0.04 * Theme.min-font;
+            vertical-alignment: center;
+        }
+    }
+
+    @children
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.clicked(); }
+}

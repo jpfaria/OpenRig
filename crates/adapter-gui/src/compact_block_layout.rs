@@ -136,6 +136,31 @@ pub(crate) fn row_height_px(line_count: i32, has_tabs: bool) -> f32 {
     (ROW_PADDING_PX + tabs + strip).max(BASE_ROW_HEIGHT_PX)
 }
 
+/// #398: the "PATH A" / "MIX" bar above the first row of a split lane.
+pub(crate) const LANE_BAR_HEIGHT_PX: f32 = 30.0;
+
+/// Which rows open a lane: a row whose `(path_label, path_depth)` differs from
+/// the row above it (the chain's own rows are `("", 0)`).
+pub(crate) fn lane_bars(rows: &[(&str, i32)]) -> Vec<bool> {
+    let mut previous = ("", 0);
+    rows.iter()
+        .map(|&row| {
+            let opens = row != previous;
+            previous = row;
+            opens
+        })
+        .collect()
+}
+
+/// A row that opens a lane carries the lane bar on top of its card.
+pub(crate) fn with_lane_bar(height: f32, lane_bar: bool) -> f32 {
+    if lane_bar {
+        height + LANE_BAR_HEIGHT_PX
+    } else {
+        height
+    }
+}
+
 /// Absolute `y` of each row inside the flickable viewport: rows are separated by
 /// [`ROW_GAP_PX`], which is also the insert slot before the first row.
 pub(crate) fn row_y_offsets(heights: &[f32]) -> Vec<f32> {

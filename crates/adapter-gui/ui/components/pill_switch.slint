@@ -1,0 +1,80 @@
+// Responsibility: renders a footswitch pill on a tool bar.
+// #398: a round metal cap and a spaced label on a dark pill, like a stomp
+// switch on the bar. On, the label lights and an LED glows by the cap; a
+// `warn` switch (MUTE) lights its label in the warning colour instead.
+import { Theme, Gear } from "../theme.slint";
+
+export component PillSwitch inherits Rectangle {
+    in property <string> text;
+    in property <bool> on;
+    in property <bool> warn: false;
+    // Off, the switch dims and ignores clicks (MUTE while the tuner is off).
+    in property <bool> enabled: true;
+    callback toggled();
+
+    width: label.preferred-width + 44px;
+    height: 30px;
+    border-radius: 15px;
+    background: ta.has-hover && root.enabled ? Theme.chrome-2 : Theme.chrome-field;
+    border-width: 1px;
+    border-color: Theme.chrome-field-line;
+    opacity: root.enabled ? 1.0 : 0.35;
+
+    // The cap: a metal disc with a dark rim.
+    Rectangle {
+        x: 5px; y: (parent.height - 20px) / 2;
+        width: 20px; height: 20px;
+        border-radius: 10px;
+        background: Gear.switch-lo;
+        border-width: 1px;
+        border-color: Gear.black;
+        clip: true;
+
+        Rectangle {
+            x: 3px; y: 2px;
+            width: 12px; height: 12px;
+            border-radius: 6px;
+            background: Gear.switch-hi;
+        }
+    }
+
+    // The LED.
+    Rectangle {
+        x: 22px; y: 3px;
+        width: 6px; height: 6px;
+        border-radius: 3px;
+        background: root.on ? Gear.led : Gear.led-off;
+        drop-shadow-blur: root.on ? 6px : 0px;
+        drop-shadow-color: Gear.led;
+    }
+
+    label := Text {
+        x: 32px; y: 0;
+        height: parent.height;
+        text: root.text;
+        color: !root.on ? Theme.chrome-fg-2 : (root.warn ? Theme.warn : Gear.white);
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+        clicked => {
+            if root.enabled {
+                root.toggled();
+            }
+        }
+    }
+
+    accessible-role: switch;
+    accessible-label: root.text;
+    accessible-checked: root.on;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if root.enabled {
+            root.toggled();
+        }
+    }
+}

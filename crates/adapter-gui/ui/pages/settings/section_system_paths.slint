@@ -9,175 +9,117 @@
 // dispatches `Command::ReloadPluginCatalog`, plus a status text
 // showing the post-reload counts. Lives in the same section because
 // the action is bound to the plugins directory above it.
+//
+// #398: the path sits in a read-only field (the default reads "(default)"
+// in the quiet ink), Choose… is a normal button and Reset a ghost one.
 
 import { Theme } from "../../theme.slint";
-import { Button } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
+import { TextField } from "../../components/text_field.slint";
+import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+
+// One directory: its label, the path, Choose… and Reset.
+component PathRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> path;
+    in property <length> label-width;
+    out property <length> label-preferred: label-text.preferred-width;
+    callback choose();
+    callback reset();
+
+    spacing: 10px;
+
+    label-text := Text {
+        width: root.label-width;
+        text: root.label;
+        color: Theme.ink-2;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        vertical-alignment: center;
+    }
+    TextField {
+        horizontal-stretch: 1;
+        read-only: true;
+        text: root.path;
+        placeholder: @tr("placeholder-default-path");
+    }
+    FormButton {
+        label: @tr("btn-choose-path");
+        clicked => { root.choose(); }
+    }
+    FormButton {
+        kind: FormButtonKind.ghost;
+        label: @tr("btn-reset-path");
+        clicked => { root.reset(); }
+    }
+}
 
 export component SectionSystemPaths inherits Rectangle {
-    // Shared label column: at least 140px, wider when a translation needs it.
-    private property <length> label-width: max(140px, presets-label.preferred-width,
-        plugins-label.preferred-width, evaluations-label.preferred-width,
-        backing-tracks-label.preferred-width, catalog-label.preferred-width);
+    // Shared label column: at least 150px, wider when a translation needs it.
+    private property <length> label-width: max(150px, presets.label-preferred,
+        plugins.label-preferred, evaluations.label-preferred,
+        backing-tracks.label-preferred, catalog-label.preferred-width);
 
     background: transparent;
 
     VerticalLayout {
-        spacing: 16px;
+        spacing: 10px;
         alignment: start;
 
-        // ── Presets directory row ─────────────────────────────────
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            height: 32px;
-            presets-label := Text {
-                text: @tr("label-presets-path");
-                color: Theme.ink;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            Text {
-                text: SettingsBridge.presets-path == ""
-                    ? @tr("placeholder-default-path")
-                    : SettingsBridge.presets-path;
-                color: SettingsBridge.presets-path == "" ? Theme.ink-2 : Theme.ink;
-                font-size: 18px;
-                horizontal-stretch: 1;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            Button {
-                text: @tr("btn-choose-path");
-                clicked => { SettingsBridge.pick-presets-path(); }
-            }
-            Button {
-                text: @tr("btn-reset-path");
-                clicked => { SettingsBridge.reset-presets-path(); }
-            }
+        presets := PathRow {
+            label: @tr("label-presets-path");
+            label-width: root.label-width;
+            path: SettingsBridge.presets-path;
+            choose => { SettingsBridge.pick-presets-path(); }
+            reset => { SettingsBridge.reset-presets-path(); }
         }
-
-        // ── Plugins directory row ─────────────────────────────────
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            height: 32px;
-            plugins-label := Text {
-                text: @tr("label-plugins-path");
-                color: Theme.ink;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            Text {
-                text: SettingsBridge.plugins-path == ""
-                    ? @tr("placeholder-default-path")
-                    : SettingsBridge.plugins-path;
-                color: SettingsBridge.plugins-path == "" ? Theme.ink-2 : Theme.ink;
-                font-size: 18px;
-                horizontal-stretch: 1;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            Button {
-                text: @tr("btn-choose-path");
-                clicked => { SettingsBridge.pick-plugins-path(); }
-            }
-            Button {
-                text: @tr("btn-reset-path");
-                clicked => { SettingsBridge.reset-plugins-path(); }
-            }
+        plugins := PathRow {
+            label: @tr("label-plugins-path");
+            label-width: root.label-width;
+            path: SettingsBridge.plugins-path;
+            choose => { SettingsBridge.pick-plugins-path(); }
+            reset => { SettingsBridge.reset-plugins-path(); }
         }
-
-        // ── Evaluations directory row (#582) ──────────────────────
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            height: 32px;
-            evaluations-label := Text {
-                text: @tr("label-evaluations-path");
-                color: Theme.ink;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            Text {
-                text: SettingsBridge.evaluations-path == ""
-                    ? @tr("placeholder-default-path")
-                    : SettingsBridge.evaluations-path;
-                color: SettingsBridge.evaluations-path == "" ? Theme.ink-2 : Theme.ink;
-                font-size: 18px;
-                horizontal-stretch: 1;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            Button {
-                text: @tr("btn-choose-path");
-                clicked => { SettingsBridge.pick-evaluations-path(); }
-            }
-            Button {
-                text: @tr("btn-reset-path");
-                clicked => { SettingsBridge.reset-evaluations-path(); }
-            }
+        evaluations := PathRow {
+            label: @tr("label-evaluations-path");
+            label-width: root.label-width;
+            path: SettingsBridge.evaluations-path;
+            choose => { SettingsBridge.pick-evaluations-path(); }
+            reset => { SettingsBridge.reset-evaluations-path(); }
         }
-
-        // ── Backing tracks directory row ──────────────────────────
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            height: 32px;
-            backing-tracks-label := Text {
-                text: @tr("label-backing-tracks-path");
-                color: Theme.ink;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            Text {
-                text: SettingsBridge.backing-tracks-path == ""
-                    ? @tr("placeholder-default-path")
-                    : SettingsBridge.backing-tracks-path;
-                color: SettingsBridge.backing-tracks-path == "" ? Theme.ink-2 : Theme.ink;
-                font-size: 18px;
-                horizontal-stretch: 1;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            Button {
-                text: @tr("btn-choose-path");
-                clicked => { SettingsBridge.pick-backing-tracks-path(); }
-            }
-            Button {
-                text: @tr("btn-reset-path");
-                clicked => { SettingsBridge.reset-backing-tracks-path(); }
-            }
+        backing-tracks := PathRow {
+            label: @tr("label-backing-tracks-path");
+            label-width: root.label-width;
+            path: SettingsBridge.backing-tracks-path;
+            choose => { SettingsBridge.pick-backing-tracks-path(); }
+            reset => { SettingsBridge.reset-backing-tracks-path(); }
         }
 
         // ── Plugin catalog reload row (#561) ──────────────────────
         HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            height: 32px;
+            spacing: 10px;
+            padding-top: 6px;
+
             catalog-label := Text {
-                text: @tr("label-plugin-catalog");
-                color: Theme.ink;
-                font-size: 18px;
                 width: root.label-width;
+                text: @tr("label-plugin-catalog");
+                color: Theme.ink-2;
+                font-size: Theme.min-font;
+                font-weight: 600;
                 vertical-alignment: center;
             }
             Text {
+                horizontal-stretch: 1;
                 text: SettingsBridge.plugin-catalog-status == ""
                     ? @tr("status-plugin-catalog-idle")
                     : SettingsBridge.plugin-catalog-status;
-                color: SettingsBridge.plugin-catalog-status == "" ? Theme.ink-2 : Theme.ink;
-                font-size: 18px;
-                horizontal-stretch: 1;
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
                 vertical-alignment: center;
                 overflow: elide;
             }
-            Button {
-                text: @tr("btn-reload-plugin-catalog");
+            FormButton {
+                label: @tr("btn-reload-plugin-catalog");
                 clicked => { SettingsBridge.reload-plugin-catalog(); }
             }
         }

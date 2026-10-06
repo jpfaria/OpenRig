@@ -8,7 +8,7 @@ export component BrandLogo inherits Image {
     in property <string> brand;
     in property <color> tint: Theme.ink;
 
-    property <bool> has-logo: root.brand == "alvarez"
+    out property <bool> has-logo: root.brand == "alvarez"
         || root.brand == "ampeg"
         || root.brand == "analogman"
         || root.brand == "bad_cat"

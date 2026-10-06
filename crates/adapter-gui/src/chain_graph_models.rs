@@ -11,6 +11,7 @@ use std::rc::Rc;
 use slint::{Color, ModelRc, VecModel};
 
 use project::chain::Chain;
+use project::endpoint_disables::EndpointNode;
 
 use crate::chain_block_item::chain_block_item_from_block;
 use crate::chain_block_lists::block_at;
@@ -43,7 +44,7 @@ pub(crate) fn row_graph_models(chain: &Chain, graph: &ChainGraph) -> RowGraphMod
         .collect();
     RowGraphModels {
         nodes: ModelRc::from(Rc::new(VecModel::from(nodes))),
-        edges: ModelRc::from(Rc::new(VecModel::from(edge_geometry(graph)))),
+        edges: ModelRc::from(Rc::new(VecModel::from(edge_geometry(chain, graph)))),
         anchors: ModelRc::from(Rc::new(VecModel::from(anchors))),
     }
 }
@@ -96,7 +97,7 @@ fn rgb(value: u32) -> Color {
 
 /// One wire per edge; an edge that bends through a point (an empty lane)
 /// draws as two wires meeting there, each still moving with its own node.
-fn edge_geometry(graph: &ChainGraph) -> Vec<GraphEdgeGeometry> {
+fn edge_geometry(chain: &Chain, graph: &ChainGraph) -> Vec<GraphEdgeGeometry> {
     let centre = |id: &str| graph.nodes.iter().find(|n| n.id == id).map(|n| (n.x, n.y));
     graph
         .edges
@@ -105,18 +106,43 @@ fn edge_geometry(graph: &ChainGraph) -> Vec<GraphEdgeGeometry> {
             let from = centre(&edge.from_id)?;
             let to = centre(&edge.to_id)?;
             Some(match edge.via {
-                None => vec![wire(&edge.from_id, from, &edge.to_id, to)],
-                Some(via) => vec![
-                    wire(&edge.from_id, from, "", (via.x, via.y)),
-                    wire("", (via.x, via.y), &edge.to_id, to),
-                ],
+                None => {
+                    let lane = wire_lane(chain, &edge.from_id, &edge.to_id);
+                    vec![wire(&edge.from_id, from, &edge.to_id, to, lane)]
+                }
+                Some(via) => {
+                    let lane = via.path as i32;
+                    vec![
+                        wire(&edge.from_id, from, "", (via.x, via.y), lane),
+                        wire("", (via.x, via.y), &edge.to_id, to, lane),
+                    ]
+                }
             })
         })
         .flatten()
         .collect()
 }
 
-fn wire(from_id: &str, from: (f32, f32), to_id: &str, to: (f32, f32)) -> GraphEdgeGeometry {
+/// #398: the split path a wire runs in — the path of the block (or Y leaf
+/// output) at either end; -1 when both ends sit on the trunk.
+fn wire_lane(chain: &Chain, from_id: &str, to_id: &str) -> i32 {
+    let lane = |id: &str| match resolve_node(chain, id) {
+        Some(NodeRef::Block {
+            path: Some(path), ..
+        }) => Some(path.path as i32),
+        Some(NodeRef::Endpoints(EndpointNode::PathOutput(leaf))) => Some(leaf.path as i32),
+        _ => None,
+    };
+    lane(to_id).or_else(|| lane(from_id)).unwrap_or(-1)
+}
+
+fn wire(
+    from_id: &str,
+    from: (f32, f32),
+    to_id: &str,
+    to: (f32, f32),
+    path: i32,
+) -> GraphEdgeGeometry {
     GraphEdgeGeometry {
         from_id: from_id.into(),
         to_id: to_id.into(),
@@ -124,6 +150,7 @@ fn wire(from_id: &str, from: (f32, f32), to_id: &str, to: (f32, f32)) -> GraphEd
         from_y: from.1,
         to_x: to.0,
         to_y: to.1,
+        path,
     }
 }
 

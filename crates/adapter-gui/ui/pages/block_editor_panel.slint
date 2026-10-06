@@ -187,6 +187,7 @@ export component BlockEditorPanel inherits Rectangle {
             x: 8px;
             y: 148px;
             width: parent.width - 16px;
+            height: 260px;
             points: BlockEditorBridge.curve-editor-points;
             total-curve: BlockEditorBridge.eq-total-curve;
             band-curves: BlockEditorBridge.eq-band-curves;
@@ -197,6 +198,7 @@ export component BlockEditorPanel inherits Rectangle {
             x: 8px;
             y: 148px;
             width: parent.width - 16px;
+            height: 260px;
             points: BlockEditorBridge.multi-slider-points;
             update-parameter(path, val) => { BlockEditorBridge.update-block-parameter-number(path, val); }
         }

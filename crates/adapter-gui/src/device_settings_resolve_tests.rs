@@ -21,6 +21,7 @@ fn row(selected: bool, rate: &str, buffer: &str, depth: &str) -> DeviceSelection
         sample_rate_text: rate.into(),
         buffer_size_text: buffer.into(),
         bit_depth_text: depth.into(),
+        ..Default::default()
     }
 }
 

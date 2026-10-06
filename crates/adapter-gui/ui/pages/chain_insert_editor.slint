@@ -7,16 +7,15 @@
 // back on its input. Device / mode / channels belong to the E/S itself and are
 // edited in the I/O bindings screen.
 //
-// The SHELL follows the block editor, not a dialog of its own: a 48px header
-// carrying the block's icon, its type label and the block actions, then the
-// panel, then the 52px footer. An insert is a block like any other — it just
-// has one thing to choose instead of a knob grid.
+// #398: a dialog — the dark bar with the block's power lamp, the title and the
+// trash, the E/S field with its help on the panel, then Cancel / OK.
 
 import { Theme } from "../theme.slint";
-import { ComboBox } from "std-widgets.slint";
-import { PortEditorFooterButton } from "port_editor_widgets.slint";
-import { EffectTypeIcon } from "../components/effect_type_icon.slint";
-import { FootSwitch } from "../components/foot_switch.slint";
+import { BlockDialogBar } from "../components/block_dialog_bar.slint";
+import { DialogFoot } from "../components/dialog_foot.slint";
+import { DropSelect } from "../components/drop_select.slint";
+import { FieldCaption } from "../components/field_caption.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
 
 export component ChainInsertEditorPage inherits Rectangle {
     in property <[string]> binding-options;
@@ -30,143 +29,57 @@ export component ChainInsertEditorPage inherits Rectangle {
     callback save();
     callback cancel();
 
-    private property <length> header-height: 48px;
-    private property <length> footer-height: 52px;
+    background: Theme.panel;
 
-    background: Theme.well;
-
-    // ── HEADER (48px) — same shell as the block editor ──────────────────
-    Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width;
-        height: root.header-height;
-        background: Theme.panel-lo;
-
-        HorizontalLayout {
-            padding-left: 16px;
-            padding-right: 12px;
-            spacing: 10px;
-
-            EffectTypeIcon {
-                width: 28px;
-                height: 28px;
-                icon-kind: "insert";
-                y: (parent.height - self.height) / 2;
-            }
-
-            Text {
-                text: @tr("title-section-configure-insert");
-                color: Theme.ink;
-                font-size: 18px;
-                font-weight: 800;
-                vertical-alignment: center;
-                horizontal-stretch: 1;
-            }
-
-            Rectangle {
-                width: 28px;
-                height: 28px;
-                y: (parent.height - self.height) / 2;
-                border-radius: 4px;
-                background: delete-hover.has-hover ? Theme.bad-soft : transparent;
-                accessible-role: button;
-                accessible-label: @tr("action-delete-block");
-
-                Image {
-                    width: 20px;
-                    height: 20px;
-                    source: @image-url("../assets/trash.svg");
-                    colorize: delete-hover.has-hover ? Theme.bad : Theme.ink-3;
-                    image-fit: contain;
-                }
-
-                delete-hover := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.delete-block(); }
-                }
-            }
+    VerticalLayout {
+        BlockDialogBar {
+            vertical-stretch: 0;
+            title: @tr("title-section-configure-insert");
+            block-enabled: root.block-enabled;
+            toggle-enabled => { root.toggle-enabled(); }
+            delete-block => { root.delete-block(); }
         }
-    }
 
-    // ── PANEL — what the block carries ──────────────────────────────────
-    Rectangle {
-        x: 16px;
-        y: root.header-height + 16px;
-        width: parent.width - 32px;
-        height: panel-body.preferred-height;
-        background: Theme.panel-lo;
-        border-width: 1px;
-        border-color: Theme.hair-2;
-        border-radius: 8px;
+        VerticalLayout {
+            vertical-stretch: 1;
+            alignment: start;
+            padding: 18px;
+            spacing: 14px;
 
-        panel-body := VerticalLayout {
-            padding: 16px;
-            padding-left: 80px;
-            spacing: 8px;
-
-            Text {
-                text: @tr("label-io-binding");
-                color: Theme.ink-2;
-                font-size: 18px;
-                font-weight: 700;
-            }
-
-            ComboBox {
-                model: root.binding-options;
-                current-index <=> root.selected-binding-index;
-                selected(value) => { root.select-binding(self.current-index); }
+            VerticalLayout {
+                spacing: 6px;
+                FieldCaption { text: @tr("label-io-binding"); }
+                DropSelect {
+                    model: root.binding-options;
+                    current <=> root.selected-binding-index;
+                    picked(index) => { root.select-binding(index); }
+                }
             }
 
             Text {
                 text: @tr("msg-insert-loop-uses-binding");
                 color: Theme.ink-3;
-                font-size: 18px;
+                font-size: Theme.min-font;
                 wrap: word-wrap;
             }
 
             if root.show-binding-warning : Text {
                 text: @tr("msg-pick-io-binding");
                 color: Theme.accent;
-                font-size: 18px;
+                font-size: Theme.min-font;
                 wrap: word-wrap;
             }
         }
-    }
 
-    // ── POWER — the same footswitch every block editor carries (#881) ───
-    FootSwitch {
-        x: 24px;
-        y: root.header-height + 16px + 12px;
-        width: 48px;
-        height: 66px;
-        enabled: root.block-enabled;
-        clicked => { root.toggle-enabled(); }
-    }
-
-    // ── FOOTER (52px) ───────────────────────────────────────────────────
-    Rectangle {
-        x: 0;
-        y: parent.height - root.footer-height;
-        width: parent.width;
-        height: root.footer-height;
-        background: Theme.panel-lo;
-
-        HorizontalLayout {
-            padding-right: 16px;
-            padding-top: 8px;
-            padding-bottom: 8px;
-            spacing: 12px;
-            alignment: end;
-
-            PortEditorFooterButton {
+        DialogFoot {
+            vertical-stretch: 0;
+            FormButton {
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }
-
-            PortEditorFooterButton {
+            FormButton {
+                kind: FormButtonKind.primary;
                 label: @tr("btn-ok");
-                primary: true;
                 clicked => { root.save(); }
             }
         }

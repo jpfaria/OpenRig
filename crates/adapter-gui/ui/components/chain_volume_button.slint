@@ -6,27 +6,31 @@
 // itself is the unchanged ChainVolumeControl (#440 behaviour preserved).
 
 import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 import { ChainVolumeControl } from "chain_chips.slint";
 
 export component ChainVolumeButton inherits Rectangle {
     in-out property <int> volume: 100;
+    // #398: sits on the dark chrome bar.
+    in property <bool> on-chrome: false;
     callback value-changed(int);
 
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    background: ta.has-hover ? Theme.palette.card-secondary : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: root.on-chrome ? HeaderIconStyle.chrome-fill(ta.has-hover) : HeaderIconStyle.fill(ta.has-hover);
     animate background { duration: 150ms; }
 
     Image {
-        x: 5px;
-        y: 5px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: @image-url("../assets/volume.svg");
         image-fit: contain;
-        colorize: ta.has-hover ? Theme.ink : Theme.ink-2;
+        colorize: root.on-chrome ? HeaderIconStyle.chrome-tint(false, ta.has-hover) : HeaderIconStyle.tint(false, ta.has-hover);
+        animate colorize { duration: 150ms; }
     }
 
     ta := TouchArea {
@@ -42,7 +46,7 @@ export component ChainVolumeButton inherits Rectangle {
 
     pop := PopupWindow {
         x: -184px;
-        y: 32px;
+        y: 34px;
         width: 192px;
         height: 40px;
         close-policy: close-on-click-outside;

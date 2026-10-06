@@ -4,6 +4,7 @@
 // strip (tinted, captioned, the same one the Mixer window moves); the RIGHT
 // fader is this chain's own gain on that endpoint. Each fader keeps its own
 // readout, mute and reset; there is no SOLO here.
+// #398: a raised card; the GLOBAL half sits on a wash of the input colour.
 
 import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
 import { ChainMixerBridge } from "chain_mixer_globals.slint";
@@ -15,36 +16,50 @@ export component DualMixerStripView inherits Rectangle {
     in property <MixerStripRow> global;
     in property <MixerStripRow> chain;
 
-    private property <length> half: 84px;
-    private property <length> pad: 4px;
-    private property <length> caption-height: 22px;
-    private property <length> label-height: 66px;
+    private property <length> half: 96px;
+    private property <length> gap: 6px;
+    private property <length> pad: 8px;
+    private property <length> caption-height: 24px;
+    private property <length> label-height: 54px;
     private property <length> faders-height: root.height - root.label-height - 3 * root.pad;
 
-    width: 2 * root.half + 3 * root.pad;
-    border-radius: 6px;
-    background: Theme.well;
+    width: 2 * root.half + root.gap + 2 * root.pad;
+    border-radius: 5px;
+    background: Theme.panel-hi;
     border-width: 1px;
-    border-color: Theme.hair-2;
+    border-color: Theme.hair;
 
-    // ── GLOBAL half: tinted, so it never reads as the chain's own fader ──
+    // ── GLOBAL half: washed in the input colour, so it never reads as the
+    // chain's own fader ──
     Rectangle {
         x: root.pad; y: root.pad;
         width: root.half; height: root.faders-height;
-        border-radius: 5px;
-        background: Theme.accent-soft;
+        border-radius: 4px;
+        background: Theme.in.with-alpha(0.1);
         border-width: 1px;
-        border-color: Theme.accent-line;
+        border-color: Theme.in.with-alpha(0.3);
     }
 
     Text {
-        x: root.pad; y: root.pad + 4px;
+        x: root.pad; y: root.pad + 6px;
         width: root.half; height: root.caption-height - 6px;
         text: @tr("label-mixer-global");
-        color: Theme.accent;
-        font-family: "Bebas Neue";
+        color: Theme.in;
         font-size: Theme.min-font;
-        letter-spacing: 1.5px;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: root.pad + root.half + root.gap; y: root.pad + 6px;
+        width: root.half; height: root.caption-height - 6px;
+        text: @tr("label-mixer-chain");
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -53,6 +68,7 @@ export component DualMixerStripView inherits Rectangle {
         x: root.pad; y: root.pad + root.caption-height;
         width: root.half; height: root.faders-height - root.caption-height;
         strip: root.global;
+        tint: Theme.in;
         has-solo: false;
         has-label: false;
         framed: false;
@@ -64,7 +80,7 @@ export component DualMixerStripView inherits Rectangle {
 
     // ── CHAIN half: this chain's own gain on the same endpoint ──
     MixerStripView {
-        x: 2 * root.pad + root.half; y: root.pad + root.caption-height;
+        x: root.pad + root.half + root.gap; y: root.pad + root.caption-height;
         width: root.half; height: root.faders-height - root.caption-height;
         strip: root.chain;
         has-solo: false;

@@ -231,12 +231,18 @@ fn io_bindings_ui_interactions() {
         // First card is on-screen; the second overflows the short panel and is
         // not materialised in the rendered tree (off-viewport cull) — proving
         // the content is taller than the panel.
-        let y0 = nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 0)
-            .expect("first binding's pencil must be on-screen");
+        assert!(
+            nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 0).is_some(),
+            "first binding's pencil must be on-screen"
+        );
         assert!(
             nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 1).is_none(),
             "second binding should start BELOW the viewport (content overflows)"
         );
+        // #398: the card header sits right under the pane title, so a 100px
+        // wheel takes it out of view; follow a control lower in the open card.
+        let y0 = nth_abs_y(&w, "SectionSystemIoBindings::add-input-btn", 0)
+            .expect("the open card's add-input button must be on-screen");
 
         // Wheel down over the content area: the (overflowing) content must move
         // up. Before the fix the ScrollView viewport was pinned to the panel
@@ -249,8 +255,8 @@ fn io_bindings_ui_interactions() {
             delta_x: 0.0,
             delta_y: -100.0,
         });
-        let y1 = nth_abs_y(&w, "SectionSystemIoBindings::rename-btn", 0)
-            .expect("first binding's pencil still on-screen after a small scroll");
+        let y1 = nth_abs_y(&w, "SectionSystemIoBindings::add-input-btn", 0)
+            .expect("the open card's add-input button still on-screen after a small scroll");
         assert!(
             y1 < y0 - 50.0,
             "scrolling did not move the content up (y0={y0}, y1={y1}) — \
@@ -440,11 +446,13 @@ fn io_bindings_ui_interactions() {
                 id: "xyz".into(),
                 name: "XYZ".into(),
                 selected: false,
+                ..Default::default()
             },
             ChainBindingChoice {
                 id: "abc".into(),
                 name: "ABC".into(),
                 selected: true,
+                ..Default::default()
             },
         ])));
         w.show().unwrap();

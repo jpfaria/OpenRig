@@ -1,0 +1,26 @@
+// Responsibility: renders a small coloured tag.
+// #398: a short uppercase word ("1 IN", "MONO") on a 14% wash of its own
+// colour — inputs in the input colour, outputs in the output colour.
+import { Theme } from "../theme.slint";
+
+export component TagPill inherits Rectangle {
+    in property <string> text;
+    in property <color> tone: Theme.ink-2;
+
+    height: 24px;
+    width: tag-text.preferred-width + 14px;
+    border-radius: 2px;
+    background: root.tone.with-alpha(0.14);
+
+    tag-text := Text {
+        x: 7px;
+        width: self.preferred-width;
+        height: parent.height;
+        text: root.text;
+        color: root.tone;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.08 * Theme.min-font;
+        vertical-alignment: center;
+    }
+}

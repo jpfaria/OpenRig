@@ -11,6 +11,8 @@ import { SelectorKnob } from "selector_knob.slint";
 export component BlockPanelParameterItem inherits Rectangle {
     in property <BlockParameterItem> param;
     in property <color> panel-text;
+    // #398: the knob's value arc takes the block's category colour.
+    in property <color> tint: Theme.accent;
 
     callback update-number(string, float);
     callback select-option(string, int);
@@ -24,14 +26,13 @@ export component BlockPanelParameterItem inherits Rectangle {
     // Label
     Text {
         x: 0; y: 0; width: parent.width;
-        height: 22px;
+        height: 18px;
         text: root.param.label;
         color: root.panel-text;
-        font-family: "Bebas Neue";
         font-size: Theme.knob-caption-font;
-        font-weight: 700;
-        letter-spacing: 1.5px;
+        font-weight: 600;
         horizontal-alignment: center;
+        vertical-alignment: center;
         overflow: elide;
     }
 
@@ -290,10 +291,11 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Numeric knob/stepper/slider ──
     if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
-        x: (parent.width - 36px) / 2;
-        y: 28px;
-        width: 36px;
-        height: 56px;
+        x: (parent.width - 48px) / 2;
+        y: 20px;
+        width: 48px;
+        height: 70px;
+        tint: root.tint;
         value: root.param.numeric_value;
         min-val: root.param.numeric_min;
         max-val: root.param.numeric_max;
@@ -303,18 +305,14 @@ export component BlockPanelParameterItem inherits Rectangle {
         changed(p, v) => { root.update-number(p, v); }
     }
 
-    // ── Boolean toggle (sprite) ──
-    // The toggle sprite is 33:45 (W:H ratio). width=32 gives a
-    // sprite-h ≈ 44 (closer to the 56px PanelKnob without dominating
-    // the cell). y=24 keeps the sprite top a few pixels above the knob
-    // top so the bigger switch reads as a deliberate stompbox stomp
-    // instead of a clipped knob.
+    // ── Boolean toggle (#398: the pill switch) ──
+    // Centred in the knob's 62px band so the switch sits level with the
+    // knobs of the same row.
     if root.param.widget_kind == "bool" : ToggleSwitch {
-        x: (parent.width - 32px) / 2;
-        y: 24px;
-        width: 32px;
-        height: 62px;
-        checked: root.param.bool_value;
+        x: (parent.width - self.width) / 2;
+        y: 24px + (62px - self.height) / 2;
+        on: root.param.bool_value;
+        label: root.param.label;
         toggled => { root.update-bool(root.param.path, !root.param.bool_value); }
     }
 }

@@ -42,9 +42,7 @@ component IconLauncherButton inherits Rectangle {
 
     width: 40px;
     height: 40px;
-    background: Theme.chrome-2;
-    border-width: 1px;
-    border-color: Theme.hero-line;
+    background: hover-area.has-hover ? Theme.chrome-2 : transparent;
     border-radius: 4px;
 
     Image {
@@ -54,7 +52,7 @@ component IconLauncherButton inherits Rectangle {
         height: 20px;
         source: root.icon;
         image-fit: contain;
-        colorize: Theme.hero-fg-2;
+        colorize: hover-area.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2;
     }
 
     hover-area := TouchArea {
@@ -96,8 +94,9 @@ component RecentProjectRow inherits Rectangle {
     callback open(int);
     callback remove(int);
 
-    height: 74px;
+    height: 64px;
     background: main-area.has-hover ? Theme.hover : transparent;
+    border-radius: 3px;
 
     Rectangle {
         x: 0px;
@@ -107,24 +106,10 @@ component RecentProjectRow inherits Rectangle {
         background: Theme.hair-2;
     }
 
-    Rectangle {
-        x: 16px;
-        y: 19px;
-        width: 18px;
-        height: 18px;
-        background: Theme.field;
-        border-width: 1px;
-        border-color: Theme.field-line;
-        border-radius: 3px;
-
-        Rectangle { x: 4px; y: 4px; width: 3px; height: 3px; background: Theme.ink-3; border-radius: 1.5px; }
-        Rectangle { x: 10px; y: 10px; width: 3px; height: 3px; background: Theme.ink-2; border-radius: 1.5px; }
-    }
-
     Text {
-        x: 46px;
-        y: 12px;
-        width: parent.width - 148px;
+        x: 12px;
+        y: 10px;
+        width: parent.width - 64px;
         height: 24px;
         text: root.title;
         color: Theme.ink;
@@ -135,42 +120,49 @@ component RecentProjectRow inherits Rectangle {
     }
 
     Text {
-        x: 46px;
-        y: 38px;
-        width: parent.width - 148px;
+        x: 12px;
+        y: 34px;
+        width: parent.width - 64px;
         height: 22px;
         text: root.subtitle;
         color: Theme.ink-3;
         font-size: 18px;
+        font-weight: 500;
         vertical-alignment: center;
         overflow: elide;
-    }
-
-    Image {
-        x: parent.width - 30px;
-        y: 21px;
-        width: 18px;
-        height: 18px;
-        source: @image-url("../assets/trash.svg");
-        colorize: Theme.ink-3;
     }
 
     main-area := TouchArea {
         x: 0px;
         y: 0px;
-        width: parent.width - 44px;
+        width: parent.width - 48px;
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.open(root.original-index); }
     }
 
-    delete-area := TouchArea {
-        x: parent.width - 38px;
-        y: 17px;
-        width: 28px;
-        height: 28px;
-        mouse-cursor: pointer;
-        clicked => { root.remove(root.original-index); }
+    // Remove from the recent list: a plain icon button.
+    Rectangle {
+        x: parent.width - 44px;
+        y: (parent.height - self.height) / 2;
+        width: 34px;
+        height: 34px;
+        border-radius: 4px;
+        background: delete-area.has-hover ? Theme.hover : transparent;
+
+        Image {
+            x: 8px;
+            y: 8px;
+            width: 18px;
+            height: 18px;
+            source: @image-url("../assets/trash.svg");
+            colorize: delete-area.has-hover ? Theme.bad : Theme.ink-3;
+        }
+
+        delete-area := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.remove(root.original-index); }
+        }
     }
 }
 
@@ -178,11 +170,11 @@ component SearchField inherits Rectangle {
     in-out property <string> text;
     callback changed(string);
 
-    height: 34px;
+    height: 32px;
     background: Theme.field;
     border-width: 1px;
     border-color: Theme.field-line;
-    border-radius: 4px;
+    border-radius: 3px;
     clip: true;
 
     if root.text == "" : Text {
@@ -308,7 +300,7 @@ export component ProjectLauncherPage inherits Rectangle {
 
     if root.app-version != "" : AppVersionBadge {
         x: parent.width - 16px - self.width;
-        y: parent.height - 2px - self.height;
+        y: parent.height - 10px - self.height;
         height: 26px;
         version: root.app-version;
     }
@@ -317,7 +309,7 @@ export component ProjectLauncherPage inherits Rectangle {
         x: 24px;
         y: 96px;
         width: parent.width - 48px;
-        height: parent.height - 126px;
+        height: parent.height - 142px;
         background: Theme.panel.with-alpha(0.92);
         border-width: 1px;
         border-color: Theme.hair;
@@ -326,7 +318,7 @@ export component ProjectLauncherPage inherits Rectangle {
         SearchField {
             x: 18px;
             y: 16px;
-            width: 260px;
+            width: min(300px, parent.width - 36px);
             text: root.recent-project-search;
             changed(text) => {
                 root.recent-project-search = text;
@@ -336,7 +328,7 @@ export component ProjectLauncherPage inherits Rectangle {
 
         Rectangle {
             x: 18px;
-            y: 62px;
+            y: 60px;
             width: parent.width - 36px;
             height: 1px;
             background: Theme.hair-2;
@@ -347,10 +339,10 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 64px;
             width: parent.width - 36px;
             height: parent.height - 82px;
-            viewport-height: recent-projects.length * 74px;
+            viewport-height: root.recent-projects.length * 64px;
 
             for recent[index] in root.recent-projects : RecentProjectRow {
-                y: index * 74px;
+                y: index * 64px;
                 width: parent.width - 2px;
                 original-index: recent.original_index;
                 title: recent.title;

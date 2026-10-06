@@ -1,0 +1,30 @@
+// Responsibility: renders the dark glass of an LCD readout.
+// #398: a rounded pane of dark glass with a black rim and a shade along its
+// top edge, so the digits read as lit behind it. The readout goes inside.
+import { Theme } from "../theme.slint";
+
+export component LcdGlass inherits Rectangle {
+    // The tuner, the metronome and the players are amber on `lcd`; the
+    // spectrum is a teal scope on `scope`.
+    in property <color> glass: Theme.lcd;
+
+    border-radius: 6px;
+    background: root.glass;
+    clip: true;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 12px;
+        background: @linear-gradient(180deg, Theme.lcd-shade 0%, transparent 100%);
+    }
+
+    @children
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: parent.height;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: Theme.lcd-rim;
+    }
+}

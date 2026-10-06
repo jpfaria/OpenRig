@@ -1,174 +1,46 @@
 // Responsibility: renders the bindings section.
-// System / I/O bindings editor (#716) — flat, system font.
+// System / I/O bindings editor (#716).
 // Pure dispatcher (LAW): callbacks fire upward; Rust owns mutation + Commands.
 // Colours come from the Theme tokens (#398): IN = Theme.in, OUT = Theme.out.
-// Body font = Locale.font-family
-// (inherited; NOT hardcoded — system fallback keeps CJK translations tofu-free).
+//
+// #398: each binding is a raised card. Collapsed, its header reads the name in
+// the display face and two pills — "1 IN" in the input colour, "1 OUT" in the
+// output colour. Opened, the inputs and outputs each get a framed list and,
+// under it, either a quiet "+ add" button or the add form (device, mode as a
+// segmented choice, channels, Cancel / Add).
 
 import { Theme } from "../../theme.slint";
-import { IoEndpointModel } from "../../models.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 import { ChannelPicker } from "../../components/channel_picker.slint";
+import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+import { SegControl } from "../../components/seg_control.slint";
+import { DropSelect } from "../../components/drop_select.slint";
+import { FieldCaption } from "../../components/field_caption.slint";
+import { ListBox } from "../../components/list_box.slint";
+import { TagPill } from "../../components/tag_pill.slint";
+import { IoEndpointRow, RowIconButton } from "io_endpoint_row.slint";
 
-component Hairline inherits Rectangle { height: 1px; background: Theme.hair; }
+// The framed panel the add form sits in.
+component AddPanel inherits Rectangle {
+    border-radius: 4px;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.hair-2;
+    min-height: body.preferred-height;
 
-component Badge inherits Rectangle {
-    in property <string> text;
-    in property <color> fg: Theme.ink;
-    in property <color> bg: Theme.panel-hi;
-    height: 26px;
-    background: root.bg;
-    border-radius: 7px;
-    HorizontalLayout {
-        padding-left: 11px; padding-right: 11px;
-        // Elided: a multi-channel endpoint must never push the device name or
-        // the row's edit/delete actions out of view (#880).
-        Text { text: root.text; color: root.fg; font-size: 18px; font-weight: 600;
-            vertical-alignment: center; overflow: elide; max-width: 120px; }
+    body := VerticalLayout {
+        padding: 12px;
+        spacing: 12px;
+        @children
     }
 }
 
-component IconBtn inherits Rectangle {
-    in property <image> icon;
-    in property <color> hover-bg: Theme.panel-hi;
-    callback clicked();
-    width: 32px; height: 32px; border-radius: 7px;
-    background: ta.has-hover ? root.hover-bg : transparent;
-    animate background { duration: 120ms; }
-    Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-        width: 15px; height: 15px; source: root.icon; colorize: ta.has-hover ? Theme.ink : Theme.ink-2; }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
-}
-
-component SectionHeader inherits HorizontalLayout {
-    in property <string> text;
-    in property <color> tint;
-    spacing: 9px;
-    Rectangle { width: 8px; height: 8px; y: (parent.height - self.height) / 2; border-radius: 4px; background: root.tint; }
-    Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 600; vertical-alignment: center; }
-}
-
-component PrimaryButton inherits Rectangle {
-    in property <string> text;
-    callback clicked();
-    height: 38px;
-    background: ta.has-hover ? Theme.accent : Theme.accent;
-    border-radius: 8px;
-    animate background { duration: 120ms; }
-    HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: Theme.on-accent; font-size: 18px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
-}
-
-component GhostButton inherits Rectangle {
-    in property <string> text;
-    callback clicked();
-    height: 38px; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
-    background: ta.has-hover ? Theme.panel : transparent;
-    animate background { duration: 120ms; }
-    HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
-}
-
-component AddButton inherits Rectangle {
-    in property <string> text;
-    callback clicked();
-    height: 42px; border-radius: 8px; border-width: 1px; border-color: Theme.hair;
-    background: ta.has-hover ? Theme.panel : Theme.panel;
-    animate background { duration: 120ms; }
-    // No icon — the btn-add-* translations already include the "+" prefix.
-    HorizontalLayout { alignment: center;
-        Text { text: root.text; color: Theme.ink; font-size: 18px; font-weight: 500; vertical-alignment: center; } }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
-}
-
-component DropDown inherits Rectangle {
-    in property <[string]> model;
-    in-out property <int> current: -1;
-    in property <string> placeholder;
-    callback picked(int);
-    height: 40px;
-    background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
-    property <string> label: root.current >= 0 && root.current < root.model.length ? root.model[root.current] : root.placeholder;
-    HorizontalLayout { padding-left: 12px; padding-right: 12px; spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.label; color: root.current >= 0 ? Theme.ink : Theme.ink-3; font-size: 18px; vertical-alignment: center; overflow: elide; }
-        Image { width: 11px; height: 11px; y: (parent.height - self.height) / 2;
-            source: @image-url("../../assets/arrow-down.svg"); colorize: Theme.ink-3; } }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { pop.show(); } }
-    pop := PopupWindow {
-        x: 0; y: parent.height + 4px; width: parent.width;
-        Rectangle {
-            background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair;
-            VerticalLayout {
-                padding: 4px;
-                for opt[i] in root.model : Rectangle {
-                    height: 34px; border-radius: 6px;
-                    background: oi.has-hover ? Theme.panel-hi : transparent;
-                    HorizontalLayout { padding-left: 10px; padding-right: 10px;
-                        Text { text: opt; color: Theme.ink; font-size: 18px; vertical-alignment: center; overflow: elide; } }
-                    oi := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.picked(i); } }
-                }
-            }
-        }
-    }
-}
-
-// Segmented control for a small fixed option set (mode).
-component Segmented inherits Rectangle {
-    in property <[string]> options;
-    in-out property <int> current: 0;
-    callback changed(int);
-    height: 40px;
-    background: Theme.panel-lo; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
-    HorizontalLayout { padding: 3px; spacing: 3px;
-        for opt[i] in root.options : Rectangle {
-            horizontal-stretch: 1;
-            background: i == root.current ? Theme.accent : (seg.has-hover ? Theme.panel : transparent);
-            border-radius: 6px;
-            animate background { duration: 100ms; }
-            Text { text: opt; color: i == root.current ? Theme.on-accent : Theme.ink-2; font-size: 18px;
-                font-weight: i == root.current ? 600 : 500; horizontal-alignment: center; vertical-alignment: center; }
-            seg := TouchArea { mouse-cursor: pointer; clicked => { root.current = i; root.changed(i); } }
-        }
-    }
-}
-
-component FieldRow inherits HorizontalLayout {
-    in property <string> label;
-    // A tall field (the channel list) reads better with its label at the top;
-    // one-line fields keep it centred against the control.
-    in property <bool> label-top: false;
-    spacing: 16px;
-    // Label column grows with the translated label (e.g. "Périphérique").
-    Rectangle {
-        width: max(92px, field-label.preferred-width);
-        VerticalLayout {
-            alignment: root.label-top ? start : center;
-            padding-top: root.label-top ? 9px : 0px;
-            field-label := Text { text: root.label; color: Theme.ink-2; font-size: 18px; }
-        }
-    }
+// A captioned field of the add form.
+component Field inherits VerticalLayout {
+    in property <string> caption;
+    spacing: 6px;
+    FieldCaption { text: root.caption; }
     @children
-}
-
-// Existing endpoint row: device + colored badges + edit + delete.
-component EndpointRow inherits Rectangle {
-    in property <IoEndpointModel> endpoint;
-    callback edit-requested();
-    callback remove-requested();
-    property <color> mode-fg: root.endpoint.mode == "mono" ? Theme.ok : root.endpoint.mode == "stereo" ? Theme.out : Theme.warn;
-    property <color> mode-bg: root.endpoint.mode == "mono" ? Theme.ok-soft : root.endpoint.mode == "stereo" ? Theme.out.with-alpha(0.18) : Theme.warn-soft;
-    height: 46px;
-    HorizontalLayout {
-        spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.endpoint.device_label; color: Theme.ink; font-size: 18px; font-weight: 500; vertical-alignment: center; overflow: elide; }
-        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.channels_label; fg: Theme.in; bg: Theme.in.with-alpha(0.18); } } }
-        Rectangle { VerticalLayout { alignment: center; Badge { text: root.endpoint.mode; fg: root.mode-fg; bg: root.mode-bg; } } }
-        Rectangle { width: 4px; }
-        IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => { root.edit-requested(); } }
-        IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: Theme.bad-soft; clicked => { root.remove-requested(); } }
-    }
 }
 
 export component SectionSystemIoBindings inherits Rectangle {
@@ -192,233 +64,321 @@ export component SectionSystemIoBindings inherits Rectangle {
     background: transparent;
 
     VerticalLayout {
-        spacing: 22px;
+        spacing: 12px;
+        alignment: start;
 
-        // Header row (the page title "Ligações de E/S" is rendered by the
-        // settings wrapper; here: helper + primary action).
+        // Helper + primary action (the page title is the shell's heading).
         HorizontalLayout {
             spacing: 16px;
             Text {
                 horizontal-stretch: 1;
                 text: @tr("help-io-bindings");
-                color: Theme.ink-2; font-size: 18px; vertical-alignment: center; wrap: word-wrap;
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                vertical-alignment: center;
+                wrap: word-wrap;
             }
-            Rectangle { width: new-binding-btn.preferred-width; VerticalLayout { alignment: center;
-                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); } } } }
+            VerticalLayout {
+                alignment: center;
+                new-binding-btn := FormButton {
+                    icon: @image-url("../../assets/plus.svg");
+                    label: @tr("btn-new-binding");
+                    clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); }
+                }
+            }
         }
 
         if SettingsBridge.io-binding-error != "" : Rectangle {
-            height: 40px; background: Theme.bad-soft; border-radius: 8px; border-width: 1px; border-color: Theme.bad;
-            HorizontalLayout { padding-left: 14px; padding-right: 8px; spacing: 8px;
-                Text { horizontal-stretch: 1; text: SettingsBridge.io-binding-error; color: Theme.bad; font-size: 18px; vertical-alignment: center; overflow: elide; }
-                IconBtn { icon: @image-url("../../assets/close.svg"); clicked => { SettingsBridge.io-binding-error = ""; } } }
+            height: 40px;
+            border-radius: 4px;
+            background: Theme.bad-soft;
+            border-width: 1px;
+            border-color: Theme.bad;
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 6px;
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: SettingsBridge.io-binding-error;
+                    color: Theme.bad;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    RowIconButton {
+                        icon: @image-url("../../assets/close.svg");
+                        label: @tr("btn-close");
+                        clicked => { SettingsBridge.io-binding-error = ""; }
+                    }
+                }
+            }
         }
 
         if SettingsBridge.io-bindings.length == 0 : Rectangle {
             // Grows with the (wrapped) hint instead of clipping it.
-            min-height: 96px; background: Theme.panel-lo; border-radius: 10px; border-width: 1px; border-color: Theme.hair-2;
-            VerticalLayout { alignment: center; spacing: 4px; padding: 16px;
-                Text { text: @tr("empty-no-bindings"); color: Theme.ink; font-size: 18px; font-weight: 600; horizontal-alignment: center; wrap: word-wrap; }
-                Text { text: @tr("empty-no-bindings-hint"); color: Theme.ink-3; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; } }
+            min-height: 96px;
+            border-radius: 5px;
+            background: Theme.panel-hi;
+            border-width: 1px;
+            border-color: Theme.hair;
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                padding: 16px;
+                Text { text: @tr("empty-no-bindings"); color: Theme.ink; font-size: Theme.min-font; font-weight: 600; horizontal-alignment: center; wrap: word-wrap; }
+                Text { text: @tr("empty-no-bindings-hint"); color: Theme.ink-3; font-size: Theme.min-font; horizontal-alignment: center; wrap: word-wrap; }
+            }
         }
 
         for binding[bi] in SettingsBridge.io-bindings : Rectangle {
-            background: Theme.panel-lo; border-radius: 10px; border-width: 1px; border-color: Theme.hair-2;
-            VerticalLayout {
-                padding: 24px; spacing: 18px;
+            border-radius: 5px;
+            clip: true;
+            background: Theme.panel-hi;
+            border-width: 1px;
+            border-color: Theme.hair;
 
-                // Binding header — display name, or inline editor while renaming.
-                HorizontalLayout { spacing: 8px;
-                    // Chevron — points down when expanded, right when collapsed. Toggles.
+            VerticalLayout {
+                // ── Header — name, or the inline editor while renaming ──
+                HorizontalLayout {
+                    min-height: 48px;
+                    padding-left: 12px;
+                    padding-right: 8px;
+                    spacing: 10px;
+
+                    // Chevron — points down when expanded, right when collapsed.
                     if root.renaming-binding-id != binding.id : Rectangle {
-                        width: 22px; height: 30px;
+                        width: 16px;
                         Image {
                             x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-                            width: 12px; height: 12px;
-                            source: @image-url("../../assets/arrow-down.svg");
-                            colorize: chev-ta.has-hover ? Theme.ink : Theme.ink-2;
+                            width: 11px; height: 11px;
+                            source: @image-url("../../assets/chevron-down.svg");
+                            colorize: chev-ta.has-hover ? Theme.ink : Theme.ink-3;
                             transform-rotation: root.expanded-binding-id == binding.id ? 0deg : -90deg;
                             animate transform-rotation { duration: 150ms; easing: ease-in-out; }
                         }
                         chev-ta := TouchArea { mouse-cursor: pointer; clicked => {
                             root.expanded-binding-id = root.expanded-binding-id == binding.id ? "" : binding.id; } }
                     }
-                    // Name + (collapsed) In/Out counts. Clicking the row toggles expand.
+                    // Name + In/Out counts. Clicking the row toggles expand.
                     if root.renaming-binding-id != binding.id : Rectangle {
-                        horizontal-stretch: 1; height: 30px;
-                        HorizontalLayout { spacing: 8px;
-                            Text { horizontal-stretch: 1; text: binding.name; color: Theme.ink; font-size: 18px;
-                                font-weight: 600; vertical-alignment: center; overflow: elide; }
-                            if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
-                                Badge { text: "\{binding.inputs.length}"; fg: Theme.in; bg: Theme.in.with-alpha(0.18); } } }
-                            if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
-                                Badge { text: "\{binding.outputs.length}"; fg: Theme.out; bg: Theme.out.with-alpha(0.18); } } }
+                        horizontal-stretch: 1;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                horizontal-stretch: 1;
+                                text: binding.name;
+                                color: Theme.ink;
+                                font-family: "Bebas Neue";
+                                font-size: 24px;
+                                letter-spacing: 0.05 * 24px;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            VerticalLayout { alignment: center;
+                                TagPill { text: @tr("label-count-in {}", binding.inputs.length); tone: Theme.in; } }
+                            VerticalLayout { alignment: center;
+                                TagPill { text: @tr("label-count-out {}", binding.outputs.length); tone: Theme.out; } }
                         }
                         name-ta := TouchArea { mouse-cursor: pointer; clicked => {
                             root.expanded-binding-id = root.expanded-binding-id == binding.id ? "" : binding.id; } }
                     }
-                    if root.renaming-binding-id == binding.id : Rectangle {
-                        horizontal-stretch: 1; height: 36px;
-                        background: Theme.well; border-radius: 8px; border-width: 1px;
-                        border-color: name-input.has-focus ? Theme.accent : Theme.field-line;
-                        // Auto-focus AFTER first layout. Calling focus() from the
-                        // TextInput's init (while this conditional is still being
-                        // laid out, mid mouse-event) recurses on item_geometry and
-                        // aborts the process. A one-shot Timer defers it safely.
-                        focus-timer := Timer {
-                            interval: 1ms;
-                            triggered => { name-input.focus(); name-input.select-all(); focus-timer.running = false; }
-                        }
-                        HorizontalLayout { padding-left: 12px; padding-right: 12px;
-                            name-input := TextInput {
-                                text <=> root.rename-draft;
-                                color: Theme.ink; font-size: 18px; font-weight: 600;
-                                vertical-alignment: center; single-line: true;
-                                // Commit on Enter and on losing focus (blur).
-                                // Leave edit mode BEFORE dispatching: rename
-                                // re-projects the list and rebuilds this repeater
-                                // synchronously, tearing this field down — a reset
-                                // placed after the call is lost and the row stays
-                                // stuck in edit mode (looks like "nothing happened").
-                                accepted => {
-                                    root.renaming-binding-id = "";
-                                    SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
-                                }
-                                changed has-focus => {
-                                    if !self.has-focus && root.renaming-binding-id == binding.id {
+                    if root.renaming-binding-id == binding.id : VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        Rectangle {
+                            height: 36px;
+                            border-radius: 3px;
+                            background: Theme.field;
+                            border-width: name-input.has-focus ? 2px : 1px;
+                            border-color: name-input.has-focus ? Theme.accent : Theme.field-line;
+                            // Auto-focus AFTER first layout. Calling focus() from the
+                            // TextInput's init (while this conditional is still being
+                            // laid out, mid mouse-event) recurses on item_geometry and
+                            // aborts the process. A one-shot Timer defers it safely.
+                            focus-timer := Timer {
+                                interval: 1ms;
+                                triggered => { name-input.focus(); name-input.select-all(); focus-timer.running = false; }
+                            }
+                            HorizontalLayout { padding-left: 10px; padding-right: 10px;
+                                name-input := TextInput {
+                                    text <=> root.rename-draft;
+                                    color: Theme.ink; font-size: Theme.min-font; font-weight: 600;
+                                    vertical-alignment: center; single-line: true;
+                                    // Commit on Enter and on losing focus (blur).
+                                    // Leave edit mode BEFORE dispatching: rename
+                                    // re-projects the list and rebuilds this repeater
+                                    // synchronously, tearing this field down — a reset
+                                    // placed after the call is lost and the row stays
+                                    // stuck in edit mode (looks like "nothing happened").
+                                    accepted => {
                                         root.renaming-binding-id = "";
                                         SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
+                                    }
+                                    changed has-focus => {
+                                        if !self.has-focus && root.renaming-binding-id == binding.id {
+                                            root.renaming-binding-id = "";
+                                            SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    // Resting actions: edit + delete. Hidden while editing the
+                    // Resting actions: rename + delete. Hidden while editing the
                     // name so the only actions are confirm / cancel.
-                    if root.renaming-binding-id != binding.id : rename-btn := IconBtn { icon: @image-url("../../assets/pencil.svg"); clicked => {
-                        root.rename-draft = binding.name;
-                        root.renaming-binding-id = binding.id;
-                    } }
-                    if root.renaming-binding-id != binding.id : delete-btn := IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: Theme.bad-soft; clicked => {
-                        let err = SettingsBridge.delete-io-binding(binding.id); if err != "" { SettingsBridge.io-binding-error = err; } } }
+                    if root.renaming-binding-id != binding.id : VerticalLayout { alignment: center;
+                        rename-btn := RowIconButton { icon: @image-url("../../assets/pencil.svg"); label: @tr("btn-edit"); clicked => {
+                            root.rename-draft = binding.name;
+                            root.renaming-binding-id = binding.id;
+                        } } }
+                    if root.renaming-binding-id != binding.id : VerticalLayout { alignment: center;
+                        delete-btn := RowIconButton { icon: @image-url("../../assets/trash.svg"); label: @tr("btn-delete"); danger: true; clicked => {
+                            let err = SettingsBridge.delete-io-binding(binding.id); if err != "" { SettingsBridge.io-binding-error = err; } } } }
                     // Editing actions: confirm commits the rename, cancel discards.
-                    if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: Theme.ok-soft; clicked => {
-                        // Reset before dispatch — see the accepted/blur note above.
-                        root.renaming-binding-id = "";
-                        SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
-                    } }
-                    if root.renaming-binding-id == binding.id : IconBtn { icon: @image-url("../../assets/close.svg"); clicked => {
-                        root.renaming-binding-id = "";
-                    } }
+                    if root.renaming-binding-id == binding.id : VerticalLayout { alignment: center;
+                        confirm-rename-btn := RowIconButton { icon: @image-url("../../assets/check.svg"); label: @tr("btn-save"); clicked => {
+                            // Reset before dispatch — see the accepted/blur note above.
+                            root.renaming-binding-id = "";
+                            SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
+                        } } }
+                    if root.renaming-binding-id == binding.id : VerticalLayout { alignment: center;
+                        RowIconButton { icon: @image-url("../../assets/close.svg"); label: @tr("btn-cancel"); clicked => {
+                            root.renaming-binding-id = "";
+                        } } }
                 }
 
-                // Endpoints — shown only when this binding is expanded (accordion #716).
-                if root.expanded-binding-id == binding.id : VerticalLayout {
-                    spacing: 18px;
+                // ── Body — shown only when expanded (accordion #716) ──
+                if root.expanded-binding-id == binding.id : Rectangle {
+                    min-height: bb.preferred-height;
 
-                // ── Entradas ──
-                SectionHeader { text: @tr("label-group-inputs"); tint: Theme.in; }
-                if binding.inputs.length == 0 : Text { text: @tr("empty-no-input-endpoints"); color: Theme.ink-3; font-size: 18px; }
-                for ep[ii] in binding.inputs : EndpointRow {
-                    endpoint: ep;
-                    edit-requested => {
-                        SettingsBridge.edit-endpoint(binding.id, ep.name, true);
-                        root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
-                        root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
-                        root.editing-endpoint = ep.name;
-                        root.active-add = binding.id + "|in";
-                    }
-                    remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, true); }
-                }
-                if root.active-add != (binding.id + "|in") : add-input-btn := AddButton {
-                    text: @tr("btn-add-input");
-                    clicked => { root.active-add = binding.id + "|in"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
-                }
-                if root.active-add == (binding.id + "|in") : Rectangle {
-                    background: Theme.well; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
-                    VerticalLayout { padding: 16px; spacing: 14px;
-                        FieldRow { label: @tr("label-endpoint-device");
-                            DropDown { model: SettingsBridge.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
-                                picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, true, SettingsBridge.input-device-ids[i]); } } }
-                        FieldRow { label: @tr("label-endpoint-mode");
-                            Segmented { options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current <=> root.add-mode-index; } }
-                        FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
-                            ChannelPicker {
-                                channels: SettingsBridge.io-binding-channel-options;
-                                single-select: root.add-mode-index == 0;
-                                empty-hint: @tr("hint-channels-pick-device");
-                                toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
-                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
-                        HorizontalLayout { spacing: 8px;
-                            Rectangle { horizontal-stretch: 1; }
-                            GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                            add-input-submit-btn := PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
-                                // Close the form BEFORE dispatching. The handler
-                                // re-projects the binding list, which rebuilds this
-                                // repeater synchronously and tears this button down
-                                // mid-handler — so a state reset placed AFTER the
-                                // call never runs and the form stays stuck open.
-                                // Resetting active-add first means the rebuild
-                                // already sees the closed state. (editing-endpoint
-                                // is still needed by the call below; it's reset on
-                                // the next form open by add-input-btn / the pencil.)
-                                root.active-add = "";
-                                SettingsBridge.add-input-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.input-device-ids[root.add-device-index] : "",
-                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono", root.editing-endpoint); } } }
-                    }
-                }
+                    Rectangle { x: 0; y: 0; width: parent.width; height: 1px; background: Theme.hair-2; }
 
-                Hairline {}
+                    bb := VerticalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        padding-top: 12px;
+                        padding-bottom: 16px;
+                        spacing: 10px;
 
-                // ── Saídas ──
-                SectionHeader { text: @tr("label-group-outputs"); tint: Theme.out; }
-                if binding.outputs.length == 0 : Text { text: @tr("empty-no-output-endpoints"); color: Theme.ink-3; font-size: 18px; }
-                for ep[oi] in binding.outputs : EndpointRow {
-                    endpoint: ep;
-                    edit-requested => {
-                        SettingsBridge.edit-endpoint(binding.id, ep.name, false);
-                        root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
-                        root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
-                        root.editing-endpoint = ep.name;
-                        root.active-add = binding.id + "|out";
+                        // ── Inputs ──
+                        HorizontalLayout { alignment: start;
+                            TagPill { text: @tr("label-group-inputs"); tone: Theme.in; } }
+                        if binding.inputs.length == 0 : Text { text: @tr("empty-no-input-endpoints"); color: Theme.ink-3; font-size: Theme.min-font; }
+                        if binding.inputs.length > 0 : ListBox {
+                            for ep[ii] in binding.inputs : IoEndpointRow {
+                                divided: ii > 0;
+                                endpoint: ep;
+                                edit-requested => {
+                                    SettingsBridge.edit-endpoint(binding.id, ep.name, true);
+                                    root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
+                                    root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
+                                    root.editing-endpoint = ep.name;
+                                    root.active-add = binding.id + "|in";
+                                }
+                                remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, true); }
+                            }
+                        }
+                        if root.active-add != (binding.id + "|in") : HorizontalLayout { alignment: start;
+                            add-input-btn := FormButton {
+                                kind: FormButtonKind.ghost;
+                                small: true;
+                                label: @tr("btn-add-input");
+                                clicked => { root.active-add = binding.id + "|in"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
+                            } }
+                        if root.active-add == (binding.id + "|in") : AddPanel {
+                            HorizontalLayout { spacing: 12px;
+                                Field { caption: @tr("label-endpoint-device"); horizontal-stretch: 1;
+                                    DropSelect { model: SettingsBridge.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                        picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, true, SettingsBridge.input-device-ids[i]); } } }
+                                Field { caption: @tr("label-endpoint-mode"); horizontal-stretch: 0;
+                                    SegControl { height: 36px; label: @tr("label-endpoint-mode");
+                                        options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current: root.add-mode-index;
+                                        picked(i) => { root.add-mode-index = i; } } }
+                            }
+                            Field { caption: @tr("label-endpoint-channels");
+                                ChannelPicker {
+                                    channels: SettingsBridge.io-binding-channel-options;
+                                    single-select: root.add-mode-index == 0;
+                                    empty-hint: @tr("hint-channels-pick-device");
+                                    toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
+                                        root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
+                            HorizontalLayout { spacing: 8px; alignment: end;
+                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-input-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                    // Close the form BEFORE dispatching. The handler
+                                    // re-projects the binding list, which rebuilds this
+                                    // repeater synchronously and tears this button down
+                                    // mid-handler — so a state reset placed AFTER the
+                                    // call never runs and the form stays stuck open.
+                                    // (editing-endpoint is still needed by the call
+                                    // below; it's reset on the next form open.)
+                                    root.active-add = "";
+                                    SettingsBridge.add-input-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.input-device-ids[root.add-device-index] : "",
+                                        root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono", root.editing-endpoint); } }
+                            }
+                        }
+
+                        Rectangle { height: 6px; }
+
+                        // ── Outputs ──
+                        HorizontalLayout { alignment: start;
+                            TagPill { text: @tr("label-group-outputs"); tone: Theme.out; } }
+                        if binding.outputs.length == 0 : Text { text: @tr("empty-no-output-endpoints"); color: Theme.ink-3; font-size: Theme.min-font; }
+                        if binding.outputs.length > 0 : ListBox {
+                            for ep[oi] in binding.outputs : IoEndpointRow {
+                                divided: oi > 0;
+                                endpoint: ep;
+                                edit-requested => {
+                                    SettingsBridge.edit-endpoint(binding.id, ep.name, false);
+                                    root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
+                                    root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
+                                    root.editing-endpoint = ep.name;
+                                    root.active-add = binding.id + "|out";
+                                }
+                                remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, false); }
+                            }
+                        }
+                        if root.active-add != (binding.id + "|out") : HorizontalLayout { alignment: start;
+                            FormButton {
+                                kind: FormButtonKind.ghost;
+                                small: true;
+                                label: @tr("btn-add-output");
+                                clicked => { root.active-add = binding.id + "|out"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
+                            } }
+                        if root.active-add == (binding.id + "|out") : AddPanel {
+                            HorizontalLayout { spacing: 12px;
+                                Field { caption: @tr("label-endpoint-device"); horizontal-stretch: 1;
+                                    DropSelect { model: SettingsBridge.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                        picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, false, SettingsBridge.output-device-ids[i]); } } }
+                                Field { caption: @tr("label-endpoint-mode"); horizontal-stretch: 0;
+                                    SegControl { height: 36px; label: @tr("label-endpoint-mode");
+                                        options: [@tr("mode-mono"), @tr("mode-stereo")]; current: root.add-mode-index;
+                                        picked(i) => { root.add-mode-index = i; } } }
+                            }
+                            Field { caption: @tr("label-endpoint-channels");
+                                ChannelPicker {
+                                    channels: SettingsBridge.io-binding-channel-options;
+                                    single-select: root.add-mode-index == 0;
+                                    empty-hint: @tr("hint-channels-pick-device");
+                                    toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
+                                        root.add-mode-index == 0 ? "mono" : "stereo"); } } }
+                            HorizontalLayout { spacing: 8px; alignment: end;
+                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-output-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                    // Close the form BEFORE dispatching — see the
+                                    // add-input submit note: reproject rebuilds this
+                                    // repeater and a reset after the call is lost.
+                                    root.active-add = "";
+                                    SettingsBridge.add-output-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.output-device-ids[root.add-device-index] : "",
+                                        root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint); } }
+                            }
+                        }
                     }
-                    remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, false); }
-                }
-                if root.active-add != (binding.id + "|out") : AddButton {
-                    text: @tr("btn-add-output");
-                    clicked => { root.active-add = binding.id + "|out"; root.add-device-index = -1; root.add-mode-index = 0; root.editing-endpoint = ""; }
-                }
-                if root.active-add == (binding.id + "|out") : Rectangle {
-                    background: Theme.well; border-radius: 8px; border-width: 1px; border-color: Theme.hair-2;
-                    VerticalLayout { padding: 16px; spacing: 14px;
-                        FieldRow { label: @tr("label-endpoint-device");
-                            DropDown { model: SettingsBridge.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
-                                picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, false, SettingsBridge.output-device-ids[i]); } } }
-                        FieldRow { label: @tr("label-endpoint-mode");
-                            Segmented { options: [@tr("mode-mono"), @tr("mode-stereo")]; current <=> root.add-mode-index; } }
-                        FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
-                            ChannelPicker {
-                                channels: SettingsBridge.io-binding-channel-options;
-                                single-select: root.add-mode-index == 0;
-                                empty-hint: @tr("hint-channels-pick-device");
-                                toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
-                                    root.add-mode-index == 0 ? "mono" : "stereo"); } } }
-                        HorizontalLayout { spacing: 8px;
-                            Rectangle { horizontal-stretch: 1; }
-                            GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                            add-output-submit-btn := PrimaryButton { text: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
-                                // Close the form BEFORE dispatching — see the
-                                // add-input submit note: reproject rebuilds this
-                                // repeater and a reset after the call is lost.
-                                root.active-add = "";
-                                SettingsBridge.add-output-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.output-device-ids[root.add-device-index] : "",
-                                    root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint); } } }
-                    }
-                }
                 }
             }
         }
-
-        Rectangle { height: 4px; }
     }
 }

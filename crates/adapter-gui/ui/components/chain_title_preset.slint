@@ -9,29 +9,29 @@
 import { Theme } from "../theme.slint";
 import { ChainRigNav } from "../models.slint";
 import { PresetSelect } from "preset_select.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
 
-// Small square icon button (press to fire). Mirrors the chain action
-// icons; own copy so this file has no chain_row dependency.
+// Small square icon button (press to fire), drawn like every chain
+// header icon (HeaderIconStyle).
 component IconButton inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
     in property <string> a11y;
+    in property <bool> on-chrome: false;
     callback clicked();
-    width: 30px;
-    height: 30px;
-    border-radius: 5px;
-    background: root.active
-        ? Theme.palette.accent-end
-        : (ta.has-hover ? Theme.palette.card-secondary : transparent);
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: root.on-chrome ? HeaderIconStyle.chrome-fill(ta.has-hover) : HeaderIconStyle.fill(ta.has-hover);
     animate background { duration: 150ms; }
     Image {
-        x: 6px;
-        y: 6px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: root.icon;
         image-fit: contain;
-        colorize: root.active ? Theme.ink : (ta.has-hover ? Theme.ink : Theme.ink-2);
+        colorize: root.on-chrome ? HeaderIconStyle.chrome-tint(root.active, ta.has-hover) : HeaderIconStyle.tint(root.active, ta.has-hover);
     }
     ta := TouchArea {
         mouse-cursor: pointer;
@@ -43,26 +43,27 @@ component IconButton inherits Rectangle {
     accessible-label: root.a11y;
 }
 
-// One compact scene number button. Active = filled accent; otherwise a
-// thin outline. Only the number — no dropdown.
+// One compact scene number button: a field, the active one filled with the
+// accent. Only the number — no dropdown.
 component SceneBtn inherits Rectangle {
     in property <int> idx;
     in property <bool> active;
+    in property <bool> on-chrome: false;
     callback clicked();
     width: 30px;
     height: 30px;
-    border-radius: 5px;
-    background: root.active
-        ? Theme.palette.accent-end
-        : (sta.has-hover ? Theme.palette.card-secondary : transparent);
+    border-radius: 3px;
+    background: root.active ? Theme.accent : root.on-chrome ? Theme.chrome-field : Theme.field;
     border-width: root.active ? 0px : 1px;
-    border-color: Theme.hair;
+    border-color: root.on-chrome
+        ? (sta.has-hover ? Theme.chrome-fg-2 : Theme.chrome-field-line)
+        : (sta.has-hover ? Theme.ink-3 : Theme.field-line);
     animate background { duration: 120ms; }
     Text {
         width: parent.width;
         height: parent.height;
         text: root.idx;
-        color: root.active ? Theme.ink : Theme.ink-2;
+        color: root.active ? Theme.on-accent : root.on-chrome ? Theme.chrome-fg : Theme.ink-2;
         font-size: Theme.min-font;
         font-weight: 800;
         horizontal-alignment: center;
@@ -84,18 +85,20 @@ component SceneBtn inherits Rectangle {
 component SceneBar inherits HorizontalLayout {
     in property <int> scene;
     in property <int> scene-count;
+    in property <bool> on-chrome: false;
     callback picked(int);
     spacing: 4px;
 
-    if root.scene-count >= 1 : SceneBtn { idx: 1; active: root.scene == 1; clicked => { root.picked(1); } }
-    if root.scene-count >= 2 : SceneBtn { idx: 2; active: root.scene == 2; clicked => { root.picked(2); } }
-    if root.scene-count >= 3 : SceneBtn { idx: 3; active: root.scene == 3; clicked => { root.picked(3); } }
-    if root.scene-count >= 4 : SceneBtn { idx: 4; active: root.scene == 4; clicked => { root.picked(4); } }
-    if root.scene-count >= 5 : SceneBtn { idx: 5; active: root.scene == 5; clicked => { root.picked(5); } }
-    if root.scene-count >= 6 : SceneBtn { idx: 6; active: root.scene == 6; clicked => { root.picked(6); } }
-    if root.scene-count >= 7 : SceneBtn { idx: 7; active: root.scene == 7; clicked => { root.picked(7); } }
-    if root.scene-count >= 8 : SceneBtn { idx: 8; active: root.scene == 8; clicked => { root.picked(8); } }
+    if root.scene-count >= 1 : SceneBtn { idx: 1; on-chrome: root.on-chrome; active: root.scene == 1; clicked => { root.picked(1); } }
+    if root.scene-count >= 2 : SceneBtn { idx: 2; on-chrome: root.on-chrome; active: root.scene == 2; clicked => { root.picked(2); } }
+    if root.scene-count >= 3 : SceneBtn { idx: 3; on-chrome: root.on-chrome; active: root.scene == 3; clicked => { root.picked(3); } }
+    if root.scene-count >= 4 : SceneBtn { idx: 4; on-chrome: root.on-chrome; active: root.scene == 4; clicked => { root.picked(4); } }
+    if root.scene-count >= 5 : SceneBtn { idx: 5; on-chrome: root.on-chrome; active: root.scene == 5; clicked => { root.picked(5); } }
+    if root.scene-count >= 6 : SceneBtn { idx: 6; on-chrome: root.on-chrome; active: root.scene == 6; clicked => { root.picked(6); } }
+    if root.scene-count >= 7 : SceneBtn { idx: 7; on-chrome: root.on-chrome; active: root.scene == 7; clicked => { root.picked(7); } }
+    if root.scene-count >= 8 : SceneBtn { idx: 8; on-chrome: root.on-chrome; active: root.scene == 8; clicked => { root.picked(8); } }
     if root.scene-count < 8 : IconButton {
+        on-chrome: root.on-chrome;
         icon: @image-url("../assets/plus.svg");
         a11y: @tr("Add scene");
         clicked => {
@@ -105,6 +108,7 @@ component SceneBar inherits HorizontalLayout {
     // Remove the last scene (stack pop). Hidden when only scene 1
     // exists — a preset must keep at least one scene.
     if root.scene-count > 1 : IconButton {
+        on-chrome: root.on-chrome;
         icon: @image-url("../assets/trash.svg");
         a11y: @tr("Remove last scene");
         clicked => {
@@ -117,6 +121,11 @@ export component ChainTitlePreset inherits Rectangle {
     in property <string> title;
     in property <ChainRigNav> nav;
     in property <bool> fullscreen: false;
+    // A switched-off chain prints its name in the quiet ink.
+    in property <bool> enabled: true;
+    // #398: sits on the dark chrome bar (the compact view's header): the
+    // title, icons, preset and scenes read chrome-fg on Theme.chrome-field.
+    in property <bool> on-chrome: false;
     callback open-compact();
     // preset-picked(slot): slot >= 0 selects that combo entry; the
     // sentinel -1 means "add a new preset". scene-picked(s): s >= 1
@@ -157,16 +166,19 @@ export component ChainTitlePreset inherits Rectangle {
         // cluster in a narrow window (#1007).
         Rectangle {
             min-width: 96px;
-            preferred-width: 220px;
-            max-width: 220px;
+            preferred-width: title-text.preferred-width + 8px;
+            max-width: 320px;
             horizontal-stretch: 1;
-            Text {
+            title-text := Text {
                 width: parent.width;
                 height: parent.height;
                 text: root.title;
-                color: title-ta.has-hover ? Theme.ink : Theme.ink;
-                font-size: Theme.min-font;
-                font-weight: 600;
+                color: root.on-chrome
+                    ? (!root.enabled ? Theme.chrome-fg-2 : Theme.chrome-fg)
+                    : (!root.enabled ? Theme.ink-3 : title-ta.has-hover ? Theme.accent : Theme.ink);
+                font-family: "Bebas Neue";
+                font-size: 28px;
+                letter-spacing: 1px;
                 vertical-alignment: center;
                 overflow: elide;
             }
@@ -186,6 +198,7 @@ export component ChainTitlePreset inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconButton {
+                on-chrome: root.on-chrome;
                 icon: @image-url("../assets/open-file.svg");
                 a11y: @tr("tooltip-open-preset");
                 clicked => {
@@ -196,6 +209,7 @@ export component ChainTitlePreset inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconButton {
+                on-chrome: root.on-chrome;
                 icon: @image-url("../assets/save.svg");
                 a11y: @tr("tooltip-save-preset");
                 clicked => {
@@ -206,6 +220,7 @@ export component ChainTitlePreset inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconButton {
+                on-chrome: root.on-chrome;
                 icon: @image-url("../assets/plus.svg");
                 a11y: @tr("Add preset");
                 clicked => {
@@ -216,6 +231,7 @@ export component ChainTitlePreset inherits Rectangle {
         if root.nav.preset-labels.length > 0 : VerticalLayout {
             alignment: center;
             IconButton {
+                on-chrome: root.on-chrome;
                 icon: @image-url("../assets/pencil.svg");
                 a11y: @tr("Rename preset");
                 clicked => {
@@ -227,6 +243,7 @@ export component ChainTitlePreset inherits Rectangle {
         if root.nav.preset-labels.length > 1 : VerticalLayout {
             alignment: center;
             IconButton {
+                on-chrome: root.on-chrome;
                 icon: @image-url("../assets/trash.svg");
                 a11y: @tr("Remove preset");
                 clicked => {
@@ -243,6 +260,7 @@ export component ChainTitlePreset inherits Rectangle {
             preferred-width: 220px;
             max-width: 220px;
             horizontal-stretch: 1;
+            on-chrome: root.on-chrome;
             labels: root.nav.preset-labels;
             active-index: root.nav.active-preset-index;
             picked(i) => {
@@ -255,6 +273,7 @@ export component ChainTitlePreset inherits Rectangle {
         VerticalLayout {
             alignment: center;
             SceneBar {
+                on-chrome: root.on-chrome;
                 scene: root.nav.scene;
                 scene-count: root.nav.scene-count;
                 picked(s) => {

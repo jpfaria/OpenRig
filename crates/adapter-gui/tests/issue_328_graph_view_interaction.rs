@@ -500,6 +500,7 @@ fn canvas_for(
                 from_y,
                 to_x,
                 to_y,
+                path: -1,
             }
         })
         .collect();

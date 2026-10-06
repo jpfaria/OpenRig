@@ -9,6 +9,9 @@ export struct DeviceSelectionItem {
     sample_rate_text: string,
     buffer_size_text: string,
     bit_depth_text: string,
+    // #398: the channel counts the device card shows; 0 when unknown.
+    input_channels: int,
+    output_channels: int,
 }
 
 // Per-row payload for the System / MIDI devices section (#513). The
@@ -395,6 +398,9 @@ export struct CompactBlockItem {
     // chain itself, and how many splits deep it sits (0 on the chain).
     path_label: string,
     path_depth: int,
+    // #398: this row opens a split lane ("PATH A", "MIX"), so its card carries
+    // the lane bar on top; `row_height` already includes it.
+    lane_bar: bool,
 }
 
 export struct RecentProjectItem {
@@ -422,6 +428,10 @@ export struct ChainBindingChoice {
     id: string,
     name: string,
     selected: bool,
+    // #398: the binding's 1-based input / output channels for its pills
+    // ("1", "1,2"); empty when it has none.
+    inputs-label: string,
+    outputs-label: string,
 }
 
 // I/O binding models for the binding editor UI (#716).

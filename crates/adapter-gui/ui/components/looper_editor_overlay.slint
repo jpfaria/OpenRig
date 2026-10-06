@@ -5,11 +5,17 @@
 // never receives clicks), so every button is an in-tree TouchArea the headless
 // interaction test can actuate. Opened from the looper row's edit button, and
 // only while that loop is STOPPED — the store refuses an edit on a live loop.
+//
+// #398: a dark title bar (the take's length beside the title, Close on the
+// right), the waveform on the field, then one row of small buttons — Fit as
+// the primary answer, the region edits, and the transport and history pushed
+// to the right.
 
 import { Theme } from "../theme.slint";
 import { LooperEditor } from "looper_panel_globals.slint";
 import { WaveformView } from "waveform_view.slint";
 import { EditorButton } from "editor_button.slint";
+import { ToolBar } from "tool_bar.slint";
 
 // The action a button asks for, as the host's callback spells it.
 export enum LoopEditKind { trim, crop, cut, fit }
@@ -28,6 +34,7 @@ export component LooperEditorOverlay inherits Rectangle {
     // a take that is sounding, so a live button would only earn a warning.
     private property <bool> can-edit:
         LooperEditor.sel-end - LooperEditor.sel-start > 0.02 && !LooperEditor.playing;
+    private property <length> bar-h: 46px;
 
     x: 0;
     y: 0;
@@ -41,39 +48,38 @@ export component LooperEditorOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         // Widens for longer (translated) button labels, within the window.
-        width: min(root.width - 80px, max(760px, buttons.min-width + 32px));
+        width: min(root.width - 80px, max(760px, buttons.min-width + 36px));
         // Grows with its content (the status line may wrap).
-        height: editor-col.preferred-height;
+        height: root.bar-h + editor-col.preferred-height;
         background: Theme.panel;
-        border-radius: 12px;
+        border-radius: 6px;
         border-width: 1px;
-        border-color: Theme.palette.border-strong;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+        clip: true;
+
+        // Swallows clicks on the card so they never reach the backdrop.
+        TouchArea { }
+
+        // How long the take is sits beside the title, so the drawing is not
+        // the only clue to how much audio an edit reshapes.
+        ToolBar {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            title: @tr("looper-editor-title");
+            sub: LooperEditor.length-label;
+        }
 
         editor-col := VerticalLayout {
+            y: root.bar-h;
+            height: self.preferred-height;
             padding: 16px;
+            padding-top: 14px;
             spacing: 12px;
             alignment: start;
-
-            HorizontalLayout {
-                spacing: 8px;
-
-                Text {
-                    text: @tr("looper-editor-title");
-                    color: Theme.palette.text-primary;
-                    font-size: Theme.min-font;
-                    font-weight: 700;
-                }
-
-                // How long the take is, so the drawing is not the only clue to
-                // how much audio an edit reshapes.
-                Text {
-                    horizontal-alignment: right;
-                    vertical-alignment: center;
-                    text: LooperEditor.length-label;
-                    color: Theme.palette.text-muted;
-                    font-size: Theme.min-font;
-                }
-            }
 
             WaveformView {
                 height: 150px;
@@ -85,12 +91,13 @@ export component LooperEditorOverlay inherits Rectangle {
             }
 
             buttons := HorizontalLayout {
-                spacing: 8px;
+                spacing: 6px;
 
                 // The one-button answer: no selection needed, it finds the
                 // music itself. First, because it is what most takes need.
                 EditorButton {
                     label: @tr("looper-editor-fit");
+                    primary: true;
                     enabled: !LooperEditor.playing;
                     clicked => {
                         root.apply(LooperEditor.chain-index, LooperEditor.uid,
@@ -125,9 +132,12 @@ export component LooperEditorOverlay inherits Rectangle {
                     }
                 }
 
-                Rectangle { min-width: 8px; }
+                Rectangle { min-width: 12px; horizontal-stretch: 1; }
 
                 EditorButton {
+                    icon: LooperEditor.playing
+                        ? @image-url("../assets/stop.svg")
+                        : @image-url("../assets/play.svg");
                     label: LooperEditor.playing
                         ? @tr("looper-editor-stop")
                         : @tr("looper-editor-play");
@@ -136,39 +146,41 @@ export component LooperEditorOverlay inherits Rectangle {
                     }
                 }
 
-                Rectangle { min-width: 8px; }
-
                 EditorButton {
+                    icon: @image-url("../assets/undo.svg");
                     label: @tr("looper-editor-undo");
                     enabled: LooperEditor.can-undo;
                     clicked => { root.undo(LooperEditor.chain-index, LooperEditor.uid); }
                 }
 
                 EditorButton {
+                    icon: @image-url("../assets/redo.svg");
                     label: @tr("looper-editor-redo");
                     enabled: LooperEditor.can-redo;
                     clicked => { root.redo(LooperEditor.chain-index, LooperEditor.uid); }
-                }
-
-                EditorButton {
-                    label: @tr("looper-editor-close");
-                    clicked => { LooperEditor.open = false; }
                 }
             }
 
             // The outcome of the last edit — the answer to "I pressed it and
             // nothing happened".
-            Text {
-                min-height: 22px;
+            if LooperEditor.status-code != 0 : Text {
                 wrap: word-wrap;
                 text: LooperEditor.status-code == 1 ? @tr("looper-editor-no-change")
-                    : LooperEditor.status-code == 2 ? @tr("looper-editor-refused")
-                    : "";
-                color: LooperEditor.status-code == 2
-                    ? Theme.warn
-                    : Theme.palette.text-muted;
+                    : @tr("looper-editor-refused");
+                color: LooperEditor.status-code == 2 ? Theme.warn : Theme.ink-3;
                 font-size: Theme.min-font;
             }
+        }
+
+        // Close lives on the bar but is declared last, so the buttons keep
+        // their order (fit … redo, close) for the interaction tests.
+        close := EditorButton {
+            x: parent.width - 12px - self.width;
+            y: (root.bar-h - self.height) / 2;
+            width: self.min-width;
+            on-bar: true;
+            label: @tr("looper-editor-close");
+            clicked => { LooperEditor.open = false; }
         }
     }
 }

@@ -1,4 +1,6 @@
 // Responsibility: renders the tabs that pick which part the library lists.
+// #398: one closed segmented field, four equal parts, the picked one filled
+// in the accent.
 import { Theme } from "../theme.slint";
 import { PlayerBridge } from "player_globals.slint";
 
@@ -10,10 +12,7 @@ component PlayerCategoryTab inherits Rectangle {
 
     min-width: 0;
     horizontal-stretch: 1;
-    border-radius: 5px;
-    background: root.active ? Theme.warn.with-alpha(0.25) : (ta.has-hover ? Theme.panel-hi : transparent);
-    border-width: 1px;
-    border-color: root.active ? Theme.warn : Theme.hair;
+    background: root.active ? Theme.accent : (ta.has-hover ? Theme.panel-hi : transparent);
 
     Text {
         x: 6px;
@@ -24,10 +23,10 @@ component PlayerCategoryTab inherits Rectangle {
             : root.key == "bass" ? @tr("label-category-bass")
             : root.key == "acoustic" ? @tr("label-category-acoustic")
             : @tr("label-category-other");
-        color: root.active ? Theme.warn : Theme.ink;
+        color: root.active ? Theme.on-accent : Theme.ink-2;
         font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
+        font-size: Theme.min-font;
+        letter-spacing: 0.08 * Theme.min-font;
         overflow: elide;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -41,10 +40,15 @@ component PlayerCategoryTab inherits Rectangle {
 }
 
 export component PlayerCategoryTabs inherits Rectangle {
-    height: 38px;
+    height: 32px;
+    border-radius: 4px;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: Theme.field-line;
+    clip: true;
 
     HorizontalLayout {
-        spacing: 8px;
+        padding: 1px;
         for key in PlayerBridge.categories : PlayerCategoryTab {
             key: key;
             active: key == PlayerBridge.category;

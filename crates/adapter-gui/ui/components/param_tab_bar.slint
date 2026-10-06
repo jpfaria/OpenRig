@@ -3,20 +3,34 @@
 // (VST3 plugins with many params, grouped from the manifest or dynamically).
 // A horizontal Flickable so a plugin with many groups scrolls sideways; plain
 // TouchAreas (no PopupWindow) so the taps always land.
+// #398: quiet text tabs; the active one is ink with an accent underline.
+// `boxed` (the block editor) sets them in a low row with a hairline under it,
+// the active tab lifted to the panel tone. `display` (the mixers) sets the
+// labels in the display face and leaves the active tab on the row.
 import { Theme } from "../theme.slint";
 
 export component ParamTabBar inherits Rectangle {
     in property <[string]> groups;
     in property <int> active: 0;
+    in property <bool> boxed: false;
+    in property <bool> display: false;
     callback select(int);
 
-    background: Theme.well;
+    background: root.boxed ? Theme.panel-lo : transparent;
     clip: true;
     // #787: inside a layout (the compact row's strip) the bar would collapse to
     // zero width — it scrolls its own content, so nothing pushes it open. Its
     // natural width is the tabs it holds; a caller that positions it absolutely
     // (the block editor) still overrides this with an explicit width.
     min-width: min(tabs.preferred-width, 420px);
+
+    // The boxed row's hairline.
+    Rectangle {
+        visible: root.boxed;
+        y: root.height - 1px;
+        height: 1px;
+        background: Theme.hair;
+    }
 
     Flickable {
         width: 100%;
@@ -27,27 +41,36 @@ export component ParamTabBar inherits Rectangle {
         tabs := HorizontalLayout {
             x: 0; y: 0;
             height: root.height;
-            padding-left: 8px;
-            padding-right: 8px;
-            spacing: 4px;
+            padding-left: root.boxed ? 8px : 0px;
+            padding-right: 0px;
+            spacing: root.boxed ? 0px : 12px;
             alignment: start;
 
             for group[i] in root.groups : Rectangle {
                 vertical-stretch: 0;
-                min-width: label.preferred-width + 24px;
-                background: i == root.active
-                    ? Theme.palette.accent-end
-                    : (tab-ta.has-hover ? Theme.panel-hi : transparent);
-                border-radius: 5px;
-                animate background { duration: 120ms; }
+                min-width: label.preferred-width + (root.boxed ? 28px : 4px);
+                background: root.boxed && !root.display && i == root.active ? Theme.panel : transparent;
 
                 label := Text {
                     text: group;
-                    color: i == root.active ? Theme.ink : Theme.ink-2;
-                    font-size: Theme.min-font;
-                    font-weight: i == root.active ? 800 : 600;
+                    color: i == root.active ? Theme.ink
+                        : (tab-ta.has-hover || root.boxed ? Theme.ink-2 : Theme.ink-3);
+                    font-family: root.display ? "Bebas Neue" : "";
+                    font-size: root.display ? 20px : Theme.min-font;
+                    font-weight: root.display ? 400 : 600;
+                    letter-spacing: (root.display ? 0.08 : 0.06) * self.font-size;
                     vertical-alignment: center;
                     horizontal-alignment: center;
+                }
+
+                // The active tab's underline.
+                Rectangle {
+                    visible: i == root.active;
+                    x: 0;
+                    y: parent.height - 2px;
+                    width: parent.width;
+                    height: 1.5px;
+                    background: Theme.accent;
                 }
 
                 tab-ta := TouchArea {

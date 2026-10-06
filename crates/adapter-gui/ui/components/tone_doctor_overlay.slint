@@ -16,8 +16,9 @@ export component ToneDoctorOverlay inherits Rectangle {
     visible: ToneDoctorState.open;
     TouchArea { clicked => { ToneDoctorState.open = false; } }
     if ToneDoctorState.open : ToneDoctorPanel {
-        x: ToneDoctorState.x;
-        y: ToneDoctorState.y;
+        // Its right edge at the icon, kept inside the window.
+        x: Math.max(8px, Math.min(ToneDoctorState.x - self.width, root.width - self.width - 8px));
+        y: Math.max(8px, Math.min(ToneDoctorState.y, root.height - self.height - 8px));
         running: ToneDoctorState.running;
         has-result: ToneDoctorState.has-result;
         symptom-level: ToneDoctorState.symptom-level;

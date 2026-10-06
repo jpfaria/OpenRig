@@ -1281,3 +1281,102 @@ msgstr "Buscar"
 
 msgid "status-drums-no-match"
 msgstr "Sin resultados"
+
+msgid "tooltip-move-chain-up"
+msgstr "Subir cadena"
+
+msgid "tooltip-move-chain-down"
+msgstr "Bajar cadena"
+
+msgid "accessible-chain-power"
+msgstr "Encender o apagar la cadena"
+
+msgid "compact-lane-path"
+msgstr "RUTA {}"
+
+msgid "compact-lane-mix"
+msgstr "MEZCLA"
+
+msgid "compact-lane-split"
+msgstr "División"
+
+msgid "compact-block-power"
+msgstr "Encender o apagar el bloque"
+
+msgid "compact-block-remove"
+msgstr "Quitar bloque"
+
+msgid "block-editor-power"
+msgstr "Encender o apagar el bloque"
+
+msgid "block-editor-info"
+msgstr "Información"
+
+msgid "block-editor-remove"
+msgstr "Quitar bloque"
+
+msgid "block-editor-save"
+msgstr "Añadir bloque"
+
+msgid "label-mixer-chain"
+msgstr "CADENA"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} BANDAS"
+
+msgid "label-count-in-on"
+msgstr "1 COMPÁS"
+
+msgid "label-count-in-off"
+msgstr "NO"
+
+msgid "title-settings"
+msgstr "Configuración"
+
+msgid "label-device-channels {} {}"
+msgstr "{} entradas · {} salidas"
+
+msgid "help-buffer-latency"
+msgstr "Latencia por bloque de audio"
+
+msgid "btn-refresh-devices"
+msgstr "Actualizar"
+
+msgid "empty-no-midi-devices"
+msgstr "No se encontraron dispositivos MIDI"
+
+msgid "placeholder-midi-alias"
+msgstr "Alias"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · Canales {}"
+
+msgid "btn-edit"
+msgstr "Editar"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "CAMINOS"
+
+msgid "title-add-block"
+msgstr "Añadir bloque"
+
+msgid "di-source-label"
+msgstr "Fuente"

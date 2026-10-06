@@ -1,4 +1,6 @@
 // Responsibility: renders a transient message.
+// #398: a dark chip on the chrome, its level marked by a coloured edge on the
+// left (red error, amber warning, blue info), sized to its text.
 import { Theme } from "../theme.slint";
 export component Toast inherits Rectangle {
     in property <string> message;
@@ -12,21 +14,31 @@ export component Toast inherits Rectangle {
     x: (root.container-width - self.width) / 2;
     // Bottom edge stays 20px above the container; grows upward as it wraps.
     y: root.container-height - 20px - self.height;
-    width: Math.min(root.container-width - 40px, 500px);
-    height: max(40px, msg.preferred-height + 16px);
-    border-radius: 8px;
-    background: root.level == "error" ? Theme.bad.with-alpha(0.80)
-             : root.level == "warning" ? Theme.warn.with-alpha(0.80)
-             : Theme.in.with-alpha(0.80);
+    width: Math.min(root.container-width - 40px, 520px, msg.preferred-width + 32px);
+    height: max(40px, msg.preferred-height + 20px);
+    border-radius: 5px;
+    clip: true;
+    background: Theme.chrome;
+    drop-shadow-blur: 24px;
+    drop-shadow-offset-y: 8px;
+    drop-shadow-color: Theme.shadow;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: 3px; height: parent.height;
+        background: root.level == "error" ? Theme.bad
+            : root.level == "warning" ? Theme.warn
+            : Theme.in;
+    }
 
     msg := Text {
-        width: parent.width - 24px;
+        x: 17px;
+        width: parent.width - 31px;
         height: parent.height;
-        x: 12px;
         text: root.message;
-        color: Theme.hero-fg;
-        font-size: 18px;
-        font-weight: 600;
+        color: Theme.chrome-fg;
+        font-size: Theme.min-font;
+        font-weight: 500;
         vertical-alignment: center;
         wrap: word-wrap;
     }

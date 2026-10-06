@@ -1,20 +1,21 @@
 // Responsibility: renders the backing-track player's transport buttons.
-// Icons, as on any audio deck: stop, play and pause in the middle, the A-B
-// loop on the right (A, then B, then off). The button for the current state
-// is lit.
-import { Theme } from "../theme.slint";
+// Round buttons, as on any audio deck: stop, play and pause centred, the A-B
+// loop on the right (A, then B, then off). PLAY lights in the input colour
+// while the track runs; the loop button takes an accent ring while a loop is
+// set or half-marked.
+import { Theme, Gear } from "../theme.slint";
 import { LooperIconButton } from "looper_controls.slint";
 import { PlayerBridge } from "player_globals.slint";
 
 export component PlayerTransport inherits Rectangle {
     private property <bool> loaded: PlayerBridge.track-path != "";
-    private property <color> lit: Theme.warn.with-alpha(0.25);
-    private property <color> lit-icon: Theme.warn;
+    private property <bool> looping: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0;
+    private property <length> start: root.width / 2 - 76px;
 
     height: 40px;
 
     stop-btn := LooperIconButton {
-        x: (parent.width - 136px) / 2; y: 0;
+        x: root.start; y: 0;
         icon: @image-url("../assets/stop.svg");
         label: @tr("action-stop");
         is-enabled: root.loaded;
@@ -22,17 +23,17 @@ export component PlayerTransport inherits Rectangle {
     }
 
     play-btn := LooperIconButton {
-        x: (parent.width - 40px) / 2; y: 0;
+        x: root.start + 50px; y: 0;
         icon: @image-url("../assets/play.svg");
         label: @tr("action-play");
         is-enabled: root.loaded;
-        tint: PlayerBridge.playing ? root.lit-icon : Theme.ink;
-        active-background: PlayerBridge.playing ? root.lit : transparent;
+        tint: PlayerBridge.playing ? Gear.white : Theme.ink-2;
+        active-background: PlayerBridge.playing ? Theme.in : transparent;
         clicked => { PlayerBridge.set-playing(true); }
     }
 
     pause-btn := LooperIconButton {
-        x: (parent.width + 56px) / 2; y: 0;
+        x: root.start + 100px; y: 0;
         icon: @image-url("../assets/pause.svg");
         label: @tr("action-pause");
         is-enabled: PlayerBridge.playing;
@@ -45,8 +46,9 @@ export component PlayerTransport inherits Rectangle {
         label: PlayerBridge.loop-mark >= 0 ? @tr("action-loop-end")
             : PlayerBridge.loop-active ? @tr("action-loop-clear") : @tr("action-loop-start");
         is-enabled: PlayerBridge.duration > 0;
-        tint: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0 ? root.lit-icon : Theme.ink;
-        active-background: PlayerBridge.loop-active || PlayerBridge.loop-mark >= 0 ? root.lit : transparent;
+        tint: root.looping ? Theme.accent : Theme.ink-2;
+        active-background: root.looping ? Theme.accent-soft : transparent;
+        ring: root.looping ? Theme.accent : Theme.field-line;
         clicked => { PlayerBridge.mark-loop(); }
     }
 }

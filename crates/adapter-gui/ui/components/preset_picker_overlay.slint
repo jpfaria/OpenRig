@@ -3,9 +3,18 @@
 // the bundled presets are reachable in both modes (issue #479: on
 // desktop the old native FileDialog left users with no visible preset
 // list). Pure UI — the parent owns the data + load logic.
+//
+// #398: the dialog card — the dark bar, the search field, the numbered list
+// (a click loads, the trash deletes), Cancel on the footer.
 
 import { Theme } from "../theme.slint";
-import { VerticalBox, ScrollView, LineEdit } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
+import { DialogCard } from "dialog_card.slint";
+import { DialogFoot } from "dialog_foot.slint";
+import { ToolBar } from "tool_bar.slint";
+import { TextField } from "text_field.slint";
+import { FormButton } from "form_button.slint";
+import { ListBox, ListRow } from "list_box.slint";
 
 export component PresetPickerOverlay {
     in property <bool> visible-overlay;
@@ -16,102 +25,103 @@ export component PresetPickerOverlay {
     callback delete(int);
     callback query-changed(string);
 
-    if root.visible-overlay: Rectangle {
+    if root.visible-overlay: DialogCard {
         x: 0;
         y: 0;
         width: root.width;
         height: root.height;
-        background: Theme.scrim;
-        Rectangle {
-            x: root.width * 0.1;
-            y: root.height * 0.1;
-            width: root.width * 0.8;
-            height: root.height * 0.8;
-            background: Theme.panel;
-            border-radius: 10px;
-            VerticalBox {
-                padding: 16px;
-                spacing: 8px;
-                Text {
-                    text: @tr("btn-load-preset");
-                    font-size: 18px;
-                    color: Theme.ink;
-                    font-weight: 700;
-                }
-                LineEdit {
-                    placeholder-text: @tr("preset-search-placeholder");
-                    text <=> root.search-query;
-                    edited(t) => {
-                        root.query-changed(t);
-                    }
-                }
-                ScrollView {
-                    vertical-stretch: 1;
-                    VerticalBox {
-                        spacing: 4px;
-                        for item[i] in root.items: Rectangle {
-                            height: 44px;
-                            border-radius: 6px;
-                            background: item-area.has-hover ? Theme.accent : Theme.panel-hi;
+        card-width: 560px;
+        card-height: 620px;
+
+        ToolBar {
+            vertical-stretch: 0;
+            title: @tr("btn-load-preset");
+        }
+
+        VerticalLayout {
+            vertical-stretch: 1;
+            padding: 18px;
+            spacing: 10px;
+
+            TextField {
+                vertical-stretch: 0;
+                placeholder: @tr("preset-search-placeholder");
+                text <=> root.search-query;
+                edited(t) => { root.query-changed(t); }
+            }
+
+            ScrollView {
+                vertical-stretch: 1;
+
+                VerticalLayout {
+                    alignment: start;
+
+                    ListBox {
+                        for item[i] in root.items : Rectangle {
+                            min-height: 44px;
+                            background: item-area.has-hover ? Theme.accent-soft : transparent;
+
                             item-area := TouchArea {
                                 mouse-cursor: pointer;
-                                width: parent.width - 52px;
-                                clicked => {
-                                    root.confirm(i);
+                                clicked => { root.confirm(i); }
+                            }
+
+                            ListRow {
+                                width: parent.width;
+                                height: parent.height;
+                                divided: i > 0;
+
+                                Text {
+                                    width: 26px;
+                                    text: (i < 9 ? "0" : "") + (i + 1);
+                                    color: Theme.ink-3;
+                                    font-size: Theme.min-font;
+                                    vertical-alignment: center;
                                 }
-                            }
-                            Text {
-                                x: 12px;
-                                width: parent.width - 64px;
-                                text: item;
-                                font-size: 18px;
-                                color: Theme.ink;
-                                vertical-alignment: center;
-                                overflow: elide;
-                            }
-                            Rectangle {
-                                x: parent.width - 44px;
-                                y: 2px;
-                                width: 40px;
-                                height: 40px;
-                                border-radius: 6px;
-                                background: del-area.has-hover ? Theme.bad : transparent;
-                                del-area := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => {
-                                        root.delete(i);
+                                Text {
+                                    horizontal-stretch: 1;
+                                    text: item;
+                                    color: Theme.ink;
+                                    font-size: Theme.min-font;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                                Rectangle {
+                                    width: 32px;
+                                    del-box := Rectangle {
+                                        x: 0; y: (parent.height - 32px) / 2;
+                                        width: 32px; height: 32px;
+                                        border-radius: 4px;
+                                        background: del-area.has-hover ? Theme.bad-soft : transparent;
+                                        Image {
+                                            x: (parent.width - 18px) / 2;
+                                            y: (parent.height - 18px) / 2;
+                                            width: 18px;
+                                            height: 18px;
+                                            source: @image-url("../assets/trash.svg");
+                                            colorize: del-area.has-hover ? Theme.bad : Theme.ink-3;
+                                        }
+                                        del-area := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.delete(i); }
+                                        }
+                                        accessible-role: button;
+                                        accessible-label: @tr("btn-delete");
+                                        accessible-action-default => { root.delete(i); }
                                     }
                                 }
-                                Image {
-                                    x: (parent.width - 18px) / 2;
-                                    y: (parent.height - 18px) / 2;
-                                    width: 18px;
-                                    height: 18px;
-                                    source: @image-url("../modules/surrealism-ui/icons/delete.svg");
-                                    colorize: del-area.has-hover ? Theme.hero-fg : Theme.bad;
-                                }
                             }
                         }
                     }
                 }
-                Rectangle {
-                    height: 44px;
-                    border-radius: 6px;
-                    background: cancel-area.has-hover ? Theme.hover : Theme.panel-hi;
-                    cancel-area := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.cancel();
-                        }
-                    }
-                    Text {
-                        text: @tr("btn-cancel");
-                        font-size: 18px;
-                        color: Theme.ink-2;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                }
+            }
+        }
+
+        DialogFoot {
+            vertical-stretch: 0;
+            cancel-area := FormButton {
+                label: @tr("btn-cancel");
+                clicked => { root.cancel(); }
             }
         }
     }

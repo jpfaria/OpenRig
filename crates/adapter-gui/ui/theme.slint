@@ -62,6 +62,16 @@ export global Theme {
     out property <color> chrome-line: dark ? #07090c : #10151b;
     out property <color> chrome-fg: #e2e7ee;
     out property <color> chrome-fg-2: #8b96a5;
+    // The ring of a control sitting on the chrome (the TAP button).
+    out property <color> chrome-ring: #3b4250;
+    // A field (preset, scene, latency) sitting on the chrome.
+    out property <color> chrome-field: #1d1d1f;
+    out property <color> chrome-field-line: #444444;
+    // A state lit on the chrome (the Tone Doctor verdict): brighter than the
+    // panel's state colours so it reads on the dark card.
+    out property <color> chrome-bad: #ff8a7a;
+    out property <color> chrome-warn: #f2d36b;
+    out property <color> chrome-ok: #7fdc9c;
     out property <color> panel: dark ? #232a33 : #e4e8ee;
     out property <color> panel-hi: dark ? #2a323c : #eef1f5;
     out property <color> panel-lo: dark ? #1d232b : #d6dce4;
@@ -75,6 +85,9 @@ export global Theme {
     out property <color> groove: dark ? #0f1318 : #c3cad3;
     out property <color> ktrack: dark ? #3a434f : #c3cad3;
     out property <color> wire: dark ? #8b95a3 : #5d5d62;
+    // The dot grid of the graph well, and the tint of a side rail.
+    out property <color> dot: dark ? #ffffff0f : #00000017;
+    out property <color> side-tint: dark ? #ffffff08 : #ffffff73;
 
     // Text, strongest first.
     out property <color> ink: dark ? #e8ecf1 : #18202b;
@@ -95,17 +108,24 @@ export global Theme {
     out property <color> hero-shade-mid: #17191de6;
     out property <color> hero-shade-bottom: #17191dd9;
 
-    // The tuner LCD is a physical display, the same in both schemes.
-    out property <color> lcd-off: #776633;
-    out property <color> lcd-in: #ccff66;
-    out property <color> lcd-near: #ccaa66;
-    out property <color> lcd-ink: #1a1206;
-    out property <color> lcd-ink-2: #2a1f0a;
-    out property <color> lcd-glass: #00000044;
-    out property <color> needle-off: #4a3a1a;
-    out property <color> needle-in: #2a6633;
-    out property <color> needle-near: #b87a1a;
-    out property <color> needle-far: #a02828;
+    // The LCD readouts are physical displays, the same in both schemes: dark
+    // glass with amber digits (tuner, metronome, drums, player)...
+    out property <color> lcd: #121a14;
+    out property <color> lcd-rim: #000000;
+    out property <color> lcd-shade: #00000099;
+    out property <color> lcd-glow: #ffb648;
+    out property <color> lcd-dim: #b98738;
+    out property <color> lcd-faint: #8a6c3a;
+    out property <color> lcd-off: #5a4a2c;
+    out property <color> lcd-in: #6dff9b;
+    out property <color> lcd-lamp: #2a2418;
+    out property <color> lcd-lamp-hi: #fff2c4;
+    // ...and the spectrum's teal scope.
+    out property <color> scope: #0f1716;
+    out property <color> scope-lo: #1f8f7a;
+    out property <color> scope-mid: #7fe0c8;
+    out property <color> scope-hi: #ffd166;
+    out property <color> scope-axis: #4f8d80;
 
     // Accent and state.
     out property <color> accent: #f28c1e;
@@ -113,6 +133,7 @@ export global Theme {
     out property <color> accent-line: #f28c1e66;
     out property <color> on-accent: #1a1206;
     out property <color> ok: #2f9a55;
+    out property <color> on-ok: #06110b;
     out property <color> warn: #d9b43a;
     out property <color> bad: #c8443e;
     out property <color> ok-soft: #2f9a552e;
@@ -197,4 +218,63 @@ export global Theme {
             weight: 500
         },
     };
+}
+
+// The materials a piece of gear is made of (#398). Real hardware keeps its
+// colours in both schemes, so these do not follow `Theme.dark`.
+export global Gear {
+    out property <color> white: #ffffff;
+    out property <color> black: #000000;
+    out property <color> shadow: #0000004d;
+    out property <color> edge-soft: #00000073;
+    out property <color> edge: #111111;
+    out property <color> knob-lo: #c9c9cc;
+    // The vector knob cap (#398): white to a soft grey, a thin rim, its drop.
+    out property <color> knob-mid: #e2e2e4;
+    out property <color> knob-edge: #c3c3c7;
+    out property <color> knob-rim: #8b8b8f;
+    out property <color> knob-drop: #0000002e;
+    out property <color> knob-pointer: #1f1f21;
+    out property <color> pointer: #222222;
+    out property <color> off: #8e8e93;
+    out property <color> window: #ffffffd9;
+    out property <color> led: #ff3b2f;
+    out property <color> led-off: #5a2420;
+    out property <color> switch-hi: #fbfbfb;
+    out property <color> switch-lo: #a9a9ae;
+    out property <color> switch-edge: #00000066;
+    out property <color> switch-shadow: #00000040;
+    out property <color> tolex: #29292c;
+    out property <color> panel: #0e0e0f;
+    out property <color> plate-hi: #eeeeee;
+    out property <color> plate-lo: #d4d4d6;
+    out property <color> plate-edge: #00000033;
+    out property <color> print: #1d1d1f;
+    out property <color> cab: #2a2a2d;
+    out property <color> grille: #36322e;
+    out property <color> grille-line: #4a4540;
+    out property <color> badge: #e9e9ea;
+    out property <color> rack-hi: #ececed;
+    out property <color> rack-lo: #cfcfd1;
+    out property <color> rack-edge: #6f6f73;
+    out property <color> ear: #bdbdc0;
+    out property <color> ear-edge: #999999;
+    out property <color> screw: #555555;
+    out property <color> screen: #16211d;
+    out property <color> screen-text: #7fe0c8;
+    out property <color> tread: #3a3a3e;
+    out property <color> tread-line: #151517;
+    out property <color> jack-hi: #6c6c70;
+    out property <color> jack-mid: #2b2b2e;
+    out property <color> jack-rim: #8a8a8f;
+    out property <color> jack-shadow: #00000059;
+    out property <color> jack-hole: #0c0c0d;
+    // The metronome's TAP key (#398): a white key, grey towards its foot.
+    out property <color> key-mid: #dcdfe4;
+    out property <color> key-lo: #c4c9d0;
+    out property <color> key-ink: #18202b;
+    // The drums' round metal FILL button (#398) and its dark collar.
+    out property <color> fill-mid: #b9bcc2;
+    out property <color> fill-lo: #8d9097;
+    out property <color> fill-ring: #2a2f37;
 }

@@ -28,6 +28,8 @@ export global MixerBridge {
     in-out property <bool> show;
     in-out property <[MixerStripRow]> inputs;
     in-out property <[MixerStripRow]> outputs;
+    // Where the fader law puts 0 dB (0..1), for the strips' unity mark.
+    in-out property <float> unity-position;
 
     // ── Intent, routed to the dispatcher by the wiring ──
     callback open-mixer-window();

@@ -37,8 +37,7 @@ export component GraphView inherits Rectangle {
     // row's BlockChip, the tile a block card keeps parity with (#328).
     in property <length> node_width: 100px;
     in property <length> node_height: 100px;
-    in property <color> background_color: Theme.panel-lo;
-    in property <color> grid_color: Theme.hair-2;
+    in property <color> background_color: Theme.well;
     in property <bool> show_grid: true;
     // #591 parity with BlockChip: MIDI markers show only while a MIDI
     // command is recent.
@@ -177,32 +176,17 @@ export component GraphView inherits Rectangle {
         }
     }
 
-    // ── Optional grid backdrop ──────────────────────────────────────
-    if root.show_grid : Rectangle {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        background: transparent;
-
-        // Two crossing strips that hint at the grid origin. A real grid
-        // (every N px) would need a custom Path with many MoveTo/LineTo
-        // which costs more than its visual value at this stage — keep
-        // the hint cheap until we know we need more.
-        Rectangle {
-            x: root.pan_x;
-            y: 0px;
-            width: 1px;
-            height: parent.height;
-            background: root.grid_color;
-        }
-        Rectangle {
-            x: 0px;
-            y: root.pan_y;
-            width: parent.width;
-            height: 1px;
-            background: root.grid_color;
-        }
+    // ── Dot grid (#398) ────────────────────────────────────────────
+    // The well's 16px dot grid, tiled from one dot and moving with the pan.
+    if root.show_grid : Image {
+        x: Math.mod(root.pan_x / 1px, 16) * 1px - 16px;
+        y: Math.mod(root.pan_y / 1px, 16) * 1px - 16px;
+        width: parent.width + 32px;
+        height: parent.height + 32px;
+        source: @image-url("../assets/graph-dot.svg");
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+        colorize: Theme.dot;
     }
 
     // ── Edges (drawn under nodes) ──────────────────────────────────
@@ -217,7 +201,14 @@ export component GraphView inherits Rectangle {
         from_y: root.pan_y + edge.from_y * root.zoom;
         to_x: root.pan_x + edge.to_x * root.zoom;
         to_y: root.pan_y + edge.to_y * root.zoom;
-        stroke_thickness: 2px * root.zoom;
+        // #398: hairline wires; lane A in the accent, lane B in the reverb
+        // blue, the trunk in the wire grey.
+        stroke_thickness: max(1px, Theme.wire-width * root.zoom);
+        stroke_color: edge.path == 0 ? Theme.accent
+            : edge.path == 1 ? Theme.c-rvb
+            : edge.path == 2 ? Theme.c-mod
+            : edge.path == 3 ? Theme.c-dly
+            : Theme.wire;
     }
 
     // ── Nodes ──────────────────────────────────────────────────────
@@ -308,7 +299,6 @@ export component GraphView inherits Rectangle {
             y: 0px;
             node: node;
             zoom: root.zoom;
-            backdrop: root.background_color;
             markers-visible: root.markers_visible;
             selected-node-id: root.selected-node-id;
             neighbor-node-id: root.neighbor-node-id;

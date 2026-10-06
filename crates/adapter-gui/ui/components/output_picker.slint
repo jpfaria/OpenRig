@@ -6,46 +6,48 @@ import { Theme } from "../theme.slint";
 // do not receive clicks in this app.
 
 // Closed field showing the current output endpoint; click opens the picker.
+// #398: a flat field with a thin line, the endpoint icon and a small chevron.
 export component OutputField inherits Rectangle {
     in property <string> label;
     in property <string> placeholder;
     callback open();
 
-    height: 38px;
-    border-radius: 6px;
-    background: Theme.well;
+    height: 32px;
+    border-radius: 3px;
+    background: Theme.field;
     border-width: 1px;
-    border-color: ta.has-hover ? Theme.field-line : Theme.hair;
+    border-color: ta.has-hover ? Theme.ink-3 : Theme.field-line;
 
     Image {
         x: 10px; y: (parent.height - 16px) / 2;
         width: 16px; height: 16px;
         source: @image-url("../assets/headphones.svg");
-        colorize: Theme.ink-2;
+        colorize: Theme.ink-3;
     }
     Text {
         x: 34px;
-        width: parent.width - 64px;
+        width: parent.width - 60px;
         height: parent.height;
         text: root.label != "" ? root.label : root.placeholder;
         color: root.label != "" ? Theme.ink : Theme.ink-3;
-        font-size: 18px;
-        font-weight: 600;
+        font-size: Theme.min-font;
+        font-weight: 500;
         vertical-alignment: center;
         overflow: elide;
     }
     Image {
-        x: parent.width - 30px; y: (parent.height - 16px) / 2;
-        width: 16px; height: 16px;
-        source: @image-url("../assets/arrow-down.svg");
-        colorize: Theme.ink-2;
+        x: parent.width - 19px; y: (parent.height - 9px) / 2;
+        width: 9px; height: 9px;
+        source: @image-url("../assets/chevron-down.svg");
+        colorize: Theme.ink-3;
     }
     ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.open(); }
     }
-    accessible-role: button;
-    accessible-label: root.label;
+    accessible-role: combobox;
+    accessible-label: root.label != "" ? root.label : root.placeholder;
+    accessible-action-default => { root.open(); }
 }
 
 // One clickable endpoint row in the picker.

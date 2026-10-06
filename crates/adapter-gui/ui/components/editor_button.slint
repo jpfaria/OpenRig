@@ -2,41 +2,69 @@
 // Split out of looper_editor_overlay.slint (#827) so the save-take dialog can use
 // the same button; the component name is unchanged, so interaction tests that
 // find "EditorButton::area" still address the same controls.
+//
+// #398: the small form button — a field-coloured face with a hairline, an
+// optional icon before the label, `primary` for the one answer most takes
+// need, `on-bar` for the dark title bar.
 
 import { Theme } from "../theme.slint";
 
 export component EditorButton inherits Rectangle {
     in property <string> label;
+    in property <image> icon;
     in property <bool> enabled: true;
+    in property <bool> primary: false;
+    in property <bool> on-bar: false;
     callback clicked();
 
-    // Follows the (translated) label so it is never cut.
-    min-width: max(78px, lbl.preferred-width + 16px);
-    height: max(34px, lbl.preferred-height + 8px);
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
-    background: !root.enabled
-        ? Theme.panel-hi.with-alpha(0.38)
-        : (area.has-hover ? Theme.accent-soft : Theme.panel-hi);
+    private property <color> ink: root.primary ? Theme.on-accent
+        : root.on-bar ? Theme.chrome-fg
+        : Theme.ink;
+
+    min-width: row.preferred-width;
+    height: 28px;
+    border-radius: 4px;
+    opacity: root.enabled ? 1.0 : 0.45;
+    background: root.primary ? (area.has-hover && root.enabled ? Theme.accent.brighter(0.08) : Theme.accent)
+        : root.on-bar ? (area.has-hover ? Theme.chrome-2 : Theme.chrome-field)
+        : (area.has-hover && root.enabled ? Theme.panel-hi : Theme.field);
+    border-width: root.primary ? 0 : 1px;
+    border-color: root.on-bar ? Theme.chrome-field-line : Theme.hair;
 
     accessible-role: button;
     accessible-label: root.label;
     accessible-enabled: root.enabled;
     accessible-action-default => { root.clicked(); }
 
-    lbl := Text {
-        width: parent.width;
-        height: parent.height;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        text: root.label;
-        font-size: Theme.min-font;
-        color: root.enabled ? Theme.palette.text-primary : Theme.palette.text-muted;
+    row := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 6px;
+        alignment: center;
+
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                width: 14px;
+                height: 14px;
+                source: root.icon;
+                colorize: root.ink;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.ink;
+            font-size: Theme.min-font;
+            font-weight: 600;
+            letter-spacing: 0.04 * Theme.min-font;
+            vertical-alignment: center;
+        }
     }
 
     area := TouchArea {
         enabled: root.enabled;
+        mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
         clicked => { root.clicked(); }
     }
 }

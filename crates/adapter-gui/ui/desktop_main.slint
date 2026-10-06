@@ -302,8 +302,8 @@ export component DesktopMain inherits Rectangle {
             PluginInfoPanel {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
-                width: Math.min(480px, parent.width - 32px);
-                height: Math.min(560px, parent.height - 32px);
+                width: Math.min(760px, parent.width - 32px);
+                height: Math.min(self.content-height, parent.height - 32px);
                 screenshot: OverlayBridge.plugin-info-data.screenshot;
                 has-screenshot: OverlayBridge.plugin-info-data.has-screenshot;
                 plugin-name: OverlayBridge.plugin-info-data.plugin-name;

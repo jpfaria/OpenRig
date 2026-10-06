@@ -226,3 +226,36 @@ fn the_trailing_slot_is_the_viewport_bottom() {
     );
     assert_eq!(slot_y(&[], 0), ROW_GAP_PX, "an empty chain keeps the slot");
 }
+
+#[test]
+fn a_lane_bar_opens_where_the_path_changes() {
+    // gate, comp, split | A, A | B | the rows after the paths mix back.
+    let rows = [
+        ("", 0),
+        ("", 0),
+        ("", 0),
+        ("A", 1),
+        ("A", 1),
+        ("B", 1),
+        ("", 0),
+    ];
+    assert_eq!(
+        lane_bars(&rows),
+        vec![false, false, false, true, false, true, true]
+    );
+}
+
+#[test]
+fn a_chain_without_a_split_has_no_lane_bar() {
+    assert_eq!(lane_bars(&[("", 0), ("", 0)]), vec![false, false]);
+    assert!(lane_bars(&[]).is_empty());
+}
+
+#[test]
+fn a_lane_bar_adds_its_height_to_the_row() {
+    assert_eq!(
+        with_lane_bar(BASE_ROW_HEIGHT_PX, true),
+        BASE_ROW_HEIGHT_PX + LANE_BAR_HEIGHT_PX
+    );
+    assert_eq!(with_lane_bar(BASE_ROW_HEIGHT_PX, false), BASE_ROW_HEIGHT_PX);
+}

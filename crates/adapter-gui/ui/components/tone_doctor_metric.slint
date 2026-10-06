@@ -1,0 +1,69 @@
+// Responsibility: renders one Tone Doctor measurement against its limit.
+// #398: the caption, a thin groove filled up to the value (green under the
+// healthy limit, red over it) with the limit as an ink tick across it, and the
+// numbers on the right. The limit sits at the middle of the track.
+import { Theme } from "../theme.slint";
+
+export component ToneDoctorMetric inherits Rectangle {
+    in property <string> name;
+    in property <float> value;
+    in property <float> limit;
+    in property <string> value-text;
+
+    private property <float> frac: min(root.value / max(root.limit * 2.0, 0.0001), 1.0);
+    private property <bool> hot: root.value > root.limit;
+    private property <length> name-w: 64px;
+    private property <length> value-w: 116px;
+
+    height: 24px;
+
+    Text {
+        x: 0;
+        width: root.name-w;
+        height: parent.height;
+        text: root.name;
+        color: Theme.ink-2;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
+        vertical-alignment: center;
+    }
+
+    track := Rectangle {
+        x: root.name-w + 10px;
+        y: (parent.height - self.height) / 2;
+        width: parent.width - root.name-w - root.value-w - 20px;
+        height: 8px;
+        border-radius: 2px;
+        background: Theme.groove;
+        clip: true;
+
+        Rectangle {
+            x: 0;
+            width: parent.width * root.frac;
+            height: parent.height;
+            background: root.hot ? Theme.bad : Theme.ok;
+        }
+    }
+
+    Rectangle {
+        x: track.x + track.width * 0.5 - 1px;
+        y: track.y - 2px;
+        width: 2px;
+        height: track.height + 4px;
+        background: Theme.ink;
+    }
+
+    Text {
+        x: parent.width - root.value-w;
+        width: root.value-w;
+        height: parent.height;
+        text: root.value-text;
+        color: Theme.ink;
+        font-size: Theme.min-font;
+        font-weight: 500;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}

@@ -1,0 +1,21 @@
+// Responsibility: renders a small square check box.
+// #398: an accent square with a dark tick when on, an outlined field when off.
+import { Theme } from "../theme.slint";
+
+export component CheckMark inherits Rectangle {
+    in property <bool> checked;
+
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    background: root.checked ? Theme.accent : Theme.field;
+    border-width: root.checked ? 0 : 1.5px;
+    border-color: Theme.field-line;
+
+    if root.checked : Image {
+        x: 3px; y: 3px;
+        width: 12px; height: 12px;
+        source: @image-url("../assets/check.svg");
+        colorize: Theme.on-accent;
+    }
+}

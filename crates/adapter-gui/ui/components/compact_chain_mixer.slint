@@ -25,12 +25,12 @@ export component CompactChainMixer inherits Rectangle {
     // The picked tab outlives a collapse.
     private property <int> picked: 0;
 
-    background: Theme.well;
+    background: Theme.panel;
 
     Rectangle {
         x: 0; y: 0;
         width: parent.width; height: 1px;
-        background: Theme.panel;
+        background: Theme.hair;
     }
 
     mixer-toggle := SectionToggle {

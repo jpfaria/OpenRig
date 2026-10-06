@@ -72,6 +72,34 @@ fn boot_preselects_devices_persisted_in_global_config() {
     );
 }
 
+/// #398: each device card says how many inputs and outputs it has, so the
+/// row carries both counts from the two enumerations.
+#[test]
+fn device_rows_carry_input_and_output_channel_counts() {
+    let inputs = vec![AudioDeviceDescriptor {
+        id: "hd8".into(),
+        name: "Quantum HD 8".into(),
+        channels: 30,
+    }];
+    let outputs = vec![
+        AudioDeviceDescriptor {
+            id: "hd8".into(),
+            name: "Quantum HD 8".into(),
+            channels: 28,
+        },
+        AudioDeviceDescriptor {
+            id: "spk".into(),
+            name: "Speakers".into(),
+            channels: 2,
+        },
+    ];
+    let rows = build_project_device_rows(&inputs, &outputs, &[]);
+    let hd8 = rows.iter().find(|r| r.device_id.as_str() == "hd8").unwrap();
+    assert_eq!((hd8.input_channels, hd8.output_channels), (30, 28));
+    let spk = rows.iter().find(|r| r.device_id.as_str() == "spk").unwrap();
+    assert_eq!((spk.input_channels, spk.output_channels), (0, 2));
+}
+
 // ── device_refresh_keeps_unresolved_binding ──────────────────────────────────
 
 /// When a device disappears (hot-swap / unplug), bindings that reference its

@@ -5,8 +5,6 @@ import { PanelKnob } from "../components/panel_knob.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 
-import "../fonts/BebasNeue.ttf";
-
 // One parameter cell of a compact block row: the generic widget for a single
 // parameter (knob/stepper/slider, enum selector, dropdown, bool toggle).
 // Extracted from `compact_block_param_strip.slint` (#787) so the strip can
@@ -14,7 +12,8 @@ import "../fonts/BebasNeue.ttf";
 // cells out, the cell only knows its own parameter.
 export component CompactBlockParamCell inherits Rectangle {
     in property <BlockParameterItem> param;
-    in property <color> panel-text;
+    // #398: the knob's value arc takes the block's category colour.
+    in property <color> tint: Theme.accent;
     in property <int> chain-index;
     in property <int> block-index;
     callback update-parameter-number(int, int, string, float);
@@ -42,20 +41,20 @@ export component CompactBlockParamCell inherits Rectangle {
         width: parent.width;
         height: 22px;
         text: root.param.label;
-        color: root.panel-text;
-        font-family: "Bebas Neue";
+        color: Theme.ink-2;
         font-size: Theme.knob-caption-font;
-        font-weight: 700;
-        letter-spacing: 1.5px;
+        font-weight: 600;
         horizontal-alignment: center;
+        vertical-alignment: center;
         overflow: elide;
     }
 
     // ── Numeric knob/stepper/slider ──
     if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
         // Centred on the cell, like the label above it (#915).
-        x: (parent.width - 38px) / 2; y: 28px;
-        width: 38px; height: 52px;
+        x: (parent.width - 38px) / 2; y: 26px;
+        width: 38px; height: 62px;
+        tint: root.tint;
         value: root.param.numeric_value;
         min-val: root.param.numeric_min;
         max-val: root.param.numeric_max;
@@ -79,7 +78,7 @@ export component CompactBlockParamCell inherits Rectangle {
         property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
         property <int> n: root.param.option_labels.length;
         property <int> sel: root.param.selected_option_index;
-        property <color> tc: root.panel-text;
+        property <color> tc: Theme.ink-2;
 
         SelectorKnob {
             x: parent.cx - parent.ks / 2;
@@ -195,20 +194,21 @@ export component CompactBlockParamCell inherits Rectangle {
     if root.param.widget_kind == "enum" && root.param.option_labels.length > 4 : Rectangle {
         x: 0; y: 22px;
         width: parent.width; height: 28px;
-        background: Theme.well;
-        border-width: 1px; border-color: Theme.hair-2; border-radius: 5px;
+        background: Theme.field;
+        border-width: 1px; border-color: dd-ta2.has-hover ? Theme.field-line : Theme.hair; border-radius: 2px;
 
         Text {
-            x: 8px; width: parent.width - 24px; height: parent.height;
+            x: 8px; width: parent.width - 26px; height: parent.height;
             text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
                 ? root.param.option_labels[root.param.selected_option_index] : "";
             color: Theme.ink; font-size: 18px; font-weight: 600;
             vertical-alignment: center; overflow: elide;
         }
-        Text {
-            x: parent.width - 18px; width: 14px; height: parent.height;
-            text: @tr("\u{25BC}"); color: Theme.ink; font-size: 18px;
-            vertical-alignment: center; horizontal-alignment: center;
+        Image {
+            x: parent.width - 18px; y: (parent.height - 10px) / 2;
+            width: 10px; height: 10px;
+            source: @image-url("../assets/chevron-down.svg");
+            colorize: Theme.ink-3;
         }
         dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
         dd-popup2 := PopupWindow {
@@ -244,11 +244,11 @@ export component CompactBlockParamCell inherits Rectangle {
         }
     }
 
-    // ── Bool toggle (sprite) ──
+    // ── Bool toggle (#398: the pill switch) ──
     if root.param.widget_kind == "bool" : ToggleSwitch {
-        x: (parent.width - 28px) / 2; y: 28px;
-        width: 28px; height: 50px;
-        checked: root.param.bool_value;
+        x: (parent.width - self.width) / 2; y: 28px + (50px - self.height) / 2;
+        on: root.param.bool_value;
+        label: root.param.label;
         toggled => { root.update-parameter-bool(root.chain-index, root.block-index, root.param.path, !root.param.bool_value); }
     }
 }

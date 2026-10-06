@@ -1,14 +1,11 @@
 // Responsibility: renders the metronome window.
 // MetronomeWindow / MetronomePanel — top-bar utility, issue #14.
 //
-// Visual language is the Tuner's: stompbox header with a power footswitch, and
-// an amber LCD as the primary readout. The LCD carries the two things a player
-// reads mid-song — the tempo and which beat of the bar is sounding — at a size
-// that survives a glance from a metre away.
-//
-// Everything else (time signature, subdivision, timbre, volume) is a rotary
-// knob, matching the pedal vocabulary the rest of the app already speaks. Only
-// the output device, whose list is long and unbounded, uses the shared Select.
+// #398: the dark tool bar with a POWER pill, then on the well an LCD with the
+// tempo and the bar's lamps (the two things read mid-song, at a size that
+// survives a glance from a metre away), a row of knob cells (tempo with its
+// nudges, the white TAP key, count-in, time signature, subdivision, timbre,
+// volume), and the output endpoint field.
 //
 // The panel reads its state from the `MetronomeBridge` global rather than from
 // bound properties, so the same component serves the standalone window and the
@@ -18,9 +15,14 @@ import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
-import { PowerFootSwitch, BeatLamp, ControlCell, PillButton, VintageToggle } from "../components/metronome_controls.slint";
+import { BeatLamp, ControlCell, PillButton, TapKey, ToggleKnob } from "../components/metronome_controls.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { OutputField, OutputRow } from "../components/output_picker.slint";
+import { LcdGlass } from "../components/lcd_glass.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
+import { PillSwitch } from "../components/pill_switch.slint";
+import { FieldCaption } from "../components/field_caption.slint";
 
 // ── MetronomePanel — reusable content (Window and inline modes) ───────────
 export component MetronomePanel inherits Rectangle {
@@ -28,264 +30,222 @@ export component MetronomePanel inherits Rectangle {
     // standalone window closes via its own chrome.
     in property <bool> show-close-button: false;
 
-    background: @linear-gradient(180deg, Theme.well 0%, Theme.page 100%);
+    background: Theme.well;
 
-    // ── Header bar ───────────────────────────────────────────────────────
-    Rectangle {
-        x: 0; y: 0;
-        width: parent.width;
-        height: 72px;
-        background: Theme.panel-lo;
+    VerticalLayout {
+        ToolBar {
+            icon: @image-url("../assets/metronome.svg");
+            title: @tr("label-metronome");
 
-        Rectangle {
-            x: 0; y: parent.height - 1px;
-            width: parent.width; height: 1px;
-            background: Theme.hair;
-        }
-
-        PowerFootSwitch {
-            x: 14px; y: (72px - self.height) / 2;
-            active: MetronomeBridge.metronome-enabled;
-            toggled => { MetronomeBridge.toggle-enabled(!MetronomeBridge.metronome-enabled); }
-        }
-
-        Image {
-            x: 78px; y: 24px;
-            width: 24px; height: 24px;
-            source: @image-url("../assets/metronome.svg");
-            colorize: Theme.ink;
-        }
-
-        Text {
-            x: 110px; y: 0;
-            width: 200px; height: parent.height;
-            text: @tr("label-metronome");
-            color: Theme.ink;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 3.0px;
-            vertical-alignment: center;
-        }
-
-        if root.show-close-button : Rectangle {
-            x: parent.width - 40px; y: 22px;
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: close-ta.has-hover ? Theme.ktrack : Theme.panel;
-            border-width: 1px;
-            border-color: Theme.hair;
-
-            Image {
-                x: (parent.width - 12px) / 2;
-                y: (parent.height - 12px) / 2;
-                width: 12px;
-                height: 12px;
-                source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: Theme.ink;
+            PillSwitch {
+                text: @tr("label-power");
+                on: MetronomeBridge.metronome-enabled;
+                toggled => { MetronomeBridge.toggle-enabled(!MetronomeBridge.metronome-enabled); }
             }
 
-            close-ta := TouchArea {
-                mouse-cursor: pointer;
+            if root.show-close-button : ToolBarClose {
                 clicked => { MetronomeBridge.close-metronome(); }
             }
         }
-    }
 
-    // ── LCD — tempo and the bar, the two things read mid-song ────────────
-    Rectangle {
-        x: 16px; y: 88px;
-        width: parent.width - 32px;
-        height: 168px;
-        border-radius: 6px;
-        background: MetronomeBridge.metronome-enabled ? Theme.lcd-near : Theme.lcd-off;
-        border-width: 1px;
-        border-color: Theme.lcd-ink.with-alpha(0.6);
-        clip: true;
-        drop-shadow-blur: 6px;
-        drop-shadow-color: Theme.shadow;
-        animate background { duration: 200ms; }
+        VerticalLayout {
+            padding: 16px;
+            spacing: 14px;
 
-        // Beat lamps, centred across the top of the LCD.
-        HorizontalLayout {
-            x: 0; y: 16px;
-            width: parent.width;
-            height: 16px;
-            alignment: center;
-            spacing: 10px;
+            // ── LCD — the tempo and the bar, the two things read mid-song ──
+            LcdGlass {
+                vertical-stretch: 0;
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    padding-top: 14px;
+                    padding-bottom: 14px;
+                    spacing: 18px;
 
-            // Slots past the current time signature collapse to zero width, so
-            // the lamps stay centred whatever the bar length.
-            for slot[idx] in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : Rectangle {
-                width: idx < MetronomeBridge.beats-per-bar ? 16px : 0px;
-                height: 16px;
-                if idx < MetronomeBridge.beats-per-bar : BeatLamp {
-                    lit: MetronomeBridge.metronome-enabled && idx == MetronomeBridge.current-beat;
-                    downbeat: idx == 0;
-                    counting-in: MetronomeBridge.counting-in;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: Math.round(MetronomeBridge.bpm);
+                            color: MetronomeBridge.metronome-enabled ? Theme.lcd-glow : Theme.lcd-off;
+                            font-family: "Bebas Neue";
+                            font-size: 76px;
+                            height: 70px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: @tr("label-bpm");
+                            color: Theme.lcd-dim;
+                            font-family: "Bebas Neue";
+                            font-size: Theme.min-font;
+                            letter-spacing: 0.14 * Theme.min-font;
+                        }
+                    }
+
+                    // Slots past the current time signature collapse to zero
+                    // width, so the lamps stay packed whatever the bar length.
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 10px;
+                        for slot[idx] in 16 : VerticalLayout {
+                            alignment: center;
+                            width: idx < MetronomeBridge.beats-per-bar ? 26px : 0px;
+                            if idx < MetronomeBridge.beats-per-bar : BeatLamp {
+                                lit: MetronomeBridge.metronome-enabled && idx == MetronomeBridge.current-beat;
+                                downbeat: idx == 0;
+                                counting-in: MetronomeBridge.counting-in;
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // Tempo — the largest thing on screen.
-        Text {
-            x: 0; y: 44px;
-            width: parent.width;
-            height: 76px;
-            text: Math.round(MetronomeBridge.bpm);
-            color: Theme.lcd-ink;
-            font-family: "Bebas Neue";
-            font-size: 76px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+            // ── Knob row: tempo, tap, then the settings ──────────────────
+            HorizontalLayout {
+                alignment: space-between;
 
-        Text {
-            x: 0; y: 122px;
-            width: parent.width;
-            height: 22px;
-            text: @tr("label-bpm");
-            color: Theme.lcd-ink.with-alpha(0.7);
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 4.0px;
-            horizontal-alignment: center;
-        }
+                VerticalLayout {
+                    alignment: end;
+                    spacing: 6px;
+                    ControlCell {
+                        caption: @tr("label-bpm");
+                        PanelKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size + 23px;
+                            value: MetronomeBridge.bpm;
+                            min-val: 40;
+                            max-val: 240;
+                            step: 1;
+                            path: "metronome.bpm";
+                            changed(p, v) => { MetronomeBridge.set-bpm(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        PillButton {
+                            label: "−";
+                            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm - 1); }
+                        }
+                        PillButton {
+                            label: "+";
+                            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm + 1); }
+                        }
+                    }
+                }
 
-        // Time signature, parked in the corner like a pedal's secondary readout.
-        Text {
-            x: parent.width - 76px; y: 46px;
-            width: 60px; height: 26px;
-            text: MetronomeBridge.time-signature-label;
-            color: Theme.lcd-ink.with-alpha(0.7);
-            font-family: "Bebas Neue";
-            font-size: 24px;
-            letter-spacing: 1.0px;
-            horizontal-alignment: right;
-        }
+                VerticalLayout {
+                    alignment: end;
+                    spacing: 6px;
+                    Text {
+                        text: @tr("action-tap-tempo");
+                        color: Theme.ink-2;
+                        font-size: Theme.knob-caption-font;
+                        font-weight: 600;
+                        letter-spacing: 0.1 * Theme.knob-caption-font;
+                        horizontal-alignment: center;
+                    }
+                    TapKey {
+                        label: @tr("action-tap-tempo");
+                        clicked => { MetronomeBridge.tap(); }
+                    }
+                }
 
-        if MetronomeBridge.counting-in : Text {
-            x: 16px; y: 46px;
-            width: self.preferred-width; height: 26px;
-            text: @tr("label-count-in");
-            color: Theme.lcd-ink-2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 2.0px;
-            horizontal-alignment: left;
-        }
-    }
+                VerticalLayout {
+                    alignment: end;
+                    ControlCell {
+                        caption: @tr("label-count-in");
+                        value: MetronomeBridge.count-in ? @tr("label-count-in-on") : @tr("label-count-in-off");
+                        ToggleKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size;
+                            label: @tr("label-count-in");
+                            active: MetronomeBridge.count-in;
+                            toggled => { MetronomeBridge.set-count-in(!MetronomeBridge.count-in); }
+                        }
+                    }
+                }
 
-    // ── Tempo row — nudge, tap (centred, not full-width), nudge ──────────
-    Rectangle {
-        x: 16px; y: 268px;
-        width: parent.width - 32px;
-        height: 38px;
+                VerticalLayout {
+                    alignment: end;
+                    ControlCell {
+                        caption: @tr("label-time-signature");
+                        value: MetronomeBridge.time-signature-label;
+                        SelectorKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size;
+                            num-options: 7;
+                            selected-index: MetronomeBridge.time-signature-index;
+                            select(i) => { MetronomeBridge.set-time-signature(i); }
+                        }
+                    }
+                }
 
-        PillButton {
-            x: 0; y: 0;
-            width: 56px;
-            label: "−";
-            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm - 1); }
-        }
+                VerticalLayout {
+                    alignment: end;
+                    ControlCell {
+                        caption: @tr("label-subdivision");
+                        value: MetronomeBridge.subdivision-label;
+                        SelectorKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size;
+                            num-options: 4;
+                            selected-index: MetronomeBridge.subdivision-index;
+                            select(i) => { MetronomeBridge.set-subdivision(i); }
+                        }
+                    }
+                }
 
-        PillButton {
-            x: (parent.width - self.width) / 2; y: 0;
-            width: 200px;
-            label: @tr("action-tap-tempo");
-            emphasis: true;
-            clicked => { MetronomeBridge.tap(); }
-        }
+                VerticalLayout {
+                    alignment: end;
+                    ControlCell {
+                        caption: @tr("label-timbre");
+                        value: MetronomeBridge.timbre-label;
+                        SelectorKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size;
+                            num-options: 3;
+                            selected-index: MetronomeBridge.timbre-index;
+                            select(i) => { MetronomeBridge.set-timbre(i); }
+                        }
+                    }
+                }
 
-        PillButton {
-            x: parent.width - self.width; y: 0;
-            width: 56px;
-            label: "+";
-            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm + 1); }
-        }
-    }
-
-    // ── Knob row ─────────────────────────────────────────────────────────
-    HorizontalLayout {
-        x: 16px; y: 320px;
-        width: parent.width - 32px;
-        height: 108px;
-        alignment: space-around;
-
-        ControlCell {
-            caption: @tr("label-time-signature");
-            value: MetronomeBridge.time-signature-label;
-            SelectorKnob {
-                x: (parent.width - 64px) / 2; y: 20px;
-                width: 64px; height: 64px;
-                num-options: 7;
-                selected-index: MetronomeBridge.time-signature-index;
-                select(i) => { MetronomeBridge.set-time-signature(i); }
+                VerticalLayout {
+                    alignment: end;
+                    ControlCell {
+                        caption: @tr("label-click-volume");
+                        value: Math.round(MetronomeBridge.volume * 100) + "%";
+                        PanelKnob {
+                            x: (parent.width - self.width) / 2; y: parent.knob-y;
+                            width: parent.knob-size; height: parent.knob-size;
+                            value: MetronomeBridge.volume;
+                            min-val: 0.0;
+                            max-val: 1.0;
+                            step: 0.01;
+                            path: "metronome.volume";
+                            changed(p, v) => { MetronomeBridge.set-volume(v); }
+                        }
+                    }
+                }
             }
-        }
 
-        ControlCell {
-            caption: @tr("label-subdivision");
-            value: MetronomeBridge.subdivision-label;
-            SelectorKnob {
-                x: (parent.width - 64px) / 2; y: 20px;
-                width: 64px; height: 64px;
-                num-options: 4;
-                selected-index: MetronomeBridge.subdivision-index;
-                select(i) => { MetronomeBridge.set-subdivision(i); }
+            // ── Output endpoint ──────────────────────────────────────────
+            VerticalLayout {
+                spacing: 6px;
+                FieldCaption {
+                    text: @tr("label-output").to-uppercase();
+                }
+                OutputField {
+                    label: MetronomeBridge.output-label;
+                    placeholder: @tr("placeholder-metronome-output");
+                    open => {
+                        MetronomeBridge.output-opened();
+                        MetronomeBridge.output-picker-open = true;
+                    }
+                }
             }
-        }
 
-        ControlCell {
-            caption: @tr("label-timbre");
-            value: MetronomeBridge.timbre-label;
-            SelectorKnob {
-                x: (parent.width - 64px) / 2; y: 20px;
-                width: 64px; height: 64px;
-                num-options: 3;
-                selected-index: MetronomeBridge.timbre-index;
-                select(i) => { MetronomeBridge.set-timbre(i); }
-            }
-        }
-
-        ControlCell {
-            caption: @tr("label-click-volume");
-            value: Math.round(MetronomeBridge.volume * 100) + "%";
-            PanelKnob {
-                x: (parent.width - 64px) / 2; y: 20px;
-                width: 64px; height: 64px;
-                value: MetronomeBridge.volume;
-                min-val: 0.0;
-                max-val: 1.0;
-                step: 0.01;
-                path: "metronome.volume";
-                changed(p, v) => { MetronomeBridge.set-volume(v); }
-            }
-        }
-    }
-
-    // ── Footer — count-in (vintage toggle) and output endpoint ───────────
-    Rectangle {
-        x: 16px; y: 440px;
-        width: parent.width - 32px;
-        height: 52px;
-
-        count-in-toggle := VintageToggle {
-            x: 0; y: 0;
-            label: @tr("label-count-in");
-            active: MetronomeBridge.count-in;
-            toggled => { MetronomeBridge.set-count-in(!MetronomeBridge.count-in); }
-        }
-
-        // #954: starts after the toggle, whose width follows its label.
-        OutputField {
-            x: count-in-toggle.width + 12px; y: 7px;
-            width: parent.width - self.x;
-            label: MetronomeBridge.output-label;
-            placeholder: @tr("placeholder-metronome-output");
-            open => {
-                MetronomeBridge.output-opened();
-                MetronomeBridge.output-picker-open = true;
-            }
+            Rectangle { vertical-stretch: 1; }
         }
     }
 
@@ -356,11 +316,11 @@ export component MetronomeWindow inherits Window {
     default-font-family: "Bebas Neue";
     default-font-size: 18px;
     title: @tr("title-window-metronome");
-    min-width: 480px;
-    min-height: 500px;
-    preferred-width: 560px;
-    preferred-height: 500px;
-    background: Theme.page;
+    min-width: 560px;
+    min-height: 410px;
+    preferred-width: 600px;
+    preferred-height: 410px;
+    background: Theme.well;
 
     MetronomePanel {
         width: 100%;

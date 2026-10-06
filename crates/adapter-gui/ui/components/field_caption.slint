@@ -1,0 +1,14 @@
+// Responsibility: renders the caption above a form field.
+// #398: the small bold uppercase label of a field (`OUTPUT`, `KIT`, `TRACKS`),
+// spaced out and quiet so the field below reads first.
+import { Theme } from "../theme.slint";
+
+export component FieldCaption inherits Text {
+    color: Theme.ink-2;
+    font-size: Theme.min-font;
+    font-weight: 700;
+    letter-spacing: 0.12 * Theme.min-font;
+    vertical-alignment: center;
+    overflow: elide;
+    vertical-stretch: 0;
+}

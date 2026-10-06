@@ -18,48 +18,48 @@ export component WaveformView inherits Rectangle {
     in-out property <float> sel-start: 0.0;
     in-out property <float> sel-end: 1.0;
 
-    private property <length> handle-width: 10px;
+    // The grab area around each 2px handle line.
+    private property <length> handle-width: 16px;
 
-    background: Theme.palette.pure-black;
-    border-radius: 6px;
+    background: Theme.field;
+    border-radius: 4px;
     border-width: 1px;
-    border-color: Theme.palette.border;
+    border-color: Theme.hair;
     clip: true;
 
     accessible-role: progress-indicator;
     accessible-label: @tr("looper-editor-waveform");
 
-    // The envelope: one bar per bucket, centred on the mid line.
+    // The envelope: one step per bucket, mirrored about the mid line.
     HorizontalLayout {
-        padding: 6px;
+        padding: 1px;
         spacing: 0px;
         for p[i] in root.peaks: Rectangle {
-            // Every bar takes the same share of the width.
-            width: (root.width - 12px) / max(1, root.peaks.length);
+            // Every step takes the same share of the width.
+            width: (root.width - 2px) / max(1, root.peaks.length);
             Rectangle {
-                width: parent.width * 0.7;
-                height: max(1px, p * (parent.height - 4px));
+                width: parent.width;
+                height: max(1px, p * (parent.height - 8px));
                 y: (parent.height - self.height) / 2;
-                background: Theme.palette.accent-start;
-                border-radius: 1px;
+                background: Theme.in;
+                opacity: 0.75;
             }
         }
     }
 
-    // Everything outside the selection is dimmed, so what an edit keeps (or
-    // removes) is readable at a glance.
     Rectangle {
-        x: 0;
-        width: root.width * root.sel-start;
-        height: root.height;
-        background: Theme.scrim;
+        y: (root.height - 1px) / 2;
+        width: root.width;
+        height: 1px;
+        background: Theme.hair;
     }
 
+    // What an edit keeps (or removes) is the lit stretch.
     Rectangle {
-        x: root.width * root.sel-end;
-        width: root.width - self.x;
+        x: root.width * root.sel-start;
+        width: root.width * (root.sel-end - root.sel-start);
         height: root.height;
-        background: Theme.scrim;
+        background: Theme.accent.with-alpha(0.16);
     }
 
     // The playhead: drawn over the envelope and under the handles, so a drag
@@ -75,14 +75,25 @@ export component WaveformView inherits Rectangle {
         x: root.width * root.sel-start - self.width / 2;
         width: root.handle-width;
         height: root.height;
-        background: start-area.has-hover || start-area.pressed
-            ? Theme.palette.accent-border
-            : Theme.palette.accent-end;
-        border-radius: 3px;
 
         accessible-role: slider;
         accessible-label: @tr("looper-editor-selection-start");
         accessible-value: root.sel-start;
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            width: start-area.has-hover || start-area.pressed ? 3px : 2px;
+            height: parent.height;
+            background: Theme.accent;
+        }
+        Rectangle {
+            x: (parent.width - 14px) / 2;
+            y: -3px;
+            width: 14px;
+            height: 17px;
+            border-radius: 3px;
+            background: Theme.accent;
+        }
 
         start-area := TouchArea {
             mouse-cursor: ew-resize;
@@ -98,14 +109,25 @@ export component WaveformView inherits Rectangle {
         x: root.width * root.sel-end - self.width / 2;
         width: root.handle-width;
         height: root.height;
-        background: end-area.has-hover || end-area.pressed
-            ? Theme.palette.accent-border
-            : Theme.palette.accent-end;
-        border-radius: 3px;
 
         accessible-role: slider;
         accessible-label: @tr("looper-editor-selection-end");
         accessible-value: root.sel-end;
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            width: end-area.has-hover || end-area.pressed ? 3px : 2px;
+            height: parent.height;
+            background: Theme.accent;
+        }
+        Rectangle {
+            x: (parent.width - 14px) / 2;
+            y: -3px;
+            width: 14px;
+            height: 17px;
+            border-radius: 3px;
+            background: Theme.accent;
+        }
 
         end-area := TouchArea {
             mouse-cursor: ew-resize;

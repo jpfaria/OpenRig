@@ -1278,3 +1278,102 @@ msgstr "검색"
 
 msgid "status-drums-no-match"
 msgstr "일치하는 항목이 없습니다"
+
+msgid "tooltip-move-chain-up"
+msgstr "체인을 위로"
+
+msgid "tooltip-move-chain-down"
+msgstr "체인을 아래로"
+
+msgid "accessible-chain-power"
+msgstr "체인 켜기/끄기"
+
+msgid "compact-lane-path"
+msgstr "경로 {}"
+
+msgid "compact-lane-mix"
+msgstr "믹스"
+
+msgid "compact-lane-split"
+msgstr "분기"
+
+msgid "compact-block-power"
+msgstr "블록 켜기/끄기"
+
+msgid "compact-block-remove"
+msgstr "블록 삭제"
+
+msgid "block-editor-power"
+msgstr "블록 켜기/끄기"
+
+msgid "block-editor-info"
+msgstr "정보"
+
+msgid "block-editor-remove"
+msgstr "블록 제거"
+
+msgid "block-editor-save"
+msgstr "블록 추가"
+
+msgid "label-mixer-chain"
+msgstr "체인"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} 밴드"
+
+msgid "label-count-in-on"
+msgstr "1마디"
+
+msgid "label-count-in-off"
+msgstr "끔"
+
+msgid "title-settings"
+msgstr "설정"
+
+msgid "label-device-channels {} {}"
+msgstr "입력 {} · 출력 {}"
+
+msgid "help-buffer-latency"
+msgstr "오디오 블록당 지연"
+
+msgid "btn-refresh-devices"
+msgstr "새로고침"
+
+msgid "empty-no-midi-devices"
+msgstr "MIDI 장치가 없습니다"
+
+msgid "placeholder-midi-alias"
+msgstr "별칭"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · 채널 {}"
+
+msgid "btn-edit"
+msgstr "편집"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "경로"
+
+msgid "title-add-block"
+msgstr "블록 추가"
+
+msgid "di-source-label"
+msgstr "소스"

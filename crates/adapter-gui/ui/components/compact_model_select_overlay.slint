@@ -1,14 +1,11 @@
 // Responsibility: renders the model select of the compact view.
 import { Theme } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
+import { TextField } from "text_field.slint";
+import { ModelPickRow } from "model_pick_row.slint";
 
-// #761: the compact chain view's model picker, rendered at the PAGE root
-// (outside the clipped, scrolling block list) instead of inside a
-// `PopupWindow` — `PopupWindow` content is a separate surface that never
-// received the row click reliably (same defect class #749 hit with the DI
-// loop panel; see `issue_761_model_select_popup_interaction.rs`). Content
-// mirrors `ModelSelectWithSearch`'s popup so the two look identical to the
-// user; only the parent/positioning strategy differs.
+// #398: the same card as the block editor's popup — the focused search field
+// over one framed list grouped by block type.
 export component CompactModelSelectOverlay inherits Rectangle {
     in property <[BlockModelPickerItem]> filtered-models;
     in property <BlockModelPickerItem> selected-model;
@@ -18,188 +15,81 @@ export component CompactModelSelectOverlay inherits Rectangle {
     callback select(string);
     callback search-text-changed(string);
 
-    width: 260px;
+    width: 320px;
     height: root.popup-height;
-    background: Theme.well;
+    background: Theme.panel;
     border-width: 1px;
     border-color: Theme.hair;
     border-radius: 6px;
-    drop-shadow-blur: 20px;
+    drop-shadow-blur: 24px;
     drop-shadow-color: Theme.shadow;
-    drop-shadow-offset-x: 0px;
-    drop-shadow-offset-y: 6px;
+    drop-shadow-offset-y: 8px;
     clip: true;
 
-    // Sticky search header.
-    search-field := Rectangle {
-        x: 6px;
-        y: 6px;
-        width: parent.width - 12px;
-        height: 40px;
-        background: Theme.accent-soft;
-        border-width: 1px;
-        border-color: Theme.hair;
-        border-radius: 6px;
+    VerticalLayout {
+        padding: 10px;
+        spacing: 10px;
 
-        Image {
-            x: 10px;
-            y: (parent.height - 16px) / 2;
-            width: 16px;
-            height: 16px;
-            source: @image-url("../modules/surrealism-ui/icons/search.svg");
-            colorize: Theme.ink-3;
-        }
-
-        input := TextInput {
-            x: 30px;
-            y: 0;
-            width: parent.width - 30px - (root.search-text == "" ? 8px : 28px);
-            height: parent.height;
+        TextField {
             text <=> root.search-text;
-            color: Theme.ink;
-            font-size: 18px;
-            horizontal-alignment: left;
-            vertical-alignment: center;
-            single-line: true;
-            edited => {
-                root.search-text-changed(self.text);
-            }
+            placeholder: @tr("placeholder-search-models");
+            edited(t) => { root.search-text-changed(t); }
+            init => { self.focus-field(); }
         }
 
-        if root.search-text == "" : Text {
-            x: 30px;
-            y: 0;
-            width: parent.width - 38px;
-            height: parent.height;
-            text: @tr("placeholder-search-models");
+        if root.filtered-models.length == 0 : Text {
+            height: 60px;
+            text: @tr("status-no-models-found");
+            wrap: word-wrap;
             color: Theme.ink-3;
-            font-size: 18px;
+            font-size: Theme.min-font;
             vertical-alignment: center;
-            overflow: elide;
+            horizontal-alignment: center;
         }
 
-        if root.search-text != "" : TouchArea {
-            x: parent.width - 28px;
-            y: 0;
-            width: 24px;
-            height: parent.height;
-            mouse-cursor: pointer;
-            clicked => {
-                root.search-text = "";
-                root.search-text-changed("");
-            }
+        if root.filtered-models.length > 0 : Rectangle {
+            vertical-stretch: 1;
+            border-radius: 4px;
+            clip: true;
+            background: Theme.field;
+            border-width: 1px;
+            border-color: Theme.hair;
 
-            Image {
-                x: (parent.width - 12px) / 2;
-                y: (parent.height - 12px) / 2;
-                width: 12px;
-                height: 12px;
-                source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: Theme.ink-2;
-            }
-        }
-    }
+            Flickable {
+                x: 1px;
+                y: 1px;
+                width: parent.width - 2px;
+                height: parent.height - 2px;
+                viewport-width: self.width;
+                viewport-height: rows.preferred-height;
 
-    if root.filtered-models.length == 0 : Text {
-        x: 12px;
-        y: 58px;
-        width: parent.width - 24px;
-        height: 60px;
-        text: @tr("status-no-models-found");
-        wrap: word-wrap;
-        color: Theme.ink-3;
-        font-size: 18px;
-        vertical-alignment: center;
-        horizontal-alignment: center;
-    }
+                rows := VerticalLayout {
+                    alignment: start;
 
-    if root.filtered-models.length > 0 : Flickable {
-        x: 0;
-        y: 54px;
-        width: parent.width;
-        height: parent.height - 54px;
-        viewport-width: self.width;
-        viewport-height: root.filtered-models.length * 36px + 8px;
+                    for model[i] in root.filtered-models : Rectangle {
+                        height: pick.height;
 
-        for model[i] in root.filtered-models : Rectangle {
-            x: 4px;
-            y: 4px + i * 36px;
-            width: parent.width - 8px;
-            height: 36px;
-            border-radius: 5px;
-            opacity: model.available ? 1.0 : 0.4;
-            background: model.model_id == root.selected-model.model_id
-                ? Theme.accent-soft : transparent;
+                        pick := ModelPickRow {
+                            width: parent.width;
+                            model: model;
+                            on: model.model_id == root.selected-model.model_id;
+                            divided: i > 0;
+                            header: i == 0 || model.effect_type != root.filtered-models[i - 1].effect_type
+                                ? model.effect_type.to-uppercase() : "";
+                        }
 
-            private property <bool> row-has-brand:
-                model.brand != ""
-                && model.brand != "native"
-                && model.brand != "generic";
-
-            Text {
-                x: 12px;
-                y: 0;
-                width: parent.width - 12px - (model.type_label == "" ? 12px : type-badge.width + 24px);
-                height: parent.height;
-                text: row-has-brand
-                    ? model.brand + " " + model.display_name
-                    : model.display_name;
-                color: model.model_id == root.selected-model.model_id
-                    ? Theme.accent : Theme.ink-2;
-                font-size: 19px;
-                font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-
-            // The badge follows its label (#954): "NATIVE" at 18px is wider
-            // than the old fixed 42px.
-            type-badge := Rectangle {
-                visible: model.type_label != "";
-                width: Math.max(42px, type-text.preferred-width + 12px);
-                x: parent.width - self.width - 12px;
-                y: (parent.height - 24px) / 2;
-                height: 24px;
-                border-radius: 3px;
-                background: model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.14)
-                    : model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.14)
-                    : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.14)
-                    : model.type_label == "IR" ? Theme.b-ir.with-alpha(0.14)
-                    : model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.14)
-                    : Theme.b-vst3.with-alpha(0.14);
-                border-width: 1px;
-                border-color: model.type_label == "NATIVE" ? Theme.b-native.with-alpha(0.5)
-                    : model.type_label == "NAM/A2" ? Theme.warn.with-alpha(0.5)
-                    : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam.with-alpha(0.5)
-                    : model.type_label == "IR" ? Theme.b-ir.with-alpha(0.5)
-                    : model.type_label == "LV2" ? Theme.b-lv2.with-alpha(0.5)
-                    : Theme.b-vst3.with-alpha(0.5);
-
-                type-text := Text {
-                    width: parent.width;
-                    height: parent.height;
-                    text: model.type_label;
-                    color: model.type_label == "NATIVE" ? Theme.b-native
-                        : model.type_label == "NAM/A2" ? Theme.warn
-                        : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? Theme.b-nam
-                        : model.type_label == "IR" ? Theme.b-ir
-                        : model.type_label == "LV2" ? Theme.b-lv2
-                        : Theme.b-vst3;
-                    font-size: 18px;
-                    font-weight: 800;
-                    letter-spacing: 0.5px;
-                    vertical-alignment: center;
-                    horizontal-alignment: center;
-                }
-            }
-
-            row-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => {
-                    root.select(model.model_id);
-                }
-                scroll-event(_) => {
-                    reject
+                        row-ta := TouchArea {
+                            y: pick.header-height;
+                            height: parent.height - pick.header-height;
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.select(model.model_id);
+                            }
+                            scroll-event(_) => {
+                                reject
+                            }
+                        }
+                    }
                 }
             }
         }

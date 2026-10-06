@@ -1,176 +1,143 @@
 // Responsibility: renders the metronome's controls.
-import { Theme } from "../theme.slint";
 // Issue #14 — the metronome's building blocks, kept out of
 // `pages/metronome_window.slint` so the page stays about layout.
+//
+// #398: drawn controls only, no sprites. Lamps sit on the LCD glass, every
+// setting is a knob cell (caption, knob, value in a field), the tempo nudges
+// are small field buttons and TAP is a white key.
+import { Theme, Gear } from "../theme.slint";
+import { KnobArc } from "knob_arc.slint";
 
-// Power footswitch — same sprite and size as the Tuner's and the block
-// FootSwitch. No label, no LED.
-export component PowerFootSwitch inherits Rectangle {
-    in property <bool> active;
-    callback toggled();
-
-    width: 48px;
-    height: 48px;
-    clip: true;
-
-    // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
-    // Top = pressed/on, bottom = released/off.
-    Image {
-        source: @image-url("../assets/sprites/footswitch.png");
-        x: 0;
-        y: root.active ? -parent.height : 0;
-        width: parent.width;
-        height: 2 * parent.height;
-        image-fit: fill;
-        image-rendering: smooth;
-    }
-    // Named so the headless interaction test can find and press it.
-    ta := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.toggled(); }
-    }
-}
-
-// One beat lamp. The downbeat reads differently from the rest even when unlit,
-// so the bar has a visible starting point at a glance.
+// One beat lamp on the LCD. The downbeat keeps a dim ring even when unlit, so
+// the bar has a visible starting point at a glance.
 export component BeatLamp inherits Rectangle {
     in property <bool> lit;
     in property <bool> downbeat;
     in property <bool> counting-in;
 
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
-    border-width: root.downbeat ? 2px : 1px;
-    border-color: Theme.shadow;
-    background: root.lit
-        ? (root.counting-in ? Theme.accent : (root.downbeat ? Theme.needle-in : Theme.needle-in.brighter(0.2)))
-        : Theme.shadow;
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    border-width: root.downbeat && !root.lit ? 2px : 1px;
+    border-color: root.downbeat && !root.lit ? Theme.lcd-dim : Theme.lcd-rim;
+    background: !root.lit ? Theme.lcd-lamp : root.counting-in ? Theme.accent : Theme.lcd-glow;
+    drop-shadow-blur: root.lit ? 12px : 0;
+    drop-shadow-color: root.counting-in ? Theme.accent : Theme.lcd-glow;
 
-    animate background { duration: 60ms; }
+    // The hot spot of a lit lamp, up and to the left.
+    if root.lit && !root.counting-in : Rectangle {
+        x: 6px; y: 5px;
+        width: 10px; height: 10px;
+        border-radius: 5px;
+        background: Theme.lcd-lamp-hi;
+        opacity: 0.8;
+    }
 }
 
-// Labelled control cell — caption above, control centred, value below. Keeps
-// the knob row on one baseline grid.
+// A knob cell: the caption above, the knob centred, the value in a field
+// below. The knob is the child; a knob that draws its own value box leaves
+// `value` empty.
 export component ControlCell inherits Rectangle {
     in property <string> caption;
     in property <string> value;
+    out property <length> knob-y: 20px;
+    out property <length> knob-size: 46px;
 
-    // Widens for a longer (translated) caption or value.
-    width: max(96px, caption-text.preferred-width, value-text.preferred-width);
-    height: 108px;
+    width: 76px;
+    height: 92px;
 
     caption-text := Text {
         x: 0; y: 0;
-        width: parent.width; height: 22px;
+        width: parent.width; height: 16px;
         text: root.caption;
-        color: Theme.ink-3;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.6px;
+        color: Theme.ink-2;
+        font-size: Theme.knob-caption-font;
+        font-weight: 600;
+        letter-spacing: 0.1 * Theme.knob-caption-font;
         horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
     }
 
     @children
 
-    value-text := Text {
-        x: 0; y: parent.height - 22px;
-        width: parent.width; height: 22px;
-        text: root.value;
-        color: Theme.ink;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.2px;
-        horizontal-alignment: center;
+    if root.value != "" : Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.knob-y + root.knob-size + 3px;
+        width: max(56px, value-text.preferred-width + 8px);
+        height: 20px;
+        border-radius: 2px;
+        background: Theme.field;
+        border-width: 1px;
+        border-color: Theme.hair;
+
+        value-text := Text {
+            width: parent.width; height: parent.height;
+            text: root.value;
+            color: Theme.ink;
+            font-size: Theme.knob-caption-font;
+            font-weight: 500;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
-// Vintage toggle switch with a label above and a red LED beside it — same
-// sprite vocabulary as the Tuner's MUTE switch. Used for count-in.
-export component VintageToggle inherits Rectangle {
-    in property <string> label;
+// A two-position knob: seven o'clock off, five o'clock on; a click flips it.
+// Used for count-in.
+export component ToggleKnob inherits Rectangle {
     in property <bool> active;
+    in property <string> label;
     callback toggled();
 
-    // Follows the (translated) label; the switch sits below it.
-    width: max(76px, label-text.preferred-width);
-    height: label-text.height + 34px;
-
-    label-text := Text {
-        x: 0; y: 0;
-        width: parent.width; height: max(22px, self.preferred-height);
-        text: root.label;
-        color: root.active ? Theme.warn : Theme.ink-2;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.0px;
-        horizontal-alignment: left;
+    KnobArc {
+        width: root.width; height: root.width;
+        angle: root.active ? 135 : -135;
+        show-value: root.active;
     }
 
-    // Toggle sprite (26×34 per frame, two frames stacked horizontally).
-    Rectangle {
-        x: 7px; y: label-text.height;
-        width: 26px; height: 34px;
-        clip: true;
-        Image {
-            source: @image-url("../assets/sprites/toggleswitch.png");
-            x: root.active ? -parent.width : 0;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-        ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggled(); }
-        }
+    // Named so the headless interaction test can find and press it.
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
     }
-
-    // Red LED to the right of the toggle, lit when on.
-    Rectangle {
-        x: 40px; y: label-text.height + 10px;
-        width: 14px; height: 14px;
-        clip: true;
-        Image {
-            source: @image-url("../assets/sprites/led-red.png");
-            x: root.active ? 0 : -parent.width;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-    }
-    accessible-role: button;
+    accessible-role: switch;
+    accessible-checked: root.active;
     accessible-label: root.label;
+    accessible-action-default => { root.toggled(); }
 }
 
-// Small pill button — the tempo nudges and TAP.
+// A small field button (the tempo nudges). With `key` set it is the white
+// TAP key instead.
 export component PillButton inherits Rectangle {
     in property <string> label;
-    in property <bool> emphasis: false;
     in property <bool> enabled: true;
+    in property <bool> key: false;
     callback clicked();
 
-    height: 38px;
-    border-radius: 6px;
-    opacity: root.enabled ? 1.0 : 0.35;
-    background: root.emphasis
-        ? (ta.has-hover ? Theme.warn : Theme.warn.darker(0.25))
-        : (ta.has-hover ? Theme.ktrack : Theme.panel);
+    height: root.key ? 44px : 24px;
+    min-width: max(root.key ? 72px : 30px, label-text.preferred-width + 20px);
+    border-radius: root.key ? 5px : 4px;
+    opacity: root.enabled ? 1.0 : 0.45;
+    background: root.key
+        ? (ta.pressed
+            ? @linear-gradient(180deg, Gear.key-mid 0%, Gear.key-lo 100%)
+            : @linear-gradient(180deg, Gear.white 0%, Gear.key-mid 55%, Gear.key-lo 100%))
+        : (ta.has-hover && root.enabled ? Theme.panel-hi : Theme.field);
     border-width: 1px;
-    border-color: root.emphasis ? Theme.warn : Theme.hair;
-    animate background { duration: 120ms; }
+    border-color: root.key ? Gear.edge-soft : Theme.hair;
+    drop-shadow-blur: root.key && !ta.pressed ? 5px : 0;
+    drop-shadow-offset-y: root.key ? 3px : 0;
+    drop-shadow-color: Gear.switch-shadow;
 
-    Text {
+    label-text := Text {
         width: 100%;
         height: 100%;
         text: root.label;
-        color: root.emphasis ? Theme.on-accent : Theme.ink;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 2.0px;
+        color: root.key ? Gear.key-ink : Theme.ink;
+        font-size: root.key ? 20px : Theme.min-font;
+        font-weight: root.key ? 400 : 600;
+        letter-spacing: root.key ? 2px : 0;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -185,4 +152,12 @@ export component PillButton inherits Rectangle {
     }
     accessible-role: button;
     accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+}
+
+// TAP — the white key. A PillButton underneath, so the tempo row keeps one
+// button vocabulary for the interaction tests.
+export component TapKey inherits PillButton {
+    key: true;
+    width: 72px;
 }

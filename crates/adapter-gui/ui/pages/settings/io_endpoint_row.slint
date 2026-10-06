@@ -1,89 +1,89 @@
 // Responsibility: renders one existing endpoint row.
-// One existing-endpoint row in the I/O bindings editor (#716): device label,
-// mode + channel summary, and a remove (trash) action. Pure presentation —
-// the remove event fires upward; Rust owns the mutation.
+// One existing-endpoint row in the I/O bindings editor (#716): the device,
+// its mode and channels in the quiet ink, then edit and remove. Pure
+// presentation — the events fire upward; Rust owns the mutation.
+//
+// #398: a row of the framed endpoint list.
 
 import { Theme } from "../../theme.slint";
 import { IoEndpointModel } from "../../models.slint";
+import { ListRow } from "../../components/list_box.slint";
 
-export component IoEndpointRow inherits Rectangle {
+// A square icon action that lights on hover; `danger` reddens it.
+export component RowIconButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> danger: false;
+    callback clicked();
+
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: !ta.has-hover ? transparent : root.danger ? Theme.bad-soft : Theme.hover;
+
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 16px;
+        height: 16px;
+        source: root.icon;
+        colorize: !ta.has-hover ? Theme.ink-3 : root.danger ? Theme.bad : Theme.ink;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+}
+
+export component IoEndpointRow inherits ListRow {
     in property <IoEndpointModel> endpoint;
+    callback edit-requested();
     callback remove-requested();
 
-    height: 40px;
-    background: Theme.panel;
-    border-radius: 6px;
-    border-width: 1px;
-    border-color: Theme.hair;
+    private property <string> mode-text: root.endpoint.mode == "mono" ? @tr("mode-mono")
+        : root.endpoint.mode == "stereo" ? @tr("mode-stereo")
+        : @tr("mode-dual-mono");
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 6px;
-        spacing: 10px;
+    Text {
+        horizontal-stretch: 1;
+        text: root.endpoint.device_label;
+        color: Theme.ink;
+        font-size: Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // #880: a many-channel endpoint must not push the row's actions out.
+    Text {
+        max-width: 260px;
+        text: @tr("label-endpoint-summary {} {}", root.mode-text, root.endpoint.channels_label);
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    VerticalLayout {
         alignment: center;
-
-        // Endpoint name (full width, no truncation up to the controls).
-        Text {
-            horizontal-stretch: 1;
-            text: root.endpoint.name;
-            color: Theme.ink;
-            font-size: 18px;
-            vertical-alignment: center;
-            overflow: elide;
+        RowIconButton {
+            icon: @image-url("../../assets/pencil.svg");
+            label: @tr("btn-edit");
+            clicked => { root.edit-requested(); }
         }
+    }
 
-        // Device + channels + mode summary (separate Text nodes so no raw
-        // string literal lives in a `text:` binding).
-        Text {
-            text: root.endpoint.device_label;
-            color: Theme.ink-2;
-            font-size: 18px;
-            vertical-alignment: center;
-            overflow: elide;
-        }
-        Text {
-            text: @tr("label-channels-prefix");
-            color: Theme.ink-3;
-            font-size: 18px;
-            vertical-alignment: center;
-        }
-        Text {
-            text: root.endpoint.channels_label;
-            color: Theme.ink-2;
-            font-size: 18px;
-            vertical-alignment: center;
-            // #880: a many-channel endpoint must not push the row's actions out.
-            overflow: elide;
-            max-width: 120px;
-        }
-        Text {
-            text: root.endpoint.mode;
-            color: Theme.ink-3;
-            font-size: 18px;
-            vertical-alignment: center;
-        }
-
-        // Remove (trash) action — ≥44px touch target via padding.
-        Rectangle {
-            width: 32px;
-            height: 32px;
-            background: rm-ta.has-hover ? Theme.bad-soft : transparent;
-            border-radius: 6px;
-            animate background { duration: 120ms; }
-
-            Image {
-                x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
-                width: 13px;
-                height: 13px;
-                source: @image-url("../../assets/trash.svg");
-                colorize: rm-ta.has-hover ? Theme.bad : Theme.ink-3;
-            }
-
-            rm-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.remove-requested(); }
-            }
+    VerticalLayout {
+        alignment: center;
+        RowIconButton {
+            icon: @image-url("../../assets/trash.svg");
+            label: @tr("btn-delete");
+            danger: true;
+            clicked => { root.remove-requested(); }
         }
     }
 }

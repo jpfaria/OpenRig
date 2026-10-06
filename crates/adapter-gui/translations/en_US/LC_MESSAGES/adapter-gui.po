@@ -1281,3 +1281,102 @@ msgstr "Search"
 
 msgid "status-drums-no-match"
 msgstr "Nothing matches"
+
+msgid "tooltip-move-chain-up"
+msgstr "Move chain up"
+
+msgid "tooltip-move-chain-down"
+msgstr "Move chain down"
+
+msgid "accessible-chain-power"
+msgstr "Turn the chain on or off"
+
+msgid "compact-lane-path"
+msgstr "PATH {}"
+
+msgid "compact-lane-mix"
+msgstr "MIX"
+
+msgid "compact-lane-split"
+msgstr "Split"
+
+msgid "compact-block-power"
+msgstr "Turn the block on or off"
+
+msgid "compact-block-remove"
+msgstr "Remove block"
+
+msgid "block-editor-power"
+msgstr "Turn the block on or off"
+
+msgid "block-editor-info"
+msgstr "Information"
+
+msgid "block-editor-remove"
+msgstr "Remove block"
+
+msgid "block-editor-save"
+msgstr "Add block"
+
+msgid "label-mixer-chain"
+msgstr "CHAIN"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} BANDS"
+
+msgid "label-count-in-on"
+msgstr "1 BAR"
+
+msgid "label-count-in-off"
+msgstr "OFF"
+
+msgid "title-settings"
+msgstr "Settings"
+
+msgid "label-device-channels {} {}"
+msgstr "{} inputs · {} outputs"
+
+msgid "help-buffer-latency"
+msgstr "Latency per audio block"
+
+msgid "btn-refresh-devices"
+msgstr "Refresh"
+
+msgid "empty-no-midi-devices"
+msgstr "No MIDI devices found"
+
+msgid "placeholder-midi-alias"
+msgstr "Alias"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · Channels {}"
+
+msgid "btn-edit"
+msgstr "Edit"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "PATHS"
+
+msgid "title-add-block"
+msgstr "Add block"
+
+msgid "di-source-label"
+msgstr "Source"

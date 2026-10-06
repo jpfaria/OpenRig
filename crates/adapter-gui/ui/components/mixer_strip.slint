@@ -4,53 +4,57 @@
 // name + interface channels, like the scribble strip under a console fader).
 // The strip only reports intent: the fader position it was dragged to, a
 // reset (double-click or the reset button), a solo or mute press.
+// #398: a raised card — the level in a field, a thin groove lit in `tint` up
+// to a white cap, a unity mark, small field buttons and a quiet label.
 
-import { Theme } from "../theme.slint";
-import { MixerStripRow } from "mixer_globals.slint";
+import { Theme, Gear } from "../theme.slint";
+import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
 import { StripLabel } from "strip_label.slint";
 
-// A small console button (S / mute / reset): lit in its colour while its
-// state is on. Shows its icon when it has one, its text otherwise.
+// A small console button (S / mute / reset): a field key, lit in its colour
+// while its state is on. Shows its icon when it has one, its text otherwise.
 component StripButton inherits Rectangle {
     in property <string> label;
     in property <string> text;
     in property <image> icon;
     in property <bool> has-icon;
     in property <bool> lit;
+    // Solo fills with its colour; mute only rings and inks in it.
+    in property <bool> fill-when-lit;
     in property <color> lit-color;
-    in property <color> lit-hover;
-    in property <color> lit-border;
     // Hover of the TouchArea the strip places inside the button.
     in property <bool> hovered;
     callback pressed();
 
+    private property <color> ink: root.lit
+        ? (root.fill-when-lit ? Gear.print : root.lit-color)
+        : (root.hovered ? Theme.ink : Theme.ink-2);
+
     width: 28px;
-    height: 30px;
-    border-radius: 5px;
-    background: root.lit
-        ? (root.hovered ? root.lit-hover : root.lit-color)
-        : (root.hovered ? Theme.ktrack : Theme.panel);
+    height: 24px;
+    border-radius: 4px;
+    background: root.lit && root.fill-when-lit ? root.lit-color
+        : (root.hovered ? Theme.hover : Theme.field);
     border-width: 1px;
-    border-color: root.lit ? root.lit-border : Theme.hair;
+    border-color: root.lit ? root.lit-color : Theme.hair;
     animate background { duration: 120ms; }
 
     if !root.has-icon : Text {
         width: 100%; height: 100%;
         text: root.text;
-        color: root.lit ? Theme.on-accent : Theme.ink;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 2.0px;
+        color: root.ink;
+        font-size: Theme.min-font;
+        font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
     if root.has-icon : Image {
-        x: (parent.width - 16px) / 2; y: (parent.height - 16px) / 2;
-        width: 16px; height: 16px;
+        x: (parent.width - 14px) / 2; y: (parent.height - 14px) / 2;
+        width: 14px; height: 14px;
         source: root.icon;
         image-fit: contain;
-        colorize: root.lit ? Theme.on-accent : Theme.ink;
+        colorize: root.ink;
     }
 
     accessible-role: button;
@@ -71,31 +75,55 @@ export component MixerStripView inherits Rectangle {
     in property <bool> has-mute: true;
     in property <bool> has-label: true;
     in property <bool> framed: true;
-    in property <brush> face: Theme.well;
+    in property <brush> face: Theme.panel-hi;
+    // The lit part of the groove.
+    in property <color> tint: Theme.accent;
+    // The chain's MASTER strip carries an accent line on top.
+    in property <bool> master: false;
 
     width: 112px;
-    border-radius: 6px;
+    border-radius: 5px;
     background: root.face;
-    border-width: root.framed ? 1px : 0px;
-    border-color: root.strip.soloed ? Theme.warn : Theme.hair-2;
+    border-width: root.strip.soloed ? 2px : (root.framed ? 1px : 0px);
+    border-color: root.strip.soloed ? Theme.warn : Theme.hair;
 
     // Muted, or silenced by another strip's solo: the strip reads dim.
     private property <bool> silent: root.strip.muted || root.strip.solo-silenced;
+    private property <length> pad: root.framed ? 10px : 4px;
+    private property <length> readout-height: 26px;
     private property <length> cap-height: 20px;
-    private property <length> fader-top: 36px;
-    // The one-line name + the channels line, then the button row above them.
-    private property <length> label-height: root.has-label ? 66px : 0px;
-    private property <length> buttons-height: 30px;
-    private property <length> fader-bottom: root.buttons-height + root.label-height + 16px;
+    private property <length> buttons-height: 24px;
+    private property <length> label-height: root.has-label ? 54px : 0px;
+    private property <length> fader-top: root.pad + root.readout-height + 8px;
+    private property <length> buttons-y:
+        root.height - root.pad - root.label-height - (root.has-label ? 10px : 0px) - root.buttons-height;
+    private property <length> fader-bottom: root.height - root.buttons-y + 8px;
 
-    Text {
-        x: 6px; y: 8px;
-        width: parent.width - 12px; height: 22px;
-        text: root.strip.gain-label;
-        color: root.silent ? Theme.ink-3 : Theme.in;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        horizontal-alignment: center;
+    if root.master : Rectangle {
+        x: 1px; y: 1px;
+        width: parent.width - 2px; height: 2px;
+        border-radius: 1px;
+        background: Theme.accent;
+    }
+
+    // ── The level, in a field ──
+    Rectangle {
+        x: (parent.width - self.width) / 2; y: root.pad;
+        width: max(70px, readout.preferred-width + 12px);
+        height: root.readout-height;
+        border-radius: 3px;
+        background: Theme.field;
+        border-width: 1px;
+        border-color: Theme.hair;
+
+        readout := Text {
+            text: root.strip.gain-label;
+            color: root.silent ? Theme.ink-3 : Theme.ink;
+            font-size: Theme.min-font;
+            font-weight: 500;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 
     fader := Rectangle {
@@ -107,34 +135,68 @@ export component MixerStripView inherits Rectangle {
         // for the app to redraw the strip from the dispatcher.
         private property <float> drag-position;
         private property <float> shown-position: fader-ta.pressed ? self.drag-position : root.strip.position;
+        private property <length> cap-y: (1 - self.shown-position) * self.travel;
 
-        // Track.
+        // The groove, lit from the bottom up to the cap.
         Rectangle {
-            x: (parent.width - 6px) / 2; y: root.cap-height / 2;
-            width: 6px; height: parent.travel;
-            border-radius: 3px;
-            background: Theme.panel;
-            border-width: 1px;
-            border-color: Theme.hair;
-        }
-
-        // Cap.
-        cap := Rectangle {
-            x: (parent.width - 44px) / 2;
-            y: (1 - parent.shown-position) * parent.travel;
-            width: 44px; height: root.cap-height;
-            border-radius: 4px;
-            background: fader-ta.pressed ? Theme.ink : (fader-ta.has-hover ? Theme.ink-2 : Theme.ink-2);
-            opacity: root.silent ? 0.5 : 1.0;
-            border-width: 1px;
-            border-color: Theme.shadow;
-            drop-shadow-blur: 4px;
-            drop-shadow-color: Theme.shadow;
+            x: (parent.width - 3px) / 2; y: root.cap-height / 2;
+            width: 3px; height: parent.travel;
+            border-radius: 1.5px;
+            background: Theme.groove;
+            clip: true;
 
             Rectangle {
-                x: 6px; y: (parent.height - 2px) / 2;
-                width: parent.width - 12px; height: 2px;
-                background: Theme.panel-hi;
+                x: 0; y: parent.height - self.height;
+                width: parent.width;
+                height: parent.height * fader.shown-position;
+                background: root.silent ? Theme.ink-3 : root.tint;
+            }
+        }
+
+        // The unity mark.
+        Rectangle {
+            x: 22px; y: root.cap-height / 2 + (1 - MixerBridge.unity-position) * parent.travel;
+            width: parent.width - 44px; height: 1px;
+            background: Theme.ink-3;
+            opacity: 0.5;
+        }
+
+        // The cap's drop.
+        Rectangle {
+            x: (parent.width - 46px) / 2; y: parent.cap-y + 2px;
+            width: 46px; height: root.cap-height;
+            border-radius: 4px;
+            background: Gear.knob-drop;
+            opacity: root.silent ? 0.55 : 1.0;
+        }
+
+        // The white cap with its centre line.
+        cap := Rectangle {
+            x: (parent.width - 46px) / 2; y: parent.cap-y;
+            width: 46px; height: root.cap-height;
+            border-radius: 4px;
+            background: Gear.knob-edge;
+            border-width: 1px;
+            border-color: Gear.edge-soft;
+            clip: true;
+            opacity: root.silent ? 0.55 : 1.0;
+
+            Rectangle {
+                x: 1px; y: 1px;
+                width: parent.width - 2px; height: parent.height * 0.55;
+                background: Gear.white;
+            }
+
+            Rectangle {
+                x: 1px; y: parent.height * 0.55;
+                width: parent.width - 2px; height: parent.height * 0.25;
+                background: Gear.knob-mid;
+            }
+
+            Rectangle {
+                x: 7px; y: (parent.height - 2px) / 2;
+                width: parent.width - 14px; height: 2px;
+                background: fader-ta.pressed ? Theme.accent : Gear.print;
             }
         }
 
@@ -163,7 +225,7 @@ export component MixerStripView inherits Rectangle {
 
     // ── Buttons: S, the mute speaker and reset, side by side under the fader ──
     HorizontalLayout {
-        x: 4px; y: parent.height - root.label-height - 38px;
+        x: 4px; y: root.buttons-y;
         width: parent.width - 8px; height: root.buttons-height;
         alignment: center;
         spacing: 4px;
@@ -172,9 +234,8 @@ export component MixerStripView inherits Rectangle {
             text: @tr("action-mixer-solo-short");
             label: @tr("action-mixer-solo");
             lit: root.strip.soloed;
+            fill-when-lit: true;
             lit-color: Theme.warn;
-            lit-hover: Theme.warn.brighter(0.15);
-            lit-border: Theme.warn.brighter(0.4);
             hovered: solo-ta.has-hover;
             pressed => { root.solo-toggled(root.strip.id); }
             solo-ta := TouchArea {
@@ -189,8 +250,6 @@ export component MixerStripView inherits Rectangle {
             icon: root.strip.muted ? @image-url("../assets/volume-off.svg") : @image-url("../assets/volume.svg");
             lit: root.strip.muted;
             lit-color: Theme.bad;
-            lit-hover: Theme.bad.brighter(0.15);
-            lit-border: Theme.bad.brighter(0.4);
             hovered: mute-ta.has-hover;
             pressed => { root.mute-toggled(root.strip.id); }
             mute-ta := TouchArea {
@@ -214,7 +273,7 @@ export component MixerStripView inherits Rectangle {
 
     // ── Label: which endpoint this is, at the bottom like a scribble strip ──
     StripLabel {
-        x: 4px; y: parent.height - root.label-height - 4px;
+        x: 4px; y: parent.height - root.pad - root.label-height;
         width: parent.width - 8px; height: root.label-height;
         visible: root.has-label;
         name: root.strip.name;

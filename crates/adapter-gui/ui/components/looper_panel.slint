@@ -7,11 +7,16 @@
 // INLINE (inherits Rectangle), NOT a PopupWindow — same reason as the DI panel
 // (#749/#761): a panel can grow when a row's drawer opens, and every click is
 // a normal in-tree TouchArea the headless interaction test can actuate.
+//
+// #398: a tool window — the dark bar with the loop icon, the title and the
+// panel's actions (play all, stop all, new looper), then one card per looper
+// on the panel. Embedded in a compact section, the actions head the body.
 
 import { Theme } from "../theme.slint";
 import { LooperItem } from "../models.slint";
 import { LooperRow } from "looper_row.slint";
-import { LooperIconButton } from "looper_controls.slint";
+import { ToolBar } from "tool_bar.slint";
+import { PanelActionButton } from "panel_action_button.slint";
 
 export component LooperPanelView inherits Rectangle {
     in property <[LooperItem]> loopers;
@@ -54,145 +59,133 @@ export component LooperPanelView inherits Rectangle {
     // #827: open the save-take dialog for this loop.
     callback save-take(int);
 
-    private property <length> row-height: 60px;
-    private property <length> drawer-extra: 222px;
     private property <bool> is-empty: root.loopers.length == 0;
-    private property <length> inset: root.embedded ? 0px : 12px;
+    private property <length> bar-h: root.embedded ? 0px : 46px;
+    // Embedded, the actions take the first line of the body.
+    private property <length> actions-h: root.embedded ? 40px : 0px;
 
     width: 600px;
-    height: 56px
-        + (root.is-empty ? empty-col.preferred-height + 20px : root.loopers.length * (root.row-height + 8px))
-        + (root.expanded-uid >= 0 ? root.drawer-extra : 0px)
-        + 12px;
-    border-radius: root.embedded ? 0px : 10px;
-    background: root.embedded ? transparent : Theme.panel-lo.with-alpha(0.95);
+    height: root.bar-h + root.actions-h + body.preferred-height;
+    border-radius: root.embedded ? 0px : 6px;
+    background: root.embedded ? transparent : Theme.panel;
     border-width: root.embedded ? 0px : 1px;
-    border-color: Theme.palette.border-strong;
+    border-color: Theme.hair;
+    drop-shadow-blur: root.embedded ? 0px : 24px;
+    drop-shadow-offset-y: root.embedded ? 0px : 8px;
+    drop-shadow-color: Theme.shadow;
     clip: true;
 
-    // ── header ──────────────────────────────────────────────────────────
-    if !root.embedded : Image {
-        x: 14px;
-        y: 16px;
-        width: 18px;
-        height: 18px;
-        source: @image-url("../assets/loop.svg");
-        image-fit: contain;
-        colorize: Theme.palette.text-secondary;
+    // A click on the panel's own surface stays in the panel (the overlay's
+    // backdrop behind it closes the panel).
+    TouchArea { }
+
+    if !root.embedded : title := ToolBar {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        icon: @image-url("../assets/loop.svg");
+        title: @tr("looper-panel-title");
     }
 
-    if !root.embedded : title := Text {
-        x: 40px;
-        y: 14px;
-        text: @tr("looper-panel-title");
-        color: Theme.palette.text-primary;
-        font-size: Theme.min-font;
-        font-weight: 700;
-    }
-
-    // ── global transport ────────────────────────────────────────────────
-    // Left of ADD LOOPER, in the header, because they act on the panel — not
-    // on any one row.
-    play-all-btn := LooperIconButton {
-        x: add-button.x - 86px;
-        y: 12px;
-        icon: @image-url("../assets/play.svg");
-        label: @tr("looper-play-all");
-        tint: Theme.ink;
-        is-enabled: !root.is-empty;
-        clicked => { root.play-all(); }
-    }
-
-    stop-all-btn := LooperIconButton {
-        x: add-button.x - 44px;
-        y: 12px;
-        icon: @image-url("../assets/stop.svg");
-        label: @tr("looper-stop-all");
-        tint: Theme.ink;
-        is-enabled: !root.is-empty;
-        clicked => { root.stop-all(); }
-    }
-
-    add-button := Rectangle {
-        // Sized by its label so a longer translation never gets cut (#954).
-        x: parent.width - self.width - root.inset - (root.embedded ? 0px : 2px);
-        y: 12px;
-        width: add-label.preferred-width + 44px;
-        height: 32px;
-        border-radius: 8px;
-        opacity: root.can-add ? 1.0 : 0.4;
-        background: add-ta.has-hover && root.can-add ? Theme.accent.with-alpha(0.22) : Theme.accent-soft;
-        border-width: 1px;
-        border-color: Theme.accent;
-
-        Image {
-            x: 10px;
-            y: 8px;
-            width: 16px;
-            height: 16px;
-            source: @image-url("../assets/plus.svg");
-            image-fit: contain;
-            colorize: Theme.accent;
-        }
-
-        add-label := Text {
-            x: 32px;
-            height: parent.height;
-            vertical-alignment: center;
-            text: @tr("looper-add");
-            color: Theme.ink;
-            font-size: Theme.min-font;
-            font-weight: 600;
-        }
-
-        add-ta := TouchArea {
-            enabled: root.can-add;
-            mouse-cursor: pointer;
-            clicked => { root.add(); }
-        }
-
-        accessible-role: button;
-        accessible-label: @tr("looper-add");
-        accessible-enabled: root.can-add;
-        accessible-action-default => { root.add(); }
-    }
-
-    // ── empty state ─────────────────────────────────────────────────────
-    // Always in the tree (not an `if`) so the panel height can follow the
-    // wrapped hint's real height instead of a fixed guess (#954).
-    empty-col := VerticalLayout {
-        visible: root.is-empty;
-        x: root.inset + 2px;
-        y: 60px;
-        width: parent.width - 2 * root.inset - 4px;
-        height: self.preferred-height;
+    // ── the panel's actions ─────────────────────────────────────────────
+    // #903: the global transport acts on the whole chain at once; a row's own
+    // play stays single. Dead while there is no loop.
+    HorizontalLayout {
+        x: parent.width - self.width - (root.embedded ? 0px : 12px);
+        y: root.embedded ? 0px : 9px;
+        width: self.preferred-width;
+        height: 28px;
         spacing: 6px;
 
-        Text {
-            text: @tr("looper-empty-title");
-            color: Theme.palette.text-secondary;
-            font-size: Theme.min-font;
-            font-weight: 600;
-            horizontal-alignment: center;
+        play-all-btn := PanelActionButton {
+            icon: @image-url("../assets/play.svg");
+            label: @tr("looper-play-all");
+            on-bar: !root.embedded;
+            enabled: !root.is-empty;
+            hovered: play-all-ta.has-hover;
+            clicked => { root.play-all(); }
+
+            play-all-ta := TouchArea {
+                enabled: !root.is-empty;
+                mouse-cursor: pointer;
+                clicked => { root.play-all(); }
+            }
         }
 
-        Text {
-            text: @tr("looper-empty-hint");
-            color: Theme.palette.text-muted;
-            font-size: Theme.min-font;
-            horizontal-alignment: center;
-            wrap: word-wrap;
+        stop-all-btn := PanelActionButton {
+            icon: @image-url("../assets/stop.svg");
+            label: @tr("looper-stop-all");
+            on-bar: !root.embedded;
+            enabled: !root.is-empty;
+            hovered: stop-all-ta.has-hover;
+            clicked => { root.stop-all(); }
+
+            stop-all-ta := TouchArea {
+                enabled: !root.is-empty;
+                mouse-cursor: pointer;
+                clicked => { root.stop-all(); }
+            }
+        }
+
+        add-button := PanelActionButton {
+            icon: @image-url("../assets/plus.svg");
+            label: @tr("looper-add");
+            primary: true;
+            enabled: root.can-add;
+            hovered: add-ta.has-hover;
+            clicked => { root.add(); }
+
+            add-ta := TouchArea {
+                enabled: root.can-add;
+                mouse-cursor: pointer;
+                clicked => { root.add(); }
+            }
         }
     }
 
-    // ── rows ────────────────────────────────────────────────────────────
-    if !root.is-empty : VerticalLayout {
-        x: root.inset;
-        y: 52px;
-        width: parent.width - 2 * root.inset;
-        spacing: 8px;
+    // ── the loopers ─────────────────────────────────────────────────────
+    body := VerticalLayout {
+        x: 0;
+        y: root.bar-h + root.actions-h;
+        width: parent.width;
+        height: self.preferred-height;
+        padding-left: root.embedded ? 0px : 16px;
+        padding-right: root.embedded ? 0px : 16px;
+        padding-top: root.embedded ? 0px : 14px;
+        padding-bottom: root.embedded ? 4px : 16px;
+        spacing: 10px;
 
-        for item[index] in root.loopers: LooperRow {
+        // No loop yet: say so on a card where the first loop will appear.
+        if root.is-empty : Rectangle {
+            height: empty-col.preferred-height;
+            border-radius: 5px;
+            background: Theme.panel-hi;
+            border-width: 1px;
+            border-color: Theme.hair;
+
+            empty-col := VerticalLayout {
+                padding: 20px;
+                spacing: 6px;
+
+                Text {
+                    text: @tr("looper-empty-title");
+                    color: Theme.ink-2;
+                    font-size: Theme.min-font;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: @tr("looper-empty-hint");
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        for item[index] in root.loopers : LooperRow {
             looper: item;
             expanded: item.uid == root.expanded-uid;
             input-options: root.input-options;

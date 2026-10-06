@@ -1,5 +1,6 @@
 // Responsibility: renders the chips that decorate a chain row.
 import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
 // Small, reusable chips that decorate a ChainRow header and inline action
 // surfaces — endpoint summary chips, the chain power toggle, header icons.
 // Pure visual primitives.
@@ -7,20 +8,23 @@ import { Theme } from "../theme.slint";
 export component ChainActionIcon inherits Rectangle {
     in property <image> icon;
     in property <string> tooltip;
+    // #398: sits on the dark chrome bar.
+    in property <bool> on-chrome: false;
     callback clicked();
 
-    width: 24px;
-    height: 24px;
-    background: hover-area.has-hover ? Theme.hover : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: root.on-chrome ? HeaderIconStyle.chrome-fill(hover-area.has-hover) : HeaderIconStyle.fill(hover-area.has-hover);
 
     Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: root.icon;
         image-fit: contain;
-        colorize: hover-area.has-hover ? Theme.ink : Theme.ink-2;
+        colorize: root.on-chrome ? HeaderIconStyle.chrome-tint(false, hover-area.has-hover) : HeaderIconStyle.tint(false, hover-area.has-hover);
     }
 
     hover-area := TouchArea {
@@ -38,7 +42,7 @@ export component ChainActionIcon inherits Rectangle {
         // Sized from the translated tooltip, centred under the icon (#954).
         width: action-tip.preferred-width + 12px;
         x: (root.width - self.width) / 2;
-        y: 28px;
+        y: root.height + 4px;
         height: 24px;
         background: Theme.panel-lo.with-alpha(0.85);
         border-width: 1px;
@@ -185,19 +189,28 @@ export component ChainPowerToggle inherits Rectangle {
 export component HeaderIconAction inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
-    in property <color> tint: root.active ? Theme.accent : Theme.ink;
+    // #398: on the dark top bar the icon is chrome-fg-2 and hovers on chrome-2.
+    in property <bool> on-chrome: false;
+    // Unsaved work: the icon turns to the warning colour.
+    in property <bool> warn: false;
+    in property <color> tint: root.warn ? Theme.warn
+        : root.active ? Theme.accent
+        : root.on-chrome ? (action-area.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2)
+        : HeaderIconStyle.tint(false, action-area.has-hover);
     in property <string> tooltip;
     callback clicked();
 
-    width: 24px;
-    height: 24px;
-    background: action-area.has-hover ? Theme.hover : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: !action-area.has-hover ? transparent
+        : root.on-chrome ? Theme.chrome-2 : HeaderIconStyle.fill(true);
 
     Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: root.icon;
         image-fit: contain;
         colorize: root.tint;
@@ -226,7 +239,7 @@ export component HeaderIconAction inherits Rectangle {
     if action-area.has-hover && root.tooltip != "" : Rectangle {
         width: header-tip.preferred-width + 12px;
         x: (root.width - self.width) / 2;
-        y: 28px;
+        y: root.height + 4px;
         height: 24px;
         background: Theme.panel-lo.with-alpha(0.85);
         border-width: 1px;

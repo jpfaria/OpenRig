@@ -1,0 +1,100 @@
+// Responsibility: renders one model row of a model picker list.
+// #398: the group header band when a new block type starts, then the model's
+// name in semibold with its backend as a solid badge; the current model is
+// tinted with an accent edge, an unavailable one is dimmed.
+import { Theme, Gear } from "../theme.slint";
+import { BlockModelPickerItem } from "../models.slint";
+
+export component ModelPickRow inherits Rectangle {
+    in property <BlockModelPickerItem> model;
+    in property <bool> on;
+    // Empty when the row continues the group above it.
+    in property <string> header;
+    // False on the first row: it has no divider above it.
+    in property <bool> divided: true;
+    out property <length> header-height: root.header != "" ? 26px : 0px;
+
+    private property <bool> has-brand: root.model.brand != ""
+        && root.model.brand != "native"
+        && root.model.brand != "generic";
+    private property <color> backend: root.model.type_label == "NATIVE" ? Theme.b-native
+        : root.model.type_label == "NAM/A2" ? Theme.warn
+        : (root.model.type_label == "NAM" || root.model.type_label == "NAM/A1") ? Theme.b-nam
+        : root.model.type_label == "IR" ? Theme.b-ir
+        : root.model.type_label == "LV2" ? Theme.b-lv2
+        : Theme.b-vst3;
+
+    height: root.header-height + 40px;
+
+    if root.header != "" : Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: root.header-height;
+        background: Theme.panel-lo;
+        Text {
+            x: 12px;
+            width: parent.width - 24px;
+            height: parent.height;
+            text: root.header;
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
+            font-weight: 700;
+            letter-spacing: 0.16 * Theme.min-font;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    Rectangle {
+        x: 0; y: root.header-height;
+        width: parent.width; height: 40px;
+        opacity: root.model.available ? 1.0 : 0.4;
+        background: root.on ? Theme.accent-soft : transparent;
+
+        if root.divided && root.header == "" : Rectangle {
+            x: 0; y: 0;
+            width: parent.width; height: 1px;
+            background: Theme.hair-2;
+        }
+
+        if root.on : Rectangle {
+            x: 0; y: 0;
+            width: 3px; height: parent.height;
+            background: Theme.accent;
+        }
+
+        Text {
+            x: 12px;
+            width: badge.x - 20px;
+            height: parent.height;
+            text: root.has-brand ? root.model.brand + " " + root.model.display_name : root.model.display_name;
+            color: Theme.ink;
+            font-size: Theme.min-font;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // Always present so the name can stop short of it.
+        badge := Rectangle {
+            visible: root.model.type_label != "";
+            x: parent.width - 10px - self.width;
+            y: (parent.height - 20px) / 2;
+            width: root.model.type_label == "" ? 0px : badge-text.preferred-width + 10px;
+            height: 20px;
+            border-radius: 2px;
+            background: root.backend;
+
+            badge-text := Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.model.type_label;
+                color: Gear.white;
+                font-size: Theme.min-font;
+                font-weight: 700;
+                letter-spacing: 0.06 * Theme.min-font;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

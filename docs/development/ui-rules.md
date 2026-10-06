@@ -27,6 +27,20 @@ The launcher hero and the tuner/metronome LCD are fixed-look tokens
 icon carries a `colorize` from a token, or it disappears in light mode. Lines
 stay subtle: 1px hairlines (`hair`, `hair-2`), not thick borders.
 
+## 0.2 Every control is drawn, never a sprite (#398)
+
+There is no sprite sheet in the UI any more (`ui/assets/sprites/` is gone and
+`tests/issue_398_tools.rs` keeps it gone). Knobs are `KnobArc`, switches are
+`PillSwitch` / `ToggleSwitch`, LEDs are 8px drawn circles in `Gear.led` /
+`Gear.led-off` with a glow, faders and EQ bands are a thin `Theme.groove` with a
+white `Gear.white` → `Gear.key-lo` cap, keys (TAP) are white gradient keys. The
+physical-hardware colours (`Gear.*`) live in `ui/theme.slint` next to `Theme`
+and do not change with the scheme. Every readout (tuner, metronome, drums,
+player, spectrum) is an `LcdGlass` with `lcd-*` / `scope-*` tokens, and every
+tool window opens with the dark `ToolBar` (icon, title, pills, `ToolBarClose`)
+over a body on `Theme.well`. A new control reuses these pieces; it does not
+bring back a PNG.
+
 ## 1. `PopupWindow` content does not reliably receive clicks
 
 In this Slint version (1.16.1) a `PopupWindow` renders its content on a separate

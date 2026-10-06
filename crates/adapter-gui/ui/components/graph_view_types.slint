@@ -56,6 +56,9 @@ export struct GraphEdgeGeometry {
     from_y: length,
     to_x: length,
     to_y: length,
+    // #398: the split path the wire runs in (0 = lane A, 1 = lane B, …),
+    // -1 for the trunk before and after a split. Picks the wire colour.
+    path: int,
 }
 
 // Host-supplied category → colour map. The component owns NO colours;
