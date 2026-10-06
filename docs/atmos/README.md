@@ -106,6 +106,9 @@ what they hear. This is the direct-render mode and the first target (the owner's
   narrows the gap but cannot add range a speaker lacks. Until the layout uses identical speakers, keep
   moving effects (rotation, travelling delay) on matched speakers and use the odd ones for ambience
   (reverb), where timbre mismatch is less audible.
+- **Bass management:** in direct render, the spatial output applies an 80 Hz crossover on every speaker
+  channel and sums the lows into the sub (LFE) output, so small speakers only play from 80 Hz up and the
+  sub is placed once for the whole layout.
 - **"Inside the guitar" option:** place the dry object at the listener position (all speakers around)
   instead of in front.
 
