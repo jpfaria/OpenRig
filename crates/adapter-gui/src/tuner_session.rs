@@ -14,11 +14,14 @@
 //! makes the raw window free to read; a remote frontend is served the RESULT
 //! (`LiveSource::tuner` / `openrig://tuner`) and needs no samples of its own.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
 use domain::io_binding::IoBinding;
+use domain::AudioDeviceDescriptor;
 use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
+use project::binding_discovery::{resolve_chain_ports, PortDirection};
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
@@ -60,7 +63,25 @@ fn placeholder_row(label: String) -> TunerRow {
         cents: 0.0,
         frequency: 0.0,
         active: false,
+        in_tune: false,
     }
+}
+
+/// What a row is called: the interface and the input on its panel the
+/// guitar is plugged into ("Quantum HD 8 · IN 1"). An interface the host no
+/// longer lists is named after the binding's input instead.
+fn row_label(
+    device: &str,
+    fallback: &str,
+    devices: &[AudioDeviceDescriptor],
+    channel: usize,
+) -> String {
+    let name = devices
+        .iter()
+        .find(|d| d.id == device)
+        .map(|d| d.name.as_str())
+        .unwrap_or(fallback);
+    format!("{name} · IN {}", channel + 1)
 }
 
 /// Compute the octave number (scientific pitch notation, A4 = octave 4) from
@@ -133,6 +154,7 @@ pub fn readings_from(
             cents: row.cents,
             frequency: row.frequency,
             active: row.active,
+            in_tune: row.in_tune,
         })
         .collect()
 }
@@ -147,10 +169,21 @@ pub struct TunerSession {
 impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
-    pub fn build(project: &Project, taps: &dyn AudioTaps, registry: &[IoBinding]) -> Self {
+    ///
+    /// #398: a row is a guitar, not a binding. Two bindings (or two chains)
+    /// that read the same channel of the same interface hear the same
+    /// string, so that channel gets ONE row — read from the first input that
+    /// carries it. Nothing is mixed: each row still reads one tap.
+    pub fn build(
+        project: &Project,
+        taps: &dyn AudioTaps,
+        registry: &[IoBinding],
+        devices: &[AudioDeviceDescriptor],
+    ) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
         let mut identities: Vec<RowIdentity> = Vec::new();
+        let mut heard: HashSet<(String, usize)> = HashSet::new();
 
         // The rate the live streams actually run at — authoritative fallback
         // for inputs without a saved per-device setting (issue #723).
@@ -165,6 +198,12 @@ impl TunerSession {
             // registry, not from block `entries`. The enumeration index is the
             // engine's per-input runtime index (`subscribe_input_tap`).
             let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
+            // The same ports, in the same order, carry each input's name.
+            let input_names: Vec<String> = resolve_chain_ports(chain, registry)
+                .into_iter()
+                .filter(|port| matches!(port.direction, PortDirection::Input))
+                .map(|port| port.endpoint.name)
+                .collect();
 
             let sample_rate = resolved_inputs
                 .first()
@@ -178,7 +217,9 @@ impl TunerSession {
                 .unwrap_or(live_sample_rate as usize);
 
             for (input_index, entry) in resolved_inputs.iter().enumerate() {
-                if entry.channels.is_empty() {
+                let device = entry.device_id.0.clone();
+                let fresh = |channel: &usize| !heard.contains(&(device.clone(), *channel));
+                if !entry.channels.iter().any(fresh) {
                     continue;
                 }
                 let max_channel = *entry.channels.iter().max().unwrap_or(&0);
@@ -196,31 +237,21 @@ impl TunerSession {
                     continue;
                 };
 
-                let chain_label = chain
-                    .description
-                    .clone()
+                let input_name = input_names
+                    .get(input_index)
+                    .filter(|name| !name.trim().is_empty())
+                    .cloned()
+                    .or_else(|| chain.description.clone())
                     .unwrap_or_else(|| chain.id.0.clone());
 
                 // One row per channel the subscription actually carries — the
                 // old code zipped the rings it got back, so a partial answer
                 // must still not invent rows.
                 for (ch_pos, channel) in entry.channels.iter().enumerate().take(tap.channels()) {
-                    let ch_label = if entry.channels.len() == 1 {
-                        String::new()
-                    } else if ch_pos == 0 {
-                        " · L".to_string()
-                    } else if ch_pos == 1 {
-                        " · R".to_string()
-                    } else {
-                        format!(" · ch{}", ch_pos + 1)
-                    };
-                    let label = format!(
-                        "{}  ·  IN {}  ·  CH {}{}",
-                        chain_label.to_uppercase(),
-                        input_index + 1,
-                        channel + 1,
-                        ch_label
-                    );
+                    if !heard.insert((device.clone(), *channel)) {
+                        continue;
+                    }
+                    let label = row_label(&device, &input_name, devices, *channel);
                     rows_model.push(placeholder_row(label));
                     row_states.push(RowState::new(
                         Arc::clone(&tap),
@@ -302,6 +333,7 @@ impl TunerSession {
                             row.cents = cents;
                             row.frequency = freq;
                             row.active = true;
+                            row.in_tune = crate::tuner_tolerance::in_tune(cents);
                             self.rows_model.set_row_data(idx, row);
                         }
                     }
@@ -312,6 +344,7 @@ impl TunerSession {
                             row.cents = 0.0;
                             row.frequency = 0.0;
                             row.active = false;
+                            row.in_tune = false;
                             self.rows_model.set_row_data(idx, row);
                         }
                     }

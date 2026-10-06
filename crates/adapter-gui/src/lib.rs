@@ -204,6 +204,7 @@ mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
+mod tuner_tolerance;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;

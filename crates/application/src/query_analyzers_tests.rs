@@ -12,6 +12,7 @@ fn tuner_row() -> TunerReading {
         cents: -4.5,
         frequency: 82.1,
         active: true,
+        in_tune: false,
     }
 }
 
@@ -31,6 +32,7 @@ fn tuner_readings_json_carries_note_cents_and_frequency_per_row() {
     assert_eq!(row["cents"], -4.5);
     assert_eq!(row["frequency"], 82.1);
     assert_eq!(row["active"], true);
+    assert_eq!(row["in_tune"], false);
 }
 
 #[test]

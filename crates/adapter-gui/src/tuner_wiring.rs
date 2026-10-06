@@ -50,6 +50,9 @@ pub fn wire_tuner(
 /// owns the model and a rebuild makes a new one, so the window has to be
 /// handed the current one rather than keep the first.
 fn install_row_sink(window: &AppWindow, tuner_window: &TunerWindow, analyzers: &AnalyzerSessions) {
+    let tolerance = crate::tuner_tolerance::IN_TUNE_CENTS;
+    crate::AnalyzerBridge::get(window).set_tuner_in_tune_cents(tolerance);
+    crate::AnalyzerBridge::get(tuner_window).set_tuner_in_tune_cents(tolerance);
     let main_window_weak = window.as_weak();
     let tuner_window_weak = tuner_window.as_weak();
     analyzers.on_tuner_rows(move |rows| {
