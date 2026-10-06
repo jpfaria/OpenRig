@@ -38,6 +38,20 @@ reaches the rest of the room:
 | Modulation / rotary | Moves the object over time |
 | Below ~80 Hz (bass, kick) | LFE / sub; guitar normally does not feed the sub |
 
+## Splitting the effects across speakers
+
+Yes: something has to separate dry from wet, otherwise there is only one stereo signal to place.
+The spatial output block works as a router with separate inputs, not as a stereo-to-N upmixer:
+
+- **Dry** (amp/cab) goes to the object panner (front, or the player position).
+- **Existing stereo effects** (reverb, delay, modulation already in the catalog) become **sends** with a
+  zone: their wet signal is placed on a chosen zone (e.g. reverb wet → rears + heights). No new DSP.
+- **Native spatial effects** write straight into the N-channel bus (reverb with 12 outputs, delay that
+  pans each repeat), so they never pass through stereo.
+
+A blind upmixer (stereo in, 12 out) is the cheap fallback and sounds worse: dry and wet are already
+mixed, so the room cannot be built from them.
+
 ## Two output modes
 
 1. **Direct render (small room, home studio, own rig):** OpenRig renders to a fixed layout
