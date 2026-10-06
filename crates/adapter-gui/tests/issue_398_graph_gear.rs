@@ -139,3 +139,38 @@ fn the_block_tooltip_is_a_window_level_layer() {
         "the main window draws the hovered block's card above everything"
     );
 }
+
+/// The hub is not a piece of real gear: it is the app's routing node, so it
+/// turns light in the light scheme instead of staying a dark tile.
+#[test]
+fn the_routing_hub_follows_the_scheme() {
+    use adapter_gui::{CompactChainViewWindow, Theme, ThemeMode};
+    use slint::Global;
+    i_slint_backend_testing::init_no_event_loop();
+    let w = CompactChainViewWindow::new().unwrap();
+    let luma = |c: slint::Color| {
+        0.299 * f32::from(c.red()) + 0.587 * f32::from(c.green()) + 0.114 * f32::from(c.blue())
+    };
+    Theme::get(&w).set_mode(ThemeMode::Light);
+    let light = Theme::get(&w).get_hub_hi();
+    let light_line = Theme::get(&w).get_hub_line();
+    Theme::get(&w).set_mode(ThemeMode::Dark);
+    let dark = Theme::get(&w).get_hub_hi();
+    assert!(
+        luma(light) > 200.0,
+        "a light tile in the light scheme: {light:?}"
+    );
+    assert!(
+        luma(dark) < 90.0,
+        "a dark tile in the dark scheme: {dark:?}"
+    );
+    assert!(
+        luma(light_line) < 90.0,
+        "the trunk is dark ink on the light tile"
+    );
+    let hub = ui("components/graph_hub.slint");
+    assert!(
+        !hub.contains("Gear.hub-") && !hub.contains("Gear.port-"),
+        "the hub paints from the scheme's tokens"
+    );
+}

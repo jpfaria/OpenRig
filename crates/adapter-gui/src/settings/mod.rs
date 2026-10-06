@@ -10,6 +10,7 @@
 
 pub(crate) mod appearance;
 pub(crate) mod appearance_current;
+pub(crate) mod appearance_followers;
 pub mod audio;
 pub(crate) mod endpoint_build;
 pub(crate) mod endpoint_channels;
@@ -47,3 +48,6 @@ mod appearance_tests;
 #[cfg(test)]
 #[path = "appearance_current_tests.rs"]
 mod appearance_current_tests;
+#[cfg(test)]
+#[path = "appearance_followers_tests.rs"]
+mod appearance_followers_tests;

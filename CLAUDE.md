@@ -25,6 +25,7 @@ Virtual guitar rig/pedalboard in Rust + Slint. macOS, Windows, Linux.
 ## Code
 
 - Zero warnings. Blocks never name specific models/brands. Constants once. No visual config in business logic.
+- No hardware lookup: production code never maps a device/interface name to anything; names, channel labels and counts come from the host at runtime. The owner's gear may appear only as example data in tests, docs and mockups.
 - Every state change is a `Command` (`crates/application/src/command.rs`); the GUI calls `dispatcher.dispatch`, MCP/gRPC share the variant; never `borrow_mut()` in a callback. Slint is a pure dispatcher (callback → `Event` → pure fn); no `AppWindow` in tests. Core (`State`/`Event`/`Command`/`SideEffect`) has no Slint dep.
 - System `config.yaml` vs `project.yaml`: "must this value travel with the project file?" Yes → project. `docs/adr/0003-system-vs-project-config.md`.
 - Docs are part of the task, same commit. A user-facing feature is not done until the READMEs (en, pt-BR, es-ES) and the site (`site/`, 3 languages, copy via the `openrig-site-copy` skill) say it — and say nothing the shipped app does not do.

@@ -107,6 +107,7 @@ pub(crate) fn wire(
         move |appearance: Appearance| {
             remember(appearance);
             all.paint();
+            crate::settings::appearance_followers::repaint_all(appearance);
         },
     );
 }

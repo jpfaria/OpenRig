@@ -5,7 +5,8 @@
 //! when a project is open, so MCP reaches the same command, or directly from
 //! the launcher, which has no dispatcher. The boot `AppConfig` snapshot is
 //! mirrored so a wholesale re-save (recent projects, project open) never
-//! brings the old scheme back.
+//! brings the old scheme back. A scheme set over MCP/gRPC comes back as an
+//! event and runs the same repaint (`appearance_events`).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -56,13 +57,18 @@ pub(crate) fn wire(
 
     let weak = window.as_weak();
     let weak_settings = project_settings_window.as_weak();
-    let handler = Rc::new(move |index: i32| {
-        let appearance = appearance_for_index(index);
+    let reflect: Rc<dyn Fn(Appearance)> = Rc::new(move |appearance| {
         if let (Some(w), Some(s)) = (weak.upgrade(), weak_settings.upgrade()) {
             show(&w, &s, appearance);
         }
         paint_all(appearance);
         app_config.borrow_mut().appearance = appearance;
+    });
+    // A scheme set over MCP/gRPC repaints like a pick here.
+    crate::appearance_events::install(reflect.clone());
+    let handler = Rc::new(move |index: i32| {
+        let appearance = appearance_for_index(index);
+        reflect(appearance);
         record(&project_session, appearance);
     });
     let for_app = handler.clone();

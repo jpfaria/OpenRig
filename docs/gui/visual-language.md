@@ -76,7 +76,8 @@ anywhere else (`ui-rules.md` §0.1).
 | Categories | `c-filter`, `c-dyn`, `c-gain`, `c-amp`, `c-pre`, `c-cab`, `c-mod`, `c-dly`, `c-rvb`, `c-vol` | the type colour of a block, everywhere it shows |
 | Backends | `b-nam`, `b-native`, `b-ir`, `b-lv2`, `b-vst3` | the backend badge of a model |
 | Fixed looks | `hero-*`, `lcd-*`, `scope-*` | the launcher hero, the amber LCDs, the teal spectrum scope; same in both schemes |
-| Gear materials | `Gear.*` | real hardware (enclosures, knobs, jacks, LEDs, hub, rack, cab grille); same in both schemes |
+| Gear materials | `Gear.*` | real hardware (enclosures, knobs, jacks, LEDs, rack, cab grille); same in both schemes |
+| Routing hub | `hub-hi` / `hub-lo` / `hub-edge` / `hub-line`, `port-fill` / `port-ring` | the split/mixer node: the app's own, so it follows the scheme (slate in dark, pale with dark ink in light) |
 | Weights | `line` 1px, `wire-width` 1.25px, `mark` 2px, `track` 3px | every stroke |
 | Spacing | `spaces.small/medium/large/xlarge` (10/14/20/28px) | gaps and padding |
 
@@ -163,7 +164,7 @@ Spec of the canvas itself: `docs/gui/graph-view.md`. The visual rules:
   translucent piece.
 - Each split path has its lane colour (`GraphLanes`: path 0 accent, then
   `c-rvb`, `c-mod`, `c-dly`); the trunk is `Theme.wire`.
-- Split and mixer are the `GraphHub`: a slate tile with one port and one
+- Split and mixer are the `GraphHub`: a tile in the scheme's hub colours with one port and one
   letter per path, any number of paths.
 - Under a block: the power disc and the category in its colour, then the
   model name. A path is told apart by its lane colour only, never by a

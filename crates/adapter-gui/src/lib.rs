@@ -405,6 +405,7 @@ mod recent_projects;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
+mod appearance_events;
 mod audio_settings_mode;
 mod block_drawer_state;
 mod block_editor_draft;

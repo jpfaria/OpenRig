@@ -136,7 +136,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 return;
             }
         };
-        crate::settings::appearance_current::apply(&compact_win);
+        crate::settings::appearance_followers::follow(&compact_win);
         {
             let proj = session.project.borrow();
             let Some(chain) = proj.chains.get(ci) else {

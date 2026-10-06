@@ -51,15 +51,10 @@ export component ModelSelectWithSearch inherits Rectangle {
         : (main-ta.has-hover ? Theme.ink-3 : Theme.field-line);
     border-radius: 3px;
 
-    private property <bool> selected-has-brand:
-        root.selected-model.brand != ""
-        && root.selected-model.brand != "native"
-        && root.selected-model.brand != "generic";
-
+    // Composed in Rust (`block_model_picker_items`): the brand as the catalog
+    // writes it, then the model.
     private property <string> selected-button-label:
-        root.selected-has-brand
-            ? root.selected-model.brand + " " + root.selected-model.display_name
-            : root.selected-model.display_name;
+        root.selected-model.label != "" ? root.selected-model.label : root.selected-model.display_name;
 
     // The backend's colour: a tinted chip on a light field, solid on the chrome.
     private property <color> backend-color:

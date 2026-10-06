@@ -91,6 +91,15 @@ export global Theme {
     out property <color> groove: dark ? #0f1318 : #c3cad3;
     out property <color> ktrack: dark ? #3a434f : #c3cad3;
     out property <color> wire: dark ? #8b95a3 : #5d5d62;
+    // The routing hub (#398): the app's own split/mix node, not real gear, so
+    // it follows the scheme — a slate tile with a light trunk in the dark, a
+    // pale tile with dark ink in the light — and the round ports on its edges.
+    out property <color> hub-hi: dark ? #3a4452 : #f8fafc;
+    out property <color> hub-lo: dark ? #1c232d : #e2e7ed;
+    out property <color> hub-edge: dark ? #0b0f14 : #aab3bf;
+    out property <color> hub-line: dark ? #e6ebf1 : #2a323d;
+    out property <color> port-fill: dark ? #0a0d11 : #ffffff;
+    out property <color> port-ring: dark ? #c3cbd6 : #2a323d;
     // The dot grid of the graph well, and the tint of a side rail.
     out property <color> dot: dark ? #ffffff0f : #00000017;
     out property <color> side-tint: dark ? #ffffff08 : #ffffff73;
@@ -286,12 +295,4 @@ export global Gear {
     out property <color> fill-mid: #b9bcc2;
     out property <color> fill-lo: #8d9097;
     out property <color> fill-ring: #2a2f37;
-    // The routing hub (#398): a dark slate tile, a light trunk and the round
-    // ports the wires plug into.
-    out property <color> hub-hi: #3a4452;
-    out property <color> hub-lo: #1c232d;
-    out property <color> hub-edge: #0b0f14;
-    out property <color> hub-line: #e6ebf1;
-    out property <color> port-fill: #0a0d11;
-    out property <color> port-ring: #c3cbd6;
 }

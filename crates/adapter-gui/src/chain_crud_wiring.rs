@@ -85,7 +85,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             {
                 crate::Locale::get(&editor_window)
                     .set_font_family(crate::i18n::font_for_persisted_runtime().into());
-                crate::settings::appearance_current::apply(&editor_window);
+                crate::settings::appearance_followers::follow(&editor_window);
             }
             setup_chain_editor_callbacks(
                 &editor_window,
@@ -176,7 +176,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             {
                 crate::Locale::get(&editor_window)
                     .set_font_family(crate::i18n::font_for_persisted_runtime().into());
-                crate::settings::appearance_current::apply(&editor_window);
+                crate::settings::appearance_followers::follow(&editor_window);
             }
             setup_chain_editor_callbacks(
                 &editor_window,
