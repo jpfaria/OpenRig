@@ -51,6 +51,7 @@ pub(crate) fn build_chain_streams(
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
     _di_cells: &[crate::di_playback::DiPlaybackCell], // #808: chain output is DI-free now
+    handover: &std::sync::Arc<crate::stream_handover::StreamHandover>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
     // Flat list (group order) for the backend output mix. Issue #672: the
     // callbacks read each slot live so a worker-published rebuild takes
@@ -117,8 +118,16 @@ pub(crate) fn build_chain_streams(
         // #808: chain output NEVER drains the DI cell — the DI has its OWN
         // isolated stream (invariant #4; the shared cell was the "picotando").
         let di_cell = crate::di_playback::DiPlaybackCell::default();
-        let stream =
-            build_output_stream_for_output(chain_id, j, resolved_output, out_slots, di_cell)?;
+        // #1081: every output of the set fades as one against the set it
+        // replaces.
+        let stream = build_output_stream_for_output(
+            chain_id,
+            j,
+            resolved_output,
+            out_slots,
+            di_cell,
+            handover.output_fade(),
+        )?;
         output_streams.push(stream);
     }
 
@@ -139,6 +148,7 @@ pub(crate) fn build_active_chain_runtime(
     #[allow(unused_variables)] registry: &[IoBinding],
     di_cells: &[crate::di_playback::DiPlaybackCell],
     generation: u64,
+    swap: crate::retired_streams::StreamSwap,
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -179,6 +189,7 @@ pub(crate) fn build_active_chain_runtime(
                 _output_streams: Vec::new(),
                 _jack_client: Some(jack_client),
                 _dsp_worker: Some(dsp_worker),
+                swap,
             });
         }
         // JACK not running on Linux+JACK build — return an empty
@@ -198,6 +209,7 @@ pub(crate) fn build_active_chain_runtime(
             _output_streams: Vec::new(),
             _jack_client: None,
             _dsp_worker: None,
+            swap,
         });
     }
 
@@ -205,7 +217,7 @@ pub(crate) fn build_active_chain_runtime(
     {
         let live_config = resolved.clone();
         let (input_streams, output_streams) =
-            build_chain_streams(chain_id, resolved, slots, di_cells)?;
+            build_chain_streams(chain_id, resolved, slots, di_cells, &swap.handover)?;
         for stream in &input_streams {
             stream.play()?;
         }
@@ -225,6 +237,7 @@ pub(crate) fn build_active_chain_runtime(
             resolved: Some(live_config),
             _input_streams: input_streams,
             _output_streams: output_streams,
+            swap,
         })
     }
 }

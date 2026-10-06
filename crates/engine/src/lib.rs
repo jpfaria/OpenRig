@@ -110,6 +110,7 @@ mod runtime_state_taps;
 mod runtime_stream_query;
 mod runtime_taps_lifecycle;
 mod runtime_taps_subscribe;
+mod runtime_vst3_prebuild_guard;
 mod segment_binding;
 mod segment_fanout;
 mod segment_taps;

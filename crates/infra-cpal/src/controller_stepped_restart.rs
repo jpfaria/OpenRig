@@ -2,9 +2,13 @@
 //!
 //! #979: on the rig a stepped input (the buffer-seam pattern) was cured only
 //! by switching the chain off and on. The engine marks the runtime that reads
-//! such an input; this restarts that one chain exactly like the toggle — its
-//! streams and runtime die, a fresh activation builds new ones — and nothing
-//! of another chain is touched.
+//! such an input; this restarts that one chain — a fresh activation builds new
+//! streams and a new runtime — and nothing of another chain is touched.
+//!
+//! #1081: the restart never cuts the sound. On cpal the live streams keep
+//! playing while the new ones come up, and fade out under them (the install's
+//! handover). Only JACK, whose live swap is unwired (#672), still goes through
+//! the toggle.
 
 use anyhow::Result;
 
@@ -41,8 +45,11 @@ impl ProjectRuntimeController {
             "chain '{}': input arrives stepped, restarting its streams",
             chain_id.0
         );
-        self.kill_chain_streams(chain_id);
-        if !self.schedule_chain_activation(project, chain)? {
+        #[cfg(not(all(target_os = "linux", feature = "jack")))]
+        self.submit_chain_activation(project, chain)?;
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        {
+            self.kill_chain_streams(chain_id);
             self.upsert_chain(project, chain)?;
         }
         Ok(true)

@@ -135,6 +135,7 @@ fn run_chain(
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            swap: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             _jack_client: None,
             #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -168,7 +169,7 @@ fn a_rig_fed_clean_input_reports_no_stepped_chain() {
 
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn restarting_a_stepped_chain_rebuilds_it_like_the_toggle() {
+fn restarting_a_stepped_chain_opens_new_streams_before_the_old_ones_go() {
     let mut controller = controller();
     let broken = run_chain(&mut controller, "rig:input-1", &samples(STEPPED));
     let id = ChainId("rig:input-1".into());
@@ -180,23 +181,23 @@ fn restarting_a_stepped_chain_rebuilds_it_like_the_toggle() {
 
     assert!(restarted, "an enabled chain in the project is restarted");
     assert!(
-        !controller
+        controller.active_chains.contains_key(&id),
+        "#1081: the live streams keep playing while the new ones come up"
+    );
+    assert!(
+        controller
             .runtime_graph
             .runtimes_for(&id)
             .iter()
             .any(|rt| Arc::ptr_eq(rt, &broken)),
-        "the marked runtime must be gone, as after switching the chain off"
+        "#1081: the live runtime keeps playing until the new set is installed"
     );
     assert!(
         controller
             .pending_activations
             .iter()
             .any(|(chain_id, _, _)| *chain_id == id),
-        "a fresh activation must be on its way, as after switching it on"
-    );
-    assert!(
-        controller.stepped_input_chains().is_empty(),
-        "nothing left reports the old stepped state"
+        "a fresh activation must be on its way"
     );
 }
 

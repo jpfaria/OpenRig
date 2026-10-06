@@ -212,6 +212,7 @@ impl ProjectRuntimeController {
             resolved,
             Vec::new(), // no chain runtime slots — this stream plays ONLY the DI
             cell.clone(),
+            crate::stream_handover::StreamHandover::cold().output_fade(),
         )
         .ok()?;
         stream.play().ok()?;

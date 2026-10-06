@@ -300,8 +300,12 @@ to the steady-state sound:
 - **In place (chains holding a VST3).** Every node the edit needs fresh is
   built first (`runtime_graph_prebuild`), while the live pipelines keep
   playing; the swap then only moves nodes, under one processing-lock section,
-  so the audio never plays a pipeline emptied for the edit. An edit that needs
-  a fresh VST3 keeps the quiesced path, and so does a `Select`.
+  so the audio never plays a pipeline emptied for the edit. A fresh VST3 (a
+  reverb switched on for the first time) is built ahead too, unless a live
+  node of the runtime holds an instance of the same bundle — creating one
+  while it is inside `process()` is the #779 crash — or may hide one (a
+  `Select`, a `Split`); such an edit keeps the quiesced path, and so does a
+  `Select` (`runtime_vst3_prebuild_guard`).
 - **A fresh node takes over from the node it replaces**
   (`runtime_node_handover`): it runs unheard for 512 frames (an IR's partition
   latency and onset, most of a NAM's receptive field) while the old node — or
@@ -316,6 +320,16 @@ to the steady-state sound:
   fades from silence, its cold blocks), then every output crossfades over 256
   frames. The old runtime is released on the control side once no audio thread
   holds it.
+- **New streams fade in over the old ones (cpal).** A structural edit (an IR
+  swapped, a block added) and the stepped-input restart open brand-new streams
+  for the chain. The live set is not dropped when the new one is installed: it
+  keeps playing while the new set runs unheard for 4096 output frames (its
+  cushions, its fade from silence, its cold blocks), then the two crossfade
+  over 2048 frames with complementary raised-cosine gains
+  (`stream_handover`). Both sets are the same chain fed the same input; the
+  backend sums them. The old set is closed on the control tick once the new
+  one plays alone, or after 2 s if the new one is never heard
+  (`retired_streams`). A reverb's tail in the old set ends with its fade.
 - **The DSP worker waits for the swap.** The per-input worker retries
   the processing lock for up to one period, sleeping 20 µs between tries,
   instead of dropping the buffer; the device callback keeps its plain
@@ -1240,9 +1254,11 @@ not move when that happens, so each pipeline watches its own input channels.
   while one of its own pipelines reads a tripped channel; another chain's
   input never marks it.
 - **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on the 2 s poll tick).
-  A marked chain is switched off and on, alone, like the chain toggle. After
-  an attempt that chain waits 30 s before the next one; other chains do not
-  wait.
+  A marked chain gets a fresh activation, alone: new streams and a new
+  runtime come up while the old ones keep playing, then crossfade in (see
+  **New streams fade in over the old ones**). On Linux/JACK, whose live swap
+  is not wired, the chain is still switched off and on. After an attempt that
+  chain waits 30 s before the next one; other chains do not wait.
 - **Mark on disk** (`adapter-gui/src/stepped_input_mark.rs`). Before every
   restart the evidence is written to `<user data>/incidents/stepped-input/`:
   `input-<k>.wav` (the last seconds of each input stream, every device
@@ -1251,8 +1267,8 @@ not move when that happens, so each pipeline watches its own input channels.
   and `openrig.json` (the open streams and the chain's routes). The last 10
   marks are kept.
 
-The restart is not a fix: it cuts the sound, and the mark is there to find the
-cause.
+The restart is not a fix — it should never be needed, and the mark is there
+to find the cause. On cpal it no longer cuts the sound.
 
 ## Multi-rate streams
 
