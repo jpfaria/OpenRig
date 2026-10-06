@@ -89,6 +89,17 @@ speakers, so the same mix sounds clearer than in stereo (spatial unmasking), and
 - **One moving thing at a time:** if the delay travels, the dry and the reverb stay still.
 - **Always return home:** after a movement, the guitar comes back to its place.
 
+## Programming it
+
+1. **Space per section = presets** (existing system): one preset per section with its own position,
+   sends and zones, switched by footswitch/MIDI like today.
+2. **Movement = a motion parameter** of the spatial block: `shape` (circle, front→back, up, ping-pong),
+   `length` in bars/beats synced to the tempo, `trigger` (on preset load, on footswitch, continuous) and
+   `return` (go back home at the end). Expression pedal can drive any position directly.
+3. **By voice:** every setting is a Command, so it is reachable over MCP: "the solo rises to the ceiling
+   in 2 bars" becomes a preset written by Claude, the same way tone-builder writes presets today.
+4. **Later:** a timeline synced to the backing-track player, for songs played over a track.
+
 ## Monitoring for the player
 
 The player is on stage, outside the sweet spot: from there the rears and heights are far away or behind
