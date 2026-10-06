@@ -58,6 +58,21 @@ Nothing is random. Positions and zones are parameters saved in the preset (they 
 scene). Motion comes from an LFO synced to the tempo, an expression pedal / MIDI CC (pedal moves the
 guitar front → back), or a scripted path. A random mode can exist as an explicit option, never as default.
 
+## Recipes: making the guitar feel spatial
+
+1. **Wrap-around ambience:** dry front center; reverb wet on sides + rears + heights, with a few ms more
+   pre-delay on the rears and heights. The guitar stays in front, the room surrounds the audience.
+2. **Delay that travels:** each repeat lands on the next speaker (front → side → rear → top), synced to
+   the tempo. Solo with a dotted-eighth delay circling the audience.
+3. **Rotating guitar:** the positioner LFO moves the object around the room in sync with the tempo
+   (rotary/Leslie feel, but in the room instead of a cabinet).
+4. **Pedal-controlled flight:** the expression pedal moves the guitar from the stage to above the
+   audience (front → heights) in a build-up; heel back returns it to the stage.
+5. **Wide pad / clean arpeggio:** multichannel chorus with a different modulation phase per speaker, so
+   each speaker sounds slightly different and the sound has no single point.
+6. **Height for the lead:** rhythm guitar stays at ear level; the lead gets its reverb/delay on the
+   heights so it floats above the band.
+
 ## Two output modes
 
 1. **Direct render (small room, home studio, own rig):** OpenRig renders to a fixed layout
