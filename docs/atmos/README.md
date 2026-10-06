@@ -52,6 +52,12 @@ The spatial output block works as a router with separate inputs, not as a stereo
 A blind upmixer (stereo in, 12 out) is the cheap fallback and sounds worse: dry and wet are already
 mixed, so the room cannot be built from them.
 
+## Who decides the positions
+
+Nothing is random. Positions and zones are parameters saved in the preset (they change with the preset or
+scene). Motion comes from an LFO synced to the tempo, an expression pedal / MIDI CC (pedal moves the
+guitar front → back), or a scripted path. A random mode can exist as an explicit option, never as default.
+
 ## Two output modes
 
 1. **Direct render (small room, home studio, own rig):** OpenRig renders to a fixed layout
