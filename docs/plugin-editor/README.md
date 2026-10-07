@@ -48,9 +48,14 @@ read-only; the editor never offers to change them.
 ## Where the editor opens
 
 - From the plugin's info window (the one the block opens).
-- From the **Plugins** window: a new top-bar button beside the TONE3000 one
-  that lists the whole catalog. A plugin from TONE3000 is marked as such and
-  offers its TONE3000 actions there (update and the rest).
+- From the **Plugins** window: a new top-bar button beside the TONE3000 one.
+  It lists every plugin that is not bundled (bundled plugins are not shown).
+  Each row offers: info, edit parameters, restore the original, redo the
+  parameters and uninstall. A plugin from TONE3000 is marked as such and
+  also offers **Update** when TONE3000 has a newer version.
+- Uninstall works for every listed plugin and deletes its package folder,
+  wherever it lives.
+- The TONE3000 window keeps its **Installed** tab.
 
 ## Rules it must follow
 
