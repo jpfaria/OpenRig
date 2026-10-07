@@ -13,6 +13,9 @@ import { LcdGlass } from "../components/lcd_glass.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 export { SpectrumRow }
 
 // One decade label under the bars, centred on its band and kept inside.
@@ -24,7 +27,7 @@ component AxisLabel inherits Text {
     y: 0;
     width: self.preferred-width;
     color: Theme.scope-axis;
-    font-family: "Bebas Neue";
+    font-family: Locale.mono-font-family;
     font-size: Theme.min-font;
     vertical-alignment: center;
 }
@@ -46,8 +49,8 @@ component SpectrumCard inherits Rectangle {
             x: parent.width - 14px - self.width; y: 10px;
             width: self.preferred-width; height: 22px;
             text: @tr("label-spectrum-bands", root.data.levels.length > 0 ? root.data.levels.length : 63);
+            font-family: Locale.mono-font-family;
             color: Theme.scope-mid;
-            font-family: "Bebas Neue";
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
             vertical-alignment: center;
@@ -57,8 +60,8 @@ component SpectrumCard inherits Rectangle {
             x: 14px; y: 10px;
             width: parent.width - 38px - bands.width; height: 22px;
             text: root.data.label;
+            font-family: Locale.mono-font-family;
             color: Theme.scope-mid;
-            font-family: "Bebas Neue";
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
             vertical-alignment: center;
@@ -70,7 +73,7 @@ component SpectrumCard inherits Rectangle {
             width: parent.width; height: root.bars-h;
             text: @tr("—");
             color: Theme.scope-axis;
-            font-family: "Bebas Neue";
+            font-family: Locale.display-font-family;
             font-size: 26px;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -169,7 +172,6 @@ export component SpectrumPanel inherits Rectangle {
             Text {
                 text: @tr("status-no-active-outputs");
                 color: Theme.scope-mid;
-                font-family: "Bebas Neue";
                 font-size: 26px;
                 letter-spacing: 0.08 * 26px;
                 horizontal-alignment: center;
@@ -190,7 +192,7 @@ export component SpectrumPanel inherits Rectangle {
         x: 0; y: root.bar-h;
         width: parent.width;
         height: parent.height - root.bar-h;
-        viewport-height: 14px + root.spectrum-rows.length * 200px;
+        content-height: 14px + root.spectrum-rows.length * 200px;
 
         for row[index] in root.spectrum-rows : SpectrumCard {
             x: 14px;
@@ -203,7 +205,7 @@ export component SpectrumPanel inherits Rectangle {
 
 export component SpectrumWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-spectrum");
     min-width: 560px;
@@ -227,4 +229,7 @@ export component SpectrumWindow inherits Window {
         close-spectrum => { root.close-spectrum-window(); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

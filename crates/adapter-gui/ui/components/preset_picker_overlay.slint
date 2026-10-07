@@ -120,6 +120,8 @@ export component PresetPickerOverlay {
         DialogFoot {
             vertical-stretch: 0;
             cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel(); }
             }

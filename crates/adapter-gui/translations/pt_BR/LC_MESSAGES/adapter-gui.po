@@ -233,10 +233,6 @@ msgstr "Out"
 msgid "graph-node-mixer"
 msgstr "Mix"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr "PATH {}"
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "Ligar ou desligar o bloco"
@@ -1301,15 +1297,6 @@ msgstr "Mover chain para baixo"
 
 msgid "accessible-chain-power"
 msgstr "Ligar ou desligar a chain"
-
-msgid "compact-lane-path"
-msgstr "CAMINHO {}"
-
-msgid "compact-lane-mix"
-msgstr "MIX"
-
-msgid "compact-lane-split"
-msgstr "Divisão"
 
 msgid "compact-block-power"
 msgstr "Ligar ou desligar o bloco"

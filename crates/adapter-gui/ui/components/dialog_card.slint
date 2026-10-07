@@ -2,6 +2,7 @@
 // #398: the page dims behind a scrim that swallows clicks; the card sits in the
 // middle on the panel, radius 6, its height set by what the dialog stacks in it.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component DialogCard inherits Rectangle {
     in property <length> card-width: 420px;
@@ -11,7 +12,7 @@ export component DialogCard inherits Rectangle {
     background: Theme.scrim;
     TouchArea { }
 
-    Rectangle {
+    card := Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width - 32px, root.card-width);
@@ -25,8 +26,17 @@ export component DialogCard inherits Rectangle {
         drop-shadow-offset-y: 8px;
         drop-shadow-color: Theme.shadow;
 
-        stack := VerticalLayout {
-            @children
+        // Never cut by the window: a dialog taller than it scrolls (#398).
+        scroll := Flickable {
+            content-width: self.width;
+            content-height: max(self.height, root.card-height > 0 ? stack.min-height : stack.preferred-height);
+            interactive: self.content-height > self.height;
+
+            stack := VerticalLayout {
+                width: parent.width;
+                height: parent.height;
+                @children
+            }
         }
     }
 }
@@ -44,7 +54,7 @@ export component ConfirmBody inherits VerticalLayout {
     Text {
         text: root.title;
         color: Theme.ink;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 24px;
         letter-spacing: 0.05 * 24px;
         wrap: word-wrap;

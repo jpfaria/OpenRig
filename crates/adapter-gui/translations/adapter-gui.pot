@@ -223,10 +223,6 @@ msgstr ""
 msgid "graph-node-mixer"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr ""
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr ""
@@ -1192,15 +1188,6 @@ msgid "tooltip-move-chain-down"
 msgstr ""
 
 msgid "accessible-chain-power"
-msgstr ""
-
-msgid "compact-lane-path"
-msgstr ""
-
-msgid "compact-lane-mix"
-msgstr ""
-
-msgid "compact-lane-split"
 msgstr ""
 
 msgid "compact-block-power"

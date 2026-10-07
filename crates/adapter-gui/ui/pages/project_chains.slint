@@ -16,6 +16,7 @@ import { PlayerBridge } from "../components/player_globals.slint";
 import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
 import { ProjectTempo } from "../components/project_tempo.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -130,7 +131,7 @@ export component ProjectChainsPage inherits Rectangle {
                     height: root.bar-height;
                     text: root.project-title;
                     color: Theme.chrome-fg;
-                    font-family: "Bebas Neue";
+                    font-family: Locale.display-font-family;
                     font-size: 28px;
                     letter-spacing: 1px;
                     vertical-alignment: center;
@@ -439,7 +440,7 @@ export component ProjectChainsPage inherits Rectangle {
                 y: 46px + 18px;
                 width: parent.width - 36px;
                 height: parent.height - 46px - 36px;
-                viewport-height: picker-modal.content-height;
+                content-height: picker-modal.content-height;
 
                 for type-item[index] in BlockEditorBridge.block-type-options : BlockTypeCard {
                     x: Math.mod(index, 4) * BlockTypeGrid.step;

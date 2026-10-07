@@ -5,9 +5,9 @@
 // and output are jacks with a translated IN / OUT under them; the split and
 // the mixer are the routing hub, one port per path. The wires end on the
 // edge of what the card draws (graph_ports.slint); the caption hangs below
-// the card, and the first block of an outer path carries its PATH tag. Every
-// marker colour comes from BlockTileStyle so the graph and the chain row
-// never disagree.
+// the card; the lanes are told apart by their wire colour, never by a
+// written PATH name (#398). Every marker colour comes from BlockTileStyle so
+// the graph and the chain row never disagree.
 //
 // Input: the canvas's node TouchArea is declared UNDER this card and owns
 // click and drag. The card's only TouchAreas are the power button (bypass)
@@ -17,7 +17,6 @@ import { GraphNode } from "graph_view_types.slint";
 import { BlockTileStyle } from "block_tile_style.slint";
 import { GearArt } from "gear_art.slint";
 import { GraphHub } from "graph_hub.slint";
-import { GraphLanes } from "graph_lanes.slint";
 import { GraphPorts } from "graph_ports.slint";
 import { Theme, Gear } from "../theme.slint";
 
@@ -134,7 +133,7 @@ export component GraphNodeCard inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.node.block.type-label;
+                    text: root.node.block.type-label.to-uppercase();
                     color: root.node.block.accent-color;
                     opacity: root.node.bypass ? 0.5 : 1.0;
                     font-size: Theme.min-font;
@@ -152,28 +151,6 @@ export component GraphNodeCard inherits Rectangle {
                 font-weight: 600;
                 horizontal-alignment: center;
                 overflow: elide;
-            }
-        }
-
-        // PATH A over the top lane's first block, the last path's tag under
-        // the bottom lane's (chain_graph_lanes::path_tags).
-        if root.node.path_tag != "" : Rectangle {
-            x: (parent.width - self.width) / 2;
-            y: root.node.path_index == 0
-                ? gear.y - 10px * root.zoom - self.height
-                : caption.y + caption.height + 6px * root.zoom;
-            width: tag.preferred-width + 12px;
-            height: tag.preferred-height + 4px;
-            border-radius: 2px;
-            background: GraphLanes.color(root.node.path_index);
-            tag := Text {
-                x: 6px;
-                y: 2px;
-                text: @tr("graph-lane-tag {}", root.node.path_tag);
-                color: Gear.white;
-                font-size: Theme.min-font;
-                font-weight: 700;
-                letter-spacing: 1.5px;
             }
         }
     }

@@ -3,6 +3,7 @@
 // in the accent.
 import { Theme } from "../theme.slint";
 import { PlayerBridge } from "player_globals.slint";
+import { Locale } from "../locale_globals.slint";
 
 // One part a player can practise over: solo, rhythm, bass, acoustic.
 component PlayerCategoryTab inherits Rectangle {
@@ -24,7 +25,7 @@ component PlayerCategoryTab inherits Rectangle {
             : root.key == "acoustic" ? @tr("label-category-acoustic")
             : @tr("label-category-other");
         color: root.active ? Theme.on-accent : Theme.ink-2;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: Theme.min-font;
         letter-spacing: 0.08 * Theme.min-font;
         overflow: elide;

@@ -138,8 +138,8 @@ export component BlockEditorPanel inherits Rectangle {
             y: 140px + (parent.width - 16px) / 4 + 12px;
             width: parent.width - 40px;
             height: parent.height - (140px + (parent.width - 16px) / 4 + 12px) - (BlockEditorBridge.block-drawer-edit-mode ? 20px : 74px);
-            viewport-width: self.width;
-            viewport-height: BlockEditorBridge.block-parameter-items.length * 96px;
+            content-width: self.width;
+            content-height: BlockEditorBridge.block-parameter-items.length * 96px;
 
             for param-item[index] in BlockEditorBridge.block-parameter-items : BlockParameterRow {
                 x: 0px;
@@ -308,8 +308,8 @@ export component BlockEditorPanel inherits Rectangle {
             y: root.has-tuner-stream || (BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum") ? 360px : 144px;
             width: parent.width - 40px;
             height: root.has-tuner-stream || (BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum") ? (parent.height - 380px) : (parent.height - 164px);
-            viewport-width: self.width;
-            viewport-height: BlockEditorBridge.block-parameter-items.length * 96px;
+            content-width: self.width;
+            content-height: BlockEditorBridge.block-parameter-items.length * 96px;
 
             for param-item[index] in BlockEditorBridge.block-parameter-items : BlockParameterRow {
                 x: 0px;

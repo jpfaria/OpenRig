@@ -3,6 +3,8 @@ import { Theme, Gear } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
 import { TextField } from "text_field.slint";
 import { ModelPickRow } from "model_pick_row.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 // Reusable model picker with embedded search field.
 //
@@ -49,15 +51,10 @@ export component ModelSelectWithSearch inherits Rectangle {
         : (main-ta.has-hover ? Theme.ink-3 : Theme.field-line);
     border-radius: 3px;
 
-    private property <bool> selected-has-brand:
-        root.selected-model.brand != ""
-        && root.selected-model.brand != "native"
-        && root.selected-model.brand != "generic";
-
+    // Composed in Rust (`block_model_picker_items`): the brand as the catalog
+    // writes it, then the model.
     private property <string> selected-button-label:
-        root.selected-has-brand
-            ? root.selected-model.brand + " " + root.selected-model.display_name
-            : root.selected-model.display_name;
+        root.selected-model.label != "" ? root.selected-model.label : root.selected-model.display_name;
 
     // The backend's colour: a tinted chip on a light field, solid on the chrome.
     private property <color> backend-color:
@@ -140,9 +137,11 @@ export component ModelSelectWithSearch inherits Rectangle {
     // by block type, each model with its backend as a solid badge.
     popup := PopupWindow {
         x: 0;
-        y: root.height + 4px;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
         width: max(root.width, 320px);
-        height: root.popup-height;
+        height: OverlayPlacement.fit(root.popup-height, WindowBounds.height);
         close-policy: close-on-click-outside;
 
         Rectangle {
@@ -194,8 +193,8 @@ export component ModelSelectWithSearch inherits Rectangle {
                         y: 1px;
                         width: parent.width - 2px;
                         height: parent.height - 2px;
-                        viewport-width: self.width;
-                        viewport-height: rows.preferred-height;
+                        content-width: self.width;
+                        content-height: rows.preferred-height;
 
                         rows := VerticalLayout {
                             alignment: start;

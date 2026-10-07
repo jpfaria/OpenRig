@@ -11,6 +11,9 @@ export global ToneDoctorState {
     // edge (the panel's right edge goes there), `y` the top of the panel.
     in-out property <length> x;
     in-out property <length> y;
+    // The icon's top edge: the panel opens above it when there is no room
+    // below (#398).
+    in-out property <length> anchor-top;
     // routes the panel's diagnose / apply back to the right chain.
     in-out property <int> chain-index;
 

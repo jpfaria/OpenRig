@@ -3,6 +3,7 @@
 // button with a hairline, `primary` the accent action (Apply, Add), `ghost` a
 // quiet secondary action (Reset) and `danger` the destructive confirm.
 import { Theme, Gear } from "../theme.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export enum FormButtonKind { normal, primary, ghost, danger }
 
@@ -12,6 +13,9 @@ export component FormButton inherits Rectangle {
     in property <FormButtonKind> kind: FormButtonKind.normal;
     in property <bool> small: false;
     in property <bool> enabled: true;
+    // An action its icon says alone (save, delete, add, close): a square with
+    // the icon, its name shown on hover and kept for screen readers (#398).
+    in property <bool> icon-only: false;
     callback clicked();
 
     private property <color> ink: root.kind == FormButtonKind.primary ? Theme.on-accent
@@ -20,7 +24,8 @@ export component FormButton inherits Rectangle {
         : Theme.ink;
 
     height: root.small ? 28px : 34px;
-    min-width: row.preferred-width;
+    min-width: root.icon-only ? root.height : row.preferred-width;
+    max-width: root.icon-only ? root.height : 100000px;
     border-radius: 4px;
     opacity: root.enabled ? 1.0 : 0.45;
     background: root.kind == FormButtonKind.primary ? (ta.has-hover && root.enabled ? Theme.accent.brighter(0.08) : Theme.accent)
@@ -31,8 +36,8 @@ export component FormButton inherits Rectangle {
     border-color: Theme.hair;
 
     row := HorizontalLayout {
-        padding-left: root.small ? 10px : 14px;
-        padding-right: root.small ? 10px : 14px;
+        padding-left: root.icon-only ? 0px : root.small ? 10px : 14px;
+        padding-right: root.icon-only ? 0px : root.small ? 10px : 14px;
         spacing: 7px;
         alignment: center;
 
@@ -46,7 +51,7 @@ export component FormButton inherits Rectangle {
             }
         }
 
-        Text {
+        if !root.icon-only : Text {
             text: root.label;
             color: root.ink;
             font-size: Theme.min-font;
@@ -61,6 +66,8 @@ export component FormButton inherits Rectangle {
         mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
         clicked => { root.clicked(); }
     }
+
+    IconTooltip { text: root.label; show: ta.has-hover && root.icon-only; prefer-above: true; }
 
     accessible-role: button;
     accessible-label: root.label;

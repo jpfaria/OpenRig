@@ -2,6 +2,7 @@
 // #398: the window's icon (when it has one) in `icon-tint`, its name in the display face, and
 // whatever the window puts in (its switches, a close button) on the right.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ToolBar inherits Rectangle {
     in property <image> icon;
@@ -33,7 +34,7 @@ export component ToolBar inherits Rectangle {
         height: parent.height;
         text: root.title;
         color: Theme.chrome-fg;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 24px;
         letter-spacing: 0.06 * 24px;
         vertical-alignment: center;

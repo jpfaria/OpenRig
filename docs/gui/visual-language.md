@@ -76,7 +76,8 @@ anywhere else (`ui-rules.md` §0.1).
 | Categories | `c-filter`, `c-dyn`, `c-gain`, `c-amp`, `c-pre`, `c-cab`, `c-mod`, `c-dly`, `c-rvb`, `c-vol` | the type colour of a block, everywhere it shows |
 | Backends | `b-nam`, `b-native`, `b-ir`, `b-lv2`, `b-vst3` | the backend badge of a model |
 | Fixed looks | `hero-*`, `lcd-*`, `scope-*` | the launcher hero, the amber LCDs, the teal spectrum scope; same in both schemes |
-| Gear materials | `Gear.*` | real hardware (enclosures, knobs, jacks, LEDs, hub, rack, cab grille); same in both schemes |
+| Gear materials | `Gear.*` | real hardware (enclosures, knobs, jacks, LEDs, rack, cab grille); same in both schemes |
+| Routing hub | `hub-hi` / `hub-lo` / `hub-edge` / `hub-line`, `port-fill` / `port-ring` | the split/mixer node: the app's own, so it follows the scheme (slate in dark, pale with dark ink in light) |
 | Weights | `line` 1px, `wire-width` 1.25px, `mark` 2px, `track` 3px | every stroke |
 | Spacing | `spaces.small/medium/large/xlarge` (10/14/20/28px) | gaps and padding |
 
@@ -85,10 +86,38 @@ new hex. A monochrome SVG icon always carries a `colorize` from a token.
 
 ## Typography
 
-Bebas Neue is the face (do not propose another). Category and section labels
-are upper case, bold (700) with 1.5–2px letter spacing; names and values are
-600; body text is 400. One size: `Theme.min-font`, with hierarchy from
+Three faces, as in the approved mockup (owner's decision, #398):
+
+- **Barlow** is the UI face: every label, name, value, button, list row and
+  body text. Windows bind `default-font-family: Locale.font-family`, which
+  Rust sets to Barlow for a Latin locale (`locale_font.rs`).
+- **Bebas Neue** is the display face, only for what the mockup sets in it:
+  window and page titles (`ToolBar`, `DialogCard`, settings page heading,
+  top bar), the chain name, accordion sections (`SectionToggle`), the
+  model word of the block editor, category tabs, and the big readouts (tuner
+  note, BPM, tap, player time, drum bar). Such a text sets
+  `font-family: Locale.display-font-family`, never the face by name: a CJK
+  or Devanagari locale gets its own script face there too, so nothing
+  renders as tofu.
+- **JetBrains Mono** (Medium) is the readout face, only where the mockup sets
+  `var(--mono)`: knob and EQ values, mixer dB readouts, the latency badge,
+  the app version, channel labels in the channel picker, Tone Doctor metric
+  values, looper times and slider values, preset numbers, the rack screen of
+  gear art, the tuner and spectrum LCD captions and scales, the tuner octave,
+  the BPM caption, the player loop range, project paths in the launcher and
+  the project file field. Such a text sets
+  `font-family: Locale.mono-font-family`; a CJK or Devanagari locale keeps
+  its own script face there as well.
+
+Barlow prints the case it is given. Labels the mockup sets in upper case
+(`FieldCaption`, `TagPill`, the graph's category caption) apply
+`.to-uppercase()` in the component, so callers pass the normal translated
+string. A knob's caption is printed as the model names it ("Treble",
+"Level to A"), never upper-cased. Labels are bold (700) with 1.5–2px letter spacing; names and values
+are 600; body text is 400. One size: `Theme.min-font`, with hierarchy from
 weight, case and colour (`ink` → `ink-2` → `ink-3`), not from small text.
+The fonts live in `ui/fonts/Barlow/` and `ui/fonts/JetBrainsMono/`, each with
+its licence (`OFL.txt`).
 
 ## Components to reuse
 
@@ -103,6 +132,10 @@ Build from these; a near-duplicate is a bug (`ui-rules.md` §3).
 | Tool window (tuner, metronome, drums, player, spectrum, mixer, looper, DI, Tone Doctor) | `ToolBar` + `ToolBarClose` over a body on `Theme.well`; readouts in `LcdGlass` |
 | Knob | `PanelKnob` / `KnobArc`; a stepped choice is `SelectorKnob` |
 | Small button on a dark bar | `BarButton`; header icons use `HeaderIconStyle` and `IconTooltip` |
+| Action an icon says alone (save, delete, add, cancel, close, refresh, play) | `FormButton` / `EditorButton` / `PanelActionButton` with `icon-only: true` and an `icon`; the `label` stays as hover label and accessible label (`ui-rules.md` §8) |
+| Hover label | `IconTooltip` inside the control; the window's `HoverTipLayer` draws it |
+| Placing an overlay | `OverlayPlacement` (`top`, `top-above`, `left`, `fit`) against the window size; a `PopupWindow` reads it from `WindowBounds` (`ui-rules.md` §9) |
+| Parameter tabs | `ParamTabBar`; a row wider than the bar scrolls sideways and its right edge fades into `fade-into` while more tabs wait there |
 | Tag / badge | `TagPill` |
 | Settings item | `SettingsCard` |
 | Transient message | `Toast` |
@@ -125,7 +158,11 @@ ring) reads the same `GearShape`, so the two never disagree.
 
 The enclosure is tinted with the block's category colour, the window/screen
 prints the model name (elided), the knobs are drawn caps, the LED is a drawn
-8px dot. A bypassed block is grey and dimmed, never hidden.
+8px dot. An amp head is the brand logo on the white upper panel over a band
+of the category colour across its lower 20px, with no knobs. A brand logo is
+always monochrome in the tint it is given (`BrandLogo`), and its SVG
+`viewBox` is cropped to the letters so it fills its box. A bypassed block is
+grey and dimmed, never hidden.
 
 ## Graph view
 
@@ -137,26 +174,41 @@ Spec of the canvas itself: `docs/gui/graph-view.md`. The visual rules:
   translucent piece.
 - Each split path has its lane colour (`GraphLanes`: path 0 accent, then
   `c-rvb`, `c-mod`, `c-dly`); the trunk is `Theme.wire`.
-- Split and mixer are the `GraphHub`: a slate tile with one port and one
+- Split and mixer are the `GraphHub`: a tile in the scheme's hub colours with one port and one
   letter per path, any number of paths.
 - Under a block: the power disc and the category in its colour, then the
-  model name. The first block of the outer paths carries a `PATH A` / last
-  path tag in the lane colour.
+  model name. A path is told apart by its lane colour only, never by a
+  written `PATH A` (#398); in the compact view the lane bar is the split or
+  mix icon and a line, both in the lane colour.
 - Input/output are jacks with IN / OUT under them; a port block is named
   after its binding.
 
 ## Overlays and paint order
 
-A bar whose hover labels hang below it (chain header, top bar, compact
-header, block editor header) declares `z: 10` so its tooltip paints over the
-page below (`src/issue_398_paint_order_tests.rs`). A list a user clicks is a
-root-level overlay, never a `PopupWindow` (`ui-rules.md` §1).
+Nothing leaves the window (`ui-rules.md` §9). Every window declares
+`WindowBoundsProbe { }` and `HoverTipLayer { }`: the probe tells its
+`PopupWindow`s where the window's edges are, and the layer draws every hover
+label of the window above everything, so no dialog clip, scroll view or
+later sibling can cover or cut it. `IconTooltip` only hands its text and its
+control's position to that layer; it draws nothing in place. A bar whose
+hover labels hang below it (chain header, top bar, compact header, block
+editor header) still declares `z: 10` (`src/issue_398_paint_order_tests.rs`).
+A list a user clicks is a root-level overlay, never a `PopupWindow`
+(`ui-rules.md` §1).
+
+The hover card of a graph block is a window-level layer too: the canvas
+writes the hovered block and its window position into `BlockHoverState`,
+and `BlockHoverLayer`, declared last in the window, draws the card clamped
+inside the window. Drawn inside the canvas, the chain header above it
+painted over the card.
 
 ## Checking a screen
 
 1. Render the component with `tools/slint-render` (standalone mock, both
    schemes) and look at the PNG.
-2. Open the app from the solver with an isolated `--config` / `--project`,
+2. Open the app from the solver with an isolated `HOME` and a copied
+   `--project` (`--config` alone still writes the owner's config; see
+   `docs/cli.md`),
    capture the window, and compare it with the T-numbered screen of the
    mockup side by side, in light and dark. The agent does this, not the
    owner (#398).

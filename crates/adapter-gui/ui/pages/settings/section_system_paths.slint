@@ -44,6 +44,8 @@ component PathRow inherits HorizontalLayout {
         placeholder: @tr("placeholder-default-path");
     }
     FormButton {
+        icon-only: true;
+        icon: @image-url("../../modules/surrealism-ui/icons/folder-open.svg");
         label: @tr("btn-choose-path");
         clicked => { root.choose(); }
     }
@@ -119,6 +121,8 @@ export component SectionSystemPaths inherits Rectangle {
                 overflow: elide;
             }
             FormButton {
+                icon-only: true;
+                icon: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
                 label: @tr("btn-reload-plugin-catalog");
                 clicked => { SettingsBridge.reload-plugin-catalog(); }
             }

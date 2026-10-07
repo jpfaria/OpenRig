@@ -105,7 +105,7 @@ The issue is the audit log. Comment with: the plan before starting; each push (h
 
 ### Validation checklist
 
-**Mandatory in every delivery the owner must validate** (ear, physical hardware). Visual checks (layout, dialogs, screens, mockup fidelity) are the agent's: it opens the app from the solver with an isolated `--config`/`--project`, clicks, captures the window and compares — they never become checklist items (#398). The checklist: the issue comment AND the chat reply carry a checklist with:
+**Mandatory in every delivery the owner must validate** (ear, physical hardware). Visual checks (layout, dialogs, screens, mockup fidelity) are the agent's: it opens the app from the solver with an isolated `HOME` and a copied `--project` (`--config` alone still writes the owner's config, see `docs/cli.md`), clicks, captures the window and compares — they never become checklist items (#398). The checklist: the issue comment AND the chat reply carry a checklist with:
 
 1. TWO commands, each in its own code block, always both: the main folder `git fetch && git checkout {type}/issue-N && git pull`; and the solver = the `run:` line printed by `scripts/solver-setup.sh <N> <branch>`, verbatim (absolute path + `OPENRIG_PLUGINS_ROOT=<plugins folder>`, e.g. `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`; without `OPENRIG_PLUGINS_ROOT` the app opens with no plugins).
 2. NUMBERED checkbox items (`1. [ ]`, `2. [ ]`, …), one per line, only what HE validates — never the tests or builds the agent already ran.

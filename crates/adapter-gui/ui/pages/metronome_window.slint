@@ -23,6 +23,9 @@ import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { PillSwitch } from "../components/pill_switch.slint";
 import { FieldCaption } from "../components/field_caption.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 // ── MetronomePanel — reusable content (Window and inline modes) ───────────
 export component MetronomePanel inherits Rectangle {
@@ -67,7 +70,7 @@ export component MetronomePanel inherits Rectangle {
                         Text {
                             text: Math.round(MetronomeBridge.bpm);
                             color: MetronomeBridge.metronome-enabled ? Theme.lcd-glow : Theme.lcd-off;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.display-font-family;
                             font-size: 76px;
                             height: 70px;
                             vertical-alignment: center;
@@ -75,7 +78,7 @@ export component MetronomePanel inherits Rectangle {
                         Text {
                             text: @tr("label-bpm");
                             color: Theme.lcd-dim;
-                            font-family: "Bebas Neue";
+                            font-family: Locale.mono-font-family;
                             font-size: Theme.min-font;
                             letter-spacing: 0.14 * Theme.min-font;
                         }
@@ -277,7 +280,6 @@ export component MetronomePanel inherits Rectangle {
                 width: parent.width - 32px; height: 22px;
                 text: @tr("label-metronome-output");
                 color: Theme.ink-2;
-                font-family: "Bebas Neue";
                 font-size: 18px;
                 letter-spacing: 2.0px;
             }
@@ -313,7 +315,7 @@ export component MetronomePanel inherits Rectangle {
 
 export component MetronomeWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-metronome");
     min-width: 560px;
@@ -327,4 +329,7 @@ export component MetronomeWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

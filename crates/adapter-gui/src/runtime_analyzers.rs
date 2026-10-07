@@ -226,6 +226,7 @@ fn build_tuner(inner: &Inner, session: Option<&ProjectSession>) -> Option<TunerS
         &session.project.borrow(),
         inner.taps.as_ref(),
         &session.io_bindings.borrow(),
+        &crate::device_refresh_list::list_input_devices(),
     ))
 }
 

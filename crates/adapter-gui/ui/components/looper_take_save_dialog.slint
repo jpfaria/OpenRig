@@ -71,12 +71,16 @@ export component LooperTakeSaveDialog inherits Rectangle {
             // Once saved there is nothing to cancel — the same button just
             // closes, and becomes the one answer left.
             cancel-btn := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 kind: root.saved ? FormButtonKind.primary : FormButtonKind.normal;
                 label: root.saved ? @tr("btn-close") : @tr("btn-cancel");
                 clicked => { LooperTake.dialog-uid = -1; }
             }
 
             if !root.saved : save-btn := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/save.svg");
                 kind: FormButtonKind.primary;
                 label: @tr("looper-take-save");
                 enabled: root.can-save;

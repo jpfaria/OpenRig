@@ -8,12 +8,16 @@
 // the active tab lifted to the panel tone. `display` (the mixers) sets the
 // labels in the display face and leaves the active tab on the row.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ParamTabBar inherits Rectangle {
     in property <[string]> groups;
     in property <int> active: 0;
     in property <bool> boxed: false;
     in property <bool> display: false;
+    // The tone the bar sits on; the right edge fades into it while more tabs
+    // wait past it (#398).
+    in property <color> fade-into: root.boxed ? Theme.panel-lo : Theme.panel;
     callback select(int);
 
     background: root.boxed ? Theme.panel-lo : transparent;
@@ -32,11 +36,11 @@ export component ParamTabBar inherits Rectangle {
         background: Theme.hair;
     }
 
-    Flickable {
+    flick := Flickable {
         width: 100%;
         height: 100%;
-        viewport-width: max(self.width, tabs.preferred-width);
-        viewport-height: self.height;
+        content-width: max(self.width, tabs.preferred-width);
+        content-height: self.height;
 
         tabs := HorizontalLayout {
             x: 0; y: 0;
@@ -55,7 +59,7 @@ export component ParamTabBar inherits Rectangle {
                     text: group;
                     color: i == root.active ? Theme.ink
                         : (tab-ta.has-hover || root.boxed ? Theme.ink-2 : Theme.ink-3);
-                    font-family: root.display ? "Bebas Neue" : "";
+                    font-family: root.display ? Locale.display-font-family : "";
                     font-size: root.display ? 20px : Theme.min-font;
                     font-weight: root.display ? 400 : 600;
                     letter-spacing: (root.display ? 0.08 : 0.06) * self.font-size;
@@ -81,5 +85,14 @@ export component ParamTabBar inherits Rectangle {
                 accessible-label: group;
             }
         }
+    }
+
+    // A row wider than the bar scrolls; while tabs wait past the right edge,
+    // that edge fades so the cut tab reads as "more this way" (#398).
+    if flick.content-x + flick.content-width > flick.width + 0.5px : more := Rectangle {
+        x: root.width - self.width;
+        width: 40px;
+        height: root.height;
+        background: @linear-gradient(90deg, root.fade-into.with-alpha(0) 0%, root.fade-into 85%);
     }
 }

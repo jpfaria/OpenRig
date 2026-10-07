@@ -6,6 +6,7 @@
 import { Theme, Gear } from "../theme.slint";
 import { BrandLogo } from "brand_logo.slint";
 import { BlockPowerButton } from "block_power_button.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component BlockPanelBrandZone inherits Rectangle {
     in property <string> selected-brand;
@@ -70,7 +71,7 @@ export component BlockPanelBrandZone inherits Rectangle {
         width: parent.width - 36px;
         text: root.selected-model-label.to-uppercase();
         color: Theme.ink;
-        font-family: "Bebas Neue";
+        font-family: Locale.display-font-family;
         font-size: 36px;
         letter-spacing: 0.04 * 36px;
         horizontal-alignment: center;

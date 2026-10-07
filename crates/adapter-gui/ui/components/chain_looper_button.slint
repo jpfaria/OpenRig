@@ -43,6 +43,7 @@ export component ChainLooperButton inherits Rectangle {
             // Open below the button, the panel's right edge near it.
             LooperPanel.x = root.absolute-position.x - 572px;
             LooperPanel.y = root.absolute-position.y + 32px;
+            LooperPanel.anchor-top = root.absolute-position.y;
             LooperPanel.open = true;
         }
     }

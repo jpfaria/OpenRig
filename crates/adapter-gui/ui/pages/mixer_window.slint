@@ -12,6 +12,9 @@ import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
 import { MixerSection } from "../components/mixer_section.slint";
 import { ParamTabBar } from "../components/param_tab_bar.slint";
 import { ToolBar } from "../components/tool_bar.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component MixerPanel inherits Rectangle {
     // The inline overlay needs a close button; the standalone window closes via
@@ -92,8 +95,8 @@ export component MixerPanel inherits Rectangle {
             x: 16px; y: 14px;
             width: parent.width - 32px;
             height: parent.height - 28px;
-            viewport-width: max(self.width, root.shown.length * 120px);
-            viewport-height: self.height;
+            content-width: max(self.width, root.shown.length * 120px);
+            content-height: self.height;
 
             MixerSection {
                 x: 0; y: 0;
@@ -107,7 +110,7 @@ export component MixerPanel inherits Rectangle {
 
 export component MixerWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-mixer");
     min-width: 360px;
@@ -123,4 +126,7 @@ export component MixerWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

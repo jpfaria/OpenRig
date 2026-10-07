@@ -32,6 +32,9 @@ export component LooperPanelView inherits Rectangle {
     // Inside a compact-view section the section is the panel: no box of its
     // own, no title (the section header names it), no inset gutter.
     in property <bool> embedded: false;
+    // The most the panel may take: its host caps it to the window, and the
+    // body scrolls under the bar past that (#398).
+    in property <length> height-cap: 100000px;
 
     callback add();
     // #903: the panel's global transport — the whole chain at once. A row's
@@ -65,7 +68,7 @@ export component LooperPanelView inherits Rectangle {
     private property <length> actions-h: root.embedded ? 40px : 0px;
 
     width: 600px;
-    height: root.bar-h + root.actions-h + body.preferred-height;
+    height: min(root.bar-h + root.actions-h + body.preferred-height, root.height-cap);
     border-radius: root.embedded ? 0px : 6px;
     background: root.embedded ? transparent : Theme.panel;
     border-width: root.embedded ? 0px : 1px;
@@ -98,6 +101,7 @@ export component LooperPanelView inherits Rectangle {
         spacing: 6px;
 
         play-all-btn := PanelActionButton {
+            icon-only: true;
             icon: @image-url("../assets/play.svg");
             label: @tr("looper-play-all");
             on-bar: !root.embedded;
@@ -113,6 +117,7 @@ export component LooperPanelView inherits Rectangle {
         }
 
         stop-all-btn := PanelActionButton {
+            icon-only: true;
             icon: @image-url("../assets/stop.svg");
             label: @tr("looper-stop-all");
             on-bar: !root.embedded;
@@ -128,6 +133,7 @@ export component LooperPanelView inherits Rectangle {
         }
 
         add-button := PanelActionButton {
+            icon-only: true;
             icon: @image-url("../assets/plus.svg");
             label: @tr("looper-add");
             primary: true;
@@ -144,69 +150,79 @@ export component LooperPanelView inherits Rectangle {
     }
 
     // ── the loopers ─────────────────────────────────────────────────────
-    body := VerticalLayout {
+    scroll := Flickable {
         x: 0;
         y: root.bar-h + root.actions-h;
         width: parent.width;
-        height: self.preferred-height;
-        padding-left: root.embedded ? 0px : 16px;
-        padding-right: root.embedded ? 0px : 16px;
-        padding-top: root.embedded ? 0px : 14px;
-        padding-bottom: root.embedded ? 4px : 16px;
-        spacing: 10px;
+        height: parent.height - self.y;
+        content-width: self.width;
+        content-height: body.preferred-height;
+        // Wheel always; drag only when there is something to scroll, so a
+        // short panel's sliders are never taken for a flick.
+        interactive: self.content-height > self.height;
 
-        // No loop yet: say so on a card where the first loop will appear.
-        if root.is-empty : Rectangle {
-            height: empty-col.preferred-height;
-            border-radius: 5px;
-            background: Theme.panel-hi;
-            border-width: 1px;
-            border-color: Theme.hair;
+        body := VerticalLayout {
+            width: parent.width;
+            height: self.preferred-height;
+            padding-left: root.embedded ? 0px : 16px;
+            padding-right: root.embedded ? 0px : 16px;
+            padding-top: root.embedded ? 0px : 14px;
+            padding-bottom: root.embedded ? 4px : 16px;
+            spacing: 10px;
 
-            empty-col := VerticalLayout {
-                padding: 20px;
-                spacing: 6px;
+            // No loop yet: say so on a card where the first loop will appear.
+            if root.is-empty : Rectangle {
+                height: empty-col.preferred-height;
+                border-radius: 5px;
+                background: Theme.panel-hi;
+                border-width: 1px;
+                border-color: Theme.hair;
 
-                Text {
-                    text: @tr("looper-empty-title");
-                    color: Theme.ink-2;
-                    font-size: Theme.min-font;
-                    font-weight: 600;
-                    horizontal-alignment: center;
-                }
+                empty-col := VerticalLayout {
+                    padding: 20px;
+                    spacing: 6px;
 
-                Text {
-                    text: @tr("looper-empty-hint");
-                    color: Theme.ink-3;
-                    font-size: Theme.min-font;
-                    horizontal-alignment: center;
-                    wrap: word-wrap;
+                    Text {
+                        text: @tr("looper-empty-title");
+                        color: Theme.ink-2;
+                        font-size: Theme.min-font;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                    }
+
+                    Text {
+                        text: @tr("looper-empty-hint");
+                        color: Theme.ink-3;
+                        font-size: Theme.min-font;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
                 }
             }
-        }
 
-        for item[index] in root.loopers : LooperRow {
-            looper: item;
-            expanded: item.uid == root.expanded-uid;
-            input-options: root.input-options;
-            output-options: root.output-options;
-            preset-options: root.preset-options;
-            record => { root.record(item.uid); }
-            play-stop => { root.play-stop(item.uid); }
-            undo => { root.undo(item.uid); }
-            redo => { root.redo(item.uid); }
-            clear => { root.clear(item.uid); }
-            remove => { root.remove(item.uid); }
-            toggle-drawer => { root.toggle-drawer(item.uid); }
-            mix-changed(v) => { root.mix-changed(item.uid, v); }
-            decay-changed(v) => { root.decay-changed(item.uid, v); }
-            speed-picked(v) => { root.speed-picked(item.uid, v); }
-            reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
-            input-open => { root.endpoint-open(item.uid, 0, item.input_index); }
-            output-open => { root.endpoint-open(item.uid, 1, item.output_index); }
-            preset-open => { root.preset-open(item.uid, item.preset_index); }
-            edit => { root.edit(item.uid); }
-            save-take => { root.save-take(item.uid); }
+            for item[index] in root.loopers : LooperRow {
+                looper: item;
+                expanded: item.uid == root.expanded-uid;
+                input-options: root.input-options;
+                output-options: root.output-options;
+                preset-options: root.preset-options;
+                record => { root.record(item.uid); }
+                play-stop => { root.play-stop(item.uid); }
+                undo => { root.undo(item.uid); }
+                redo => { root.redo(item.uid); }
+                clear => { root.clear(item.uid); }
+                remove => { root.remove(item.uid); }
+                toggle-drawer => { root.toggle-drawer(item.uid); }
+                mix-changed(v) => { root.mix-changed(item.uid, v); }
+                decay-changed(v) => { root.decay-changed(item.uid, v); }
+                speed-picked(v) => { root.speed-picked(item.uid, v); }
+                reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
+                input-open => { root.endpoint-open(item.uid, 0, item.input_index); }
+                output-open => { root.endpoint-open(item.uid, 1, item.output_index); }
+                preset-open => { root.preset-open(item.uid, item.preset_index); }
+                edit => { root.edit(item.uid); }
+                save-take => { root.save-take(item.uid); }
+            }
         }
     }
 }

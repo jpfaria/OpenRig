@@ -1,11 +1,11 @@
 // Responsibility: draws a split or mixer hub with one port per path.
-// #398: a dark slate tile with the trunk in light ink and one curve per path
+// #398: a tile in the scheme's hub colours with the trunk in its ink and one curve per path
 // in its lane colour, fanning out (split) or folding in (mixer), lettered A,
 // B, C… The hub grows a port every `GraphPorts.pitch` for as many paths as
 // the split has; the wires end on these ports (graph_ports.slint). Drawn in
 // unscaled units (54 wide) and scaled by `zoom`.
 
-import { Theme, Gear } from "../theme.slint";
+import { Theme } from "../theme.slint";
 import { GraphLanes } from "graph_lanes.slint";
 import { GraphPorts } from "graph_ports.slint";
 
@@ -32,9 +32,9 @@ export component GraphHub inherits Rectangle {
 
     Rectangle {
         border-radius: 7 * root.u;
-        background: @linear-gradient(180deg, Gear.hub-hi 0%, Gear.hub-lo 100%);
+        background: @linear-gradient(180deg, Theme.hub-hi 0%, Theme.hub-lo 100%);
         border-width: 1px;
-        border-color: Gear.hub-edge;
+        border-color: Theme.hub-edge;
     }
 
     // The trunk: the one wire on the hub's other side.
@@ -43,7 +43,7 @@ export component GraphHub inherits Rectangle {
         height: root.height;
         viewbox-width: 54;
         viewbox-height: root.h;
-        stroke: Gear.hub-line;
+        stroke: Theme.hub-line;
         stroke-width: 3 * root.u;
         stroke-line-cap: round;
         MoveTo { x: root.mix ? 50 : 4; y: root.cy; }
@@ -77,7 +77,7 @@ export component GraphHub inherits Rectangle {
         width: 6.8 * root.u;
         height: self.width;
         border-radius: self.width / 2;
-        background: Gear.hub-line;
+        background: Theme.hub-line;
     }
 
     // The path letters, printed on the hub like the text on a piece of gear:
@@ -104,9 +104,9 @@ export component GraphHub inherits Rectangle {
         width: 9.2 * root.u;
         height: self.width;
         border-radius: self.width / 2;
-        background: Gear.port-fill;
+        background: Theme.port-fill;
         border-width: 1.8 * root.u;
-        border-color: Gear.port-ring;
+        border-color: Theme.port-ring;
     }
     trunk-port := Rectangle {
         x: ((root.mix ? 54 : 0) - 4.6) * root.u;
@@ -114,8 +114,8 @@ export component GraphHub inherits Rectangle {
         width: 9.2 * root.u;
         height: self.width;
         border-radius: self.width / 2;
-        background: Gear.port-fill;
+        background: Theme.port-fill;
         border-width: 1.8 * root.u;
-        border-color: Gear.port-ring;
+        border-color: Theme.port-ring;
     }
 }

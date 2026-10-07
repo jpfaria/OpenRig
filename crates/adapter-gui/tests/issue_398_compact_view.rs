@@ -57,8 +57,8 @@ fn a_block_is_a_module_card() {
     );
     assert!(!row.contains("rack-texture.png"));
     assert!(row.contains("root.block-data.lane-bar"));
-    assert!(row.contains("@tr(\"compact-lane-path\""));
-    assert!(row.contains("@tr(\"compact-lane-mix\")"));
+    assert!(row.contains("graph-split.svg"));
+    assert!(row.contains("graph-mix.svg"));
 }
 
 #[test]

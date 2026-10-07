@@ -4,6 +4,7 @@
 // `primary` is the accent action. The host puts the TouchArea inside, so the
 // hit target keeps the host's id.
 import { Theme } from "../theme.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export component PanelActionButton inherits Rectangle {
     in property <string> label;
@@ -12,6 +13,9 @@ export component PanelActionButton inherits Rectangle {
     in property <bool> on-bar;
     in property <bool> enabled: true;
     in property <bool> hovered;
+    // An action its icon says alone (save, delete, add, close): a square with
+    // the icon, its name shown on hover and kept for screen readers (#398).
+    in property <bool> icon-only: false;
     callback clicked();
 
     private property <color> ink: root.primary ? Theme.on-accent
@@ -19,7 +23,7 @@ export component PanelActionButton inherits Rectangle {
         : Theme.ink;
     private property <bool> lit: root.hovered && root.enabled;
 
-    width: row.preferred-width;
+    width: root.icon-only ? root.height : row.preferred-width;
     height: 28px;
     border-radius: 4px;
     opacity: root.enabled ? 1.0 : 0.45;
@@ -30,8 +34,8 @@ export component PanelActionButton inherits Rectangle {
     border-color: root.on-bar ? Theme.chrome-field-line : Theme.hair;
 
     row := HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: root.icon-only ? 0px : 10px;
+        padding-right: root.icon-only ? 0px : 10px;
         spacing: 6px;
         alignment: center;
 
@@ -46,7 +50,7 @@ export component PanelActionButton inherits Rectangle {
             }
         }
 
-        Text {
+        if !root.icon-only : Text {
             text: root.label;
             color: root.ink;
             font-size: Theme.min-font;
@@ -57,6 +61,8 @@ export component PanelActionButton inherits Rectangle {
     }
 
     @children
+
+    IconTooltip { text: root.label; show: root.hovered && root.icon-only; }
 
     accessible-role: button;
     accessible-label: root.label;

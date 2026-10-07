@@ -224,10 +224,6 @@ msgstr "Out"
 msgid "graph-node-mixer"
 msgstr "ミックス"
 
-#: crates/adapter-gui/ui/components/graph_node_card.slint:150
-msgid "graph-lane-tag {}"
-msgstr "パス {}"
-
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
 msgstr "ブロックのオン/オフ"
@@ -1293,15 +1289,6 @@ msgstr "チェーンを下へ"
 
 msgid "accessible-chain-power"
 msgstr "チェーンのオン/オフ"
-
-msgid "compact-lane-path"
-msgstr "パス {}"
-
-msgid "compact-lane-mix"
-msgstr "ミックス"
-
-msgid "compact-lane-split"
-msgstr "分岐"
 
 msgid "compact-block-power"
 msgstr "ブロックのオン/オフ"

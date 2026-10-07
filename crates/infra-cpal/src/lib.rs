@@ -154,8 +154,8 @@ mod output_fader;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;
 pub use device_cache::{
-    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
-    list_output_device_descriptors,
+    cached_device_descriptors, has_new_devices, invalidate_device_cache,
+    list_input_device_descriptors, list_output_device_descriptors,
 };
 pub use device_enum::list_devices;
 mod device_presence;

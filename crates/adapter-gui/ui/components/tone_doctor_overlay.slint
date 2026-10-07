@@ -7,6 +7,7 @@
 
 import { ToneDoctorState } from "tone_doctor_globals.slint";
 import { ToneDoctorPanel } from "tone_doctor_panel.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
 
 export component ToneDoctorOverlay inherits Rectangle {
     callback run-diagnosis(int);
@@ -16,9 +17,11 @@ export component ToneDoctorOverlay inherits Rectangle {
     visible: ToneDoctorState.open;
     TouchArea { clicked => { ToneDoctorState.open = false; } }
     if ToneDoctorState.open : ToneDoctorPanel {
-        // Its right edge at the icon, kept inside the window.
-        x: Math.max(8px, Math.min(ToneDoctorState.x - self.width, root.width - self.width - 8px));
-        y: Math.max(8px, Math.min(ToneDoctorState.y, root.height - self.height - 8px));
+        // Its right edge at the icon, below it or above it when there is no
+        // room, never past the window's edges; too tall, it scrolls (#398).
+        x: OverlayPlacement.left(ToneDoctorState.x - self.width, self.width, root.width);
+        y: OverlayPlacement.top(ToneDoctorState.anchor-top, ToneDoctorState.y, self.height, root.height);
+        height-cap: OverlayPlacement.fit(100000px, root.height);
         running: ToneDoctorState.running;
         has-result: ToneDoctorState.has-result;
         symptom-level: ToneDoctorState.symptom-level;

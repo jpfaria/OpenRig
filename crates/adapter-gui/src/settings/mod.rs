@@ -10,6 +10,9 @@
 
 pub(crate) mod appearance;
 pub(crate) mod appearance_current;
+pub(crate) mod appearance_followers;
+pub(crate) mod appearance_pick;
+pub(crate) mod appearance_wiring;
 pub mod audio;
 pub(crate) mod endpoint_build;
 pub(crate) mod endpoint_channels;
@@ -47,3 +50,9 @@ mod appearance_tests;
 #[cfg(test)]
 #[path = "appearance_current_tests.rs"]
 mod appearance_current_tests;
+#[cfg(test)]
+#[path = "appearance_followers_tests.rs"]
+mod appearance_followers_tests;
+#[cfg(test)]
+#[path = "appearance_pick_tests.rs"]
+mod appearance_pick_tests;

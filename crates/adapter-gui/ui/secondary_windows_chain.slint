@@ -4,6 +4,8 @@ import { ChannelOptionItem, DeviceSelectionItem, ChainBindingChoice, IoBindingMo
 import { ChainEditorBridge } from "chain_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, ChainPortEditorPage } from "pages/pages.slint";
+import { WindowBoundsProbe } from "components/window_bounds.slint";
+import { HoverTipLayer } from "components/hover_tip_layer.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -54,6 +56,9 @@ export component ProjectSettingsWindow inherits Window {
         save-project => { root.save-project(); }
         close-settings => { root.close-settings(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }
 
 export component ChainEditorWindow inherits Window {
@@ -92,6 +97,9 @@ export component ChainEditorWindow inherits Window {
         cancel-chain => { ChainEditorBridge.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }
 
 // #881 — the editor of an INSERT block. Model A (#716): an insert points at ONE
@@ -133,6 +141,9 @@ export component ChainInsertWindow inherits Window {
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }
 
 
@@ -183,4 +194,7 @@ export component ChainPortWindow inherits Window {
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

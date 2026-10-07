@@ -19,6 +19,7 @@ import { FieldCaption } from "../../components/field_caption.slint";
 import { ListBox } from "../../components/list_box.slint";
 import { TagPill } from "../../components/tag_pill.slint";
 import { IoEndpointRow, RowIconButton } from "io_endpoint_row.slint";
+import { Locale } from "../../locale_globals.slint";
 
 // The framed panel the add form sits in.
 component AddPanel inherits Rectangle {
@@ -58,8 +59,9 @@ export component SectionSystemIoBindings inherits Rectangle {
     private property <string> rename-draft: "";
     // Accordion (#716): id of the expanded binding ("" = all collapsed). Each
     // E/S shows only its name + In/Out counts until opened — progressive
-    // disclosure to keep the list readable when several bindings exist.
-    private property <string> expanded-binding-id: "";
+    // disclosure to keep the list readable when several bindings exist. The
+    // shell's "New binding" (on the title row) opens the one it creates.
+    in-out property <string> expanded-binding-id: "";
 
     background: transparent;
 
@@ -67,25 +69,12 @@ export component SectionSystemIoBindings inherits Rectangle {
         spacing: 12px;
         alignment: start;
 
-        // Helper + primary action (the page title is the shell's heading).
-        HorizontalLayout {
-            spacing: 16px;
-            Text {
-                horizontal-stretch: 1;
-                text: @tr("help-io-bindings");
-                color: Theme.ink-3;
-                font-size: Theme.min-font;
-                vertical-alignment: center;
-                wrap: word-wrap;
-            }
-            VerticalLayout {
-                alignment: center;
-                new-binding-btn := FormButton {
-                    icon: @image-url("../../assets/plus.svg");
-                    label: @tr("btn-new-binding");
-                    clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); }
-                }
-            }
+        // Helper (the page title and "New binding" are the shell's heading row).
+        Text {
+            text: @tr("help-io-bindings");
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
+            wrap: word-wrap;
         }
 
         if SettingsBridge.io-binding-error != "" : Rectangle {
@@ -171,7 +160,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 horizontal-stretch: 1;
                                 text: binding.name;
                                 color: Theme.ink;
-                                font-family: "Bebas Neue";
+                                font-family: Locale.display-font-family;
                                 font-size: 24px;
                                 letter-spacing: 0.05 * 24px;
                                 vertical-alignment: center;
@@ -283,6 +272,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                         }
                         if root.active-add != (binding.id + "|in") : HorizontalLayout { alignment: start;
                             add-input-btn := FormButton {
+                                icon-only: true;
+                                icon: @image-url("../../assets/plus.svg");
                                 kind: FormButtonKind.ghost;
                                 small: true;
                                 label: @tr("btn-add-input");
@@ -306,8 +297,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                                     toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                         root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
                             HorizontalLayout { spacing: 8px; alignment: end;
-                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                                add-input-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                FormButton { icon-only: true; icon: @image-url("../../assets/close.svg"); label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-input-submit-btn := FormButton { icon-only: true; icon: root.editing-endpoint != "" ? @image-url("../../assets/save.svg") : @image-url("../../assets/plus.svg"); kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
                                     // Close the form BEFORE dispatching. The handler
                                     // re-projects the binding list, which rebuilds this
                                     // repeater synchronously and tears this button down
@@ -343,6 +334,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                         }
                         if root.active-add != (binding.id + "|out") : HorizontalLayout { alignment: start;
                             FormButton {
+                                icon-only: true;
+                                icon: @image-url("../../assets/plus.svg");
                                 kind: FormButtonKind.ghost;
                                 small: true;
                                 label: @tr("btn-add-output");
@@ -366,8 +359,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                                     toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                         root.add-mode-index == 0 ? "mono" : "stereo"); } } }
                             HorizontalLayout { spacing: 8px; alignment: end;
-                                FormButton { label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
-                                add-output-submit-btn := FormButton { kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
+                                FormButton { icon-only: true; icon: @image-url("../../assets/close.svg"); label: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
+                                add-output-submit-btn := FormButton { icon-only: true; icon: root.editing-endpoint != "" ? @image-url("../../assets/save.svg") : @image-url("../../assets/plus.svg"); kind: FormButtonKind.primary; label: root.editing-endpoint != "" ? @tr("btn-save") : @tr("btn-add"); clicked => {
                                     // Close the form BEFORE dispatching — see the
                                     // add-input submit note: reproject rebuilds this
                                     // repeater and a reset after the call is lost.

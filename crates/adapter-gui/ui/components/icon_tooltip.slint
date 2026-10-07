@@ -1,34 +1,52 @@
-// Responsibility: renders the hover label of a header icon.
-import { Theme } from "../theme.slint";
-// #323 — a small hover label for the chain-header icon buttons (looper, DI,
-// Tone Doctor, volume). Same look as ChainActionIcon's tooltip; extracted so
-// the icon-cluster buttons that are their own components can reuse it. Renders
-// BELOW the icon (the project header paints over anything above — issue #329).
-// Placed as a child of a ~28 px button; the box follows its (translated) label
-// and self-centres on the button.
+// Responsibility: hands the hover label of an icon or a button to its window.
+// #398 — the label itself is drawn by the window's `HoverTipLayer`, above
+// everything and inside the window; this says what to show and where the
+// hovered control is, and keeps saying it while the hover lasts.
+import { HoverTip } from "hover_tip_globals.slint";
+
 export component IconTooltip inherits Rectangle {
     in property <string> text;
     in property <bool> show;
+    in property <bool> prefer-above;
 
-    visible: root.show && root.text != "";
-    // ~28 px button → centre with x = (28 - width) / 2.
-    x: (28px - self.width) / 2;
-    y: 30px;
-    width: max(104px, label.preferred-width + 16px);
-    height: label.preferred-height + 6px;
-    background: Theme.panel-lo.with-alpha(0.94);
-    border-width: 1px;
-    border-color: Theme.field-line;
-    border-radius: 4px;
-    z: 60;
+    private property <bool> on: root.show && root.text != "";
+    private property <int> mine: -1;
 
-    label := Text {
-        text: root.text;
-        color: Theme.ink;
-        font-size: 18px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        width: root.width;
-        height: root.height;
+    function publish() {
+        HoverTip.text = root.text;
+        HoverTip.host-x = root.absolute-position.x;
+        HoverTip.host-y = root.absolute-position.y;
+        HoverTip.host-w = root.width;
+        HoverTip.host-h = root.height;
+        HoverTip.prefer-above = root.prefer-above;
+        HoverTip.beat += 1;
+    }
+
+    function take() {
+        HoverTip.owner += 1;
+        root.mine = HoverTip.owner;
+        root.publish();
+        HoverTip.show = true;
+    }
+
+    init => {
+        if root.on {
+            root.take();
+        }
+    }
+
+    changed on => {
+        if root.on {
+            root.take();
+        } else if HoverTip.owner == root.mine {
+            HoverTip.show = false;
+        }
+    }
+
+    // While hovered, the label follows its control (a list that scrolls).
+    Timer {
+        interval: 100ms;
+        running: root.on && HoverTip.owner == root.mine;
+        triggered => { root.publish(); }
     }
 }

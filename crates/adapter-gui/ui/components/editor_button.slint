@@ -8,6 +8,7 @@
 // need, `on-bar` for the dark title bar.
 
 import { Theme } from "../theme.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export component EditorButton inherits Rectangle {
     in property <string> label;
@@ -15,13 +16,21 @@ export component EditorButton inherits Rectangle {
     in property <bool> enabled: true;
     in property <bool> primary: false;
     in property <bool> on-bar: false;
+    // An action its icon says alone (save, delete, add, close): a square with
+    // the icon, its name shown on hover and kept for screen readers (#398).
+    in property <bool> icon-only: false;
     callback clicked();
 
     private property <color> ink: root.primary ? Theme.on-accent
         : root.on-bar ? Theme.chrome-fg
         : Theme.ink;
 
-    min-width: row.preferred-width;
+    // A labelled button asks for its whole label but, in a row too narrow
+    // for every label, gives way down to an ellipsis instead of pushing the
+    // row's last buttons out of the editor's card.
+    min-width: root.icon-only ? root.height : row.min-width;
+    preferred-width: root.icon-only ? root.height : row.preferred-width;
+    max-width: root.icon-only ? root.height : 100000px;
     height: 28px;
     border-radius: 4px;
     opacity: root.enabled ? 1.0 : 0.45;
@@ -37,8 +46,8 @@ export component EditorButton inherits Rectangle {
     accessible-action-default => { root.clicked(); }
 
     row := HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: root.icon-only ? 0px : 10px;
+        padding-right: root.icon-only ? 0px : 10px;
         spacing: 6px;
         alignment: center;
 
@@ -52,13 +61,14 @@ export component EditorButton inherits Rectangle {
             }
         }
 
-        Text {
+        if !root.icon-only : Text {
             text: root.label;
             color: root.ink;
             font-size: Theme.min-font;
             font-weight: 600;
             letter-spacing: 0.04 * Theme.min-font;
             vertical-alignment: center;
+            overflow: elide;
         }
     }
 
@@ -67,4 +77,6 @@ export component EditorButton inherits Rectangle {
         mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
         clicked => { root.clicked(); }
     }
+
+    IconTooltip { text: root.label; show: area.has-hover && root.icon-only; }
 }

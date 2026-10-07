@@ -46,6 +46,9 @@ export component ToneDoctorPanel inherits Rectangle {
     // Inside a compact-view section the section is the panel: no box of its
     // own, no title (the section header names it), no inset gutter.
     in property <bool> embedded: false;
+    // The most the panel may take: its host caps it to the window, and the
+    // body scrolls under the bar past that (#398).
+    in property <length> height-cap: 100000px;
 
     callback run-diagnosis();
     callback apply-suggestion();
@@ -70,7 +73,7 @@ export component ToneDoctorPanel inherits Rectangle {
     private property <bool> can-run: root.can-diagnose && !root.running;
 
     width: 640px;
-    height: root.bar-h + root.pad + root.body-h + root.pad-bottom;
+    height: min(root.bar-h + root.pad + root.body-h + root.pad-bottom, root.height-cap);
     border-radius: root.embedded ? 0px : 6px;
     background: root.embedded ? transparent : Theme.panel;
     border-width: root.embedded ? 0px : 1px;
@@ -91,130 +94,142 @@ export component ToneDoctorPanel inherits Rectangle {
         title: @tr("tone-doctor-title");
     }
 
-    // ── what to analyse ───────────────────────────────────────────────────
-    left := VerticalLayout {
-        x: root.pad;
-        y: root.bar-h + root.pad;
-        width: root.col-w;
-        spacing: 12px;
-        alignment: start;
+    scroll := Flickable {
+        x: 0;
+        y: root.bar-h;
+        width: parent.width;
+        height: parent.height - self.y;
+        content-width: self.width;
+        content-height: root.pad + root.body-h + root.pad-bottom;
+        // Wheel always; drag only when there is something to scroll, so the
+        // seconds slider is never taken for a flick.
+        interactive: self.content-height > self.height;
 
-        LooperSlider {
-            label: @tr("tone-doctor-analyze");
-            value: Math.max(0, (root.analyze-seconds - root.min-seconds) * 100 / root.span-seconds);
-            value-label: (root.min-seconds + Math.round(self.value * root.span-seconds / 100)) + "s";
-            value-changed(v) => {
-                root.seconds-picked(root.min-seconds + Math.round(v * root.span-seconds / 100));
-            }
-        }
-
-        // Picks the calibrated limits the doctor judges against (#809);
-        // "" = defaults.
-        VerticalLayout {
-            spacing: 6px;
-
-            FieldCaption {
-                text: @tr("tone-doctor-genre");
-            }
-
-            Select {
-                options: ToneDoctorState.genre-options;
-                active-key: ToneDoctorState.tone-genre;
-                field-label: ToneDoctorState.tone-genre;
-                placeholder: @tr("tone-doctor-genre-default");
-                search-placeholder: @tr("tone-doctor-genre-search");
-                empty-text: @tr("tone-doctor-genre-none");
-                popup-width: root.col-w;
-                picked(key) => { ToneDoctorState.tone-genre = key; }
-                opened => { ToneDoctorState.genre-query(""); }
-                query-changed(q) => { ToneDoctorState.genre-query(q); }
-            }
-        }
-
-        HorizontalLayout {
+        // ── what to analyse ───────────────────────────────────────────────────
+        left := VerticalLayout {
+            x: root.pad;
+            y: root.pad;
+            width: root.col-w;
+            spacing: 12px;
             alignment: start;
 
-            PanelActionButton {
-                primary: true;
-                enabled: root.can-run;
-                hovered: diag-ta.has-hover;
-                icon: @image-url("../assets/stethoscope.svg");
-                label: root.running ? @tr("tone-doctor-diagnosing")
-                    : root.has-result ? @tr("tone-doctor-rerun")
-                    : @tr("tone-doctor-diagnose");
-                clicked => {
-                    if (root.can-run) {
-                        root.run-diagnosis();
-                    }
+            LooperSlider {
+                label: @tr("tone-doctor-analyze");
+                value: Math.max(0, (root.analyze-seconds - root.min-seconds) * 100 / root.span-seconds);
+                value-label: (root.min-seconds + Math.round(self.value * root.span-seconds / 100)) + "s";
+                value-changed(v) => {
+                    root.seconds-picked(root.min-seconds + Math.round(v * root.span-seconds / 100));
+                }
+            }
+
+            // Picks the calibrated limits the doctor judges against (#809);
+            // "" = defaults.
+            VerticalLayout {
+                spacing: 6px;
+
+                FieldCaption {
+                    text: @tr("tone-doctor-genre");
                 }
 
-                diag-ta := TouchArea {
-                    mouse-cursor: root.can-run ? MouseCursor.pointer : MouseCursor.default;
+                Select {
+                    options: ToneDoctorState.genre-options;
+                    active-key: ToneDoctorState.tone-genre;
+                    field-label: ToneDoctorState.tone-genre;
+                    placeholder: @tr("tone-doctor-genre-default");
+                    search-placeholder: @tr("tone-doctor-genre-search");
+                    empty-text: @tr("tone-doctor-genre-none");
+                    popup-width: root.col-w;
+                    picked(key) => { ToneDoctorState.tone-genre = key; }
+                    opened => { ToneDoctorState.genre-query(""); }
+                    query-changed(q) => { ToneDoctorState.genre-query(q); }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: start;
+
+                PanelActionButton {
+                    primary: true;
+                    enabled: root.can-run;
+                    hovered: diag-ta.has-hover;
+                    icon: @image-url("../assets/stethoscope.svg");
+                    label: root.running ? @tr("tone-doctor-diagnosing")
+                        : root.has-result ? @tr("tone-doctor-rerun")
+                        : @tr("tone-doctor-diagnose");
                     clicked => {
                         if (root.can-run) {
                             root.run-diagnosis();
                         }
                     }
+
+                    diag-ta := TouchArea {
+                        mouse-cursor: root.can-run ? MouseCursor.pointer : MouseCursor.default;
+                        clicked => {
+                            if (root.can-run) {
+                                root.run-diagnosis();
+                            }
+                        }
+                    }
                 }
             }
+
+            // Why the button is off: nothing is playing into the chain.
+            if !root.can-diagnose : Text {
+                text: @tr("tone-doctor-no-signal");
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                wrap: word-wrap;
+            }
         }
 
-        // Why the button is off: nothing is playing into the chain.
-        if !root.can-diagnose : Text {
-            text: @tr("tone-doctor-no-signal");
-            color: Theme.ink-3;
-            font-size: Theme.min-font;
-            wrap: word-wrap;
-        }
-    }
+        // ── the measurements and the verdict ──────────────────────────────────
+        Rectangle {
+            x: root.two-col ? root.pad + root.col-w + root.gap : root.pad;
+            y: root.two-col ? root.pad : root.pad + root.left-h + root.gap;
+            width: root.col-w;
+            height: right-col.preferred-height;
+            visible: root.has-result;
 
-    // ── the measurements and the verdict ──────────────────────────────────
-    Rectangle {
-        x: root.two-col ? root.pad + root.col-w + root.gap : root.pad;
-        y: root.two-col ? root.bar-h + root.pad : root.bar-h + root.pad + root.left-h + root.gap;
-        width: root.col-w;
-        height: right-col.preferred-height;
-        visible: root.has-result;
+            right-col := VerticalLayout {
+                spacing: 12px;
+                alignment: start;
 
-        right-col := VerticalLayout {
-            spacing: 12px;
-            alignment: start;
+                ToneDoctorMetric {
+                    name: "FIZZ";
+                    value: root.fizz-value;
+                    limit: root.fizz-limit;
+                    value-text: "\{Math.round(root.fizz-value * 100) / 100} / \{Math.round(root.fizz-limit * 100) / 100}";
+                }
 
-            ToneDoctorMetric {
-                name: "FIZZ";
-                value: root.fizz-value;
-                limit: root.fizz-limit;
-                value-text: "\{Math.round(root.fizz-value * 100) / 100} / \{Math.round(root.fizz-limit * 100) / 100}";
-            }
+                ToneDoctorMetric {
+                    name: "MUD";
+                    value: root.mud-value;
+                    limit: root.mud-limit;
+                    value-text: "\{Math.round(root.mud-value * 100) / 100} / \{Math.round(root.mud-limit * 100) / 100}";
+                }
 
-            ToneDoctorMetric {
-                name: "MUD";
-                value: root.mud-value;
-                limit: root.mud-limit;
-                value-text: "\{Math.round(root.mud-value * 100) / 100} / \{Math.round(root.mud-limit * 100) / 100}";
-            }
+                ToneDoctorMetric {
+                    name: "BOOM";
+                    value: root.boom-value;
+                    limit: root.boom-limit;
+                    value-text: "\{Math.round(root.boom-value * 100) / 100} / \{Math.round(root.boom-limit * 100) / 100}";
+                }
 
-            ToneDoctorMetric {
-                name: "BOOM";
-                value: root.boom-value;
-                limit: root.boom-limit;
-                value-text: "\{Math.round(root.boom-value * 100) / 100} / \{Math.round(root.boom-limit * 100) / 100}";
-            }
+                ToneDoctorMetric {
+                    name: "CLIP";
+                    value: root.clip-value;
+                    limit: root.clip-limit;
+                    value-text: "\{Math.round(root.clip-value * 1000) / 10}%";
+                }
 
-            ToneDoctorMetric {
-                name: "CLIP";
-                value: root.clip-value;
-                limit: root.clip-limit;
-                value-text: "\{Math.round(root.clip-value * 1000) / 10}%";
-            }
-
-            ToneDoctorVerdict {
-                level: root.symptom-level;
-                symptom: root.symptom-text;
-                culprit: root.culprit-label;
-                suggestion: root.suggestion-text;
-                has-suggestion: root.has-suggestion;
-                apply => { root.apply-suggestion(); }
+                ToneDoctorVerdict {
+                    level: root.symptom-level;
+                    symptom: root.symptom-text;
+                    culprit: root.culprit-label;
+                    suggestion: root.suggestion-text;
+                    has-suggestion: root.has-suggestion;
+                    apply => { root.apply-suggestion(); }
+                }
             }
         }
     }

@@ -8,6 +8,7 @@
 // to a white cap, a unity mark, small field buttons and a quiet label.
 
 import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { MixerStripRow, MixerBridge } from "mixer_globals.slint";
 import { StripLabel } from "strip_label.slint";
 
@@ -118,6 +119,7 @@ export component MixerStripView inherits Rectangle {
 
         readout := Text {
             text: root.strip.gain-label;
+            font-family: Locale.mono-font-family;
             color: root.silent ? Theme.ink-3 : Theme.ink;
             font-size: Theme.min-font;
             font-weight: 500;

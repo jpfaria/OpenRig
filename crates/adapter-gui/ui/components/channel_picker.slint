@@ -15,6 +15,7 @@
 // moved by dragging its own scrollbar by hand.
 
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { ChannelOptionItem } from "../models.slint";
 import { CheckMark } from "check_mark.slint";
 
@@ -57,6 +58,7 @@ component ChannelPickerRow inherits Rectangle {
         Text {
             horizontal-stretch: 1;
             text: root.channel.label;
+            font-family: Locale.mono-font-family;
             color: root.channel.available
                 ? (root.channel.selected ? Theme.ink : Theme.ink-2)
                 : Theme.ink-3;

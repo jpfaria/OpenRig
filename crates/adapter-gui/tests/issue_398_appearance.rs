@@ -93,12 +93,28 @@ fn a_window_opened_later_starts_in_the_chosen_scheme() {
         let body = src(file);
         let opened = body.matches("Window::new()").count();
         let themed = body
-            .matches("crate::settings::appearance_current::apply(&")
+            .matches("crate::settings::appearance_followers::follow(&")
             .count();
         assert!(opened > 0, "{file} opens no window");
         assert_eq!(
             opened, themed,
-            "{file}: every window it opens takes the chosen scheme"
+            "{file}: every window it opens takes the chosen scheme and keeps following it"
         );
     }
+}
+
+#[test]
+fn a_scheme_chosen_over_mcp_repaints_the_app() {
+    assert!(
+        src("chain_rig_nav_wiring.rs").contains("crate::appearance_events::apply(events)"),
+        "the MCP/MIDI drain hands the scheme to the windows"
+    );
+    assert!(
+        src("settings/appearance_wiring.rs").contains("crate::appearance_events::install("),
+        "the Settings pick and an MCP pick repaint through the same path"
+    );
+    assert!(
+        src("desktop_app_appearance.rs").contains("appearance_followers::repaint_all(appearance)"),
+        "a pick repaints the windows opened on demand too"
+    );
 }

@@ -1,5 +1,6 @@
 //! Responsibility: answers what one catalog model is called.
 
+use crate::block::vst3_model_id::vst3_catalog_entry;
 use crate::catalog_label::package_type_label;
 use crate::catalog_listing::block_type_for_effect_type;
 use crate::catalog_registry::block_registry;
@@ -31,9 +32,9 @@ fn disk_package_for(
 /// Returns the display name for a model, or empty string if not found.
 ///
 /// Native models resolve via the per-effect `block_*::display_name`; disk-package
-/// models (NAM/IR/LV2/VST3) fall back to the plugin_loader registry so the
-/// hover tooltip, plugin-info window and block editor header all show the right
-/// name. Issue #414.
+/// models (NAM/IR/LV2) fall back to the plugin_loader registry and VST3 models
+/// to the VST3 catalog, so the chain graph, hover tooltip, plugin-info window
+/// and block editor header all show the right name. Issues #414, #398.
 pub fn model_display_name(effect_type: &str, model_id: &str) -> String {
     use block_core::*;
     let native: &'static str = match effect_type {
@@ -53,6 +54,7 @@ pub fn model_display_name(effect_type: &str, model_id: &str) -> String {
         EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_display_name(model_id),
         EFFECT_TYPE_NAM => block_nam::nam_display_name(model_id),
         EFFECT_TYPE_IR => block_ir::ir_display_name(model_id),
+        EFFECT_TYPE_VST3 => vst3_catalog_entry(model_id).map_or("", |e| e.display_name),
         _ => "",
     };
     if !native.is_empty() {
@@ -87,6 +89,7 @@ pub fn model_brand(effect_type: &str, model_id: &str) -> String {
         EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_brand(model_id),
         EFFECT_TYPE_NAM => block_nam::nam_brand(model_id),
         EFFECT_TYPE_IR => block_ir::ir_brand(model_id),
+        EFFECT_TYPE_VST3 => vst3_catalog_entry(model_id).map_or("", |e| e.brand),
         _ => "",
     };
     if !native.is_empty() {
@@ -124,6 +127,7 @@ pub fn model_type_label(effect_type: &str, model_id: &str) -> String {
         EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_type_label(model_id),
         EFFECT_TYPE_NAM => block_nam::nam_type_label(model_id),
         EFFECT_TYPE_IR => block_ir::ir_type_label(model_id),
+        EFFECT_TYPE_VST3 => vst3_catalog_entry(model_id).map_or("", |_| "VST3"),
         _ => "",
     };
     if !native.is_empty() {

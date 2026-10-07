@@ -16,6 +16,8 @@
 
 import { Theme } from "../theme.slint";
 import { SelectOption } from "../models.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 export component Select inherits Rectangle {
     // ── data ──────────────────────────────────────────────────────────
@@ -99,9 +101,11 @@ export component Select inherits Rectangle {
 
     pop := PopupWindow {
         x: root.popup-x;
-        y: root.height + 4px;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
         width: root.popup-width;
-        height: min(root.header-height + root.list-height + 8px, root.max-popup-height);
+        height: OverlayPlacement.fit(min(root.header-height + root.list-height + 8px, root.max-popup-height), WindowBounds.height);
         close-policy: close-on-click-outside;
 
         Rectangle {
@@ -203,8 +207,8 @@ export component Select inherits Rectangle {
                 y: root.header-height;
                 width: parent.width;
                 height: parent.height - root.header-height - 4px;
-                viewport-width: self.width;
-                viewport-height: root.options.length * root.row-height + 4px;
+                content-width: self.width;
+                content-height: root.options.length * root.row-height + 4px;
 
                 for opt[i] in root.options : Rectangle {
                     x: 4px;

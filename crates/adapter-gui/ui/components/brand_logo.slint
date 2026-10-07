@@ -185,5 +185,5 @@ export component BrandLogo inherits Image {
         : root.brand == "zvex" ? @image-url("../../../../assets/brands/zvex/logo.png")
         : @image-url("");
     image-fit: contain;
-    colorize: root.brand == "vox" ? Colors.transparent : root.tint;
+    colorize: root.tint;
 }

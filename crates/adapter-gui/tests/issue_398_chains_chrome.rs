@@ -23,7 +23,7 @@ fn the_top_bar_is_dark_chrome_edge_to_edge() {
     let page = ui("pages/project_chains.slint");
     assert!(page.contains("background: Theme.chrome;"));
     assert!(page.contains("Theme.chrome-line"));
-    assert!(page.contains("font-family: \"Bebas Neue\";"));
+    assert!(page.contains("font-family: Locale.display-font-family;"));
     assert!(page.contains("on-chrome: true;"));
     assert!(
         !page.contains("x: 24px;"),
@@ -42,7 +42,7 @@ fn the_top_bar_is_dark_chrome_edge_to_edge() {
 #[test]
 fn the_tempo_reads_on_the_chrome() {
     let tempo = ui("components/project_tempo.slint");
-    assert!(tempo.contains("font-family: \"Bebas Neue\";"));
+    assert!(tempo.contains("font-family: Locale.display-font-family;"));
     assert!(tempo.contains("color: Theme.chrome-fg;"));
     assert!(tempo.contains("on-chrome: true;"));
     assert!(tempo.contains("Theme.chrome-ring"));
@@ -93,7 +93,7 @@ fn the_header_icons_share_one_quiet_look() {
 #[test]
 fn the_name_preset_and_scenes_follow_the_mockup() {
     let title = ui("components/chain_title_preset.slint");
-    assert!(title.contains("font-family: \"Bebas Neue\";"));
+    assert!(title.contains("font-family: Locale.display-font-family;"));
     assert!(
         title.contains("background: root.active ? Theme.accent : root.on-chrome ? Theme.chrome-field : Theme.field;"),
         "a scene is a field, the active one filled with the accent"

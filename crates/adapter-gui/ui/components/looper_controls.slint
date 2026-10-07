@@ -8,6 +8,7 @@
 // control below on a 32 px line — so the drawer lays out as a grid.
 
 import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { FieldCaption } from "field_caption.slint";
 
 export component LooperIconButton inherits Rectangle {
@@ -184,6 +185,7 @@ export component LooperSlider inherits Rectangle {
         vertical-alignment: center;
         horizontal-alignment: right;
         text: root.value-label != "" ? root.value-label : root.value + "%";
+        font-family: Locale.mono-font-family;
         color: Theme.ink;
         font-size: Theme.min-font;
         font-weight: 500;

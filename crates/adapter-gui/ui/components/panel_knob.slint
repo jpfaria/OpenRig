@@ -4,6 +4,7 @@
 // a dark pointer, and the value in a field below. The knob is `width` square;
 // the value box shows when the caller leaves room under it.
 import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { KnobArc } from "knob_arc.slint";
 
 export component PanelKnob inherits Rectangle {
@@ -63,6 +64,7 @@ export component PanelKnob inherits Rectangle {
         value-text := Text {
             width: parent.width;
             height: parent.height;
+            font-family: Locale.mono-font-family;
             text: root.label-index >= 0 && root.label-index < root.value-labels.length
                 ? root.value-labels[root.label-index]
                 : root.step >= 1.0

@@ -87,3 +87,90 @@ fn the_name_printed_on_the_gear_elides_from_the_left_edge() {
         );
     }
 }
+
+#[test]
+fn the_amp_head_prints_its_logo_over_a_category_band() {
+    let src = ui("components/gear_art.slint");
+    let head = src
+        .split("if root.piece == \"head\"")
+        .nth(1)
+        .and_then(|rest| rest.split("// ── Cabinet ──").next())
+        .expect("gear art draws the head");
+    assert!(
+        !head.contains("GearKnob"),
+        "the approved head shows no knobs, only the logo over the band"
+    );
+    assert!(
+        head.contains("height: 20 * root.u;"),
+        "the lower 20px of the head panel is the category band"
+    );
+}
+
+#[test]
+fn every_brand_logo_takes_the_tint() {
+    let src = ui("components/brand_logo.slint");
+    assert!(
+        src.contains("colorize: root.tint;"),
+        "a brand logo is monochrome in the tint, VOX included"
+    );
+}
+
+#[test]
+fn the_vox_logo_is_cropped_to_its_letters() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/brands/vox/logo.svg");
+    let svg = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert!(
+        !svg.contains("viewBox=\"0 0 192.756 192.756\""),
+        "the square canvas leaves the letters tiny; crop the viewBox to them"
+    );
+}
+
+#[test]
+fn the_block_tooltip_is_a_window_level_layer() {
+    let canvas = ui("components/graph_view.slint");
+    assert!(
+        !canvas.contains("BlockHoverTooltip {"),
+        "inside the canvas the chain header paints over the card"
+    );
+    assert!(canvas.contains("BlockHoverState."));
+    let app = ui("app-window.slint");
+    assert!(
+        app.contains("BlockHoverLayer {"),
+        "the main window draws the hovered block's card above everything"
+    );
+}
+
+/// The hub is not a piece of real gear: it is the app's routing node, so it
+/// turns light in the light scheme instead of staying a dark tile.
+#[test]
+fn the_routing_hub_follows_the_scheme() {
+    use adapter_gui::{CompactChainViewWindow, Theme, ThemeMode};
+    use slint::Global;
+    i_slint_backend_testing::init_no_event_loop();
+    let w = CompactChainViewWindow::new().unwrap();
+    let luma = |c: slint::Color| {
+        0.299 * f32::from(c.red()) + 0.587 * f32::from(c.green()) + 0.114 * f32::from(c.blue())
+    };
+    Theme::get(&w).set_mode(ThemeMode::Light);
+    let light = Theme::get(&w).get_hub_hi();
+    let light_line = Theme::get(&w).get_hub_line();
+    Theme::get(&w).set_mode(ThemeMode::Dark);
+    let dark = Theme::get(&w).get_hub_hi();
+    assert!(
+        luma(light) > 200.0,
+        "a light tile in the light scheme: {light:?}"
+    );
+    assert!(
+        luma(dark) < 90.0,
+        "a dark tile in the dark scheme: {dark:?}"
+    );
+    assert!(
+        luma(light_line) < 90.0,
+        "the trunk is dark ink on the light tile"
+    );
+    let hub = ui("components/graph_hub.slint");
+    assert!(
+        !hub.contains("Gear.hub-") && !hub.contains("Gear.port-"),
+        "the hub paints from the scheme's tokens"
+    );
+}

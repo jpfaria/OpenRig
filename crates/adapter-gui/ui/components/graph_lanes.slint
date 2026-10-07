@@ -15,8 +15,9 @@ export global GraphLanes {
             : Theme.c-dly;
     }
 
-    // A letter printed on the dark hub: its lane colour, lightened.
+    // A letter printed on the hub: its lane colour, lightened on the dark
+    // tile and as it is on the light one.
     public pure function ink(path: int) -> color {
-        return self.color(path).mix(Gear.white, 0.6);
+        return Theme.dark ? self.color(path).mix(Gear.white, 0.6) : self.color(path);
     }
 }

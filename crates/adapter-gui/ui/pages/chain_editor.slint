@@ -206,10 +206,14 @@ export component ChainEditorPage inherits Rectangle {
                 overflow: elide;
             }
             cancel-btn := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
                 label: @tr("btn-cancel");
                 clicked => { root.cancel-chain(); }
             }
             save-btn := FormButton {
+                icon-only: true;
+                icon: root.is-create-mode ? @image-url("../assets/check.svg") : @image-url("../assets/save.svg");
                 kind: FormButtonKind.primary;
                 label: root.is-create-mode ? @tr("btn-create-chain") : @tr("btn-save-chain");
                 clicked => { root.save-chain(); }

@@ -1,5 +1,6 @@
 // Responsibility: places the offered update button beside the running version label.
 import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { AppUpdate } from "app_update_globals.slint";
 import { UpdateButton } from "update_button.slint";
 
@@ -20,6 +21,7 @@ export component AppVersionBadge inherits HorizontalLayout {
             width: self.preferred-width;
             height: parent.height;
             text: "v" + root.version;
+            font-family: Locale.mono-font-family;
             color: Theme.chrome-fg-2;
             font-size: 18px;
             font-weight: 500;

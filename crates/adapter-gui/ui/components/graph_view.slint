@@ -16,7 +16,7 @@ import { GraphNodeCard } from "graph_node_card.slint";
 import { GraphWire } from "graph_wire.slint";
 import { GraphLanes } from "graph_lanes.slint";
 import { GraphPorts } from "graph_ports.slint";
-import { BlockHoverTooltip } from "block_hover_tooltip.slint";
+import { BlockHoverState } from "block_hover_globals.slint";
 import { BlockInsertSlot } from "block_insert_slot.slint";
 
 export { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor }
@@ -90,6 +90,22 @@ export component GraphView inherits Rectangle {
     private property <string> drag_id: "";
     // Index of the hovered node, for the block tooltip (-1 = none).
     private property <int> hover_index: -1;
+    // #398: the block tooltip (#328 parity with BlockChip) is drawn by the
+    // window's BlockHoverLayer, so the chain header and the rows below never
+    // paint over it. Only for a block with a model (display_name), never
+    // while a drag is in flight. The card follows pan, zoom and the list's
+    // scroll through its window position.
+    private property <bool> tip-open: root.hover_index >= 0
+        && root.hover_index < root.nodes.length
+        && root.nodes[root.hover_index].kind == "block"
+        && root.nodes[root.hover_index].block.display_name != ""
+        && root.drag_id == "";
+    private property <length> tip-x: root.absolute-position.x + root.pan_x
+        + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
+    private property <length> tip-y: root.absolute-position.y + root.pan_y
+        + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
+    // The node whose card this canvas published ("" = none).
+    private property <string> tip-owner: "";
     // #328: the anchor the current drag would land on ("" = none).
     private property <string> drop_anchor: "";
     // Local mouse position (TouchArea space) captured at press. The drag
@@ -116,6 +132,30 @@ export component GraphView inherits Rectangle {
 
     background: root.background_color;
     clip: true;
+
+    changed tip-open => { root.publish-tip(); }
+    changed tip-x => { root.publish-tip(); }
+    changed tip-y => { root.publish-tip(); }
+
+    function publish-tip() {
+        if (root.tip-open) {
+            BlockHoverState.block = root.nodes[root.hover_index].block;
+            BlockHoverState.x = root.tip-x;
+            BlockHoverState.y = root.tip-y;
+            BlockHoverState.card-width = root.node_width * root.zoom;
+            BlockHoverState.card-height = root.node_height * root.zoom;
+            BlockHoverState.owner = root.hover_id;
+            BlockHoverState.open = true;
+            root.tip-owner = root.hover_id;
+        } else if (root.tip-owner != "") {
+            // Another canvas may already own the card; only ours is closed.
+            if (BlockHoverState.owner == root.tip-owner) {
+                BlockHoverState.open = false;
+                BlockHoverState.owner = "";
+            }
+            root.tip-owner = "";
+        }
+    }
 
     accessible-role: list;
     accessible-label: @tr("accessible-graph-view");
@@ -244,6 +284,7 @@ export component GraphView inherits Rectangle {
                     root.press_y = self.mouse-y;
                     root.did_drag = false;
                     root.drop_anchor = "";
+                    root.publish-tip();
                 } else if (event.kind == PointerEventKind.up) {
                     if (root.drag_id == node.id) {
                         if (root.did_drag) {
@@ -259,6 +300,7 @@ export component GraphView inherits Rectangle {
                     }
                     root.drag_id = "";
                     root.drop_anchor = "";
+                    root.publish-tip();
                 }
             }
             moved => {
@@ -291,6 +333,7 @@ export component GraphView inherits Rectangle {
                     root.hover_id = "";
                     root.hover_index = -1;
                 }
+                root.publish-tip();
             }
             double-clicked => {
                 root.node_double_clicked(node.id);
@@ -322,7 +365,7 @@ export component GraphView inherits Rectangle {
     // (node_dragged), and that card would otherwise hide the lit "+" it is
     // about to land on. At zoom 1 an anchor sits inside the 60px gap
     // between two cards; it reaches a card's edge only below zoom ~0.53.
-    // The tooltip, declared after, still paints on top.
+    // The block tooltip is a window-level layer (BlockHoverLayer).
     for anchor in root.anchors : BlockInsertSlot {
         x: root.pan_x + anchor.layout_x * root.zoom - self.width / 2;
         y: root.pan_y + anchor.layout_y * root.zoom - self.height / 2;
@@ -331,24 +374,6 @@ export component GraphView inherits Rectangle {
         move-target: root.drag_id != "";
         active-drop-target: root.drop_anchor != "" && root.drop_anchor == anchor.id;
         clicked => { root.add-requested(anchor.id); }
-    }
-
-    // ── Block tooltip (#328 parity with BlockChip) ─────────────────
-    // The chain row's hover card, declared after every node so it paints
-    // on top. Only for a block with a model (display_name), never while a
-    // drag is in flight.
-    if root.hover_index >= 0
-        && root.hover_index < root.nodes.length
-        && root.nodes[root.hover_index].kind == "block"
-        && root.nodes[root.hover_index].block.display_name != ""
-        && root.drag_id == ""
-        : BlockHoverTooltip {
-        block: root.nodes[root.hover_index].block;
-        anchor-x: root.pan_x + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
-        anchor-y: root.pan_y + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
-        chip-width: root.node_width * root.zoom;
-        chip-height: root.node_height * root.zoom;
-        container-width: root.width;
     }
 
 }
