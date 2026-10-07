@@ -110,7 +110,7 @@ fn a_scheme_chosen_over_mcp_repaints_the_app() {
         "the MCP/MIDI drain hands the scheme to the windows"
     );
     assert!(
-        src("settings/appearance.rs").contains("crate::appearance_events::install("),
+        src("settings/appearance_wiring.rs").contains("crate::appearance_events::install("),
         "the Settings pick and an MCP pick repaint through the same path"
     );
     assert!(
