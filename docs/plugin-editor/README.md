@@ -53,6 +53,7 @@ read-only; the editor never offers to change them.
   Each row offers: info, edit parameters, restore the original, redo the
   parameters and uninstall. A plugin from TONE3000 is marked as such and
   also offers **Update** when TONE3000 has a newer version.
+- The list filters by block type and by origin (plugins folder, TONE3000).
 - Uninstall works for every listed plugin and deletes its package folder,
   wherever it lives.
 - The TONE3000 window keeps its **Installed** tab.
