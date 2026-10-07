@@ -14,6 +14,7 @@ pub mod convolve;
 pub mod enum_tokens;
 pub mod install;
 pub mod install_error;
+pub mod install_pending;
 pub mod installed;
 pub mod ir_wav;
 pub mod knob_tokens;

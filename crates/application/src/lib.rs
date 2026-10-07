@@ -85,6 +85,7 @@ mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tempo;
 mod local_dispatcher_tone3000;
+mod local_dispatcher_tone3000_naming;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;

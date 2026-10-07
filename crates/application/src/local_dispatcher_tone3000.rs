@@ -17,7 +17,9 @@ use crate::event::{Event, Tone3000Event};
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
 use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
-use crate::tone3000::install::{install_tone, update_tone, InstallProgress, InstallRequest};
+use crate::tone3000::install::{
+    install_or_ask, update_tone, InstallEnd, InstallProgress, InstallRequest,
+};
 use crate::tone3000::installed::remove_package;
 use crate::tone3000_state::{Tone3000ControlState, Tone3000Snapshot};
 
@@ -37,7 +39,7 @@ pub(crate) enum Tone3000Done {
     },
     Install {
         tone_id: u64,
-        result: Result<String, String>,
+        result: Result<InstallEnd, String>,
     },
 }
 
@@ -87,6 +89,12 @@ impl LocalDispatcher {
                 },
                 false,
             ),
+            Tone3000Command::FinishTone3000Install { tone_id, grid } => {
+                self.finish_tone3000_install(tone_id, &grid)
+            }
+            Tone3000Command::CancelTone3000Install { tone_id } => {
+                self.cancel_tone3000_install(tone_id)
+            }
             Tone3000Command::UninstallTone3000 { plugin_id } => self.uninstall_tone3000(plugin_id),
             Tone3000Command::UpdateTone3000 {
                 tone_id,
@@ -150,6 +158,9 @@ impl LocalDispatcher {
         if state.borrow().is_installing(tone_id) {
             bail!("TONE3000 tone {tone_id} is already installing");
         }
+        if state.borrow().pending(tone_id).is_some() {
+            bail!("TONE3000 tone {tone_id} is waiting for its parameters to be named");
+        }
         state.borrow_mut().start_install(tone_id);
         let tx = self.async_done_tx.clone();
         std::thread::Builder::new()
@@ -210,9 +221,21 @@ impl LocalDispatcher {
                 Tone3000Event::InstallProgress { tone_id, progress }
             }
             Tone3000Done::Install { tone_id, result } => match result {
-                Ok(plugin_id) => {
+                Ok(InstallEnd::Installed(plugin)) => {
                     state.finish_install(tone_id, Ok(()));
-                    Tone3000Event::Installed { tone_id, plugin_id }
+                    Tone3000Event::Installed {
+                        tone_id,
+                        plugin_id: plugin.plugin_id,
+                    }
+                }
+                Ok(InstallEnd::NeedsNames(pending)) => {
+                    let event = Tone3000Event::NamesNeeded {
+                        tone_id,
+                        plugin_id: pending.plugin_id.clone(),
+                        grid: pending.grid.clone(),
+                    };
+                    state.wait_for_names(pending);
+                    event
                 }
                 Err(message) => {
                     state.finish_install(tone_id, Err(message.clone()));
@@ -226,14 +249,15 @@ impl LocalDispatcher {
 
 /// Installs, then brings the new package into the catalog so a block can
 /// pick it right away. An update drops the old catalog entry first, since
-/// the catalog keeps a loaded id as it is. Runs on the worker thread.
+/// the catalog keeps a loaded id as it is. A fresh install may stop to ask
+/// for names instead. Runs on the worker thread.
 fn run_install(
     api: &dyn crate::tone3000::api_client::Tone3000Api,
     root: PathBuf,
     request: &InstallRequest,
     replace: bool,
     tx: &Sender<AsyncDone>,
-) -> Result<String, String> {
+) -> Result<InstallEnd, String> {
     let tone_id = request.tone_id;
     let mut report = |progress: InstallProgress| {
         let _ = tx.send(AsyncDone::Tone3000(Tone3000Done::Progress {
@@ -241,16 +265,18 @@ fn run_install(
             progress,
         }));
     };
-    let installed = if replace {
-        update_tone(api, &root, request, &mut report)
+    let end = if replace {
+        update_tone(api, &root, request, &mut report).map(InstallEnd::Installed)
     } else {
-        install_tone(api, &root, request, &mut report)
+        install_or_ask(api, &root, request, &mut report)
     }
     .map_err(|e| e.to_string())?;
-    if replace {
-        let _ = plugin_loader::registry::unload(&installed.plugin_id);
+    if let InstallEnd::Installed(installed) = &end {
+        if replace {
+            let _ = plugin_loader::registry::unload(&installed.plugin_id);
+        }
+        plugin_loader::registry::load_one(&installed.plugin_id, &[installed.dir.clone()])
+            .map_err(|e| format!("installed, but the catalog did not load it: {e}"))?;
     }
-    plugin_loader::registry::load_one(&installed.plugin_id, &[installed.dir])
-        .map_err(|e| format!("installed, but the catalog did not load it: {e}"))?;
-    Ok(installed.plugin_id)
+    Ok(end)
 }

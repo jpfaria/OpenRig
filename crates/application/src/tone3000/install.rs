@@ -5,7 +5,8 @@
 //! place and the manifest written last, through a temp file, so a scan
 //! never sees half a package. Any failure removes what was written. An
 //! update builds the new package the same way and swaps it in only when it
-//! is complete.
+//! is complete. An install that may ask sets a download aside instead when
+//! the capture names hold words only the user can name.
 
 use std::path::{Path, PathBuf};
 
@@ -19,6 +20,7 @@ use super::axes::CaptureKind;
 use super::block_type::block_type_for;
 use super::capture_levels::measure_captures;
 pub use super::install_error::InstallError;
+use super::install_pending::{needs_names, park, pending_dir, PendingInstall};
 use super::installed::{InstalledPlugin, IR_FOLDER, MANIFEST_FILE, NAM_FOLDER};
 use super::manifest_build::{build_manifest, plugin_id, CaptureFile, PackageKind};
 use super::models_pick::{file_name, unique_models};
@@ -42,13 +44,40 @@ pub enum InstallProgress {
     Measuring,
 }
 
+/// How an install that may ask for names ended.
+#[derive(Debug)]
+pub enum InstallEnd {
+    Installed(InstalledPlugin),
+    /// Nothing is installed yet: the download waits for the user to name
+    /// the parameters.
+    NeedsNames(PendingInstall),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Install,
+    Ask,
+    Replace,
+}
+
 pub fn install_tone(
     api: &dyn Tone3000Api,
     root: &Path,
     request: &InstallRequest,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<InstalledPlugin, InstallError> {
-    build_package(api, root, request, progress, false)
+    build_package(api, root, request, progress, Mode::Install).map(installed)
+}
+
+/// Installs, unless the capture names hold words the inference cannot
+/// read: then the download is set aside for the user to name.
+pub fn install_or_ask(
+    api: &dyn Tone3000Api,
+    root: &Path,
+    request: &InstallRequest,
+    progress: &mut dyn FnMut(InstallProgress),
+) -> Result<InstallEnd, InstallError> {
+    build_package(api, root, request, progress, Mode::Ask)
 }
 
 /// Downloads an installed tone again and swaps its package in place. The
@@ -60,7 +89,14 @@ pub fn update_tone(
     request: &InstallRequest,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<InstalledPlugin, InstallError> {
-    build_package(api, root, request, progress, true)
+    build_package(api, root, request, progress, Mode::Replace).map(installed)
+}
+
+fn installed(end: InstallEnd) -> InstalledPlugin {
+    match end {
+        InstallEnd::Installed(plugin) => plugin,
+        InstallEnd::NeedsNames(_) => unreachable!("only an install that may ask sets one aside"),
+    }
 }
 
 fn build_package(
@@ -68,8 +104,9 @@ fn build_package(
     root: &Path,
     request: &InstallRequest,
     progress: &mut dyn FnMut(InstallProgress),
-    replace: bool,
-) -> Result<InstalledPlugin, InstallError> {
+    mode: Mode,
+) -> Result<InstallEnd, InstallError> {
+    let replace = mode == Mode::Replace;
     progress(InstallProgress::Fetching);
     let tone = api.tone(request.tone_id)?;
     let kind = package_kind(&tone, request.architecture);
@@ -112,6 +149,10 @@ fn build_package(
         let yaml =
             serde_yaml::to_string(&manifest).map_err(|e| InstallError::Manifest(e.to_string()))?;
         write_stamp(&staging, &tone, &files)?;
+        if mode == Mode::Ask && needs_names(&manifest) {
+            let pending = park(tone.id, &staging, &pending_dir(&folder, &id), &manifest)?;
+            return Ok(InstallEnd::NeedsNames(pending));
+        }
         if replace {
             let _ = std::fs::remove_dir_all(&previous);
             std::fs::rename(&dir, &previous)?;
@@ -120,18 +161,18 @@ fn build_package(
         let tmp = dir.join(format!(".{MANIFEST_FILE}.tmp"));
         std::fs::write(&tmp, yaml)?;
         std::fs::rename(&tmp, dir.join(MANIFEST_FILE))?;
-        Ok(manifest)
+        Ok(InstallEnd::Installed(InstalledPlugin {
+            plugin_id: id.clone(),
+            dir: dir.clone(),
+            manifest,
+            updated_at: tone.updated_at.clone(),
+        }))
     })();
     let _ = std::fs::remove_dir_all(&staging);
     match result {
-        Ok(manifest) => {
+        Ok(end) => {
             let _ = std::fs::remove_dir_all(&previous);
-            Ok(InstalledPlugin {
-                plugin_id: id,
-                dir,
-                manifest,
-                updated_at: tone.updated_at,
-            })
+            Ok(end)
         }
         Err(error) => {
             // A fresh install leaves nothing; an update puts the old

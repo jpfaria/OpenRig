@@ -53,6 +53,7 @@ fn snapshot(tones: Vec<Tone>) -> Tone3000Snapshot {
         },
         installs: vec![],
         installed: vec![],
+        naming: vec![],
     }
 }
 

@@ -7,6 +7,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::plugin_library::EditorGrid;
 use crate::tone3000::{
     Tone3000Architecture, Tone3000BlockType, Tone3000Format, Tone3000Gear, Tone3000Sort,
 };
@@ -31,6 +32,13 @@ pub enum Tone3000Command {
         architecture: Option<Tone3000Architecture>,
         block_type: Option<Tone3000BlockType>,
     },
+
+    /// Install a tone that waits for names, with the parameters `grid`
+    /// gives its captures (one row per capture of the waiting grid).
+    FinishTone3000Install { tone_id: u64, grid: EditorGrid },
+
+    /// Drop a tone that waits for names; nothing of it stays on disk.
+    CancelTone3000Install { tone_id: u64 },
 
     /// The user's TONE3000 Secret Key (`t3k_cs_…`). Blank clears it.
     SetTone3000ApiKey { key: String },
@@ -72,6 +80,15 @@ impl std::fmt::Debug for Tone3000Command {
                 .field("tone_id", tone_id)
                 .field("architecture", architecture)
                 .field("block_type", block_type)
+                .finish(),
+            Self::FinishTone3000Install { tone_id, grid } => f
+                .debug_struct("FinishTone3000Install")
+                .field("tone_id", tone_id)
+                .field("grid", grid)
+                .finish(),
+            Self::CancelTone3000Install { tone_id } => f
+                .debug_struct("CancelTone3000Install")
+                .field("tone_id", tone_id)
                 .finish(),
             Self::SetTone3000ApiKey { .. } => f
                 .debug_struct("SetTone3000ApiKey")
