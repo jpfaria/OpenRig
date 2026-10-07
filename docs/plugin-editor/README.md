@@ -21,6 +21,12 @@ dictionary). The user knows what the token means and the app does not.
 3. **Create plugins.** Later, the user builds a plugin from scratch in the
    app: pick the captures, define the parameters, write the package.
 
+## How the TONE3000 browser uses it
+
+The browser (#879) only installs and updates. When an install cannot read
+the capture names, it opens this editor so the user says what each token is;
+the package is written after that.
+
 ## Editing in place, with a way back
 
 - An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
