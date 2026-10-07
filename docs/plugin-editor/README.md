@@ -27,6 +27,13 @@ The browser (#879) only installs and updates. When an install cannot read
 the capture names, it opens this editor so the user says what each token is;
 the package is written after that.
 
+## The editor
+
+One screen serves all three uses (ask before installing, edit, create):
+a grid with one row per capture (its original name and its file) and one
+column per parameter (its name, and whether it is a knob or a choice). Every
+cell is editable, and parameters can be added or removed.
+
 ## Editing in place, with a way back
 
 - An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
