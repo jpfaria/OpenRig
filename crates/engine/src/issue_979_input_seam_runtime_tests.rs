@@ -127,3 +127,30 @@ fn a_broken_chain_does_not_mark_another_chain() {
         "one chain's broken input marked another chain"
     );
 }
+
+/// #1081: a device restart reopens the streams on the same runtime. The
+/// verdict starts over with them, or the next tick restarts the device again
+/// on what the broken streams heard.
+#[test]
+fn a_seam_reset_unmarks_the_chain_at_once() {
+    let rt = runtime("rig:guitar", 0);
+    play(&rt, &samples(STEPPED), &samples(CLEAN));
+    assert!(rt.input_stepped(), "the broken In 1 did not mark its chain");
+    rt.reset_input_seams();
+    assert!(!rt.input_stepped(), "the reset left the chain marked");
+}
+
+#[test]
+fn after_a_seam_reset_half_a_second_of_steps_does_not_mark_the_chain() {
+    let rt = runtime("rig:guitar", 0);
+    let stepped = samples(STEPPED);
+    let clean = samples(CLEAN);
+    play(&rt, &stepped, &clean);
+    rt.reset_input_seams();
+    let half_second = (RATE as usize / 2) / BUFFER * BUFFER;
+    play(&rt, &stepped[..half_second], &clean[..half_second]);
+    assert!(
+        !rt.input_stepped(),
+        "the detectors kept the broken streams' count across the reset"
+    );
+}

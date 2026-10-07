@@ -108,6 +108,7 @@ fn controller_with_open_streams(
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            swap: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             _jack_client: None,
             #[cfg(all(target_os = "linux", feature = "jack"))]
