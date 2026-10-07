@@ -22,7 +22,7 @@ use crate::tone3000::installed::list_installed;
 /// Builds the API client for a key. Tests swap in a fake.
 pub type Tone3000ApiFactory = Arc<dyn Fn(&str) -> Arc<dyn Tone3000Api> + Send + Sync>;
 
-/// The catalog plugins that came from TONE3000 outside the browser's folder.
+/// The catalog plugins that came from TONE3000, other than the browser's own.
 /// Read on every snapshot, so a catalog reload shows at once. Tests swap it.
 pub type Tone3000CatalogSource = Arc<dyn Fn() -> Vec<Tone3000InstalledEntry> + Send + Sync>;
 
@@ -53,11 +53,13 @@ pub struct Tone3000InstalledEntry {
     pub block_type: BlockType,
     pub architecture: Option<NamArchitecture>,
     pub captures: usize,
-    /// The browser installed it, so the browser may remove it. A plugin
-    /// from the plugins folder is only listed.
+    /// It sits in the plugins folder, which is the user's, so the browser
+    /// may remove it. A plugin from anywhere else is only listed.
     pub removable: bool,
     /// The TONE3000 tone version the browser installed; `None` when unknown.
     pub updated_at: Option<String>,
+    /// The package folder.
+    pub dir: PathBuf,
 }
 
 /// The browser state as a value. Holds no key.
@@ -77,7 +79,7 @@ pub struct Tone3000ControlState {
     /// The per-machine `config.yaml`; `None` persists nothing, which keeps
     /// tests off the user's real config.
     config_path: Option<PathBuf>,
-    /// The TONE3000 plugin root; `None` means installs are off.
+    /// The plugins folder installs go into; `None` means installs are off.
     root: Option<PathBuf>,
     api_factory: Tone3000ApiFactory,
     catalog: Tone3000CatalogSource,
@@ -109,6 +111,7 @@ impl Tone3000ControlState {
         config_path: Option<PathBuf>,
         root: Option<PathBuf>,
     ) -> Self {
+        let plugins_root = root.clone();
         let mut state = Self {
             api_key: config.api_key.clone().filter(|k| !k.trim().is_empty()),
             config_path,
@@ -116,7 +119,7 @@ impl Tone3000ControlState {
             api_factory: Arc::new(|key: &str| -> Arc<dyn Tone3000Api> {
                 Arc::new(HttpTone3000Api::new(key))
             }),
-            catalog: Arc::new(loaded_catalog_entries),
+            catalog: Arc::new(move || loaded_catalog_entries(plugins_root.as_deref())),
             search: Tone3000SearchSnapshot::default(),
             search_generation: 0,
             installs: Vec::new(),
@@ -241,7 +244,7 @@ impl Tone3000ControlState {
             .map(|plugin| Tone3000InstalledEntry {
                 tone_ids: tone_id_of(&plugin.plugin_id).into_iter().collect(),
                 updated_at: plugin.updated_at.clone(),
-                ..installed_entry(&plugin.manifest, true)
+                ..installed_entry(&plugin.manifest, &plugin.dir, true)
             })
             .collect();
     }

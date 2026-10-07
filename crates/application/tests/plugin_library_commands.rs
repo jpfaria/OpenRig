@@ -49,12 +49,11 @@ fn write_ir(path: &Path, gain: f32) {
     writer.finalize().unwrap();
 }
 
-/// The roots a session sees: the user's plugins folder, the TONE3000
-/// install folder and a folder standing for the plugins the app ships.
+/// The roots a session sees: the user's plugins folder (TONE3000 installs
+/// go there too) and a folder standing for the plugins the app ships.
 struct Folders {
     _tmp: tempfile::TempDir,
     plugins: PathBuf,
-    tone3000: PathBuf,
     shipped: PathBuf,
     sources: PathBuf,
 }
@@ -68,7 +67,6 @@ fn folders() -> Folders {
     };
     Folders {
         plugins: make("plugins"),
-        tone3000: make("tone3000"),
         shipped: make("shipped"),
         sources: make("sources"),
         _tmp: tmp,
@@ -126,10 +124,9 @@ fn dispatcher(folders: &Folders, project: Project) -> Session {
     let state = Tone3000ControlState::restored(
         &Tone3000Config::default(),
         None,
-        Some(folders.tone3000.clone()),
+        Some(folders.plugins.clone()),
     );
     dispatcher.attach_tone3000_state(Rc::new(RefCell::new(state)));
-    dispatcher.attach_plugins_folder(Some(folders.plugins.clone()));
     Session {
         dispatcher,
         project,
@@ -271,7 +268,7 @@ fn grid_view(dispatcher: &LocalDispatcher, id: &str) -> Value {
 fn the_library_lists_only_the_plugins_the_user_owns() {
     let f = folders();
     preset_cab(&f.plugins.join("ir"), "lib_list_folder");
-    preset_cab(&f.tone3000, "tone3000_910001");
+    preset_cab(&f.plugins.join("ir"), "tone3000_910001");
     preset_cab(&f.shipped, "lib_list_shipped");
     let d = dispatcher(&f, Project::default());
 
@@ -694,11 +691,11 @@ fn fake_api(f: &Folders, tone_id: u64) -> std::sync::Arc<FakeApi> {
 }
 
 /// A session with a TONE3000 key whose API is `api`, and the tone already
-/// installed in the TONE3000 folder.
+/// installed in the plugins folder.
 fn keyed_dispatcher(f: &Folders, api: std::sync::Arc<FakeApi>, tone_id: u64) -> LocalDispatcher {
     install_tone(
         api.as_ref(),
-        &f.tone3000,
+        &f.plugins,
         &InstallRequest {
             tone_id,
             architecture: None,
@@ -709,7 +706,7 @@ fn keyed_dispatcher(f: &Folders, api: std::sync::Arc<FakeApi>, tone_id: u64) -> 
     .unwrap();
     let id = format!("tone3000_{tone_id}");
     let _ = plugin_loader::registry::unload(&id);
-    plugin_loader::registry::load_one(&id, &[f.tone3000.clone()]).unwrap();
+    plugin_loader::registry::load_one(&id, &[f.plugins.join("ir")]).unwrap();
     let factory: Tone3000ApiFactory = {
         let api = api.clone();
         std::sync::Arc::new(move |_key: &str| -> std::sync::Arc<dyn Tone3000Api> { api.clone() })
@@ -719,12 +716,11 @@ fn keyed_dispatcher(f: &Folders, api: std::sync::Arc<FakeApi>, tone_id: u64) -> 
             api_key: Some("t3k_cs_fixture_key_0123456789".into()),
         },
         None,
-        Some(f.tone3000.clone()),
+        Some(f.plugins.clone()),
     )
     .with_api_factory(factory);
     let d = LocalDispatcher::new(Rc::new(RefCell::new(Project::default())));
     d.attach_tone3000_state(Rc::new(RefCell::new(state)));
-    d.attach_plugins_folder(Some(f.plugins.clone()));
     d
 }
 
@@ -745,7 +741,7 @@ fn an_installed_tone_shows_its_tone3000_capture_names() {
 fn redo_of_a_current_tone_reads_its_names_from_tone3000() {
     let f = folders();
     let d = keyed_dispatcher(&f, fake_api(&f, 920002), 920002);
-    let dir = f.tone3000.join("tone3000_920002");
+    let dir = f.plugins.join("ir/tone3000_920002");
     let installed = axis_names(&read_manifest(&dir));
     run(&d, save("tone3000_920002", distance_grid())).unwrap();
 
@@ -777,7 +773,7 @@ fn redo_of_a_tone_changed_on_tone3000_downloads_it_again() {
     let f = folders();
     let api = fake_api(&f, 920003);
     let d = keyed_dispatcher(&f, api.clone(), 920003);
-    let dir = f.tone3000.join("tone3000_920003");
+    let dir = f.plugins.join("ir/tone3000_920003");
     *api.tone.lock().unwrap() = tone(920003, "2026-06-01T10:00:00Z");
 
     run(
@@ -815,14 +811,39 @@ fn the_library_marks_a_tone3000_plugin_with_its_tone() {
 }
 
 #[test]
-fn roots_come_from_what_the_session_attached() {
+fn the_owned_folder_is_the_plugins_folder_installs_go_into() {
     let f = folders();
     let d = dispatcher(&f, Project::default());
     assert_eq!(
         d.plugin_library_roots(),
         PluginRoots {
             plugins_folder: Some(f.plugins.clone()),
-            tone3000: Some(f.tone3000.clone()),
         }
     );
+}
+
+#[test]
+fn a_plugin_naming_a_tone3000_tone_came_from_tone3000() {
+    let f = folders();
+    let dir = preset_cab(&f.plugins.join("ir"), "lib_sourced_cab");
+    let yaml = std::fs::read_to_string(dir.join("manifest.yaml")).unwrap();
+    std::fs::write(
+        dir.join("manifest.yaml"),
+        yaml.replace(
+            "type: cab",
+            "sources: [https://www.tone3000.com/tones/930001]\ntype: cab",
+        ),
+    )
+    .unwrap();
+    let _ = plugin_loader::registry::unload("lib_sourced_cab");
+    plugin_loader::registry::load_one("lib_sourced_cab", &[f.plugins.join("ir")]).unwrap();
+    let d = dispatcher(&f, Project::default());
+
+    let entry = library(&d)
+        .into_iter()
+        .find(|e| e["plugin_id"] == "lib_sourced_cab")
+        .unwrap();
+
+    assert_eq!(entry["origin"], "tone3000");
+    assert_eq!(entry["tone_ids"], serde_json::json!([930001]));
 }

@@ -1555,8 +1555,8 @@ msgstr "TONE3000 पर एम्प, पेडल और IR खोजें।"
 
 msgid "status-tone3000-none-installed"
 msgstr "अभी तक कोई TONE3000 कैप्चर इंस्टॉल नहीं है।"
-msgid "label-tone3000-plugins-folder"
-msgstr "प्लगइन फ़ोल्डर"
+msgid "label-tone3000-built-in"
+msgstr "अंतर्निहित"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "इंस्टॉल किए गए नाम से खोजें"

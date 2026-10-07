@@ -70,10 +70,11 @@ fn installed(plugin_id: &str, arch: Option<NamArchitecture>) -> Tone3000Installe
         captures: 7,
         removable: true,
         updated_at: None,
+        dir: std::path::PathBuf::from("/plugins/nam").join(plugin_id),
     }
 }
 
-fn from_plugins_folder(plugin_id: &str, name: &str, tone_id: u64) -> Tone3000InstalledEntry {
+fn built_in(plugin_id: &str, name: &str, tone_id: u64) -> Tone3000InstalledEntry {
     Tone3000InstalledEntry {
         plugin_id: plugin_id.into(),
         tone_ids: vec![tone_id],
@@ -83,6 +84,7 @@ fn from_plugins_folder(plugin_id: &str, name: &str, tone_id: u64) -> Tone3000Ins
         captures: 4,
         removable: false,
         updated_at: None,
+        dir: std::path::PathBuf::from("/app/plugins/nam").join(plugin_id),
     }
 }
 
@@ -255,9 +257,9 @@ fn counts_read_short() {
 }
 
 #[test]
-fn a_tone_from_the_plugins_folder_reads_installed_but_cannot_be_removed() {
+fn a_built_in_tone_reads_installed_but_cannot_be_removed() {
     let mut s = snapshot(vec![tone(52557, "nam", 2, 2)]);
-    s.installed = vec![from_plugins_folder(
+    s.installed = vec![built_in(
         "nam_synergy_dumble_os_a2",
         "Dumble OS Module",
         52557,
@@ -276,8 +278,8 @@ fn a_tone_from_the_plugins_folder_reads_installed_but_cannot_be_removed() {
 fn the_installed_list_filters_by_name_ignoring_case() {
     let mut s = Tone3000Snapshot::default();
     s.installed = vec![
-        from_plugins_folder("nam_synergy_dumble_os_a2", "Dumble OS Module", 1),
-        from_plugins_folder("nam_ada_mp_1", "MP-1", 2),
+        built_in("nam_synergy_dumble_os_a2", "Dumble OS Module", 1),
+        built_in("nam_ada_mp_1", "MP-1", 2),
     ];
     let filtered = tone3000_view(&s, &ArchChoices::new(), "dumble");
     let names: Vec<&str> = filtered.installed.iter().map(|r| r.name.as_str()).collect();
@@ -331,13 +333,13 @@ fn an_unknown_version_never_offers_the_update() {
 }
 
 #[test]
-fn a_plugins_folder_tone_is_never_updated_by_the_browser() {
+fn a_built_in_tone_is_never_updated_by_the_browser() {
     let mut published = tone(52557, "nam", 2, 2);
     published.updated_at = Some("2026-06-15T08:30:00Z".into());
     let mut s = snapshot(vec![published]);
     s.installed = vec![Tone3000InstalledEntry {
         updated_at: Some("2026-05-01T10:00:00Z".into()),
-        ..from_plugins_folder("nam_synergy_dumble_os_a2", "Dumble OS Module", 52557)
+        ..built_in("nam_synergy_dumble_os_a2", "Dumble OS Module", 52557)
     }];
     assert_eq!(view(&s).results[0].install, RowInstall::Installed(None));
 }

@@ -19,7 +19,7 @@ use super::axes::CaptureKind;
 use super::block_type::block_type_for;
 use super::capture_levels::measure_captures;
 pub use super::install_error::InstallError;
-use super::installed::{InstalledPlugin, MANIFEST_FILE};
+use super::installed::{InstalledPlugin, IR_FOLDER, MANIFEST_FILE, NAM_FOLDER};
 use super::manifest_build::{build_manifest, plugin_id, CaptureFile, PackageKind};
 use super::models_pick::{file_name, unique_models};
 use super::source_stamp::write_stamp;
@@ -74,7 +74,11 @@ fn build_package(
     let tone = api.tone(request.tone_id)?;
     let kind = package_kind(&tone, request.architecture);
     let id = plugin_id(tone.id, kind);
-    let dir = root.join(&id);
+    let folder = root.join(match kind {
+        PackageKind::Nam(_) => NAM_FOLDER,
+        PackageKind::Ir => IR_FOLDER,
+    });
+    let dir = folder.join(&id);
     match (replace, dir.exists()) {
         (false, true) => return Err(InstallError::AlreadyInstalled(id)),
         (true, false) => return Err(InstallError::NotInstalled(id)),
@@ -90,9 +94,9 @@ fn build_package(
     }
     let block_type = request.block_type.unwrap_or_else(|| block_type_for(&tone));
 
-    std::fs::create_dir_all(root)?;
-    let staging = root.join(format!(".partial-{id}"));
-    let previous = root.join(format!(".previous-{id}"));
+    std::fs::create_dir_all(&folder)?;
+    let staging = folder.join(format!(".partial-{id}"));
+    let previous = folder.join(format!(".previous-{id}"));
     let result = (|| {
         let _ = std::fs::remove_dir_all(&staging);
         let files = download_all(api, &staging, &models, kind, progress)?;

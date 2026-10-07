@@ -1,4 +1,4 @@
-//! Responsibility: tells which owned folder a plugin package lives in.
+//! Responsibility: classifies a loaded plugin package by who put it in the plugins folder.
 
 use std::path::{Path, PathBuf};
 
@@ -7,12 +7,14 @@ use plugin_loader::LoadedPackage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The folders whose plugins the user owns. `None` when the session has not
-/// attached that folder.
+use crate::tone3000::catalog_tones::manifest_tone_ids;
+use crate::tone3000::installed::is_plugin_id;
+
+/// The folder whose plugins the user owns: the plugins folder, where
+/// TONE3000 installs go too. `None` when the session has not attached it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PluginRoots {
     pub plugins_folder: Option<PathBuf>,
-    pub tone3000: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -23,17 +25,19 @@ pub enum PluginOrigin {
 }
 
 impl PluginRoots {
-    /// Where the package at `package_root` comes from, or `None` when it is
-    /// not the user's (a plugin the app ships).
-    pub fn origin_of(&self, package_root: &Path) -> Option<PluginOrigin> {
-        let inside =
-            |root: &Option<PathBuf>| root.as_deref().is_some_and(|r| is_inside(package_root, r));
-        if inside(&self.tone3000) {
+    /// Where `package` comes from, or `None` when it is not the user's (a
+    /// plugin the app ships). A package that names a TONE3000 tone, or that
+    /// the TONE3000 browser installed, came from TONE3000.
+    pub fn origin_of(&self, package: &LoadedPackage) -> Option<PluginOrigin> {
+        let folder = self.plugins_folder.as_deref()?;
+        if !is_inside(&package.root, folder) {
+            return None;
+        }
+        let manifest = &package.manifest;
+        if is_plugin_id(&manifest.id) || !manifest_tone_ids(manifest).is_empty() {
             Some(PluginOrigin::Tone3000)
-        } else if inside(&self.plugins_folder) {
-            Some(PluginOrigin::PluginsFolder)
         } else {
-            None
+            Some(PluginOrigin::PluginsFolder)
         }
     }
 
@@ -42,7 +46,7 @@ impl PluginRoots {
         let package = plugin_loader::registry::find(plugin_id)
             .ok_or_else(|| anyhow!("plugin `{plugin_id}` is not in the catalog"))?;
         let origin = self
-            .origin_of(&package.root)
+            .origin_of(package)
             .ok_or_else(|| anyhow!("`{plugin_id}` ships with the app and cannot be changed"))?;
         Ok((package, origin))
     }

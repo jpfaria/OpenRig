@@ -35,7 +35,7 @@ pub fn library_entries(roots: &PluginRoots) -> Vec<PluginLibraryEntry> {
     let mut entries: Vec<PluginLibraryEntry> = plugin_loader::registry::packages()
         .iter()
         .filter_map(|package| {
-            let origin = roots.origin_of(&package.root)?;
+            let origin = roots.origin_of(package)?;
             let manifest = &package.manifest;
             let captures = match &manifest.backend {
                 Backend::Nam { captures, .. } | Backend::Ir { captures, .. } => {

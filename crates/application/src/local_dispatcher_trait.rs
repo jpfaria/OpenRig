@@ -511,10 +511,6 @@ impl CommandDispatcher for LocalDispatcher {
         LocalDispatcher::tone3000_snapshot(self)
     }
 
-    fn attach_plugins_folder(&self, folder: Option<PathBuf>) {
-        LocalDispatcher::attach_plugins_folder(self, folder)
-    }
-
     fn plugin_library_roots(&self) -> crate::plugin_library::PluginRoots {
         LocalDispatcher::plugin_library_roots(self)
     }

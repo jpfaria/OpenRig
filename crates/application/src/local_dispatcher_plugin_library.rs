@@ -4,8 +4,6 @@
 //! touch one small manifest. A create copies and measures captures, and a
 //! TONE3000 redo talks to the network, so those run on their own thread.
 
-use std::path::PathBuf;
-
 use anyhow::{anyhow, bail, Result};
 use plugin_loader::manifest::PluginManifest;
 use plugin_loader::version_store::read_version;
@@ -24,16 +22,11 @@ use crate::plugin_library::manifest_save::save_manifest_version;
 use crate::plugin_library::{EditorGrid, PluginOrigin, PluginRoots};
 
 impl LocalDispatcher {
-    /// Adopt the plugins folder the frontend resolved for this session.
-    pub fn attach_plugins_folder(&self, folder: Option<PathBuf>) {
-        *self.plugins_folder.borrow_mut() = folder;
-    }
-
-    /// The folders whose plugins the user owns.
+    /// The folder whose plugins the user owns: the plugins folder the
+    /// TONE3000 browser installs into.
     pub fn plugin_library_roots(&self) -> PluginRoots {
         PluginRoots {
-            plugins_folder: self.plugins_folder.borrow().clone(),
-            tone3000: self.tone3000.borrow().borrow().root(),
+            plugins_folder: self.tone3000.borrow().borrow().root(),
         }
     }
 
@@ -127,7 +120,7 @@ impl LocalDispatcher {
 
     fn create_plugin(&self, request: CreateRequest) -> Result<Vec<Event>> {
         check_request(&request)?;
-        let Some(folder) = self.plugins_folder.borrow().clone() else {
+        let Some(folder) = self.plugin_library_roots().plugins_folder else {
             bail!("no plugins folder is attached");
         };
         let tx = self.async_done_tx.clone();

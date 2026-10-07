@@ -141,9 +141,8 @@ fn main() -> Result<()> {
     // first, then the bundled + user plugin roots.
     let bundled_root = infra_filesystem::detect_data_root().join("plugins");
     let user_root = plugin_loader::plugins_root_from_config(&config_path);
-    let tone3000_root = plugin_loader::tone3000_root_from_config(&config_path);
     engine::native_registry::register_all_natives();
-    plugin_loader::registry::init_many(&[bundled_root, user_root, tone3000_root]);
+    plugin_loader::registry::init_many(&[bundled_root, user_root]);
     println!(
         "plugins: {} loaded ({} native)",
         plugin_loader::registry::len(),

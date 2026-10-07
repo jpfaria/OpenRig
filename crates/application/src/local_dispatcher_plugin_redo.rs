@@ -26,18 +26,18 @@ impl LocalDispatcher {
         let root = package.root.clone();
         let manifest = read_disk_manifest(&root)?;
         let tone_id = manifest_tone_ids(&manifest).first().copied();
-        let (api, tone3000_root) = {
+        let (api, plugins_folder) = {
             let state = self.tone3000.borrow().clone();
             let state = state.borrow();
             (state.api(), state.root())
         };
-        if let (PluginOrigin::Tone3000, Some(api), Some(tone3000_root), Some(tone_id)) =
-            (origin, api, tone3000_root, tone_id)
+        if let (PluginOrigin::Tone3000, Some(api), Some(plugins_folder), Some(tone_id)) =
+            (origin, api, plugins_folder, tone_id)
         {
             let job = RedoTone {
                 plugin_id,
                 tone_id,
-                tone3000_root,
+                plugins_folder,
                 package_root: root,
                 manifest,
             };

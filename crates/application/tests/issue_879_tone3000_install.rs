@@ -1,6 +1,6 @@
 //! #879: installing a TONE3000 tone downloads every capture, measures its
-//! level and writes a plugin package the loader discovers; uninstalling only
-//! ever removes a TONE3000 package.
+//! level and writes a plugin package into the plugins folder; uninstalling
+//! never reaches outside that folder.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ use application::tone3000::api_url::SearchQuery;
 use application::tone3000::install::{
     install_tone, update_tone, InstallError, InstallProgress, InstallRequest,
 };
-use application::tone3000::installed::{list_installed, remove_installed};
+use application::tone3000::installed::{list_installed, remove_package};
 use application::tone3000::source_stamp::STAMP_FILE;
 use application::tone3000::{Tone3000Architecture, Tone3000BlockType};
 use plugin_loader::manifest::{Backend, BlockType, NamArchitecture};
@@ -163,7 +163,7 @@ fn request(tone_id: u64) -> InstallRequest {
     }
 }
 
-fn entries(dir: &Path) -> Vec<String> {
+fn names(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = std::fs::read_dir(dir)
         .map(|it| {
             it.map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
@@ -172,6 +172,22 @@ fn entries(dir: &Path) -> Vec<String> {
         .unwrap_or_default();
     names.sort();
     names
+}
+
+/// What sits in the plugins folder, with the `nam/` and `ir/` folders
+/// opened: `["nam/tone3000_1_a2"]`. An empty kind folder lists nothing.
+fn entries(root: &Path) -> Vec<String> {
+    let mut found = Vec::new();
+    for name in names(root) {
+        if name == "nam" || name == "ir" {
+            for inner in names(&root.join(&name)) {
+                found.push(format!("{name}/{inner}"));
+            }
+        } else {
+            found.push(name);
+        }
+    }
+    found
 }
 
 #[test]
@@ -206,7 +222,7 @@ fn a_nam_tone_installs_as_a_discoverable_plugin() {
     .unwrap();
 
     assert_eq!(installed.plugin_id, "tone3000_1_a1");
-    assert_eq!(installed.dir, root.path().join("tone3000_1_a1"));
+    assert_eq!(installed.dir, root.path().join("nam").join("tone3000_1_a1"));
     assert_eq!(installed.manifest.block_type, BlockType::GainPedal);
     assert_eq!(installed.manifest.architecture, Some(NamArchitecture::A1));
     let gain = installed.manifest.output_gain_db.expect("NAM level");
@@ -228,7 +244,11 @@ fn a_nam_tone_installs_as_a_discoverable_plugin() {
     assert_eq!(steps.first(), Some(&InstallProgress::Fetching));
     assert!(steps.contains(&InstallProgress::Downloading { done: 2, total: 2 }));
     assert!(steps.contains(&InstallProgress::Measuring));
-    assert_eq!(entries(root.path()), ["tone3000_1_a1"], "no staging left");
+    assert_eq!(
+        entries(root.path()),
+        ["nam/tone3000_1_a1"],
+        "no staging left"
+    );
 }
 
 #[test]
@@ -280,6 +300,7 @@ fn an_ir_tone_gets_one_level_per_capture() {
     let installed = install_tone(&api, root.path(), &request(2), &mut |_| {}).unwrap();
 
     assert_eq!(installed.plugin_id, "tone3000_2");
+    assert_eq!(installed.dir, root.path().join("ir").join("tone3000_2"));
     assert_eq!(installed.manifest.block_type, BlockType::Cab);
     assert_eq!(installed.manifest.output_gain_db, None);
     assert_eq!(installed.manifest.author.as_deref(), Some("Cab Co"));
@@ -356,8 +377,8 @@ fn only_tone3000_packages_are_listed() {
         &mut |_| {},
     )
     .unwrap();
-    std::fs::create_dir_all(root.path().join("someone_else")).unwrap();
-    std::fs::create_dir_all(root.path().join("tone3000_broken")).unwrap();
+    std::fs::create_dir_all(root.path().join("nam/someone_else")).unwrap();
+    std::fs::create_dir_all(root.path().join("nam/tone3000_broken")).unwrap();
 
     let listed: Vec<String> = list_installed(root.path())
         .into_iter()
@@ -374,41 +395,13 @@ fn listing_a_missing_root_is_empty() {
 #[test]
 fn uninstall_removes_the_package() {
     let root = tempfile::tempdir().unwrap();
-    install_tone(&nam_api(), root.path(), &request(1), &mut |_| {}).unwrap();
-    remove_installed(root.path(), "tone3000_1_a2").unwrap();
+    let installed = install_tone(&nam_api(), root.path(), &request(1), &mut |_| {}).unwrap();
+    remove_package(root.path(), &installed.dir).unwrap();
     assert!(entries(root.path()).is_empty());
-    assert_eq!(
-        remove_installed(root.path(), "tone3000_1_a2").unwrap_err(),
-        InstallError::NotInstalled("tone3000_1_a2".into())
-    );
-}
-
-#[test]
-fn uninstall_refuses_anything_outside_tone3000() {
-    let root = tempfile::tempdir().unwrap();
-    let outside = root.path().join("keep");
-    std::fs::create_dir_all(&outside).unwrap();
-    let tone_root = root.path().join("tone3000");
-    std::fs::create_dir_all(tone_root.join("tone3000_1")).unwrap();
-
-    for bad in [
-        "../keep",
-        "keep",
-        "tone3000_1/..",
-        "tone3000_1/x",
-        "",
-        "tone3000_",
-    ] {
-        assert!(
-            matches!(
-                remove_installed(&tone_root, bad),
-                Err(InstallError::InvalidPluginId(_))
-            ),
-            "`{bad}` must be refused"
-        );
-    }
-    assert!(outside.is_dir());
-    assert!(tone_root.join("tone3000_1").is_dir());
+    assert!(matches!(
+        remove_package(root.path(), &installed.dir),
+        Err(InstallError::NotInstalled(_))
+    ));
 }
 
 const NEWER: &str = "2026-06-15T08:30:00Z";
@@ -439,7 +432,7 @@ fn the_install_remembers_the_tone_version() {
 fn a_package_without_a_stamp_has_no_version() {
     let root = tempfile::tempdir().unwrap();
     install_tone(&nam_api(), root.path(), &request(1), &mut |_| {}).unwrap();
-    std::fs::remove_file(root.path().join("tone3000_1_a2").join(STAMP_FILE)).unwrap();
+    std::fs::remove_file(root.path().join("nam/tone3000_1_a2").join(STAMP_FILE)).unwrap();
     let listed = list_installed(root.path());
     assert_eq!(
         listed.len(),
@@ -467,7 +460,11 @@ fn an_update_swaps_the_package_in_place() {
         Some(NEWER)
     );
     assert_eq!(captures_of(root.path()), 1);
-    assert_eq!(entries(root.path()), ["tone3000_1_a2"], "nothing left over");
+    assert_eq!(
+        entries(root.path()),
+        ["nam/tone3000_1_a2"],
+        "nothing left over"
+    );
 }
 
 #[test]
@@ -487,7 +484,11 @@ fn a_failed_update_keeps_the_old_package() {
         Some("2026-05-01T10:00:00Z")
     );
     assert_eq!(captures_of(root.path()), 2);
-    assert_eq!(entries(root.path()), ["tone3000_1_a2"], "nothing left over");
+    assert_eq!(
+        entries(root.path()),
+        ["nam/tone3000_1_a2"],
+        "nothing left over"
+    );
 }
 
 #[test]
@@ -499,4 +500,47 @@ fn updating_a_tone_that_is_not_installed_is_refused() {
         InstallError::NotInstalled("tone3000_1_a2".into())
     );
     assert!(entries(root.path()).is_empty());
+}
+
+fn hand_made_pack(root: &Path) -> PathBuf {
+    let pack = root.join("nam").join("hand_pack");
+    std::fs::create_dir_all(pack.join("captures")).unwrap();
+    std::fs::write(pack.join("manifest.yaml"), "id: hand_pack\n").unwrap();
+    pack
+}
+
+#[test]
+fn a_pack_in_the_plugins_folder_can_be_removed() {
+    let root = tempfile::tempdir().unwrap();
+    let pack = hand_made_pack(root.path());
+    remove_package(root.path(), &pack).unwrap();
+    assert!(!pack.exists());
+    assert!(root.path().join("nam").is_dir(), "only the pack goes");
+}
+
+#[test]
+fn nothing_outside_the_plugins_folder_is_removed() {
+    let root = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    let foreign = hand_made_pack(elsewhere.path());
+    let escaping = root.path().join("nam").join("..").join("..");
+    std::fs::create_dir_all(root.path().join("nam")).unwrap();
+
+    for bad in [
+        foreign.clone(),
+        root.path().to_path_buf(),
+        root.path().join("nam"),
+        escaping,
+    ] {
+        assert!(
+            matches!(
+                remove_package(root.path(), &bad),
+                Err(InstallError::NotInPluginsFolder(_))
+            ),
+            "{} must be refused",
+            bad.display()
+        );
+    }
+    assert!(foreign.is_dir());
+    assert!(root.path().join("nam").is_dir());
 }

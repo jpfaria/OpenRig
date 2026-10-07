@@ -178,9 +178,6 @@ pub struct LocalDispatcher {
     /// #879: the TONE3000 browser, attached by the frontend; unattached
     /// means no key, no install folder and nothing persisted.
     pub(crate) tone3000: RefCell<Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>>,
-    /// The user's plugins folder: where created plugins go, and one of the
-    /// two places whose plugins the library lists. `None` until attached.
-    pub(crate) plugins_folder: RefCell<Option<PathBuf>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -244,7 +241,6 @@ impl LocalDispatcher {
             tone3000: RefCell::new(Rc::new(RefCell::new(
                 crate::tone3000_state::Tone3000ControlState::default(),
             ))),
-            plugins_folder: RefCell::new(None),
         }
     }
 

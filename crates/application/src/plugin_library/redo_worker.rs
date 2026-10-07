@@ -14,6 +14,7 @@ use super::disk_manifest::read_disk_manifest;
 use super::manifest_save::save_manifest_version;
 use crate::tone3000::api_client::{all_models, Tone3000Api};
 use crate::tone3000::install::{update_tone, InstallRequest};
+use crate::tone3000::installed::is_plugin_id;
 use crate::tone3000::models_pick::unique_models;
 use crate::tone3000::source_stamp::read_updated_at;
 use crate::tone3000::{Tone3000Architecture, Tone3000BlockType};
@@ -44,8 +45,8 @@ pub enum PluginLibraryDone {
 pub struct RedoTone {
     pub plugin_id: String,
     pub tone_id: u64,
-    /// The TONE3000 install folder.
-    pub tone3000_root: PathBuf,
+    /// The plugins folder the TONE3000 browser installs into.
+    pub plugins_folder: PathBuf,
     /// The package folder.
     pub package_root: PathBuf,
     pub manifest: PluginManifest,
@@ -62,10 +63,12 @@ fn run(api: &dyn Tone3000Api, job: RedoTone) -> Result<PluginLibraryDone, String
         NamArchitecture::A1 => Tone3000Architecture::A1,
         NamArchitecture::A2 => Tone3000Architecture::A2,
     });
-    if is_newer(
+    let newer = is_newer(
         tone.updated_at.as_deref(),
         read_updated_at(&job.package_root).as_deref(),
-    ) {
+    );
+    // Only a package the browser installed can be downloaded again in place.
+    if newer && is_plugin_id(&job.plugin_id) {
         return update(api, job, architecture);
     }
     let models =
@@ -105,7 +108,7 @@ fn update(
         architecture,
         block_type: tone3000_block_type(job.manifest.block_type),
     };
-    update_tone(api, &job.tone3000_root, &request, &mut |_| {}).map_err(|e| e.to_string())?;
+    update_tone(api, &job.plugins_folder, &request, &mut |_| {}).map_err(|e| e.to_string())?;
     for (n, manifest) in &kept {
         write_version(&job.package_root, *n, manifest).map_err(|e| e.to_string())?;
     }

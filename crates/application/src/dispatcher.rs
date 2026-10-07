@@ -179,11 +179,7 @@ pub trait CommandDispatcher {
         crate::tone3000_state::Tone3000Snapshot::default()
     }
 
-    /// Hand the dispatcher the user's plugins folder: where created plugins
-    /// go, and one of the places whose plugins the library lists.
-    fn attach_plugins_folder(&self, _folder: Option<PathBuf>) {}
-
-    /// The folders whose plugins the user owns, for the library reads.
+    /// The folder whose plugins the user owns, for the library reads.
     fn plugin_library_roots(&self) -> crate::plugin_library::PluginRoots {
         crate::plugin_library::PluginRoots::default()
     }

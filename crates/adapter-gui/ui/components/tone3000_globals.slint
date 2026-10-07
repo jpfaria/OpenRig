@@ -21,8 +21,8 @@ export struct Tone3000ToneRow {
     installed: bool,
     // TONE3000 has a newer version of the browser's package.
     update-available: bool,
-    // The browser's package for it, which Uninstall removes; "" when the
-    // plugin comes from the plugins folder.
+    // The package for it, which Uninstall removes; "" when the plugin
+    // ships with the app.
     plugin-id: string,
     installing: bool,
     // While installing: 0 fetching, 1 downloading `done`/`total`, 2 measuring.
@@ -42,7 +42,8 @@ export struct Tone3000InstalledRow {
     // "A1", "A2", or "" for an IR package.
     arch: string,
     captures: int,
-    // The browser installed it; a plugins-folder plugin is only listed.
+    // It sits in the plugins folder; a plugin that ships with the app is
+    // only listed.
     removable: bool,
 }
 
