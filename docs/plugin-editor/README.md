@@ -1,6 +1,6 @@
-# Plugin parameter editor (idea, from #879)
+# Plugin parameter editor (#1088)
 
-Status: agreed with the owner on 2026-10-07, not built yet.
+Status: agreed with the owner on 2026-10-07, being built in #1088.
 
 ## Problem
 
@@ -37,6 +37,20 @@ the package is written after that.
   reads the capture names again. For a plugin from TONE3000 it first checks
   the tone's `updated_at` and downloads the captures again when TONE3000 has
   a newer version (the install stores `updated_at` for this).
+
+## Which plugins can be edited
+
+Only plugins that are not bundled with the app: the plugins folder
+(`paths.plugins_path`), user plugins and TONE3000 installs. Bundled plugins
+live inside the app (`.app/Contents/Resources`, `/usr/share/openrig`) and are
+read-only; the editor never offers to change them.
+
+## Where the editor opens
+
+- From the plugin's info window (the one the block opens).
+- From the **Plugins** window: a new top-bar button beside the TONE3000 one
+  that lists the whole catalog. A plugin from TONE3000 is marked as such and
+  offers its TONE3000 actions there (update and the rest).
 
 ## Rules it must follow
 
