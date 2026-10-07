@@ -99,7 +99,7 @@ pub(crate) fn wire(
     app_config: Rc<RefCell<AppConfig>>,
 ) {
     let all = SchemeWindows::of(windows);
-    crate::settings::appearance::wire(
+    crate::settings::appearance_wiring::wire(
         &windows.window,
         &windows.project_settings_window,
         project_session,
