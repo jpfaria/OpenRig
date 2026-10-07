@@ -17,7 +17,7 @@ Besides the bank inside the project, presets can be saved as files to reuse in o
 - **Save preset** writes the chain's current blocks to `<name>.yaml` in the presets folder. Saving over an existing name asks first.
 - **Load preset into chain** opens a searchable list of the files in the presets folder and replaces the chain's blocks with the one you pick. A preset saved for another instrument type is refused.
 
-The presets folder is set in **Settings → Paths → Presets**. By default it is `presets` inside the app's data folder (macOS `~/Library/Application Support/OpenRig/presets`, Linux `~/.local/share/openrig/presets`).
+The presets folder is set in **Settings → Paths → Presets**. By default it is `presets` inside the user folder (`~/.openrig/presets` on macOS and Linux, `%APPDATA%\OpenRig\presets` on Windows).
 
 ## Sharing
 

@@ -1,7 +1,7 @@
 //! #913 — every status message the Rust side shows is translated everywhere.
 //!
 //! A raw literal reaches the user in one language whatever they picked, and a
-//! key with no entry in a locale renders as the key itself. `audio_wizard`'s
+//! key with no entry in a locale renders as the key itself. the audio wizard's
 //! warning was a literal until this test; the guard is here so the next one
 //! cannot ship the same way.
 
@@ -90,15 +90,17 @@ fn no_locale_carries_an_empty_translation() {
 #[test]
 fn the_wizards_warning_is_a_key_not_a_literal() {
     // The regression this test exists for: the string was hard-coded in
-    // Portuguese, so every non-Portuguese user read it in Portuguese.
+    // Portuguese, so every non-Portuguese user read it in Portuguese. The
+    // wizard's audio step saves through the Settings handler, so the warning
+    // lives there.
     let source = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/audio_wizard_wiring.rs"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/settings/audio.rs"),
     )
-    .expect("read audio_wizard_wiring.rs");
+    .expect("read settings/audio.rs");
     assert!(
         !source.contains("Selecione pelo menos um input"),
         "the warning must go through t!(), not a literal"
     );
-    assert!(source.contains("status-wizard-select-input"));
-    assert!(keys_in("en-US").contains("status-wizard-select-input"));
+    assert!(source.contains("status-wizard-select-devices"));
+    assert!(keys_in("en-US").contains("status-wizard-select-devices"));
 }

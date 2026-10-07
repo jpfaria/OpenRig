@@ -33,6 +33,8 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::ids::DeviceId;
 use domain::AudioDeviceDescriptor;
+
+use super::audio_direction::split_by_direction;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiSystemSettings};
 use project::device::DeviceSettings;
 
@@ -161,8 +163,6 @@ pub(crate) fn wire(
 
     {
         let weak_window = window.as_weak();
-        let input_devices = input_devices.clone();
-        let output_devices = output_devices.clone();
         let project_devices = project_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
@@ -179,20 +179,20 @@ pub(crate) fn wire(
             };
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
-                    let input_devices = match selected_device_settings(&input_devices, "input") {
+                    // The audio section shows one flat list (`project_devices`);
+                    // the config keeps inputs and outputs apart.
+                    let chosen = match selected_device_settings(&project_devices, "device") {
                         Ok(devices) => devices,
                         Err(error) => {
                             set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }
                     };
-                    let output_devices = match selected_device_settings(&output_devices, "output") {
-                        Ok(devices) => devices,
-                        Err(error) => {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                    };
+                    let (input_devices, output_devices) = split_by_direction(
+                        &chosen,
+                        &input_chain_devices.borrow(),
+                        &output_chain_devices.borrow(),
+                    );
                     let settings = GuiSystemSettings {
                         input_devices,
                         output_devices,
@@ -203,7 +203,7 @@ pub(crate) fn wire(
                         set_status_warning(
                             &window,
                             &toast_timer,
-                            "Selecione pelo menos um input e um output antes de continuar.",
+                            &rust_i18n::t!("status-wizard-select-devices"),
                         );
                         return;
                     }
@@ -274,7 +274,7 @@ pub(crate) fn wire(
                                 }
                             }
                             clear_status(&window, &toast_timer);
-                            window.set_show_audio_settings(false);
+                            crate::setup_wizard_wiring::audio_saved(&window);
                         }
                     }
                 }
@@ -321,20 +321,11 @@ pub(crate) fn wire(
                     // AppConfig using the same direction-split logic, so a subsequent
                     // whole-config re-save does not clobber the user's pick.
                     {
-                        // Mirrors split_device_settings_by_direction but for GuiAudioDeviceSettings.
-                        let gui_inputs: Vec<GuiAudioDeviceSettings> = project_device_settings
-                            .iter()
-                            .filter(|d| {
-                                input_descriptors.iter().any(|id| id.id == d.device_id)
-                                    || !output_descriptors.iter().any(|od| od.id == d.device_id)
-                            })
-                            .cloned()
-                            .collect();
-                        let gui_outputs: Vec<GuiAudioDeviceSettings> = project_device_settings
-                            .iter()
-                            .filter(|d| output_descriptors.iter().any(|od| od.id == d.device_id))
-                            .cloned()
-                            .collect();
+                        let (gui_inputs, gui_outputs) = split_by_direction(
+                            &project_device_settings,
+                            &input_descriptors,
+                            &output_descriptors,
+                        );
                         apply_audio_override(
                             &mut app_config.borrow_mut(),
                             &gui_inputs,
@@ -407,7 +398,9 @@ pub(crate) fn wire(
                     };
                     if !settings.is_complete() {
                         settings_window.set_status_message(
-                            "Selecione pelo menos um input e um output antes de continuar.".into(),
+                            rust_i18n::t!("status-wizard-select-devices")
+                                .as_ref()
+                                .into(),
                         );
                         return;
                     }

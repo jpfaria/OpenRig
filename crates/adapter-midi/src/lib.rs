@@ -68,7 +68,7 @@ pub(crate) fn register_rescan_sender(tx: std::sync::mpsc::Sender<()>) {
 /// One-call helper for the adapter that wants every profile from
 /// disk active out of the box. Scans `factory_dir` (install assets,
 /// e.g. the repo's `assets/midi-profiles/`) and `user_dir` (the user's
-/// per-app data dir, e.g. `~/.local/share/openrig/midi-profiles/`),
+/// folder, e.g. `~/.openrig/midi-profiles/`),
 /// concatenates everything, and spawns the daemon on a fresh thread.
 /// Either dir may be missing — empty contributes nothing.
 pub fn spawn_with_profiles_from(

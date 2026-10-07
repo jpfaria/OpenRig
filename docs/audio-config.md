@@ -1129,9 +1129,8 @@ Sample rates: 44.1/48/88.2/96/192 kHz. Buffer sizes: 32/64/128/256/512/1024/2048
 
 To change audio device settings in the UI, open the **Settings screen** (top bar) and select the **System / Audio interface** section. Sample rate, buffer size, bit depth, and language are **per-machine**, not per-project. They persist to `config.yaml`:
 
-- macOS: `~/Library/Application Support/OpenRig/config.yaml`
+- macOS and Linux: `~/.openrig/config.yaml`
 - Windows: `%APPDATA%\OpenRig\config.yaml`
-- Linux: `~/.config/OpenRig/config.yaml`
 
 Schema:
 

@@ -1468,3 +1468,35 @@ msgstr ""
 msgid "status-tone3000-no-installed-match"
 msgstr ""
 
+msgid "title-setup-wizard"
+msgstr ""
+
+msgid "title-section-tone3000"
+msgstr ""
+
+msgid "label-wizard-step"
+msgstr ""
+
+msgid "desc-wizard-language"
+msgstr ""
+
+msgid "desc-wizard-audio"
+msgstr ""
+
+msgid "desc-wizard-io"
+msgstr ""
+
+msgid "desc-wizard-tone3000"
+msgstr ""
+
+msgid "btn-wizard-back"
+msgstr ""
+
+msgid "btn-wizard-next"
+msgstr ""
+
+msgid "btn-wizard-skip"
+msgstr ""
+
+msgid "btn-wizard-finish"
+msgstr ""

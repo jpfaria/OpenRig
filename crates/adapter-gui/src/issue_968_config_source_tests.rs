@@ -37,7 +37,7 @@ fn a_config_in_the_working_directory_wins_over_the_app_config() {
 
 #[test]
 fn without_a_local_config_the_app_config_is_used() {
-    let app = PathBuf::from("/Users/someone/Library/Application Support/OpenRig/config.yaml");
+    let app = PathBuf::from("/Users/someone/.openrig/config.yaml");
     assert_eq!(
         resolve_config_path(None, &app, || false),
         app,

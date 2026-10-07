@@ -136,6 +136,9 @@ pub fn wire(
         });
     let for_app = on_change.clone();
     crate::SettingsBridge::get(window).on_change_language(move |idx: i32| for_app(idx));
+    // The setup wizard hosts the language section on the main window.
+    let for_wizard = on_change.clone();
+    crate::SettingsBridge::get(window).on_language_selected(move |idx: i32| for_wizard(idx));
     let for_settings = on_change;
     crate::SettingsBridge::get(project_settings_window)
         .on_language_selected(move |idx: i32| for_settings(idx));

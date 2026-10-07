@@ -101,7 +101,7 @@ everything that does not need his ear (log lines, `openrig://routes`,
    Same for your own probes or recorders that open the interface.
 2. **Isolate with `HOME`, not only `--config`.** The session loader reads the I/O
    bindings and device settings from the default config path
-   (`$HOME/Library/Application Support/OpenRig/config.yaml`), whatever `--config`
+   (`$HOME/.openrig/config.yaml`), whatever `--config`
    says. Write the test config there under a scratch `HOME` and pass the same path
    to `--config`. The owner's config and project are never read for writing.
 3. **Project format = the branch's.** `version:` must not exceed the branch's
@@ -116,7 +116,7 @@ everything that does not need his ear (log lines, `openrig://routes`,
    ```
    HOME=<scratch>/home DYLD_FALLBACK_LIBRARY_PATH=$PWD/$(ls -td target/debug/build/nam-*/out/lib | head -1) \
    OPENRIG_PLUGINS_ROOT=<plugins_path> RUST_LOG=info target/debug/adapter-gui \
-     --config "<scratch>/home/Library/Application Support/OpenRig/config.yaml" \
+     --config "<scratch>/home/.openrig/config.yaml" \
      --project <scratch>/project.yaml --mcp=127.0.0.1:4124 > <scratch>/app.log 2>&1
    ```
    Use a port other than 4123 (the owner's app).

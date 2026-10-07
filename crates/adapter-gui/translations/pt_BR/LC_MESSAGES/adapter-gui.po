@@ -1577,3 +1577,35 @@ msgstr "Buscar instalados pelo nome"
 msgid "status-tone3000-no-installed-match"
 msgstr "Nenhum plugin do TONE3000 instalado com esse nome."
 
+msgid "title-setup-wizard"
+msgstr "Configuração inicial"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "PASSO {} DE {}"
+
+msgid "desc-wizard-language"
+msgstr "Escolha o idioma do app. Dá para trocar depois em Configurações."
+
+msgid "desc-wizard-audio"
+msgstr "Ligue a interface de áudio onde a guitarra está plugada e ajuste a taxa de amostragem e o buffer."
+
+msgid "desc-wizard-io"
+msgstr "Dê nome às entradas e saídas da interface: em que canal a guitarra entra e por onde o som sai."
+
+msgid "desc-wizard-tone3000"
+msgstr "Cole sua chave do TONE3000 para buscar e instalar capturas de amps e pedais de dentro do app. Dá para colocar depois."
+
+msgid "btn-wizard-back"
+msgstr "Voltar"
+
+msgid "btn-wizard-next"
+msgstr "Avançar"
+
+msgid "btn-wizard-skip"
+msgstr "Pular"
+
+msgid "btn-wizard-finish"
+msgstr "Concluir"

@@ -16,7 +16,7 @@
 //! `load_app_config` / `save_app_config` helpers use.
 //!
 //! Tests attach a temp-dir path via `attach_io_config_path` so no global OS
-//! path (e.g. `~/Library/Application Support/OpenRig/config.yaml`) is ever
+//! path (e.g. `~/.openrig/config.yaml`) is ever
 //! touched.
 //!
 //! Reference-checking for Delete (reject when a chain block references the

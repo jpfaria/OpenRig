@@ -1564,3 +1564,35 @@ msgstr "इंस्टॉल किए गए नाम से खोजें"
 msgid "status-tone3000-no-installed-match"
 msgstr "इस नाम से कोई इंस्टॉल किया गया TONE3000 प्लगइन नहीं मिला।"
 
+msgid "title-setup-wizard"
+msgstr "प्रारंभिक सेटअप"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "चरण {} / {}"
+
+msgid "desc-wizard-language"
+msgstr "ऐप की भाषा चुनें। आप इसे बाद में सेटिंग्स में बदल सकते हैं।"
+
+msgid "desc-wizard-audio"
+msgstr "वह ऑडियो इंटरफ़ेस चालू करें जिसमें गिटार लगा है, फिर सैंपल रेट और बफ़र साइज़ सेट करें।"
+
+msgid "desc-wizard-io"
+msgstr "इंटरफ़ेस के इनपुट और आउटपुट को नाम दें: गिटार किस चैनल पर आता है और आवाज़ कहाँ से निकलती है।"
+
+msgid "desc-wizard-tone3000"
+msgstr "ऐप के अंदर से amp और पेडल कैप्चर खोजने और इंस्टॉल करने के लिए अपनी TONE3000 कुंजी चिपकाएँ। आप इसे बाद में भी जोड़ सकते हैं।"
+
+msgid "btn-wizard-back"
+msgstr "वापस"
+
+msgid "btn-wizard-next"
+msgstr "आगे"
+
+msgid "btn-wizard-skip"
+msgstr "छोड़ें"
+
+msgid "btn-wizard-finish"
+msgstr "समाप्त"

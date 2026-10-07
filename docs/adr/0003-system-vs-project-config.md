@@ -66,10 +66,10 @@ machine, does this value have to travel with it?"* is **yes**. Otherwise it belo
 `midi-map.yaml` (single global file) is split into:
 
 1. **MIDI device profile** — `input: Option<String>` only. Lives in
-   `~/.config/OpenRig/midi-profile.yaml` (and per-OS equivalents). One per machine.
+   `~/.openrig/midi-profile.yaml` (`%APPDATA%\OpenRig` on Windows). One per machine.
 2. **MIDI binding map** — `bindings: Vec<Binding>`. Lives under
    `RigProject.midi.bindings` inside `project.yaml`. Travels with the project. A
-   fallback `~/.config/OpenRig/midi-bindings.yaml` provides system-wide defaults when a
+   fallback `~/.openrig/midi-bindings.yaml` provides system-wide defaults when a
    project has no `midi:` field; the shipped `examples/midi-map.default.yaml` is the
    ultimate fallback.
 
