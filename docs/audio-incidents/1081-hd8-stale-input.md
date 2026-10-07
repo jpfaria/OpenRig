@@ -151,7 +151,10 @@ audio for about a second.
   whole list, kept by direction from the cached configs, so a scan of an
   unchanged device list builds no AudioUnit. The hot-plug counter counts the
   unfiltered list. `device_list_tests` fails if any other file of the crate
-  calls cpal's filtered lists or `description()`.
+  calls cpal's filtered lists or `description()`. Measured on the owner's
+  app with it (pid started 13:43 -03:00): the 39 AudioUnits are all built at
+  13:46:09, the first enumeration at startup, before any chain plays; the
+  six scans of 13:52:15–13:53:15 built none.
 
 ## Open
 
