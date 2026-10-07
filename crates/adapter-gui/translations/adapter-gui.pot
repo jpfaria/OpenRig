@@ -1483,9 +1483,6 @@ msgstr ""
 msgid "desc-wizard-io"
 msgstr ""
 
-msgid "desc-wizard-midi"
-msgstr ""
-
 msgid "desc-wizard-tone3000"
 msgstr ""
 

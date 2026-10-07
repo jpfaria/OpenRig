@@ -1590,9 +1590,6 @@ msgstr "Aktivieren Sie das Audio-Interface, an dem die Gitarre hängt, und stell
 msgid "desc-wizard-io"
 msgstr "Benennen Sie die Ein- und Ausgänge des Interfaces: auf welchem Kanal die Gitarre ankommt und wo der Klang hinausgeht."
 
-msgid "desc-wizard-midi"
-msgstr "Aktivieren Sie die MIDI-Controller oder Fußschalter, die Sie nutzen möchten. Kein Controller? Überspringen Sie diesen Schritt."
-
 msgid "desc-wizard-tone3000"
 msgstr "Fügen Sie Ihren TONE3000-Schlüssel ein, um Amp- und Pedal-Captures direkt in der App zu suchen und zu installieren. Sie können ihn auch später hinzufügen."
 

@@ -31,11 +31,12 @@ fn next_on_the_language_step_shows_the_audio_step() {
 }
 
 #[test]
-fn skip_on_the_midi_step_shows_the_last_step() {
-    let window = wired(3);
-    window.invoke_wizard_skip();
-    assert_eq!(window.get_wizard_step(), 4);
+fn next_on_the_io_step_shows_the_last_step() {
+    let window = wired(2);
+    window.invoke_wizard_next();
+    assert_eq!(window.get_wizard_step(), 3);
     assert!(window.get_wizard_step_last());
+    assert!(window.get_wizard_step_skippable());
 }
 
 #[test]
@@ -47,7 +48,7 @@ fn back_on_the_io_step_shows_the_audio_step() {
 
 #[test]
 fn next_on_the_last_step_closes_the_wizard() {
-    let window = wired(4);
+    let window = wired(3);
     window.invoke_wizard_next();
     assert!(!window.get_show_setup_wizard());
 }

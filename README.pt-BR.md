@@ -110,7 +110,7 @@ Esquerda: biblioteca de blocos, organizada por marca com arte de painel fiel ao 
 ## Início rápido
 
 1. **Instale** — veja [Instalar](#instalar).
-2. **Siga o assistente de configuração** — na primeira abertura ele passa por idioma, interface de áudio, I/O, MIDI e sua chave do TONE3000 (MIDI e TONE3000 dá pra pular).
+2. **Siga o assistente de configuração** — na primeira abertura ele passa por idioma, interface de áudio, I/O e sua chave do TONE3000 (o TONE3000 dá pra pular).
 3. **Monte uma chain** — arraste blocos entre Input e Output (Tuner → EQ → Drive → Amp → Cab → Reverb é um bom começo).
 4. **Ajuste em tempo real** — clique em qualquer bloco para abrir o editor; gire knobs enquanto toca.
 5. **Salve um preset** — presets são arquivos YAML puro na pasta definida em **Settings → Paths**. Compartilhe copiando e colando.
@@ -216,7 +216,7 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] **Bypass por bloco** — todo bloco pode ser ligado ou desligado ao vivo sem reconstruir a chain
 - [x] **Loaders de IR e NAM do usuário** — solta qualquer arquivo `.wav` de impulso ou captura `.nam` na chain em runtime
 - [x] **Navegador TONE3000** — busca no [TONE3000](https://www.tone3000.com) de dentro do app com a sua própria Secret Key e instala qualquer tone NAM ou IR como plugin (A1 ou A2, todas as capturas, knobs reais e nível calibrado); as capturas do TONE3000 não vêm mais no instalador. Veja [docs/tone3000.md](docs/tone3000.md).
-- [x] **Assistente de primeira configuração** — a primeira abertura te guia por idioma, interface de áudio, bindings de I/O, dispositivos MIDI e sua chave do TONE3000, passo a passo; os passos opcionais dá pra pular.
+- [x] **Assistente de primeira configuração** — a primeira abertura te guia por idioma, interface de áudio, bindings de I/O e sua chave do TONE3000, passo a passo; o passo do TONE3000 dá pra pular.
 - [x] **Formato de preset YAML aberto** — diffável, compartilhável por gist, scriptável; registry canônico de `MODEL_ID` documentado em [Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md)
 - [x] **Construção de timbre assistida por IA** — a skill [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) do Claude Code (entregue em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta timbres completos na rig viva a partir de uma música ou artista, via MCP
 - [x] **Bancos de presets + cenas por chain** — troque presets e cenas ao vivo por chain; cenas guardam apenas as diferenças de parâmetro (estilo Helix-Snapshot) para troca instantânea sem recarregar blocos ([#321](https://github.com/jpfaria/OpenRig/issues/321))

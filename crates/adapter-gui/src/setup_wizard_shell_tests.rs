@@ -30,11 +30,18 @@ fn the_wizard_reuses_the_settings_sections() {
         "SectionSystemLanguage",
         "SectionSystemAudio",
         "SectionSystemIoBindings",
-        "SectionSystemMidiDevices",
         "SectionSystemTone3000Key",
     ] {
         assert!(source.contains(section), "wizard must reuse {section}");
     }
+}
+
+#[test]
+fn the_wizard_has_no_midi_step() {
+    let source = ui("pages/setup_wizard.slint");
+    assert!(!source.contains("SectionSystemMidiDevices"));
+    assert!(!source.contains("title-section-midi-devices"));
+    assert!(!source.contains("desc-wizard-midi"));
 }
 
 #[test]

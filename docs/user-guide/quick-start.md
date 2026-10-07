@@ -8,7 +8,7 @@ See [Installing OpenRig](installation.md).
 
 ## 2. Follow the setup wizard
 
-On the first launch a setup wizard walks you through five steps: **Language**, **Audio interface**, **I/O bindings**, **MIDI devices** and your **TONE3000 key**. MIDI and TONE3000 are optional and have a **Skip** button; the others need an answer before you move on.
+On the first launch a setup wizard walks you through four steps: **Language**, **Audio interface**, **I/O bindings** and your **TONE3000 key**. TONE3000 is optional and has a **Skip** button; the others need an answer before you move on.
 
 On **Audio interface**, tick your interface and set the sample rate and buffer size. 48 kHz and a buffer of 128–256 samples is a good start: a smaller buffer means less latency, too small causes clicks. Pick at least one input and one output to continue.
 

@@ -1585,9 +1585,6 @@ msgstr "Activa la interfaz de audio donde está conectada la guitarra y ajusta l
 msgid "desc-wizard-io"
 msgstr "Nombra las entradas y salidas de la interfaz: por qué canal entra la guitarra y por dónde sale el sonido."
 
-msgid "desc-wizard-midi"
-msgstr "Activa los controladores MIDI o pedaleras que quieras usar. ¿Sin controlador? Salta este paso."
-
 msgid "desc-wizard-tone3000"
 msgstr "Pega tu clave de TONE3000 para buscar e instalar capturas de amplis y pedales desde la app. Puedes añadirla luego."
 

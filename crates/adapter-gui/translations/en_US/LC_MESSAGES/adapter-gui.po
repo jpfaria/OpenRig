@@ -1585,9 +1585,6 @@ msgstr "Turn on the audio interface your guitar is plugged into, then set its sa
 msgid "desc-wizard-io"
 msgstr "Name the inputs and outputs of your interface: which channel the guitar comes in on and where the sound goes out."
 
-msgid "desc-wizard-midi"
-msgstr "Turn on the MIDI controllers or footswitches you want to use. No controller? Skip this step."
-
 msgid "desc-wizard-tone3000"
 msgstr "Paste your TONE3000 key to search and install amp and pedal captures from inside the app. You can add it later."
 

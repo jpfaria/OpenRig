@@ -110,7 +110,7 @@ Left: block library, organized by brand with hardware-faithful panel art. Right:
 ## Quick Start
 
 1. **Install** — see [Install](#install).
-2. **Follow the setup wizard** — on first launch it walks language, audio interface, I/O, MIDI and your TONE3000 key (MIDI and TONE3000 can be skipped).
+2. **Follow the setup wizard** — on first launch it walks language, audio interface, I/O and your TONE3000 key (TONE3000 can be skipped).
 3. **Build a chain** — drop blocks between Input and Output (Tuner → EQ → Drive → Amp → Cab → Reverb is a good start).
 4. **Tweak in real time** — click any block to open its editor; turn knobs while you play.
 5. **Save a preset** — presets are plain YAML files in the folder set in **Settings → Paths**. Share by copy-paste.
@@ -216,7 +216,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
 - [x] **TONE3000 browser** — search [TONE3000](https://www.tone3000.com) from inside the app with your own Secret Key and install any NAM or IR tone as a plugin (A1 or A2, every capture, real knobs and calibrated level); TONE3000 captures are no longer bundled in the installer. See [docs/tone3000.md](docs/tone3000.md).
-- [x] **First-run setup wizard** — the first launch walks you through language, audio interface, I/O bindings, MIDI devices and your TONE3000 key, step by step; the optional steps can be skipped.
+- [x] **First-run setup wizard** — the first launch walks you through language, audio interface, I/O bindings and your TONE3000 key, step by step; the TONE3000 step can be skipped.
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md)
 - [x] **AI-assisted tone building** — the [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) Claude Code skill (shipped in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds full tones on the running rig from a song or artist name, via MCP
 - [x] **Per-chain preset banks + scenes** — switch presets and scenes live per chain; scenes store only parameter diffs (Helix-Snapshot style) for instant switching without reloading blocks ([#321](https://github.com/jpfaria/OpenRig/issues/321))

@@ -7,7 +7,8 @@ use infra_filesystem::AppConfig;
 use slint::ComponentHandle;
 
 use crate::setup_wizard_step::{
-    after_audio_saved, leaves_io_step, on_back, on_next, on_skip, SetupStep, WizardMove,
+    after_audio_saved, enters_audio_step, leaves_io_step, on_back, on_next, on_skip, SetupStep,
+    WizardMove,
 };
 use crate::state::ProjectSession;
 use crate::AppWindow;
@@ -40,6 +41,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: SetupWizardCtx) {
 fn apply(window: &AppWindow, ctx: &SetupWizardCtx, step: i32, mv: WizardMove) {
     if leaves_io_step(step, &mv) && ctx.project_session.borrow().is_none() {
         io_persist::persist(ctx.app_config.borrow().io_bindings.clone());
+    }
+    if enters_audio_step(&mv) {
+        crate::device_refresh_apply::refresh_now(false);
     }
     match mv {
         WizardMove::Goto(next) => show_step(window, next),

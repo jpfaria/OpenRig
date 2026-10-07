@@ -7,7 +7,6 @@ import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
-import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
 import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
 import { SectionSystemTone3000Key } from "settings/section_system_tone3000_key.slint";
 import { ToolBar } from "../components/tool_bar.slint";
@@ -20,7 +19,7 @@ export component SetupWizardPage inherits Rectangle {
     min-width: 720px;
     min-height: 480px;
 
-    // The step shown: 0 language, 1 audio, 2 I/O, 3 MIDI, 4 TONE3000.
+    // The step shown: 0 language, 1 audio, 2 I/O, 3 TONE3000.
     in property <int> step;
     in property <bool> step-skippable;
     in property <bool> step-last;
@@ -31,7 +30,7 @@ export component SetupWizardPage inherits Rectangle {
     callback back();
     callback skip();
 
-    private property <int> step-count: 5;
+    private property <int> step-count: 4;
     // The I/O binding opened on the bindings step, so "New binding" can open
     // the one it creates.
     private property <string> io-expanded-binding: "";
@@ -93,15 +92,9 @@ export component SetupWizardPage inherits Rectangle {
                     }
                     WizardStepRow {
                         number: 4;
-                        label: @tr("title-section-midi-devices");
+                        label: @tr("title-section-tone3000");
                         current: root.step == 3;
                         done: root.step > 3;
-                    }
-                    WizardStepRow {
-                        number: 5;
-                        label: @tr("title-section-tone3000");
-                        current: root.step == 4;
-                        done: root.step > 4;
                     }
                 }
             }
@@ -136,7 +129,6 @@ export component SetupWizardPage inherits Rectangle {
                             text: root.step == 0 ? @tr("title-section-language")
                                 : root.step == 1 ? @tr("title-section-audio-interface")
                                 : root.step == 2 ? @tr("title-section-io-bindings")
-                                : root.step == 3 ? @tr("title-section-midi-devices")
                                 : @tr("title-section-tone3000");
                             color: Theme.ink;
                             font-family: Locale.display-font-family;
@@ -162,7 +154,6 @@ export component SetupWizardPage inherits Rectangle {
                         text: root.step == 0 ? @tr("desc-wizard-language")
                             : root.step == 1 ? @tr("desc-wizard-audio")
                             : root.step == 2 ? @tr("desc-wizard-io")
-                            : root.step == 3 ? @tr("desc-wizard-midi")
                             : @tr("desc-wizard-tone3000");
                         color: Theme.ink-2;
                         font-size: Theme.min-font;
@@ -188,8 +179,7 @@ export component SetupWizardPage inherits Rectangle {
                             if root.step == 2 : SectionSystemIoBindings {
                                 expanded-binding-id <=> root.io-expanded-binding;
                             }
-                            if root.step == 3 : SectionSystemMidiDevices {}
-                            if root.step == 4 : SectionSystemTone3000Key {}
+                            if root.step == 3 : SectionSystemTone3000Key {}
                         }
                     }
                 }

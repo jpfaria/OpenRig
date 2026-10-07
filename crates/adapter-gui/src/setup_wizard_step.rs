@@ -5,7 +5,7 @@
 //! audio devices are saved are decided here, where a test can pin them.
 
 /// How many steps the wizard has.
-pub(crate) const STEP_COUNT: i32 = 5;
+pub(crate) const STEP_COUNT: i32 = 4;
 
 /// One page of the wizard, in the order the user walks them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,8 +13,7 @@ pub(crate) enum SetupStep {
     Language = 0,
     Audio = 1,
     IoBindings = 2,
-    Midi = 3,
-    Tone3000 = 4,
+    Tone3000 = 3,
 }
 
 impl SetupStep {
@@ -23,16 +22,15 @@ impl SetupStep {
             0 => Some(Self::Language),
             1 => Some(Self::Audio),
             2 => Some(Self::IoBindings),
-            3 => Some(Self::Midi),
-            4 => Some(Self::Tone3000),
+            3 => Some(Self::Tone3000),
             _ => None,
         }
     }
 
-    /// Optional steps: the app works without a MIDI controller or a TONE3000
-    /// key, but not without an audio device.
+    /// Optional steps: the app works without a TONE3000 key, but not without
+    /// an audio device.
     pub(crate) fn skippable(self) -> bool {
-        matches!(self, Self::Midi | Self::Tone3000)
+        self == Self::Tone3000
     }
 
     pub(crate) fn is_last(self) -> bool {
@@ -95,6 +93,11 @@ pub(crate) fn after_audio_saved(wizard_visible: bool, step: i32) -> Option<i32> 
 pub(crate) fn leaves_io_step(step: i32, mv: &WizardMove) -> bool {
     SetupStep::from_index(step) == Some(SetupStep::IoBindings)
         && matches!(mv, WizardMove::Goto(_) | WizardMove::Finish)
+}
+
+/// Whether a move shows the audio step, the moment the device list is read.
+pub(crate) fn enters_audio_step(mv: &WizardMove) -> bool {
+    *mv == WizardMove::Goto(SetupStep::Audio as i32)
 }
 
 #[cfg(test)]
