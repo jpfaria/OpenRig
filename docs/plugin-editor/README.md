@@ -44,8 +44,15 @@ the package.
 
 - An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
   (plugins folder included).
-- **Recovery:** the first edit keeps the original manifest, so the user can
-  restore the plugin to how it was.
+- **Versions:** every save is a new version of the manifest, and every
+  version is kept in the package (`versions/<n>.yaml`; version 1 is the
+  manifest before the first edit). Restoring an older version writes it
+  back as a new version, so the history never loses anything.
+- **Blocks keep their capture:** a block or preset saved against an older
+  version still plays the same capture. The capture file never changes, so
+  old values map to the file through the version they match, and from the
+  file to the current values. Saving an edit moves the open project's
+  blocks at once; projects and presets loaded later are moved on load.
 - **Redo:** the user can ask the app to build the parameters again. Redo
   reads the capture names again. For a plugin from TONE3000 it first checks
   the tone's `updated_at` and downloads the captures again when TONE3000 has
