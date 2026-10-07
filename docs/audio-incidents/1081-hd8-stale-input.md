@@ -76,6 +76,17 @@ audio for about a second.
   strong but correlational: CoreAudio's analytics for the 15:07:04 overload
   list `net.whatsapp.WhatsApp` at 512 frames, and its aggregate ran
   15:06:18.765–15:07:31.074.
+- A voice-processing client explains every episode: **REFUTED** — the owner
+  reports the break with and without WhatsApp running, and the marks agree:
+  no mark lists an aggregate on the HD 8, and in 4 of the 10 marks
+  (2026-10-05 23:01, 2026-10-06 18:11:36, 18:12:06, 18:12:36 UTC) OpenRig was
+  the only process with the HD 8 open. What starts those episodes is unknown.
+- OpenRig's own periodic device scan starts the episodes OpenRig is alone in:
+  **OPEN** — OpenRig enumerates every output device about every 10 s (each
+  pass about 1 s, `infra_cpal::device_enum` in its log), and its audio client
+  logs `AUHAL UpdateStreamFormats` while it does. Not measured against an
+  onset: the marks' 3 s of input start already stale, so the onset is
+  earlier than the mark.
 - Output-only clients (Spotify) are hit: **OPEN** — they never read the input,
   so they cannot show it; the output path was not measured.
 - The engine is clean again once every client stops the HD 8: **OPEN** — a
@@ -116,6 +127,10 @@ audio for about a second.
   the 100 ms pause is enough, and whether starting IO again on a broken
   engine can crash coreaudiod as it did once (Hypotheses).
 
+- Every mark keeps the system's audio log of the 5 minutes before it
+  (`system-audio-log.txt`, `adapter-gui/src/stepped_input_system_log.rs`), so
+  the next episode shows what the system and OpenRig did at the onset.
+
 ## Open
 
 - Why the HD 8 driver stops answering the HAL's eventlink after the IO
@@ -124,6 +139,8 @@ audio for about a second.
   occurrence).
 - What OpenRig can do on its own while another app's context is the broken
   one.
+- What starts the episodes with OpenRig alone on the HD 8 — the next mark's
+  `system-audio-log.txt` is the first evidence of it.
 
 ## Related
 

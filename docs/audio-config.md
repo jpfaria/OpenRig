@@ -1275,8 +1275,11 @@ not move when that happens, so each pipeline watches its own input channels.
   `input-<k>.wav` (the last seconds of each input stream, every device
   channel), `cycles-<k>.csv` (callback timing), `device-<k>.json` and
   `device-after-<k>.json` (the device at the trip and 3 s after the restart)
-  and `openrig.json` (the open streams and the chain's routes). The last 10
-  marks are kept.
+  `openrig.json` (the open streams and the chain's routes) and, on macOS,
+  `system-audio-log.txt` (the system's audio log of the 5 minutes before: the
+  audio daemon, the drivers and every app's audio client — who started or
+  stopped IO on the device, HAL errors; about 7 MB). The last 10 marks are
+  kept.
 
 The restart is not a fix — it should never be needed, and the mark is there
 to find the cause. On cpal it cuts OpenRig's sound on that device for the
