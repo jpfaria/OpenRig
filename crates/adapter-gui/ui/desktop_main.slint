@@ -314,6 +314,8 @@ export component DesktopMain inherits Rectangle {
                 homepage: OverlayBridge.plugin-info-data.homepage;
                 has-homepage: OverlayBridge.plugin-info-data.has-homepage;
                 show-close-button: true;
+                editable: OverlayBridge.plugin-info-editable;
+                edit-parameters => { OverlayBridge.edit-plugin-info(); }
                 open-homepage => { OverlayBridge.open-plugin-info-homepage(); }
                 close-window => { OverlayBridge.close-plugin-info(); }
             }

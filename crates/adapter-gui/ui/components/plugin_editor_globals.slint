@@ -1,0 +1,62 @@
+// Responsibility: carries the plugin editor window state.
+// One editor serves three uses: editing a plugin's parameters, creating a
+// capture plugin and naming a TONE3000 tone's parameters before it installs.
+// The wiring mirrors the draft onto this global; every edit goes back to it.
+import { SelectOption } from "../models.slint";
+
+// One parameter: a column of the grid.
+export struct EditorColumn {
+    name: string,
+    // 0 knob, 1 choice, 2 switch.
+    kind: int,
+}
+
+// One capture: a row of the grid.
+export struct EditorRow {
+    // The capture's original name.
+    source-name: string,
+    // The file it plays.
+    file: string,
+    // One value per column.
+    cells: [string],
+}
+
+export global PluginEditorBridge {
+    // ── Display state, mirrored by the wiring ──
+    // 0 edit, 1 create, 2 naming before an install.
+    in-out property <int> mode;
+    // The plugin's name.
+    in-out property <string> subject;
+    in-out property <[EditorColumn]> columns;
+    in-out property <[EditorRow]> rows;
+    // The kept versions, newest first.
+    in-out property <[SelectOption]> versions;
+    in-out property <string> error;
+    // A save, a create or a redo is running.
+    in-out property <bool> busy;
+    // The plugin came from TONE3000: its redo is an update.
+    in-out property <bool> tone3000;
+
+    // ── Create mode ──
+    in-out property <string> display-name;
+    in-out property <string> brand;
+    // Amp, preamp, gain pedal, cab, body.
+    in-out property <int> block-type;
+    // 0 NAM, 1 IR.
+    in-out property <int> backend;
+
+    // ── Intent, routed by the wiring ──
+    callback set-cell(int /* row */, int /* column */, string);
+    callback rename-column(int, string);
+    callback set-kind(int, int);
+    callback add-column();
+    callback remove-column(int);
+    callback add-files();
+    callback remove-row(int);
+    callback set-block-type(int);
+    callback set-backend(int);
+    callback restore(string /* version */);
+    callback redo();
+    callback save();
+    callback cancel();
+}

@@ -1569,3 +1569,157 @@ msgstr "インストール済みを名前で検索"
 msgid "status-tone3000-no-installed-match"
 msgstr "この名前に一致するインストール済みの TONE3000 プラグインはありません。"
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "プラグイン"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — プラグイン"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — プラグインエディター"
+
+msgid "title-plugins"
+msgstr "プラグイン"
+
+msgid "label-plugins-count"
+msgstr "{} 件インストール済み"
+
+msgid "label-plugins-origin"
+msgstr "入手元"
+
+msgid "option-plugins-origin-all"
+msgstr "すべて"
+
+msgid "option-plugins-origin-folder"
+msgstr "プラグインフォルダー"
+
+msgid "option-plugins-all-types"
+msgstr "すべての種類"
+
+msgid "placeholder-plugins-search"
+msgstr "名前で検索"
+
+msgid "placeholder-plugins-type-search"
+msgstr "種類を検索"
+
+msgid "status-plugins-no-type"
+msgstr "その名前の種類はありません。"
+
+msgid "status-plugins-none"
+msgstr "プラグインはまだありません。TONE3000 からインストールするか、作成してください。"
+
+msgid "status-plugins-no-match"
+msgstr "この条件に合うプラグインはありません。"
+
+msgid "label-plugins-captures"
+msgstr "{} キャプチャ"
+
+msgid "btn-plugins-create"
+msgstr "プラグインを作成"
+
+msgid "btn-plugins-info"
+msgstr "情報"
+
+msgid "btn-plugins-edit"
+msgstr "パラメーターを編集"
+
+msgid "btn-plugins-update"
+msgstr "TONE3000 から更新"
+
+msgid "btn-plugins-redo"
+msgstr "再構築"
+
+msgid "btn-plugins-uninstall"
+msgstr "アンインストール"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "アンインストールを確定"
+
+msgid "title-plugin-editor-edit"
+msgstr "パラメーターを編集"
+
+msgid "title-plugin-editor-create"
+msgstr "新しいプラグイン"
+
+msgid "title-plugin-editor-naming"
+msgstr "パラメーターに名前を付ける"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000 では各キャプチャが何を変えるか分かりません。パラメーターに名前を付けてインストールを完了してください。"
+
+msgid "status-plugin-editor-no-captures"
+msgstr "キャプチャを追加して始めましょう。"
+
+msgid "status-plugin-editor-no-version"
+msgstr "その番号のバージョンはありません。"
+
+msgid "label-plugin-editor-versions"
+msgstr "{} 個のバージョン"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "バージョンを復元"
+
+msgid "label-plugin-editor-name"
+msgstr "名前"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "プラグイン名"
+
+msgid "label-plugin-editor-brand"
+msgstr "ブランド"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "任意"
+
+msgid "label-plugin-editor-block"
+msgstr "ブロック"
+
+msgid "label-plugin-editor-plays"
+msgstr "再生方式"
+
+msgid "option-plugin-editor-amp"
+msgstr "アンプ"
+
+msgid "option-plugin-editor-preamp"
+msgstr "プリアンプ"
+
+msgid "option-plugin-editor-gain"
+msgstr "ゲイン"
+
+msgid "option-plugin-editor-cab"
+msgstr "キャビネット"
+
+msgid "option-plugin-editor-body"
+msgstr "ボディ"
+
+msgid "label-plugin-editor-capture"
+msgstr "キャプチャ"
+
+msgid "label-plugin-editor-kind"
+msgstr "種類"
+
+msgid "option-plugin-editor-choice"
+msgstr "リスト"
+
+msgid "option-plugin-editor-knob"
+msgstr "ノブ"
+
+msgid "option-plugin-editor-switch"
+msgstr "スイッチ"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "パラメーター"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "パラメーターを追加"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "パラメーターを削除"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "キャプチャを追加"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "キャプチャを削除"

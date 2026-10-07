@@ -1571,3 +1571,157 @@ msgstr "Rechercher les installés par nom"
 msgid "status-tone3000-no-installed-match"
 msgstr "Aucun plugin TONE3000 installé ne correspond à ce nom."
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "Plugins"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — Plugins"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — Éditeur de plugin"
+
+msgid "title-plugins"
+msgstr "Plugins"
+
+msgid "label-plugins-count"
+msgstr "{} installés"
+
+msgid "label-plugins-origin"
+msgstr "Origine"
+
+msgid "option-plugins-origin-all"
+msgstr "Tous"
+
+msgid "option-plugins-origin-folder"
+msgstr "Dossier des plugins"
+
+msgid "option-plugins-all-types"
+msgstr "Tous les types"
+
+msgid "placeholder-plugins-search"
+msgstr "Rechercher par nom"
+
+msgid "placeholder-plugins-type-search"
+msgstr "Rechercher un type"
+
+msgid "status-plugins-no-type"
+msgstr "Aucun type de ce nom."
+
+msgid "status-plugins-none"
+msgstr "Aucun plugin installé. Installez-en depuis TONE3000 ou créez-en un."
+
+msgid "status-plugins-no-match"
+msgstr "Aucun plugin ne correspond à ces filtres."
+
+msgid "label-plugins-captures"
+msgstr "{} captures"
+
+msgid "btn-plugins-create"
+msgstr "Créer un plugin"
+
+msgid "btn-plugins-info"
+msgstr "Infos"
+
+msgid "btn-plugins-edit"
+msgstr "Modifier les paramètres"
+
+msgid "btn-plugins-update"
+msgstr "Mettre à jour depuis TONE3000"
+
+msgid "btn-plugins-redo"
+msgstr "Reconstruire"
+
+msgid "btn-plugins-uninstall"
+msgstr "Désinstaller"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "Confirmer la désinstallation"
+
+msgid "title-plugin-editor-edit"
+msgstr "Modifier les paramètres"
+
+msgid "title-plugin-editor-create"
+msgstr "Nouveau plugin"
+
+msgid "title-plugin-editor-naming"
+msgstr "Nommez les paramètres"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000 n'indique pas ce que change chaque capture. Nommez les paramètres pour terminer l'installation."
+
+msgid "status-plugin-editor-no-captures"
+msgstr "Ajoutez des captures pour commencer."
+
+msgid "status-plugin-editor-no-version"
+msgstr "Aucune version avec ce numéro."
+
+msgid "label-plugin-editor-versions"
+msgstr "{} versions"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "Restaurer une version"
+
+msgid "label-plugin-editor-name"
+msgstr "Nom"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "Nom du plugin"
+
+msgid "label-plugin-editor-brand"
+msgstr "Marque"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "Facultatif"
+
+msgid "label-plugin-editor-block"
+msgstr "Bloc"
+
+msgid "label-plugin-editor-plays"
+msgstr "Joue"
+
+msgid "option-plugin-editor-amp"
+msgstr "Ampli"
+
+msgid "option-plugin-editor-preamp"
+msgstr "Préampli"
+
+msgid "option-plugin-editor-gain"
+msgstr "Gain"
+
+msgid "option-plugin-editor-cab"
+msgstr "Baffle"
+
+msgid "option-plugin-editor-body"
+msgstr "Caisse"
+
+msgid "label-plugin-editor-capture"
+msgstr "Capture"
+
+msgid "label-plugin-editor-kind"
+msgstr "Type"
+
+msgid "option-plugin-editor-choice"
+msgstr "Liste"
+
+msgid "option-plugin-editor-knob"
+msgstr "Bouton"
+
+msgid "option-plugin-editor-switch"
+msgstr "Interrupteur"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "Paramètre"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "Ajouter un paramètre"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "Retirer le paramètre"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "Ajouter des captures"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "Retirer la capture"

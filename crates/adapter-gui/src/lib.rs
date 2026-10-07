@@ -236,6 +236,7 @@ mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
+mod capture_file_chooser;
 mod chain_block_lists;
 mod chain_editor;
 mod chain_graph_adapter;
@@ -341,6 +342,20 @@ pub mod midi_profile_wiring;
 mod midi_selection_mirror;
 /// #1060: panic reports written to the session log.
 pub mod panic_log;
+mod plugin_editor_bridge_sync;
+mod plugin_editor_ctx;
+mod plugin_editor_draft;
+mod plugin_editor_intents;
+mod plugin_editor_link;
+mod plugin_info_window_open;
+mod plugin_library_events;
+mod plugin_library_session;
+mod plugin_windows_wiring;
+mod plugins_bridge_sync;
+mod plugins_ctx;
+mod plugins_intents;
+mod plugins_view;
+mod plugins_wiring;
 /// #1060: writes one stream to two sinks.
 pub mod tee_writer;
 mod tone3000_bridge_sync;

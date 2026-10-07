@@ -115,3 +115,5 @@ title-endpoints-path: "Ausgänge von Pfad %{path}"
 mixer-strip-di: "DI"
 mixer-strip-master: "MASTER"
 mixer-strip-looper: "LOOPER %{n}"
+# the plugin editor's kept versions
+option-plugin-editor-version: "Version %{n}"

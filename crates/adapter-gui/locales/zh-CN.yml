@@ -115,3 +115,5 @@ title-endpoints-path: "路径 %{path} 的输出"
 mixer-strip-di: "DI"
 mixer-strip-master: "总音量"
 mixer-strip-looper: "循环器 %{n}"
+# the plugin editor's kept versions
+option-plugin-editor-version: "版本 %{n}"

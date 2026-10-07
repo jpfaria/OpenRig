@@ -115,3 +115,5 @@ title-endpoints-path: "경로 %{path} 출력"
 mixer-strip-di: "DI"
 mixer-strip-master: "마스터"
 mixer-strip-looper: "루퍼 %{n}"
+# the plugin editor's kept versions
+option-plugin-editor-version: "버전 %{n}"

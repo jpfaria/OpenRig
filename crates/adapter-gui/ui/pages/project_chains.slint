@@ -14,6 +14,7 @@ import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { MixerBridge } from "../components/mixer_globals.slint";
 import { Tone3000Bridge } from "../components/tone3000_globals.slint";
 import { Tone3000LogoButton } from "../components/tone3000_logo_button.slint";
+import { PluginsBridge } from "../components/plugins_globals.slint";
 import { PlayerBridge } from "../components/player_globals.slint";
 import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
@@ -200,6 +201,13 @@ export component ProjectChainsPage inherits Rectangle {
             Tone3000LogoButton {
                 tooltip: @tr("tooltip-tone3000");
                 clicked => { Tone3000Bridge.open-tone3000-window(); }
+            }
+            // The catalog of the user's own plugins.
+            HeaderIconAction {
+                on-chrome: true;
+                icon: @image-url("../assets/vst3-plugin.svg");
+                tooltip: @tr("tooltip-plugins");
+                clicked => { PluginsBridge.open-plugins-window(); }
             }
             HeaderIconAction {
                 on-chrome: true;

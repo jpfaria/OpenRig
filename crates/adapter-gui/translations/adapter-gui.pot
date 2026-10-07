@@ -1468,3 +1468,157 @@ msgstr ""
 msgid "status-tone3000-no-installed-match"
 msgstr ""
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr ""
+
+msgid "title-window-plugins"
+msgstr ""
+
+msgid "title-window-plugin-editor"
+msgstr ""
+
+msgid "title-plugins"
+msgstr ""
+
+msgid "label-plugins-count"
+msgstr ""
+
+msgid "label-plugins-origin"
+msgstr ""
+
+msgid "option-plugins-origin-all"
+msgstr ""
+
+msgid "option-plugins-origin-folder"
+msgstr ""
+
+msgid "option-plugins-all-types"
+msgstr ""
+
+msgid "placeholder-plugins-search"
+msgstr ""
+
+msgid "placeholder-plugins-type-search"
+msgstr ""
+
+msgid "status-plugins-no-type"
+msgstr ""
+
+msgid "status-plugins-none"
+msgstr ""
+
+msgid "status-plugins-no-match"
+msgstr ""
+
+msgid "label-plugins-captures"
+msgstr ""
+
+msgid "btn-plugins-create"
+msgstr ""
+
+msgid "btn-plugins-info"
+msgstr ""
+
+msgid "btn-plugins-edit"
+msgstr ""
+
+msgid "btn-plugins-update"
+msgstr ""
+
+msgid "btn-plugins-redo"
+msgstr ""
+
+msgid "btn-plugins-uninstall"
+msgstr ""
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr ""
+
+msgid "title-plugin-editor-edit"
+msgstr ""
+
+msgid "title-plugin-editor-create"
+msgstr ""
+
+msgid "title-plugin-editor-naming"
+msgstr ""
+
+msgid "status-plugin-editor-naming"
+msgstr ""
+
+msgid "status-plugin-editor-no-captures"
+msgstr ""
+
+msgid "status-plugin-editor-no-version"
+msgstr ""
+
+msgid "label-plugin-editor-versions"
+msgstr ""
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr ""
+
+msgid "label-plugin-editor-name"
+msgstr ""
+
+msgid "placeholder-plugin-editor-name"
+msgstr ""
+
+msgid "label-plugin-editor-brand"
+msgstr ""
+
+msgid "placeholder-plugin-editor-brand"
+msgstr ""
+
+msgid "label-plugin-editor-block"
+msgstr ""
+
+msgid "label-plugin-editor-plays"
+msgstr ""
+
+msgid "option-plugin-editor-amp"
+msgstr ""
+
+msgid "option-plugin-editor-preamp"
+msgstr ""
+
+msgid "option-plugin-editor-gain"
+msgstr ""
+
+msgid "option-plugin-editor-cab"
+msgstr ""
+
+msgid "option-plugin-editor-body"
+msgstr ""
+
+msgid "label-plugin-editor-capture"
+msgstr ""
+
+msgid "label-plugin-editor-kind"
+msgstr ""
+
+msgid "option-plugin-editor-choice"
+msgstr ""
+
+msgid "option-plugin-editor-knob"
+msgstr ""
+
+msgid "option-plugin-editor-switch"
+msgstr ""
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr ""
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr ""
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr ""
+
+msgid "btn-plugin-editor-add-captures"
+msgstr ""
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr ""

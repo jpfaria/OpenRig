@@ -1,0 +1,127 @@
+// Responsibility: renders one plugin of the catalog.
+// The name with its maker, type, backend, architecture and captures, a
+// TONE3000 mark when it came from there, and its actions: info, edit, redo
+// (update for TONE3000) and the trash, which arms on the first click and
+// removes on the second. #398 vocabulary: a raised settings card, tag pills,
+// icon buttons, the danger confirm.
+import { Theme } from "../theme.slint";
+import { PluginRow } from "plugins_globals.slint";
+import { SettingsCard } from "settings_card.slint";
+import { TagPill } from "tag_pill.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+
+export component PluginLibraryItem inherits SettingsCard {
+    in property <PluginRow> plugin;
+    callback info();
+    callback edit();
+    callback redo();
+    callback uninstall();
+    private property <bool> armed;
+
+    height: 68px;
+    border-color: root.armed ? Theme.bad : Theme.hair;
+
+    HorizontalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        spacing: 8px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 5px;
+            alignment: center;
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: root.plugin.name;
+                    color: Theme.ink;
+                    font-size: Theme.min-font;
+                    font-weight: 700;
+                    overflow: elide;
+                }
+                if root.plugin.brand != "" : Text {
+                    text: root.plugin.brand;
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    overflow: elide;
+                }
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                if root.plugin.tone3000 : TagPill {
+                    text: "TONE3000";
+                    tone: Theme.accent;
+                }
+                TagPill {
+                    text: root.plugin.type-label;
+                    tone: Theme.ink-2;
+                }
+                TagPill {
+                    text: root.plugin.backend;
+                    tone: Theme.ink-2;
+                }
+                if root.plugin.arch != "" : TagPill {
+                    text: root.plugin.arch;
+                    tone: root.plugin.arch == "A2" ? Theme.in : Theme.ok;
+                }
+                if root.plugin.captures > 0 : TagPill {
+                    text: @tr("label-plugins-captures", root.plugin.captures);
+                    tone: Theme.ink-3;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/info.svg");
+                icon-only: true;
+                label: @tr("btn-plugins-info");
+                clicked => { root.info(); }
+            }
+        }
+        if root.plugin.editable : VerticalLayout {
+            alignment: center;
+            FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/pencil.svg");
+                icon-only: true;
+                label: @tr("btn-plugins-edit");
+                clicked => { root.edit(); }
+            }
+        }
+        if root.plugin.editable : VerticalLayout {
+            alignment: center;
+            FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/redo.svg");
+                icon-only: true;
+                enabled: !root.plugin.busy;
+                label: root.plugin.tone3000 ? @tr("btn-plugins-update") : @tr("btn-plugins-redo");
+                clicked => { root.redo(); }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            if !root.armed : FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/trash.svg");
+                icon-only: true;
+                label: @tr("btn-plugins-uninstall");
+                clicked => { root.armed = true; }
+            }
+            if root.armed : FormButton {
+                kind: FormButtonKind.danger;
+                icon: @image-url("../assets/trash.svg");
+                label: @tr("btn-plugins-uninstall-confirm");
+                clicked => {
+                    root.armed = false;
+                    root.uninstall();
+                }
+            }
+        }
+    }
+}

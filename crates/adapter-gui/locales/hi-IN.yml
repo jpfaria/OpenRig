@@ -115,3 +115,5 @@ title-endpoints-path: "पाथ %{path} के आउटपुट"
 mixer-strip-di: "DI"
 mixer-strip-master: "मास्टर"
 mixer-strip-looper: "लूपर %{n}"
+# the plugin editor's kept versions
+option-plugin-editor-version: "संस्करण %{n}"

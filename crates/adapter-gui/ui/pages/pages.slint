@@ -22,8 +22,13 @@ import { DrumsWindow, DrumsPanel } from "drums_window.slint";
 import { DrumsBridge, DrumPickRow } from "../components/drums_globals.slint";
 import { Tone3000Window } from "tone3000_window.slint";
 import { Tone3000Bridge, Tone3000ToneRow, Tone3000InstalledRow } from "../components/tone3000_globals.slint";
+import { PluginsWindow } from "plugins_window.slint";
+import { PluginsBridge, PluginRow } from "../components/plugins_globals.slint";
+import { PluginEditorWindow } from "plugin_editor_window.slint";
+import { PluginEditorBridge, EditorColumn, EditorRow } from "../components/plugin_editor_globals.slint";
 
 export { SettingsPage }
+export { PluginsWindow, PluginsBridge, PluginRow, PluginEditorWindow, PluginEditorBridge, EditorColumn, EditorRow }
 export { ProjectLauncherPage, ProjectSetupPage, ProjectChainsPage, BlockEditorPanel, ChainEditorPage, ChainInsertEditorPage, ChainPortEditorPage, BlockPanelEditor, CompactChainViewPage, CurveEditorControl, MultiSliderControl, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow, MetronomePanel, MetronomeBridge, MixerWindow, MixerPanel, MixerBridge, MixerStripRow, PlayerWindow, PlayerPanel, PlayerBridge, PlayerTrackRow, DrumsWindow, DrumsPanel, DrumsBridge, DrumPickRow, Tone3000Window, Tone3000Bridge, Tone3000ToneRow, Tone3000InstalledRow }
 
 export component WizardConfigPage inherits Rectangle {

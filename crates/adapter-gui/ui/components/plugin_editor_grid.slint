@@ -1,0 +1,136 @@
+// Responsibility: renders the capture grid of the plugin editor.
+// One row per capture with its original name, one column per parameter with
+// its name, its kind and a remove button, and a value per cell. Cell edits go
+// straight to the draft, so typing keeps its focus. #398 vocabulary: the
+// form's text fields and segmented choices on raised cards.
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { PluginEditorBridge } from "plugin_editor_globals.slint";
+import { TextField } from "text_field.slint";
+import { SegControl } from "seg_control.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+import { FieldCaption } from "field_caption.slint";
+
+export component PluginEditorGrid inherits Rectangle {
+    private property <length> name-w: 220px;
+    private property <length> cell-w: 236px;
+    private property <length> gap: 8px;
+
+    background: Theme.well;
+
+    ScrollView {
+        content-width: max(self.visible-width, root.name-w + PluginEditorBridge.columns.length * (root.cell-w + root.gap) + 64px);
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 6px;
+            alignment: start;
+
+            // ── Header: one card per parameter ──
+            HorizontalLayout {
+                spacing: root.gap;
+                alignment: start;
+                Rectangle {
+                    width: root.name-w;
+                    FieldCaption {
+                        y: parent.height - self.height - 6px;
+                        text: @tr("label-plugin-editor-capture");
+                        color: Theme.ink-3;
+                    }
+                }
+                for column[c] in PluginEditorBridge.columns : Rectangle {
+                    width: root.cell-w;
+                    height: head.preferred-height;
+                    border-radius: 4px;
+                    background: Theme.panel;
+                    border-width: 1px;
+                    border-color: Theme.hair;
+                    head := VerticalLayout {
+                        padding: 8px;
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            TextField {
+                                horizontal-stretch: 1;
+                                text: column.name;
+                                placeholder: @tr("placeholder-plugin-editor-parameter");
+                                edited(text) => { PluginEditorBridge.rename-column(c, text); }
+                            }
+                            FormButton {
+                                kind: FormButtonKind.ghost;
+                                icon: @image-url("../assets/close.svg");
+                                icon-only: true;
+                                small: true;
+                                enabled: !PluginEditorBridge.busy;
+                                label: @tr("btn-plugin-editor-remove-parameter");
+                                clicked => { PluginEditorBridge.remove-column(c); }
+                            }
+                        }
+                        SegControl {
+                            label: @tr("label-plugin-editor-kind");
+                            options: [@tr("option-plugin-editor-knob"), @tr("option-plugin-editor-choice"), @tr("option-plugin-editor-switch")];
+                            current: column.kind;
+                            picked(k) => { PluginEditorBridge.set-kind(c, k); }
+                        }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    FormButton {
+                        icon: @image-url("../assets/plus.svg");
+                        icon-only: true;
+                        enabled: !PluginEditorBridge.busy;
+                        label: @tr("btn-plugin-editor-add-parameter");
+                        clicked => { PluginEditorBridge.add-column(); }
+                    }
+                }
+            }
+
+            // ── One line per capture ──
+            for row[r] in PluginEditorBridge.rows : HorizontalLayout {
+                spacing: root.gap;
+                alignment: start;
+                height: 40px;
+                Rectangle {
+                    width: root.name-w;
+                    border-radius: 4px;
+                    background: Theme.panel;
+                    border-width: 1px;
+                    border-color: Theme.hair;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 4px;
+                        spacing: 4px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: row.source-name;
+                            color: Theme.ink-2;
+                            font-size: Theme.min-font;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                        if PluginEditorBridge.mode == 1 : VerticalLayout {
+                            alignment: center;
+                            FormButton {
+                                kind: FormButtonKind.ghost;
+                                icon: @image-url("../assets/close.svg");
+                                icon-only: true;
+                                small: true;
+                                label: @tr("btn-plugin-editor-remove-capture");
+                                clicked => { PluginEditorBridge.remove-row(r); }
+                            }
+                        }
+                    }
+                }
+                for cell[c] in row.cells : VerticalLayout {
+                    width: root.cell-w;
+                    alignment: center;
+                    TextField {
+                        text: cell;
+                        edited(text) => { PluginEditorBridge.set-cell(r, c, text); }
+                    }
+                }
+            }
+        }
+    }
+}
