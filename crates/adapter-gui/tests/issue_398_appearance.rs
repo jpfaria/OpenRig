@@ -88,7 +88,7 @@ fn a_window_opened_later_starts_in_the_chosen_scheme() {
         "chain_crud_wiring.rs",
         "block_editor_window_setup.rs",
         "compact_chain_callbacks.rs",
-        "block_editor_window_delete.rs",
+        "plugin_info_window_open.rs",
     ] {
         let body = src(file);
         let opened = body.matches("Window::new()").count();
