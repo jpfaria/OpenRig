@@ -1,0 +1,139 @@
+// Responsibility: renders the plugin editor window.
+// Editing a plugin shows its versions with a restore, the redo (an update
+// for a TONE3000 plugin) and the grid; creating one adds its fields above
+// the grid; naming a TONE3000 tone says why the names are asked. Save sends
+// the draft, Cancel leaves it — and drops a tone that waits for names.
+// #398 vocabulary: the dark tool bar, the well, the dialog foot.
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { Select } from "../components/select.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { DialogFoot } from "../components/dialog_foot.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { PluginEditorBridge } from "../components/plugin_editor_globals.slint";
+import { PluginEditorGrid } from "../components/plugin_editor_grid.slint";
+import { PluginEditorCreateForm } from "../components/plugin_editor_create_form.slint";
+
+export component PluginEditorPanel inherits Rectangle {
+    background: Theme.well;
+
+    VerticalLayout {
+        ToolBar {
+            icon: PluginEditorBridge.mode == 1 ? @image-url("../assets/plus.svg") : @image-url("../assets/pencil.svg");
+            title: PluginEditorBridge.mode == 0 ? @tr("title-plugin-editor-edit")
+                : PluginEditorBridge.mode == 1 ? @tr("title-plugin-editor-create")
+                : @tr("title-plugin-editor-naming");
+            sub: PluginEditorBridge.subject;
+
+            if PluginEditorBridge.mode == 0 && PluginEditorBridge.versions.length > 0 : Select {
+                width: 180px;
+                options: PluginEditorBridge.versions;
+                field-label: @tr("label-plugin-editor-versions", PluginEditorBridge.versions.length);
+                search-placeholder: @tr("placeholder-plugin-editor-version-search");
+                empty-text: @tr("status-plugin-editor-no-version");
+                popup-width: 220px;
+                picked(key) => { PluginEditorBridge.restore(key); }
+            }
+            if PluginEditorBridge.mode == 0 : FormButton {
+                icon: @image-url("../assets/redo.svg");
+                icon-only: true;
+                enabled: !PluginEditorBridge.busy;
+                label: PluginEditorBridge.tone3000 ? @tr("btn-plugins-update") : @tr("btn-plugins-redo");
+                clicked => { PluginEditorBridge.redo(); }
+            }
+        }
+
+        VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+
+            if PluginEditorBridge.mode == 2 : Text {
+                text: @tr("status-plugin-editor-naming");
+                color: Theme.ink-2;
+                font-size: Theme.min-font;
+                wrap: word-wrap;
+            }
+
+            if PluginEditorBridge.mode == 1 : PluginEditorCreateForm { }
+
+            if PluginEditorBridge.error != "" : Rectangle {
+                height: max(40px, err.preferred-height + 16px);
+                border-radius: 4px;
+                background: Theme.bad-soft;
+                border-width: 1px;
+                border-color: Theme.bad;
+                err := Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: PluginEditorBridge.error;
+                    color: Theme.ink;
+                    font-size: Theme.min-font;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                vertical-stretch: 1;
+
+                if PluginEditorBridge.rows.length == 0 : Text {
+                    x: 24px;
+                    width: parent.width - 48px;
+                    text: @tr("status-plugin-editor-no-captures");
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    wrap: word-wrap;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                if PluginEditorBridge.rows.length > 0 : PluginEditorGrid {
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+        }
+
+        DialogFoot {
+            FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/close.svg");
+                icon-only: true;
+                label: @tr("btn-cancel");
+                clicked => { PluginEditorBridge.cancel(); }
+            }
+            FormButton {
+                kind: FormButtonKind.primary;
+                icon: @image-url("../assets/save.svg");
+                icon-only: true;
+                enabled: !PluginEditorBridge.busy && PluginEditorBridge.rows.length > 0;
+                label: @tr("btn-save");
+                clicked => { PluginEditorBridge.save(); }
+            }
+        }
+    }
+}
+
+// The standalone window is only a host for the panel. Closing it cancels.
+export component PluginEditorWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: Locale.font-family;
+    default-font-size: 18px;
+    title: @tr("title-window-plugin-editor");
+    min-width: 760px;
+    min-height: 480px;
+    preferred-width: 1040px;
+    preferred-height: 680px;
+    background: Theme.well;
+
+    PluginEditorPanel {
+        width: 100%;
+        height: 100%;
+    }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
+}

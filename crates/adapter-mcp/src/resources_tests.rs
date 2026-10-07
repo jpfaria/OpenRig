@@ -54,6 +54,10 @@ fn every_query_kind() -> Vec<QueryKind> {
         QueryKind::FindPlugins {
             query: "reverb".into(),
         },
+        QueryKind::PluginLibrary,
+        QueryKind::PluginLibraryGrid {
+            plugin_id: "my_amp".into(),
+        },
     ]
 }
 

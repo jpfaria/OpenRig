@@ -77,6 +77,10 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::OutputRoutes,
         QueryKind::MixerState,
         QueryKind::ChainMixer { chain },
+        QueryKind::PluginLibrary,
+        QueryKind::PluginLibraryGrid {
+            plugin_id: "x".to_string(),
+        },
     ]
 }
 

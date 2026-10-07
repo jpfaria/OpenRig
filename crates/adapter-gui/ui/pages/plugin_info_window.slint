@@ -12,6 +12,7 @@ import { Theme, Gear } from "../theme.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FieldCaption } from "../components/field_caption.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
 import { Locale } from "../locale_globals.slint";
 import { WindowBoundsProbe } from "../components/window_bounds.slint";
 import { HoverTipLayer } from "../components/hover_tip_layer.slint";
@@ -27,11 +28,14 @@ export component PluginInfoPanel inherits Rectangle {
     in property <string> homepage: "";
     in property <bool> has-homepage: false;
     in property <bool> show-close-button: false;
+    // The user's capture plugin, whose parameters the editor can change.
+    in property <bool> editable: false;
     // The height the content wants at the current width.
     out property <length> content-height: root.bar-h + root.body-h;
 
     callback open-homepage();
     callback close-window();
+    callback edit-parameters();
 
     private property <length> bar-h: 46px;
     private property <bool> two-col: root.width >= 560px;
@@ -66,6 +70,14 @@ export component PluginInfoPanel inherits Rectangle {
         width: parent.width;
         title: root.plugin-name;
 
+        if root.editable : FormButton {
+            kind: FormButtonKind.ghost;
+            icon: @image-url("../assets/pencil.svg");
+            icon-only: true;
+            small: true;
+            label: @tr("btn-plugins-edit");
+            clicked => { root.edit-parameters(); }
+        }
         if root.show-close-button : ToolBarClose {
             clicked => { root.close-window(); }
         }
@@ -270,9 +282,11 @@ export component PluginInfoWindow inherits Window {
     in property <string> license: "";
     in property <string> homepage: "";
     in property <bool> has-homepage: false;
+    in property <bool> editable: false;
 
     callback open-homepage();
     callback close-window();
+    callback edit-parameters();
 
     PluginInfoPanel {
         width: parent.width;
@@ -287,6 +301,8 @@ export component PluginInfoWindow inherits Window {
         homepage: root.homepage;
         has-homepage: root.has-homepage;
         show-close-button: false;
+        editable: root.editable;
+        edit-parameters => { root.edit-parameters(); }
         open-homepage => { root.open-homepage(); }
         close-window => { root.close-window(); }
     }

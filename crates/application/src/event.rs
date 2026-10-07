@@ -10,6 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::command::{BlockId, ChainId};
+pub use crate::plugin_library_event::PluginLibraryEvent;
 pub use crate::tone3000_event::Tone3000Event;
 
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
@@ -276,6 +277,8 @@ pub enum Event {
 
     /// #879: the TONE3000 browser — key, search and install outcomes.
     Tone3000(crate::tone3000_event::Tone3000Event),
+    /// The plugins the user owns — saves, versions, removals, creations.
+    PluginLibrary(PluginLibraryEvent),
 
     /// Tempo-synced params of this chain were rewritten for a new BPM.
     /// The dispatcher already synced the runtime; a frontend only refreshes.

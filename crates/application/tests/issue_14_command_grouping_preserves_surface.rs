@@ -189,6 +189,14 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetTone3000ApiKey",
     "UninstallTone3000",
     "UpdateTone3000",
+    "FinishTone3000Install",
+    "CancelTone3000Install",
+    // The plugin library: editing, versioning and creating owned plugins.
+    "CreatePlugin",
+    "RedoPluginParameters",
+    "RestorePluginVersion",
+    "SavePluginParameters",
+    "UninstallPlugin",
 ];
 
 #[test]

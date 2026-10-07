@@ -1,0 +1,58 @@
+// Responsibility: carries the plugin catalog window state.
+// The wiring mirrors the user's plugins onto this global and routes every
+// intent back as a command. Plugins that ship with the app never reach it.
+import { SelectOption } from "../models.slint";
+
+// One plugin the user owns.
+export struct PluginRow {
+    plugin-id: string,
+    name: string,
+    brand: string,
+    // The effect type the info window reads it as (`preamp`, `cab`, …).
+    effect-type: string,
+    type-label: string,
+    // NAM, IR, LV2, VST3, …
+    backend: string,
+    // "A1", "A2", or "".
+    arch: string,
+    captures: int,
+    // It came from TONE3000: its redo is an update.
+    tone3000: bool,
+    // A capture plugin, whose parameters the editor can change.
+    editable: bool,
+    // A redo of it is running.
+    busy: bool,
+}
+
+export global PluginsBridge {
+    // ── Display state, mirrored by the wiring ──
+    in-out property <[PluginRow]> rows;
+    // Every plugin, before the filters.
+    in-out property <int> total;
+    // The type filter's choices, already narrowed by its search.
+    in-out property <[SelectOption]> types;
+    in-out property <string> error;
+    // The label of the type filter's first choice, which lists every type.
+    out property <string> all-types-label: @tr("option-plugins-all-types");
+
+    // ── View state owned by the window ──
+    // 0 every origin, 1 the plugins folder, 2 TONE3000.
+    in-out property <int> origin;
+    // An effect type, or "" for every type.
+    in-out property <string> type-key;
+    in-out property <string> type-label;
+    in-out property <string> query;
+
+    // ── Intent, routed by the wiring ──
+    callback open-plugins-window();
+    // Any filter changed: list again.
+    callback filter();
+    // The type filter's search changed.
+    callback type-query(string);
+    callback info(string /* plugin-id */, string /* effect-type */);
+    callback edit(string);
+    // Read the capture names again; for TONE3000, download a newer version.
+    callback redo(string);
+    callback uninstall(string);
+    callback create();
+}

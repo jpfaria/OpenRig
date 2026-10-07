@@ -179,6 +179,11 @@ pub trait CommandDispatcher {
         crate::tone3000_state::Tone3000Snapshot::default()
     }
 
+    /// The folder whose plugins the user owns, for the library reads.
+    fn plugin_library_roots(&self) -> crate::plugin_library::PluginRoots {
+        crate::plugin_library::PluginRoots::default()
+    }
+
     /// #127: share the frontend's per-machine I/O binding registry handle, so
     /// the binding commands mutate the same allocation the frontend renders
     /// from and re-installs on every runtime sync. A transport with no

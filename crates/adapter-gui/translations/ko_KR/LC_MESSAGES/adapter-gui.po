@@ -1567,6 +1567,160 @@ msgstr "설치된 항목을 이름으로 검색"
 msgid "status-tone3000-no-installed-match"
 msgstr "이 이름과 일치하는 설치된 TONE3000 플러그인이 없습니다."
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "플러그인"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — 플러그인"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — 플러그인 편집기"
+
+msgid "title-plugins"
+msgstr "플러그인"
+
+msgid "label-plugins-count"
+msgstr "{}개 설치됨"
+
+msgid "label-plugins-origin"
+msgstr "출처"
+
+msgid "option-plugins-origin-all"
+msgstr "전체"
+
+msgid "option-plugins-origin-folder"
+msgstr "플러그인 폴더"
+
+msgid "option-plugins-all-types"
+msgstr "모든 유형"
+
+msgid "placeholder-plugins-search"
+msgstr "이름으로 검색"
+
+msgid "placeholder-plugins-type-search"
+msgstr "유형 검색"
+
+msgid "status-plugins-no-type"
+msgstr "해당 이름의 유형이 없습니다."
+
+msgid "status-plugins-none"
+msgstr "설치된 플러그인이 없습니다. TONE3000에서 설치하거나 새로 만드세요."
+
+msgid "status-plugins-no-match"
+msgstr "조건에 맞는 플러그인이 없습니다."
+
+msgid "label-plugins-captures"
+msgstr "캡처 {}개"
+
+msgid "btn-plugins-create"
+msgstr "플러그인 만들기"
+
+msgid "btn-plugins-info"
+msgstr "정보"
+
+msgid "btn-plugins-edit"
+msgstr "파라미터 편집"
+
+msgid "btn-plugins-update"
+msgstr "TONE3000에서 업데이트"
+
+msgid "btn-plugins-redo"
+msgstr "다시 만들기"
+
+msgid "btn-plugins-uninstall"
+msgstr "제거"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "제거 확인"
+
+msgid "title-plugin-editor-edit"
+msgstr "파라미터 편집"
+
+msgid "title-plugin-editor-create"
+msgstr "새 플러그인"
+
+msgid "title-plugin-editor-naming"
+msgstr "파라미터 이름 지정"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000이 각 캡처가 무엇을 바꾸는지 알려주지 않았습니다. 설치를 마치려면 파라미터 이름을 지정하세요."
+
+msgid "status-plugin-editor-no-captures"
+msgstr "캡처를 추가해 시작하세요."
+
+msgid "status-plugin-editor-no-version"
+msgstr "해당 번호의 버전이 없습니다."
+
+msgid "label-plugin-editor-versions"
+msgstr "버전 {}개"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "버전 복원"
+
+msgid "label-plugin-editor-name"
+msgstr "이름"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "플러그인 이름"
+
+msgid "label-plugin-editor-brand"
+msgstr "브랜드"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "선택 사항"
+
+msgid "label-plugin-editor-block"
+msgstr "블록"
+
+msgid "label-plugin-editor-plays"
+msgstr "재생 방식"
+
+msgid "option-plugin-editor-amp"
+msgstr "앰프"
+
+msgid "option-plugin-editor-preamp"
+msgstr "프리앰프"
+
+msgid "option-plugin-editor-gain"
+msgstr "게인"
+
+msgid "option-plugin-editor-cab"
+msgstr "캐비닛"
+
+msgid "option-plugin-editor-body"
+msgstr "바디"
+
+msgid "label-plugin-editor-capture"
+msgstr "캡처"
+
+msgid "label-plugin-editor-kind"
+msgstr "종류"
+
+msgid "option-plugin-editor-choice"
+msgstr "목록"
+
+msgid "option-plugin-editor-knob"
+msgstr "노브"
+
+msgid "option-plugin-editor-switch"
+msgstr "스위치"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "파라미터"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "파라미터 추가"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "파라미터 삭제"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "캡처 추가"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "캡처 삭제"
 msgid "title-setup-wizard"
 msgstr "초기 설정"
 

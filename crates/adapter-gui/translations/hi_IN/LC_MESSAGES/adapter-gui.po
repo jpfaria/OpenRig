@@ -1564,6 +1564,160 @@ msgstr "इंस्टॉल किए गए नाम से खोजें"
 msgid "status-tone3000-no-installed-match"
 msgstr "इस नाम से कोई इंस्टॉल किया गया TONE3000 प्लगइन नहीं मिला।"
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "प्लगइन"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — प्लगइन"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — प्लगइन संपादक"
+
+msgid "title-plugins"
+msgstr "प्लगइन"
+
+msgid "label-plugins-count"
+msgstr "{} इंस्टॉल"
+
+msgid "label-plugins-origin"
+msgstr "स्रोत"
+
+msgid "option-plugins-origin-all"
+msgstr "सभी"
+
+msgid "option-plugins-origin-folder"
+msgstr "प्लगइन फ़ोल्डर"
+
+msgid "option-plugins-all-types"
+msgstr "सभी प्रकार"
+
+msgid "placeholder-plugins-search"
+msgstr "नाम से खोजें"
+
+msgid "placeholder-plugins-type-search"
+msgstr "प्रकार खोजें"
+
+msgid "status-plugins-no-type"
+msgstr "इस नाम का कोई प्रकार नहीं।"
+
+msgid "status-plugins-none"
+msgstr "अभी कोई प्लगइन इंस्टॉल नहीं है। TONE3000 से इंस्टॉल करें या नया बनाएं।"
+
+msgid "status-plugins-no-match"
+msgstr "इन फ़िल्टर से कोई प्लगइन मेल नहीं खाता।"
+
+msgid "label-plugins-captures"
+msgstr "{} कैप्चर"
+
+msgid "btn-plugins-create"
+msgstr "प्लगइन बनाएं"
+
+msgid "btn-plugins-info"
+msgstr "जानकारी"
+
+msgid "btn-plugins-edit"
+msgstr "पैरामीटर संपादित करें"
+
+msgid "btn-plugins-update"
+msgstr "TONE3000 से अपडेट करें"
+
+msgid "btn-plugins-redo"
+msgstr "फिर से बनाएं"
+
+msgid "btn-plugins-uninstall"
+msgstr "अनइंस्टॉल करें"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "अनइंस्टॉल की पुष्टि करें"
+
+msgid "title-plugin-editor-edit"
+msgstr "पैरामीटर संपादित करें"
+
+msgid "title-plugin-editor-create"
+msgstr "नया प्लगइन"
+
+msgid "title-plugin-editor-naming"
+msgstr "पैरामीटर के नाम दें"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000 यह नहीं बता सका कि हर कैप्चर क्या बदलता है। इंस्टॉल पूरा करने के लिए पैरामीटर के नाम दें।"
+
+msgid "status-plugin-editor-no-captures"
+msgstr "शुरू करने के लिए कैप्चर जोड़ें।"
+
+msgid "status-plugin-editor-no-version"
+msgstr "इस संख्या का कोई संस्करण नहीं।"
+
+msgid "label-plugin-editor-versions"
+msgstr "{} संस्करण"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "संस्करण पुनर्स्थापित करें"
+
+msgid "label-plugin-editor-name"
+msgstr "नाम"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "प्लगइन का नाम"
+
+msgid "label-plugin-editor-brand"
+msgstr "ब्रांड"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "वैकल्पिक"
+
+msgid "label-plugin-editor-block"
+msgstr "ब्लॉक"
+
+msgid "label-plugin-editor-plays"
+msgstr "चलाता है"
+
+msgid "option-plugin-editor-amp"
+msgstr "एम्प"
+
+msgid "option-plugin-editor-preamp"
+msgstr "प्रीएम्प"
+
+msgid "option-plugin-editor-gain"
+msgstr "गेन"
+
+msgid "option-plugin-editor-cab"
+msgstr "कैब"
+
+msgid "option-plugin-editor-body"
+msgstr "बॉडी"
+
+msgid "label-plugin-editor-capture"
+msgstr "कैप्चर"
+
+msgid "label-plugin-editor-kind"
+msgstr "प्रकार"
+
+msgid "option-plugin-editor-choice"
+msgstr "सूची"
+
+msgid "option-plugin-editor-knob"
+msgstr "नॉब"
+
+msgid "option-plugin-editor-switch"
+msgstr "स्विच"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "पैरामीटर"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "पैरामीटर जोड़ें"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "पैरामीटर हटाएं"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "कैप्चर जोड़ें"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "कैप्चर हटाएं"
 msgid "title-setup-wizard"
 msgstr "प्रारंभिक सेटअप"
 
