@@ -1563,6 +1563,160 @@ msgstr "按名称搜索已安装"
 msgid "status-tone3000-no-installed-match"
 msgstr "没有与此名称匹配的已安装 TONE3000 插件。"
 
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "插件"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — 插件"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — 插件编辑器"
+
+msgid "title-plugins"
+msgstr "插件"
+
+msgid "label-plugins-count"
+msgstr "已安装 {} 个"
+
+msgid "label-plugins-origin"
+msgstr "来源"
+
+msgid "option-plugins-origin-all"
+msgstr "全部"
+
+msgid "option-plugins-origin-folder"
+msgstr "插件文件夹"
+
+msgid "option-plugins-all-types"
+msgstr "所有类型"
+
+msgid "placeholder-plugins-search"
+msgstr "按名称搜索"
+
+msgid "placeholder-plugins-type-search"
+msgstr "搜索类型"
+
+msgid "status-plugins-no-type"
+msgstr "没有该名称的类型。"
+
+msgid "status-plugins-none"
+msgstr "尚未安装插件。可从 TONE3000 安装或新建一个。"
+
+msgid "status-plugins-no-match"
+msgstr "没有符合筛选条件的插件。"
+
+msgid "label-plugins-captures"
+msgstr "{} 个捕获"
+
+msgid "btn-plugins-create"
+msgstr "新建插件"
+
+msgid "btn-plugins-info"
+msgstr "信息"
+
+msgid "btn-plugins-edit"
+msgstr "编辑参数"
+
+msgid "btn-plugins-update"
+msgstr "从 TONE3000 更新"
+
+msgid "btn-plugins-redo"
+msgstr "重建"
+
+msgid "btn-plugins-uninstall"
+msgstr "卸载"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "确认卸载"
+
+msgid "title-plugin-editor-edit"
+msgstr "编辑参数"
+
+msgid "title-plugin-editor-create"
+msgstr "新插件"
+
+msgid "title-plugin-editor-naming"
+msgstr "为参数命名"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000 未说明每个捕获改变了什么。请为参数命名以完成安装。"
+
+msgid "status-plugin-editor-no-captures"
+msgstr "添加捕获以开始。"
+
+msgid "status-plugin-editor-no-version"
+msgstr "没有该编号的版本。"
+
+msgid "label-plugin-editor-versions"
+msgstr "{} 个版本"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "恢复版本"
+
+msgid "label-plugin-editor-name"
+msgstr "名称"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "插件名称"
+
+msgid "label-plugin-editor-brand"
+msgstr "品牌"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "可选"
+
+msgid "label-plugin-editor-block"
+msgstr "模块"
+
+msgid "label-plugin-editor-plays"
+msgstr "播放方式"
+
+msgid "option-plugin-editor-amp"
+msgstr "放大器"
+
+msgid "option-plugin-editor-preamp"
+msgstr "前级"
+
+msgid "option-plugin-editor-gain"
+msgstr "增益"
+
+msgid "option-plugin-editor-cab"
+msgstr "箱体"
+
+msgid "option-plugin-editor-body"
+msgstr "琴体"
+
+msgid "label-plugin-editor-capture"
+msgstr "捕获"
+
+msgid "label-plugin-editor-kind"
+msgstr "类型"
+
+msgid "option-plugin-editor-choice"
+msgstr "列表"
+
+msgid "option-plugin-editor-knob"
+msgstr "旋钮"
+
+msgid "option-plugin-editor-switch"
+msgstr "开关"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "参数"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "添加参数"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "移除参数"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "添加捕获"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "移除捕获"
 msgid "title-setup-wizard"
 msgstr "初始设置"
 

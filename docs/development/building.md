@@ -43,19 +43,19 @@ The NAM engine is C++ and is built by cargo itself: `crates/nam/build.rs` unpack
 
 ## Plugins (models)
 
-Amps, pedals, cabs, IRs and LV2 plugins live in [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins), not in this repository. Without them the block picker is empty.
+The open-source LV2 and VST3 plugins live in this repository under `plugins/source/lv2/` and `plugins/source/vst3/` (Git LFS, ~600 MB). A dev run from the checkout root finds them on its own (`<cwd>/plugins`), so pull them once:
 
 ```bash
-git clone https://github.com/jpfaria/OpenRig-plugins.git
+git lfs pull --include="plugins/source/**"
 ```
 
-Point OpenRig at `OpenRig-plugins/plugins/source`, either in **Settings → Paths → Plugins** or for one run:
+NAM and IR captures are not part of OpenRig and never ship in the installers. To load your own, point an extra plugin root at them, either in **Settings → Paths → Plugins** or for one run:
 
 ```bash
-OPENRIG_PLUGINS_ROOT=/path/to/OpenRig-plugins/plugins/source ./target/release/adapter-gui
+OPENRIG_PLUGINS_ROOT=/path/to/captures ./target/release/adapter-gui
 ```
 
-Lookup order: `OPENRIG_PLUGINS_ROOT`, then the path set in Settings, then `plugins/` inside the app's data folder.
+The app scans both roots: the bundled `plugins/` folder and the user root (`OPENRIG_PLUGINS_ROOT`, then the path set in Settings). How the binaries are built and committed: [plugin-binaries.md](plugin-binaries.md).
 
 ## Binaries
 
@@ -71,14 +71,14 @@ Packages install the GUI as `openrig` and ship the other three next to it as `op
 ## Packaging and installing a local build
 
 ```bash
-OPENRIG_PLUGINS_DIR=/path/to/OpenRig-plugins/plugins/source ./scripts/install-macos-local.sh
+./scripts/install-macos-local.sh
 ```
 
-This packages the current checkout as a `.dmg` (`scripts/package-macos.sh`) and installs it to `/Applications`. Every script is listed in [scripts.md](../scripts.md).
+This packages the current checkout, with its `plugins/source` tree, as a `.dmg` (`scripts/package-macos.sh`) and installs it to `/Applications`. Every script is listed in [scripts.md](../scripts.md).
 
-## LV2 plugin libraries
+## LV2 / VST3 plugin libraries
 
-`scripts/build-lib.sh <plugin|all> [--platform linux-x86_64|linux-aarch64|windows-x64|all]` builds the native LV2 libraries that OpenRig-plugins ships; `--list` shows the plugins. Cross-platform builds run in Docker (`docker/Dockerfile.build-libs`). The app build does not need this.
+`scripts/build-lib.sh <plugin|all> [--platform linux-x86_64|linux-aarch64|windows-x64|all]` builds the native LV2 and VST3 binaries under `plugins/source/` from the `deps/` submodules; `--list` shows the plugins. Cross-platform builds run in Docker (`docker/Dockerfile.build-libs`). The app build does not need this. Details: [plugin-binaries.md](plugin-binaries.md).
 
 ## CI
 

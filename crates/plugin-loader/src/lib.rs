@@ -27,6 +27,7 @@ mod registry_load;
 mod registry_natives;
 mod registry_query;
 pub mod validate;
+pub mod version_store;
 
 pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};
 pub use discover::{discover, DiscoveryError, LoadedPackage};

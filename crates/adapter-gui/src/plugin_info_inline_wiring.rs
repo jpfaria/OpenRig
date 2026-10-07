@@ -4,12 +4,14 @@
 //! In fullscreen / touch modes the secondary `PluginInfoWindow` does not
 //! surface (Orange Pi / kiosk), so the AppWindow exposes its own inline
 //! overlay driven by `show_plugin_info` + a flat set of `plugin_info_*`
-//! properties. This module wires the three callbacks that drive it:
+//! properties. This module wires the callbacks that drive it:
 //!
 //! * `on_show_plugin_info(effect_type, model_id)` — populates the metadata
 //!   properties from the catalog + plugin_info store, loads the screenshot,
 //!   then flips `show_plugin_info` to `true`.
 //! * `on_close_plugin_info` — flips it back to `false`.
+//! * `on_edit_plugin_info` — closes the overlay and opens the parameter
+//!   editor on the plugin, when the user owns it.
 //! * `on_open_plugin_info_homepage` — opens the homepage stored at the last
 //!   `show` invocation in the system browser.
 //!
@@ -26,10 +28,12 @@ use crate::AppWindow;
 
 pub(crate) fn wire(window: &AppWindow) {
     let homepage_store: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+    let model_store: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
     {
         let weak = window.as_weak();
         let homepage_store = homepage_store.clone();
+        let model_store = model_store.clone();
         window.on_show_plugin_info(move |effect_type, model_id| {
             let Some(window) = weak.upgrade() else {
                 return;
@@ -40,6 +44,10 @@ pub(crate) fn wire(window: &AppWindow) {
                 &system_language(),
             );
             *homepage_store.borrow_mut() = homepage;
+            *model_store.borrow_mut() = model_id.to_string();
+            crate::OverlayBridge::get(&window).set_plugin_info_editable(
+                crate::plugin_editor_link::is_editable(model_id.as_str()),
+            );
             crate::OverlayBridge::get(&window).set_plugin_info_data(data);
             crate::OverlayBridge::get(&window).set_plugin_info_visible(true);
         });
@@ -51,6 +59,16 @@ pub(crate) fn wire(window: &AppWindow) {
             if let Some(window) = weak.upgrade() {
                 crate::OverlayBridge::get(&window).set_plugin_info_visible(false);
             }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        crate::OverlayBridge::get(window).on_edit_plugin_info(move || {
+            if let Some(window) = weak.upgrade() {
+                crate::OverlayBridge::get(&window).set_plugin_info_visible(false);
+            }
+            crate::plugin_editor_link::open(&model_store.borrow());
         });
     }
 

@@ -203,7 +203,7 @@ if [ -d plugins/source ]; then
     PLUGIN_COUNT=$(find "$S/usr/share/openrig/plugins" -name 'manifest.yaml' | wc -l | tr -d ' ')
     echo "    bundled plugins ($PLUGIN_COUNT package(s)); dropped $dropped_dirs non-${ARCH} platform dirs"
 else
-    echo "WARN: plugins/source/ not found — run OpenRig-plugins's pack_plugins or check out the plugin tree first"
+    echo "WARN: plugins/source/ not found — pull the plugin tree first (git lfs pull --include='plugins/source/**')"
 fi
 
 # Bundle gettext .mo translations under FHS share/. The runtime resolver

@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: ZamGate — gate with sidechain input.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

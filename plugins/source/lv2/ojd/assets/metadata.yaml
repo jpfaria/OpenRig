@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: OJD — open-source OCD-style overdrive by Schrammel.
+    license: GPL-3.0
+    homepage: https://github.com/JohannesSchramm/OJD
+  pt-BR:
+    description: OJD — overdrive open source estilo OCD por Schrammel.
+    license: GPL-3.0
+    homepage: https://github.com/JohannesSchramm/OJD

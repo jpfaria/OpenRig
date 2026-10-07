@@ -133,4 +133,14 @@ pub enum QueryKind {
     /// [`crate::query_chain_mixer::chain_mixer_json`]; MCP serves it as
     /// `openrig://chains/{chain}/mixer`.
     ChainMixer { chain: domain::ids::ChainId },
+    /// The plugins the user owns — the plugins folder and TONE3000
+    /// installs, never the bundled ones — with their origin and saved
+    /// versions. Serialized by
+    /// [`crate::query_plugin_library::plugin_library_json`]; MCP serves it
+    /// as `openrig://plugin-library`.
+    PluginLibrary,
+    /// One owned plugin's capture grid as the editor shows it. Serialized
+    /// by [`crate::query_plugin_library::plugin_grid_json`]; MCP serves it
+    /// as `openrig://plugin-library/{id}`.
+    PluginLibraryGrid { plugin_id: String },
 }

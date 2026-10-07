@@ -1,0 +1,48 @@
+{
+  "Name": "reTuner",
+  "Version": "1.1.0",
+  "Factory Info": {
+    "Vendor": "Kushview",
+    "URL": "https://kushview.net",
+    "E-Mail": "support@kushview.net",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB4B7368565265746E",
+      "Category": "Audio Module Class",
+      "Name": "reTuner",
+      "Vendor": "Kushview",
+      "Version": "1.1.0",
+      "SDKVersion": "VST 3.8.0",
+      "Sub Categories": [
+        "Fx",
+        "Pitch Shift",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD4B7368565265746E",
+      "Category": "Component Controller Class",
+      "Name": "reTuner",
+      "Vendor": "Kushview",
+      "Version": "1.1.0",
+      "SDKVersion": "VST 3.8.0",
+      "Sub Categories": [
+        "Fx",
+        "Pitch Shift",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

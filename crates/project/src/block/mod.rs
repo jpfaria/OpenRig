@@ -13,10 +13,13 @@
 pub mod audio_block_methods;
 pub mod block_params;
 pub mod block_walk;
+pub mod capture_engine_params;
 pub mod core_block_methods;
 mod disk_audio_mode;
 pub mod dispatch;
+pub mod grid_follow;
 mod grid_schema;
+pub mod grid_version_follow;
 mod ir_schema;
 mod lv2_bundle_ports;
 mod lv2_schema;

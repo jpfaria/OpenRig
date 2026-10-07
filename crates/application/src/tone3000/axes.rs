@@ -9,6 +9,10 @@ use super::name_tokens::{remove_constant_tokens, tokenize};
 use super::natural_sort::sort_values;
 use super::token_class::{classify_name, Token};
 
+/// The parameter of raw words the inference falls back to when it cannot
+/// read some capture names.
+pub const PRESET_AXIS: &str = "preset";
+
 /// What the captures are: NAM names can carry knob settings, IR names cannot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureKind {
@@ -92,6 +96,6 @@ fn axis_name(key: AxisKey, knobs: &[&'static str]) -> String {
     match key {
         AxisKey::Knob(i) => knobs[i].to_string(),
         AxisKey::Choice(kind) => kind.axis_name().to_string(),
-        AxisKey::Preset => "preset".to_string(),
+        AxisKey::Preset => PRESET_AXIS.to_string(),
     }
 }

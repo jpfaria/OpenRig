@@ -182,6 +182,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // window has the panel open.
     crate::tone_doctor_events::apply(events);
     crate::appearance_events::apply(events);
+    crate::plugin_library_events::apply(events);
 
     // #591: a footswitch `toggle_compact_view` → SetCompactViewEnabled emits
     // this. The compact view is a per-chain window opened via the same

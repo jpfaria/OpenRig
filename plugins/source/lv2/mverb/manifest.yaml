@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mverb
+display_name: MVerb
+description: MVerb — studio-quality reverb based on the Dattorro reverb algorithm.
+brand: distrho
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/DISTRHO/MVerb
+type: reverb
+backend: lv2
+plugin_uri: http://distrho.sf.net/plugins/MVerb
+binaries:
+  macos-universal: platform/macos-universal/MVerb_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/MVerb_dsp.dll
+  linux-x86_64: platform/linux-x86_64/MVerb_dsp.so
+  linux-aarch64: platform/linux-aarch64/MVerb_dsp.so

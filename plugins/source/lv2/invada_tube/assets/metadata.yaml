@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Invada Tube — tube saturation/warmth plugin.
+    license: GPL-2.0
+    homepage: https://launchpad.net/invada-studio-plugins-lv2
+  pt-BR:
+    description: Invada Tube — saturação e calor de válvula.
+    license: GPL-2.0
+    homepage: https://launchpad.net/invada-studio-plugins-lv2

@@ -1,0 +1,55 @@
+manifest_version: 1
+id: vst3_homecorrupter
+display_name: Lo-fi homecorrupter
+description: homecorrupter — lo-fi degrader / downsampler by igorski.
+brand: igorski
+license: MIT
+homepage: https://github.com/igorski/homecorrupter
+type: vst3
+backend: vst3
+bundle: bundles/homecorrupter.vst3
+parameters:
+  - vst3_id: 0
+    name: resample_rate
+    display_name: "Resample rate"
+    group: "General"
+  - vst3_id: 1
+    name: resolution
+    display_name: "Resolution"
+    group: "General"
+  - vst3_id: 2
+    name: playback_rate
+    display_name: "Playback rate"
+    group: "Playback"
+  - vst3_id: 3
+    name: resampling_lfo
+    display_name: "Resampling LFO"
+    group: "Resampling"
+  - vst3_id: 4
+    name: resampling_lfo_depth
+    display_name: "Resampling LFO depth"
+    group: "Resampling"
+  - vst3_id: 5
+    name: bit_crush_lfo
+    display_name: "Bit crush LFO"
+    group: "Bit"
+  - vst3_id: 6
+    name: bit_crush_lfo_depth
+    display_name: "Bit crush LFO depth"
+    group: "Bit"
+  - vst3_id: 7
+    name: playback_lfo
+    display_name: "Playback LFO"
+    group: "Playback"
+  - vst3_id: 8
+    name: playback_lfo_depth
+    display_name: "Playback LFO depth"
+    group: "Playback"
+  - vst3_id: 9
+    name: wet_mix
+    display_name: "Wet mix"
+    group: "General"
+  - vst3_id: 10
+    name: dry_mix
+    display_name: "Dry mix"
+    group: "General"

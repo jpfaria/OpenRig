@@ -1,0 +1,44 @@
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix pset:  <http://lv2plug.in/ns/ext/presets#> .
+
+<default-preset_filta>
+	a pset:Preset ;
+	lv2:appliesTo <http://www.openavproductions.com/artyfx#filta> ;
+	lv2:port [
+		lv2:symbol "frequency_control" ;
+		pset:value 0.5
+	] .
+
+<default-preset_kuiza>
+	a pset:Preset ;
+	lv2:appliesTo <http://www.openavproductions.com/artyfx#kuiza> ;
+	lv2:port [
+		lv2:symbol "Level" ; # Gain, gain
+		pset:value 0.5
+	] , [
+		lv2:symbol "Low" ; # Low Gain, gain_1
+		pset:value 0.5
+	] , [
+		lv2:symbol "Lo_Mid" ; # LoMid Gain, gain_2
+		pset:value 0.5
+	] , [
+		lv2:symbol "Hi_Mid" ; # HiMid Gain, gain_3
+		pset:value 0.5
+	] , [
+		lv2:symbol "High" ; # High Gain, gain_4
+		pset:value 0.5
+	] .
+
+<default-preset_roomy>
+	a pset:Preset ;
+	lv2:appliesTo <http://www.openavproductions.com/artyfx#roomy> ;
+	lv2:port [
+		lv2:symbol "damping" ;
+		pset:value 0.5
+	] , [
+		lv2:symbol "dry_wet" ;
+		pset:value 0.5
+	] , [
+		lv2:symbol "time" ;
+		pset:value 0.5
+	] .

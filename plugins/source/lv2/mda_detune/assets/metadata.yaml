@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: MDA Detune — subtle pitch detuner for doubling effect.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

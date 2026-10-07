@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_luftikus
+display_name: Luftikus
+description: Luftikus — analog-style fixed-band EQ with air band (lkjb, GPL port).
+brand: lkjb
+license: GPL-3.0
+homepage: https://github.com/DISTRHO/DISTRHO-Ports
+type: filter
+backend: lv2
+plugin_uri: https://code.google.com/p/lkjb-plugins/luftikus
+binaries:
+  macos-universal: platform/macos-universal/Luftikus-lv2.dylib
+  linux-x86_64: platform/linux-x86_64/Luftikus-lv2.so
+  linux-aarch64: platform/linux-aarch64/Luftikus-lv2.so

@@ -118,6 +118,8 @@ pub fn run_desktop_app(
         player_window,
         drums_window,
         tone3000_window,
+        plugins_window,
+        plugin_editor_window,
         chain_editor_window,
         plugin_info_window,
     } = windows;
@@ -147,6 +149,8 @@ pub fn run_desktop_app(
             player_window: &player_window,
             drums_window: &drums_window,
             tone3000_window: &tone3000_window,
+            plugins_window: &plugins_window,
+            plugin_editor_window: &plugin_editor_window,
             chain_editor_window: chain_editor_window.clone(),
             plugin_info_window: plugin_info_window.clone(),
         },
@@ -521,18 +525,18 @@ pub fn run_desktop_app(
         open_compact_window: open_compact_window.clone(),
     };
     crate::chain_rig_nav_wiring::wire(&window, nav_ctx.clone());
-    // #879: the TONE3000 browser; what its tick drains reaches the UI as the
-    // MCP drain's events do.
-    let (weak_main, events_ctx) = (window.as_weak(), nav_ctx.clone());
-    crate::tone3000_wiring::wire_tone3000(
+    let plugin_windows = crate::plugins_wiring::PluginWindows {
+        catalog: &plugins_window,
+        editor: &plugin_editor_window,
+        info: plugin_info_window.clone(),
+    };
+    let tone3000 = &tone3000_window;
+    crate::plugin_windows_wiring::wire(
         &window,
-        &tone3000_window,
+        tone3000,
+        plugin_windows,
         &project_session,
-        Rc::new(move |events: &[application::event::Event]| {
-            if let Some(w) = weak_main.upgrade() {
-                crate::chain_rig_nav_wiring::apply_events_to_ui(&w, &events_ctx, events);
-            }
-        }),
+        nav_ctx.clone(),
     );
     crate::tone3000_links::wire_open_settings(&tone3000_window, &window, &project_settings_window);
     crate::plugin_info_inline_wiring::wire(&window);

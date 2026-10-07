@@ -89,6 +89,7 @@ impl Event {
             | Event::Player(_)
             // #879: the TONE3000 browser is app-wide.
             | Event::Tone3000(_)
+            | Event::PluginLibrary(_)
             | Event::DrumsTransportChanged { .. }
             | Event::DrumFillTriggered
             | Event::DrumsSettingsChanged { .. }

@@ -29,4 +29,5 @@ block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }
 
 [dev-dependencies]
+plugin-loader = { path = "../plugin-loader" }
 tempfile = "3"

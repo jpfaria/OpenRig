@@ -12,26 +12,21 @@
     WiXToolset.WiXToolset, MSYS2.MSYS2 plus
     `C:\msys64\usr\bin\pacman.exe -S mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-winpthreads-git`,
     and optionally ImageMagick.ImageMagick for the installer icon.
-    The plugin tree comes from a local OpenRig-plugins checkout (with LFS).
+    The LV2/VST3 plugins come from this repo's plugins\source (Git LFS, #1093).
     Output lands in dist\.
 
 .PARAMETER Version
-    Version stamped into the package, e.g. "0.6.2" (default: dev)
-
-.PARAMETER PluginsRoot
-    OpenRig-plugins checkout (default: ..\OpenRig-plugins next to this repo)
+    Version stamped into the package, e.g. "0.7.0-beta.1" (default: dev)
 
 .EXAMPLE
-    pwsh .\scripts\build-windows-installer.ps1 0.6.2 -PluginsRoot C:\openrig-plugins
+    pwsh .\scripts\build-windows-installer.ps1 0.7.0-beta.1
 #>
 param(
-    [string]$Version = "dev",
-    [string]$PluginsRoot = ""
+    [string]$Version = "dev"
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-if (-not $PluginsRoot) { $PluginsRoot = Join-Path (Split-Path -Parent $RepoRoot) "OpenRig-plugins" }
 Push-Location $RepoRoot
 
 try {
@@ -46,24 +41,9 @@ try {
     cargo build --release -p adapter-gui -p adapter-console -p adapter-console-rig -p adapter-render
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed with exit code $LASTEXITCODE" }
 
-    Write-Host "==> Linking the plugin tree from $PluginsRoot..."
-    $pluginSource = Join-Path $PluginsRoot "plugins\source"
-    if (-not (Test-Path $pluginSource)) { throw "no plugins\source under $PluginsRoot (clone OpenRig-plugins with LFS)" }
-    # Only the LV2 and VST3 plugins ship with the app; NAM and IR come from
-    # the user's own plugins folder. plugins\source holds one junction per
-    # kept kind, so removing it never touches the checkout.
-    $staged = "plugins\source"
-    if (Test-Path $staged) {
-        $item = Get-Item $staged
-        if (-not $item.LinkType) { Get-ChildItem $staged | ForEach-Object { $_.Delete() } }
-        $item.Delete()
-    }
-    New-Item -ItemType Directory -Force $staged | Out-Null
-    foreach ($kind in @("lv2", "vst3")) {
-        $target = Join-Path $pluginSource $kind
-        if (-not (Test-Path $target)) { throw "no $kind under $pluginSource" }
-        New-Item -ItemType Junction -Path (Join-Path $staged $kind) -Target $target | Out-Null
-    }
+    Write-Host "==> Fetching the plugin binaries (Git LFS)..."
+    git lfs pull
+    if ($LASTEXITCODE -ne 0) { throw "git lfs pull failed with exit code $LASTEXITCODE" }
 
     & (Join-Path $RepoRoot "scripts\package-windows.ps1") $Version
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }

@@ -54,6 +54,9 @@ export global OverlayBridge {
     in-out property <PluginInfoData> plugin-info-data;
     callback close-plugin-info();
     callback open-plugin-info-homepage();
+    // The shown plugin is the user's capture plugin: offer its editor.
+    in-out property <bool> plugin-info-editable: false;
+    callback edit-plugin-info();
 
     // ── Toast ────────────────────────────────────────────────────────────
     in-out property <string> toast-message;

@@ -1,0 +1,113 @@
+manifest_version: 1
+id: lv2_aether
+display_name: Aether
+description: Aether — algorithmic shimmer/cloud reverb based on Cloudseed.
+brand: dougal
+license: MIT
+homepage: https://github.com/Dougal-s/Aether
+type: reverb
+backend: lv2
+plugin_uri: http://github.com/Dougal-s/Aether
+binaries:
+  macos-universal: platform/macos-universal/aether_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/aether_dsp.dll
+  linux-x86_64: platform/linux-x86_64/aether_dsp.so
+  linux-aarch64: platform/linux-aarch64/aether_dsp.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+parameters:
+  - symbol: mix
+    group: Mixer
+  - symbol: dry_level
+    group: Mixer
+  - symbol: predelay_level
+    group: Mixer
+  - symbol: early_level
+    group: Mixer
+  - symbol: late_level
+    group: Mixer
+  - symbol: width
+    group: Mixer
+  - symbol: predelay
+    group: Mixer
+  - symbol: interpolate
+    group: Mixer
+  - symbol: early_low_cut_enabled
+    group: Early
+  - symbol: early_low_cut_cutoff
+    group: Early
+  - symbol: early_high_cut_enabled
+    group: Early
+  - symbol: early_high_cut_cutoff
+    group: Early
+  - symbol: early_taps
+    group: Early
+  - symbol: early_tap_length
+    group: Early
+  - symbol: early_tap_mix
+    group: Early
+  - symbol: early_tap_decay
+    group: Early
+  - symbol: early_diffusion_stages
+    group: Early
+  - symbol: early_diffusion_delay
+    group: Early
+  - symbol: early_diffusion_mod_depth
+    group: Early
+  - symbol: early_diffusion_mod_rate
+    group: Early
+  - symbol: early_diffusion_feedback
+    group: Early
+  - symbol: early_diffusion_drive
+    group: Early
+  - symbol: late_order
+    group: Late
+  - symbol: late_delay_lines
+    group: Late
+  - symbol: late_Delay
+    group: Late
+  - symbol: late_delay_mod_depth
+    group: Late
+  - symbol: late_delay_mod_rate
+    group: Late
+  - symbol: late_delay_line_feedback
+    group: Late
+  - symbol: late_diffusion_stages
+    group: Late
+  - symbol: late_diffusion_delay
+    group: Late
+  - symbol: late_diffusion_mod_depth
+    group: Late
+  - symbol: late_diffusion_mod_rate
+    group: Late
+  - symbol: late_diffusion_feedback
+    group: Late
+  - symbol: late_diffusion_drive
+    group: Late
+  - symbol: late_low_shelf_enabled
+    group: Late
+  - symbol: late_low_shelf_cutoff
+    group: Late
+  - symbol: late_low_shelf_gain
+    group: Late
+  - symbol: late_high_shelf_enabled
+    group: Late
+  - symbol: late_high_shelf_cutoff
+    group: Late
+  - symbol: late_high_shelf_gain
+    group: Late
+  - symbol: late_high_cut_enabled
+    group: Late
+  - symbol: late_high_cut_cutoff
+    group: Late
+  - symbol: seed_crossmix
+    group: Seeds
+  - symbol: tap_seed
+    group: Seeds
+  - symbol: early_diffusion_seed
+    group: Seeds
+  - symbol: delay_seed
+    group: Seeds
+  - symbol: late_diffusion_seed
+    group: Seeds

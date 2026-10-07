@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: MDA Leslie — rotary speaker simulation.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

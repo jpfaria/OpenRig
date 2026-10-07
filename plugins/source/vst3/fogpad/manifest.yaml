@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_fogpad
+display_name: Reverb fogpad
+description: fogpad — freeze / filter / pitch reverb effect by igorski.
+brand: igorski
+license: MIT
+homepage: https://github.com/igorski/fogpad
+type: vst3
+backend: vst3
+bundle: bundles/fogpad.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

@@ -1,0 +1,219 @@
+manifest_version: 1
+id: vst3_byod
+display_name: Distortion BYOD
+description: BYOD — modular "build-your-own-drive" guitar distortion with a configurable node graph by ChowDSP.
+brand: chowdsp
+license: GPL-3.0-or-later
+homepage: https://github.com/Chowdhury-DSP/BYOD
+type: vst3
+backend: vst3
+bundle: bundles/BYOD.vst3
+parameters:
+  - vst3_id: 696978815
+    name: mode
+    display_name: "Mode"
+    group: "Global"
+  - vst3_id: 1938712153
+    name: in_gain
+    display_name: "In Gain"
+    group: "I/O"
+  - vst3_id: 54048208
+    name: out_gain
+    display_name: "Out Gain"
+    group: "I/O"
+  - vst3_id: 1934471890
+    name: dry_wet
+    display_name: "Dry/Wet"
+    group: "I/O"
+  - vst3_id: 31381892
+    name: module_slot_0
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381893
+    name: module_slot_1
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381894
+    name: module_slot_2
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381895
+    name: module_slot_3
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381896
+    name: module_slot_4
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381897
+    name: module_slot_5
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381898
+    name: module_slot_6
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381899
+    name: module_slot_7
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381900
+    name: module_slot_8
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 31381901
+    name: module_slot_9
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838731
+    name: module_slot_10
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838732
+    name: module_slot_11
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838733
+    name: module_slot_12
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838734
+    name: module_slot_13
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838735
+    name: module_slot_14
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838736
+    name: module_slot_15
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838737
+    name: module_slot_16
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838738
+    name: module_slot_17
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838739
+    name: module_slot_18
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838740
+    name: module_slot_19
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838762
+    name: module_slot_20
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838763
+    name: module_slot_21
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838764
+    name: module_slot_22
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838765
+    name: module_slot_23
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838766
+    name: module_slot_24
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838767
+    name: module_slot_25
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838768
+    name: module_slot_26
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838769
+    name: module_slot_27
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838770
+    name: module_slot_28
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838771
+    name: module_slot_29
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838793
+    name: module_slot_30
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838794
+    name: module_slot_31
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838795
+    name: module_slot_32
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838796
+    name: module_slot_33
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838797
+    name: module_slot_34
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838798
+    name: module_slot_35
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838799
+    name: module_slot_36
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838800
+    name: module_slot_37
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838801
+    name: module_slot_38
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838802
+    name: module_slot_39
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838824
+    name: module_slot_40
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838825
+    name: module_slot_41
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838826
+    name: module_slot_42
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838827
+    name: module_slot_43
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838828
+    name: module_slot_44
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838829
+    name: module_slot_45
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838830
+    name: module_slot_46
+    display_name: "Blank"
+    group: "Module Slots"
+  - vst3_id: 972838831
+    name: module_slot_47
+    display_name: "Blank"
+    group: "Module Slots"

@@ -17,6 +17,7 @@ use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
 use crate::tone3000::catalog_tones::{installed_entry, loaded_catalog_entries};
 use crate::tone3000::install::InstallProgress;
+use crate::tone3000::install_pending::PendingInstall;
 use crate::tone3000::installed::list_installed;
 
 /// Builds the API client for a key. Tests swap in a fake.
@@ -72,6 +73,8 @@ pub struct Tone3000Snapshot {
     pub installs: Vec<Tone3000InstallEntry>,
     /// The browser's packages first, then the catalog's.
     pub installed: Vec<Tone3000InstalledEntry>,
+    /// Downloads waiting for the user to name their parameters.
+    pub naming: Vec<PendingInstall>,
 }
 
 pub struct Tone3000ControlState {
@@ -88,6 +91,7 @@ pub struct Tone3000ControlState {
     search_generation: u64,
     installs: Vec<Tone3000InstallEntry>,
     installed: Vec<Tone3000InstalledEntry>,
+    naming: Vec<PendingInstall>,
 }
 
 impl Default for Tone3000ControlState {
@@ -124,6 +128,7 @@ impl Tone3000ControlState {
             search_generation: 0,
             installs: Vec::new(),
             installed: Vec::new(),
+            naming: Vec::new(),
         };
         state.refresh_installed();
         state
@@ -151,6 +156,7 @@ impl Tone3000ControlState {
                 .cloned()
                 .chain((self.catalog)())
                 .collect(),
+            naming: self.naming.clone(),
         }
     }
 
@@ -231,6 +237,23 @@ impl Tone3000ControlState {
             }
         }
         self.refresh_installed();
+    }
+
+    /// The download of `tone_id` waiting for names, if any.
+    pub fn pending(&self, tone_id: u64) -> Option<&PendingInstall> {
+        self.naming.iter().find(|p| p.tone_id == tone_id)
+    }
+
+    /// Ends an install that set its download aside for names.
+    pub fn wait_for_names(&mut self, pending: PendingInstall) {
+        self.installs.retain(|i| i.tone_id != pending.tone_id);
+        self.naming.retain(|p| p.tone_id != pending.tone_id);
+        self.naming.push(pending);
+    }
+
+    /// Forgets the download of `tone_id` once it was named or dropped.
+    pub fn named(&mut self, tone_id: u64) {
+        self.naming.retain(|p| p.tone_id != tone_id);
     }
 
     /// Re-reads the packages on disk.

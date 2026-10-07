@@ -53,6 +53,7 @@ pub mod rig_validate;
 pub mod rig_write_back;
 pub mod tempo_retime;
 pub mod vst3_editor;
+pub mod vst3_scan_dirs;
 
 #[cfg(test)]
 #[path = "midi_tests.rs"]

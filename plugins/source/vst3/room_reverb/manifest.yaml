@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_room_reverb
+display_name: Reverb RoomReverb
+description: RoomReverb — algorithmic room reverb (Moorer + Dattorro topology).
+brand: cvde
+license: GPL-3.0-or-later
+homepage: https://github.com/cvde/RoomReverb
+type: vst3
+backend: vst3
+bundle: bundles/RoomReverb.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

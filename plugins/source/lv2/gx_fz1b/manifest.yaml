@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_fz1b
+display_name: Maestro FZ-1B
+description: Maestro FZ-1B — germanium fuzz simulation by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_maestro_fz1b_#_maestro_fz1b_
+binaries:
+  macos-universal: platform/macos-universal/gx_maestro_fz1b.dylib
+  linux-x86_64: platform/linux-x86_64/gx_maestro_fz1b.so
+  linux-aarch64: platform/linux-aarch64/gx_maestro_fz1b.so
+  windows-x86_64: platform/windows-x86_64/gx_maestro_fz1b.dll

@@ -192,6 +192,8 @@ pub(crate) enum AsyncDone {
     Events(Vec<Event>),
     /// #879: a TONE3000 search or install worker reported back.
     Tone3000(crate::local_dispatcher_tone3000::Tone3000Done),
+    /// A plugin library worker reported back.
+    PluginLibrary(crate::plugin_library::redo_worker::PluginLibraryDone),
 }
 
 /// #791: the captured signal for one Tone Doctor run, produced off-thread

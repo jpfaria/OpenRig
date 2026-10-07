@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_caps_scape
+display_name: CAPS Scape
+description: CAPS Scape — spaced reverb with diffusion control.
+brand: caps
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: reverb
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Scape
+binaries:
+  macos-universal: platform/macos-universal/Scape.dylib
+  linux-x86_64: platform/linux-x86_64/Scape.so
+  linux-aarch64: platform/linux-aarch64/Scape.so

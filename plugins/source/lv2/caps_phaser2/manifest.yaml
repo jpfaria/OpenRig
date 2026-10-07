@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_caps_phaser2
+display_name: CAPS Phaser II
+description: CAPS Phaser II — phaser effect with rich modulation.
+brand: caps
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: mod
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/PhaserII
+binaries:
+  macos-universal: platform/macos-universal/PhaserII.dylib
+  linux-x86_64: platform/linux-x86_64/PhaserII.so
+  linux-aarch64: platform/linux-aarch64/PhaserII.so

@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: Dragonfly Plate Reverb — classic plate reverb simulation.
+    license: GPL-3.0
+    homepage: https://github.com/michaelwillis/dragonfly-reverb
