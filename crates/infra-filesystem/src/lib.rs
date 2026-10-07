@@ -12,6 +12,7 @@ pub mod midi_profile;
 pub mod mixer_config;
 pub mod player_config;
 pub use appearance::Appearance;
+pub mod tone3000_config;
 pub use crash_reporting_config::{CrashReportingConfig, CrashReportingProvider};
 pub use drums_config::DrumsConfig;
 pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
@@ -19,6 +20,7 @@ pub use metronome_config::MetronomeConfig;
 pub use midi_device::{MidiDeviceSelection, MidiPortKey};
 pub use mixer_config::MixerStripConfig;
 pub use player_config::PlayerConfig;
+pub use tone3000_config::Tone3000Config;
 
 #[cfg(test)]
 #[path = "midi_profile_tests.rs"]
@@ -58,3 +60,7 @@ mod settings_tests;
 #[cfg(test)]
 #[path = "appearance_tests.rs"]
 mod appearance_tests;
+
+#[cfg(test)]
+#[path = "tone3000_config_tests.rs"]
+mod tone3000_config_tests;

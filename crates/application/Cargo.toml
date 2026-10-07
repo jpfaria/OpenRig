@@ -28,6 +28,13 @@ symphonia = { version = "0.6.1", default-features = false, features = ["aac", "i
 # #1039: drum kits are Hydrogen drumkit.xml folders resampled to the stream rate.
 ir = { path = "../ir" }
 roxmltree = "0.21"
+# #879: TONE3000 API client (search, models, downloads) over rustls.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+percent-encoding = "2"
+# #879: installed TONE3000 packages are levelled like the curated catalog
+# (NAM render + IR convolution against the synthetic DI).
+nam = { path = "../nam" }
+realfft = "3"
 
 [dev-dependencies]
 block-core = { path = "../block-core" }

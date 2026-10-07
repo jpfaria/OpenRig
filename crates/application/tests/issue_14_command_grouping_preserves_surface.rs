@@ -183,6 +183,12 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "StopDrums",
     "ToggleDrums",
     "TriggerDrumFill",
+    // #879: the TONE3000 browser.
+    "InstallTone3000",
+    "SearchTone3000",
+    "SetTone3000ApiKey",
+    "UninstallTone3000",
+    "UpdateTone3000",
 ];
 
 #[test]

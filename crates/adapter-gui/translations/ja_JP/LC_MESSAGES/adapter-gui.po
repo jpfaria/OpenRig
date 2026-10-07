@@ -1385,3 +1385,187 @@ msgstr "ライト"
 
 msgid "appearance-dark"
 msgstr "ダーク"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 キャプチャ"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "探す"
+
+msgid "tab-tone3000-installed"
+msgstr "インストール済み ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "キーはユーザーごとに用意します。このマシンにだけ保存されます。"
+
+msgid "placeholder-tone3000-key"
+msgstr "t3k_cs_ キーを貼り付け"
+
+msgid "status-tone3000-key-set"
+msgstr "キー設定済み"
+
+msgid "status-tone3000-key-unset"
+msgstr "キーなし"
+
+msgid "btn-tone3000-key-save"
+msgstr "保存"
+
+msgid "btn-tone3000-key-clear"
+msgstr "削除"
+
+msgid "btn-tone3000-search"
+msgstr "検索"
+
+msgid "btn-tone3000-install"
+msgstr "インストール"
+
+msgid "btn-tone3000-update"
+msgstr "アップデート"
+
+msgid "btn-tone3000-retry"
+msgstr "再試行"
+
+msgid "btn-tone3000-uninstall"
+msgstr "アンインストール"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "確認"
+
+msgid "btn-tone3000-previous-page"
+msgstr "前のページ"
+
+msgid "btn-tone3000-next-page"
+msgstr "次のページ"
+
+msgid "placeholder-tone3000-search"
+msgstr "アンプ、ペダル、リグ、IR を検索"
+
+msgid "label-tone3000-format"
+msgstr "形式"
+
+msgid "label-tone3000-gear"
+msgstr "機材"
+
+msgid "label-tone3000-sort"
+msgstr "並び順"
+
+msgid "label-tone3000-all"
+msgstr "すべて"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "関連度順"
+
+msgid "label-tone3000-sort-trending"
+msgstr "トレンド"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "ダウンロード数順"
+
+msgid "label-tone3000-sort-newest"
+msgstr "新着順"
+
+msgid "label-tone3000-gear-amp"
+msgstr "アンプ"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "フルリグ"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "アンプ + キャビ"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "ペダル"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "アウトボード"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "キャビ"
+
+msgid "label-tone3000-block-amp"
+msgstr "アンプ"
+
+msgid "label-tone3000-block-preamp"
+msgstr "プリアンプ"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "ペダル"
+
+msgid "label-tone3000-block-cab"
+msgstr "キャビ"
+
+msgid "label-tone3000-block-body"
+msgstr "ボディ"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} · {} ダウンロード"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "インストール済み"
+
+msgid "label-tone3000-captures"
+msgstr "{} キャプチャ"
+
+msgid "label-tone3000-page"
+msgstr "{} / {} ページ · {} トーン"
+
+msgid "status-tone3000-downloading"
+msgstr "ダウンロード中 {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "レベルを測定中"
+
+msgid "status-tone3000-fetching"
+msgstr "準備中"
+
+msgid "btn-tone3000-open-settings"
+msgstr "設定を開く"
+
+msgid "link-tone3000-get-key"
+msgstr "tone3000.com で Secret Key を作成"
+
+msgid "title-tone3000-no-key"
+msgstr "TONE3000 の Secret Key が必要です"
+
+msgid "status-tone3000-no-key"
+msgstr "キャプチャの検索とインストールには、ご自身の TONE3000 Secret Key を使います。設定で追加してください。"
+
+msgid "status-tone3000-searching"
+msgstr "検索中"
+
+msgid "status-tone3000-no-results"
+msgstr "一致するトーンはありません。"
+
+msgid "status-tone3000-start"
+msgstr "TONE3000 でアンプ、ペダル、IR を検索します。"
+
+msgid "status-tone3000-none-installed"
+msgstr "TONE3000 のキャプチャはまだインストールされていません。"
+msgid "label-tone3000-built-in"
+msgstr "内蔵"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "インストール済みを名前で検索"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "この名前に一致するインストール済みの TONE3000 プラグインはありません。"
+
