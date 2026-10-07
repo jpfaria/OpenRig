@@ -2,13 +2,14 @@
 //!
 //! #979: on the rig a stepped input (the buffer-seam pattern) was cured only
 //! by switching the chain off and on. The engine marks the runtime that reads
-//! such an input; this restarts that one chain — a fresh activation builds new
-//! streams and a new runtime — and nothing of another chain is touched.
+//! such an input.
 //!
-//! #1081: the restart never cuts the sound. On cpal the live streams keep
-//! playing while the new ones come up, and fade out under them (the install's
-//! handover). Only JACK, whose live swap is unwired (#672), still goes through
-//! the toggle.
+//! #1081: on cpal the restart is the device's, not the chain's: every OpenRig
+//! stream on the device that input reads is closed and opened again
+//! (`controller_device_restart`), because a new set opened beside the old one
+//! inherits OpenRig's IO on the device — the thing that broke. A chain on
+//! another device is not touched. JACK, whose live swap is unwired (#672),
+//! still goes through the toggle.
 
 use anyhow::Result;
 
@@ -32,8 +33,11 @@ impl ProjectRuntimeController {
         chains
     }
 
-    /// Switch `chain_id` off and on. `Ok(false)` when there is nothing to
-    /// restart: the chain is not running here, is off, or left the project.
+    /// Restart the streams of `chain_id`'s stepped input. `Ok(false)` when
+    /// there is nothing to restart: the chain is not running here, is off,
+    /// left the project, or no input of it is stepped any more — a device
+    /// restart for another chain on the same device already started its
+    /// verdict over.
     pub fn restart_chain_streams(&mut self, project: &Project, chain_id: &ChainId) -> Result<bool> {
         let Some(chain) = project.chains.iter().find(|c| &c.id == chain_id) else {
             return Ok(false);
@@ -41,14 +45,34 @@ impl ProjectRuntimeController {
         if !chain.enabled || self.runtime_graph.runtimes_for(chain_id).is_empty() {
             return Ok(false);
         }
-        log::warn!(
-            "chain '{}': input arrives stepped, restarting its streams",
-            chain_id.0
-        );
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
-        self.submit_chain_activation(project, chain)?;
+        {
+            let devices = self.stepped_devices_of(chain_id);
+            if devices.is_empty() {
+                return Ok(false);
+            }
+            log::warn!(
+                "chain '{}': input arrives stepped, restarting every stream on {}",
+                chain_id.0,
+                devices.join(", ")
+            );
+            let restarted = self.restart_device_streams(project, &devices);
+            log::warn!(
+                "device restart reopened {} chain(s): {}",
+                restarted.len(),
+                restarted
+                    .iter()
+                    .map(|id| id.0.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
+            log::warn!(
+                "chain '{}': input arrives stepped, restarting its streams",
+                chain_id.0
+            );
             self.kill_chain_streams(chain_id);
             self.upsert_chain(project, chain)?;
         }

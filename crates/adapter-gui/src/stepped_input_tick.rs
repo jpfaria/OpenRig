@@ -1,7 +1,8 @@
 //! Responsibility: decides which stepped chains one tick restarts.
 //!
-//! #979: a chain whose input arrives stepped is restarted the way the toggle
-//! cures it. When the restart does not cure it, a restart on every 2 s tick
+//! #979: a chain whose input arrives stepped is restarted (on cpal with every
+//! OpenRig stream on its input device, #1081). When the restart does not cure
+//! it, a restart on every 2 s tick
 //! would cut the sound over and over, so each chain waits
 //! [`RESTART_COOLDOWN_TICKS`] after an attempt — successful or refused — and
 //! one chain's wait never delays another chain.

@@ -87,7 +87,8 @@ audio for about a second.
   `audio IO: TUSBAudio:Fender:Quantum HD 8` thread. launchd respawned it 40 ms
   later, the kernel aborted the HD 8's USB pipes and every app's audio dropped
   for about 1 s.
-- The stepped-input restart cures it: **REFUTED** — coreaudiod keeps one IO
+- The stepped-input restart as #979 shipped it cures it: **REFUTED** —
+  coreaudiod keeps one IO
   context per process per device, alive while any of the process's IOProcs on
   that device runs (2026-10-07: two IOProcs in one process on the HD 8 gave one
   `IOWorkLoopInit` and one `IOWorkLoopDeinit`, only at the last stop). The
@@ -97,13 +98,23 @@ audio for about a second.
 - Stopping every OpenRig stream on the HD 8 and starting them again (a fresh
   context, a fresh `Register_IOThread`) clears it when OpenRig's context is
   the broken one: **OPEN** — not measured; the test was cut by the coreaudiod
-  crash.
+  crash. The stepped-input restart now does exactly this (Shipped), so its
+  next marks on the rig answer it.
 
 ## Shipped
 
 - `7d80a3c3f` — new streams crossfade in over the old ones and a fresh VST3 is
   built ahead: the IR swap, the VST3 enable and the stepped-input restart no
   longer click or gap. It does not touch the stale input.
+- Device restart (`infra-cpal/src/controller_device_restart.rs`) — when an
+  input trips the stepped-input detector, every OpenRig stream on the device
+  it reads is closed (each chain that reads or plays there, the metronome,
+  the player, the drums, the isolated DI and looper outputs), and after
+  100 ms opened again, so coreaudiod tears OpenRig's IO context down and
+  builds a new one. Self-recovery, not a fix of the cause. Not measured yet:
+  whether the new context comes back clean, the length of the cut, whether
+  the 100 ms pause is enough, and whether starting IO again on a broken
+  engine can crash coreaudiod as it did once (Hypotheses).
 
 ## Open
 

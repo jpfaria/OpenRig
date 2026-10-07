@@ -76,7 +76,8 @@ impl RuntimeControl for PollingRuntimeControl {
         controller.try_reconnect(&project)
     }
 
-    /// #979: switch one chain off and on against the project open NOW. The
+    /// #979: restart a stepped chain's streams against the project open NOW
+    /// (on cpal, every OpenRig stream on its input device, #1081). The
     /// restart is not a fix: it leaves a mark of what the input and the
     /// device were before the streams that saw the fault are gone.
     fn restart_chain_streams(&self, chain_id: &str) -> Result<bool> {

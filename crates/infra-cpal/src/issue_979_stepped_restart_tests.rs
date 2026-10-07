@@ -2,9 +2,10 @@
 //!
 //! On the rig the stepped In 1 was cured only by switching the chain off and
 //! on. The engine marks the runtime that reads a stepped input; the controller
-//! reports which chains are marked and restarts one exactly like that toggle:
-//! the marked runtime and its streams go away and a fresh activation is built.
-//! Nothing of another chain is touched.
+//! reports which chains are marked and restarts the device that input reads.
+//! #1081: every OpenRig stream on that device goes and comes back, so the
+//! verdict of every chain on it starts over; a chain on another device is not
+//! touched.
 
 use std::sync::Arc;
 
@@ -16,7 +17,7 @@ use project::project::Project;
 use engine::runtime::{build_chain_runtime_state, process_input_f32, ChainRuntimeState};
 
 use super::active_runtime::ActiveChainRuntime;
-use super::resolved::ChainStreamSignature;
+use super::resolved::{ChainStreamSignature, InputStreamSignature, OutputStreamSignature};
 use super::ProjectRuntimeController;
 
 const STEPPED: &[u8] = include_bytes!("../../engine/tests/fixtures/issue_979/in1_stepped.f32");
@@ -107,11 +108,12 @@ fn controller() -> ProjectRuntimeController {
 }
 
 /// Puts a running chain in the controller — its runtime in the graph, its
-/// active entry, and its streams in the index — and plays `signal` into it
-/// the way the device callback would.
+/// active entry with streams on `device`, and its streams in the index — and
+/// plays `signal` into it the way the device callback would.
 fn run_chain(
     controller: &mut ProjectRuntimeController,
     id: &str,
+    device: &str,
     signal: &[f32],
 ) -> Arc<ChainRuntimeState> {
     let chain_id = ChainId(id.into());
@@ -130,8 +132,20 @@ fn run_chain(
             structure: Vec::new(),
             generation: 1,
             stream_signature: ChainStreamSignature {
-                inputs: vec![],
-                outputs: vec![],
+                inputs: vec![InputStreamSignature {
+                    device_id: device.into(),
+                    channels: vec![0],
+                    stream_channels: 1,
+                    sample_rate: 44_100,
+                    buffer_size_frames: BUFFER as u32,
+                }],
+                outputs: vec![OutputStreamSignature {
+                    device_id: device.into(),
+                    channels: vec![0, 1],
+                    stream_channels: 2,
+                    sample_rate: 44_100,
+                    buffer_size_frames: BUFFER as u32,
+                }],
             },
             _input_streams: vec![],
             _output_streams: vec![],
@@ -152,8 +166,8 @@ fn run_chain(
 #[test]
 fn the_chain_fed_the_recorded_broken_input_is_reported_stepped() {
     let mut controller = controller();
-    run_chain(&mut controller, "rig:input-1", &samples(STEPPED));
-    run_chain(&mut controller, "rig:input-2", &samples(CLEAN));
+    run_chain(&mut controller, "rig:input-1", "hd8", &samples(STEPPED));
+    run_chain(&mut controller, "rig:input-2", "hd8", &samples(CLEAN));
     assert_eq!(
         controller.stepped_input_chains(),
         vec![ChainId("rig:input-1".into())]
@@ -163,50 +177,52 @@ fn the_chain_fed_the_recorded_broken_input_is_reported_stepped() {
 #[test]
 fn a_rig_fed_clean_input_reports_no_stepped_chain() {
     let mut controller = controller();
-    run_chain(&mut controller, "rig:input-1", &samples(CLEAN));
+    run_chain(&mut controller, "rig:input-1", "hd8", &samples(CLEAN));
     assert!(controller.stepped_input_chains().is_empty());
 }
 
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn restarting_a_stepped_chain_opens_new_streams_before_the_old_ones_go() {
+fn restarting_a_stepped_chain_restarts_its_input_device_once() {
     let mut controller = controller();
-    let broken = run_chain(&mut controller, "rig:input-1", &samples(STEPPED));
-    let id = ChainId("rig:input-1".into());
-    let rig = project(vec![chain("rig:input-1", true)]);
+    let first = run_chain(&mut controller, "rig:input-1", "hd8", &samples(STEPPED));
+    let second = run_chain(&mut controller, "rig:input-2", "hd8", &samples(STEPPED));
+    let rig = project(vec![chain("rig:input-1", true), chain("rig:input-2", true)]);
 
     let restarted = controller
-        .restart_chain_streams(&rig, &id)
+        .restart_chain_streams(&rig, &ChainId("rig:input-1".into()))
         .expect("the restart is accepted");
+    let again = controller
+        .restart_chain_streams(&rig, &ChainId("rig:input-2".into()))
+        .expect("the call itself succeeds");
 
-    assert!(restarted, "an enabled chain in the project is restarted");
+    assert!(restarted, "the stepped chain restarts the HD 8");
     assert!(
-        controller.active_chains.contains_key(&id),
-        "#1081: the live streams keep playing while the new ones come up"
+        !first.input_stepped() && !second.input_stepped(),
+        "#1081: every chain on the restarted HD 8 starts its verdict over"
     );
     assert!(
-        controller
-            .runtime_graph
-            .runtimes_for(&id)
-            .iter()
-            .any(|rt| Arc::ptr_eq(rt, &broken)),
-        "#1081: the live runtime keeps playing until the new set is installed"
+        !again,
+        "#1081: the HD 8 was just restarted with every chain on it; its next chain does not restart it again"
     );
-    assert!(
-        controller
-            .pending_activations
-            .iter()
-            .any(|(chain_id, _, _)| *chain_id == id),
-        "a fresh activation must be on its way"
-    );
+    for id in ["rig:input-1", "rig:input-2"] {
+        assert_ne!(
+            controller
+                .active_chains
+                .get(&ChainId(id.into()))
+                .map(|active| active.generation),
+            Some(1),
+            "#1081: '{id}' kept its broken set open: a new set crossfading in over it keeps OpenRig's IO on the HD 8 alive"
+        );
+    }
 }
 
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn restarting_one_chain_leaves_another_chain_running() {
     let mut controller = controller();
-    run_chain(&mut controller, "rig:input-1", &samples(STEPPED));
-    let other = run_chain(&mut controller, "rig:input-2", &samples(CLEAN));
+    run_chain(&mut controller, "rig:input-1", "hd8", &samples(STEPPED));
+    let other = run_chain(&mut controller, "rig:input-2", "usb-mic", &samples(STEPPED));
     let rig = project(vec![chain("rig:input-1", true), chain("rig:input-2", true)]);
 
     controller
@@ -222,7 +238,14 @@ fn restarting_one_chain_leaves_another_chain_running() {
             .any(|rt| Arc::ptr_eq(rt, &other)),
         "the other chain keeps its runtime"
     );
-    assert!(controller.active_chains.contains_key(&other_id));
+    assert_eq!(
+        controller
+            .active_chains
+            .get(&other_id)
+            .map(|active| active.generation),
+        Some(1),
+        "the chain on the USB mic keeps its streams"
+    );
     assert!(
         !controller
             .pending_activations
@@ -230,12 +253,16 @@ fn restarting_one_chain_leaves_another_chain_running() {
             .any(|(chain_id, _, _)| *chain_id == other_id),
         "the other chain is not rebuilt"
     );
+    assert!(
+        other.input_stepped(),
+        "#1081: the HD 8 restart reset the verdict of a chain on another device"
+    );
 }
 
 #[test]
 fn a_chain_that_is_off_is_not_restarted() {
     let mut controller = controller();
-    let broken = run_chain(&mut controller, "rig:input-1", &samples(STEPPED));
+    let broken = run_chain(&mut controller, "rig:input-1", "hd8", &samples(STEPPED));
     let id = ChainId("rig:input-1".into());
     let rig = project(vec![chain("rig:input-1", false)]);
 

@@ -120,6 +120,8 @@ pub use chain_stream_registry::{ChainStreamRegistry, OwnedStreams};
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod controller_device_restart;
 mod controller_health;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod controller_jack_servers;
@@ -144,6 +146,8 @@ mod device_enum;
 mod di_playback;
 mod di_playback_timing;
 mod di_stream;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod di_stream_reopen;
 mod di_stream_worker;
 mod host_clock;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

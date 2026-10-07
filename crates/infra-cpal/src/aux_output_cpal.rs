@@ -29,6 +29,16 @@ impl AuxOutputHandle {
     pub(crate) fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
+
+    /// #1081: whether this stream plays on one of `devices`.
+    pub(crate) fn plays_on(&self, devices: &[String]) -> bool {
+        devices.contains(&self.device_id)
+    }
+
+    /// #1081: the device and channels this stream plays to, to reopen it there.
+    pub(crate) fn endpoint(&self) -> (String, Vec<usize>) {
+        (self.device_id.clone(), self.targets.clone())
+    }
 }
 
 /// Opens and starts an output on `device_id` whose callback is the render
