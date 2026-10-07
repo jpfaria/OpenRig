@@ -51,6 +51,10 @@ pub struct Tone {
     pub downloads_count: u64,
     #[serde(default, deserialize_with = "null_as_default")]
     pub favorites_count: u64,
+    /// When the author last changed the tone; a newer value than the one an
+    /// installed package holds means an update is available.
+    #[serde(default)]
+    pub updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

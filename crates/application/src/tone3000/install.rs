@@ -3,7 +3,9 @@
 //! Captures download into a hidden staging folder that the loader never
 //! reads as a package (it has no manifest yet). The folder is renamed into
 //! place and the manifest written last, through a temp file, so a scan
-//! never sees half a package. Any failure removes what was written.
+//! never sees half a package. Any failure removes what was written. An
+//! update builds the new package the same way and swaps it in only when it
+//! is complete.
 
 use std::path::{Path, PathBuf};
 
@@ -21,6 +23,7 @@ use super::level_nam::nam_output_gain_db;
 use super::level_policy::{ir_level_peak_dbfs, target_gain_db, IrRole};
 use super::manifest_build::{build_manifest, plugin_id, CaptureFile, PackageKind};
 use super::models_pick::{file_name, unique_models};
+use super::source_stamp::write_stamp;
 use super::synthetic_di::default_guitar_di;
 
 /// What to install. `None` picks the default: A2 when the tone has A2
@@ -47,13 +50,37 @@ pub fn install_tone(
     request: &InstallRequest,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<InstalledPlugin, InstallError> {
+    build_package(api, root, request, progress, false)
+}
+
+/// Downloads an installed tone again and swaps its package in place. The
+/// old package stays until the new one is complete, and comes back if the
+/// update fails.
+pub fn update_tone(
+    api: &dyn Tone3000Api,
+    root: &Path,
+    request: &InstallRequest,
+    progress: &mut dyn FnMut(InstallProgress),
+) -> Result<InstalledPlugin, InstallError> {
+    build_package(api, root, request, progress, true)
+}
+
+fn build_package(
+    api: &dyn Tone3000Api,
+    root: &Path,
+    request: &InstallRequest,
+    progress: &mut dyn FnMut(InstallProgress),
+    replace: bool,
+) -> Result<InstalledPlugin, InstallError> {
     progress(InstallProgress::Fetching);
     let tone = api.tone(request.tone_id)?;
     let kind = package_kind(&tone, request.architecture);
     let id = plugin_id(tone.id, kind);
     let dir = root.join(&id);
-    if dir.exists() {
-        return Err(InstallError::AlreadyInstalled(id));
+    match (replace, dir.exists()) {
+        (false, true) => return Err(InstallError::AlreadyInstalled(id)),
+        (true, false) => return Err(InstallError::NotInstalled(id)),
+        _ => {}
     }
     let architecture = match kind {
         PackageKind::Nam(arch) => Some(arch),
@@ -67,6 +94,7 @@ pub fn install_tone(
 
     std::fs::create_dir_all(root)?;
     let staging = root.join(format!(".partial-{id}"));
+    let previous = root.join(format!(".previous-{id}"));
     let result = (|| {
         let _ = std::fs::remove_dir_all(&staging);
         let files = download_all(api, &staging, &models, kind, progress)?;
@@ -77,21 +105,37 @@ pub fn install_tone(
             .map_err(|e| InstallError::Manifest(e.to_string()))?;
         let yaml =
             serde_yaml::to_string(&manifest).map_err(|e| InstallError::Manifest(e.to_string()))?;
+        write_stamp(&staging, &tone)?;
+        if replace {
+            let _ = std::fs::remove_dir_all(&previous);
+            std::fs::rename(&dir, &previous)?;
+        }
         std::fs::rename(&staging, &dir)?;
         let tmp = dir.join(format!(".{MANIFEST_FILE}.tmp"));
         std::fs::write(&tmp, yaml)?;
         std::fs::rename(&tmp, dir.join(MANIFEST_FILE))?;
         Ok(manifest)
     })();
+    let _ = std::fs::remove_dir_all(&staging);
     match result {
-        Ok(manifest) => Ok(InstalledPlugin {
-            plugin_id: id,
-            dir,
-            manifest,
-        }),
+        Ok(manifest) => {
+            let _ = std::fs::remove_dir_all(&previous);
+            Ok(InstalledPlugin {
+                plugin_id: id,
+                dir,
+                manifest,
+                updated_at: tone.updated_at,
+            })
+        }
         Err(error) => {
-            let _ = std::fs::remove_dir_all(&staging);
-            let _ = std::fs::remove_dir_all(&dir);
+            // A fresh install leaves nothing; an update puts the old
+            // package back once it was moved aside.
+            if !replace || previous.exists() {
+                let _ = std::fs::remove_dir_all(&dir);
+            }
+            if replace && previous.exists() {
+                let _ = std::fs::rename(&previous, &dir);
+            }
             Err(error)
         }
     }

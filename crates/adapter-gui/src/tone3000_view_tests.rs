@@ -31,6 +31,7 @@ fn tone(id: u64, format: &str, a1: u32, a2: u32) -> Tone {
         irs_count: if format == "ir" { 3 } else { 0 },
         downloads_count: 15_300,
         favorites_count: 0,
+        updated_at: None,
     }
 }
 
@@ -68,6 +69,7 @@ fn installed(plugin_id: &str, arch: Option<NamArchitecture>) -> Tone3000Installe
         architecture: arch,
         captures: 7,
         removable: true,
+        updated_at: None,
     }
 }
 
@@ -80,6 +82,7 @@ fn from_plugins_folder(plugin_id: &str, name: &str, tone_id: u64) -> Tone3000Ins
         architecture: Some(NamArchitecture::A2),
         captures: 4,
         removable: false,
+        updated_at: None,
     }
 }
 
@@ -281,4 +284,60 @@ fn the_installed_list_filters_by_name_ignoring_case() {
     assert_eq!(names, vec!["Dumble OS Module"]);
     assert_eq!(filtered.installed_total, 2);
     assert_eq!(view(&s).installed.len(), 2);
+}
+
+fn versioned(tone_version: Option<&str>, on_disk: Option<&str>) -> Tone3000Snapshot {
+    let mut published = tone(5, "nam", 0, 2);
+    published.updated_at = tone_version.map(Into::into);
+    let mut s = snapshot(vec![published]);
+    s.installed = vec![Tone3000InstalledEntry {
+        updated_at: on_disk.map(Into::into),
+        ..installed("tone3000_5_a2", Some(NamArchitecture::A2))
+    }];
+    s
+}
+
+#[test]
+fn a_newer_tone_on_tone3000_offers_the_update() {
+    let s = versioned(Some("2026-06-15T08:30:00Z"), Some("2026-05-01T10:00:00Z"));
+    assert_eq!(
+        view(&s).results[0].install,
+        RowInstall::Outdated("tone3000_5_a2".into())
+    );
+}
+
+#[test]
+fn the_same_version_reads_installed() {
+    let s = versioned(Some("2026-05-01T10:00:00Z"), Some("2026-05-01T10:00:00Z"));
+    assert_eq!(
+        view(&s).results[0].install,
+        RowInstall::Installed(Some("tone3000_5_a2".into()))
+    );
+}
+
+#[test]
+fn an_unknown_version_never_offers_the_update() {
+    for (published, on_disk) in [
+        (Some("2026-06-15T08:30:00Z"), None),
+        (None, Some("2026-05-01T10:00:00Z")),
+    ] {
+        let s = versioned(published, on_disk);
+        assert_eq!(
+            view(&s).results[0].install,
+            RowInstall::Installed(Some("tone3000_5_a2".into())),
+            "{published:?} vs {on_disk:?}"
+        );
+    }
+}
+
+#[test]
+fn a_plugins_folder_tone_is_never_updated_by_the_browser() {
+    let mut published = tone(52557, "nam", 2, 2);
+    published.updated_at = Some("2026-06-15T08:30:00Z".into());
+    let mut s = snapshot(vec![published]);
+    s.installed = vec![Tone3000InstalledEntry {
+        updated_at: Some("2026-05-01T10:00:00Z".into()),
+        ..from_plugins_folder("nam_synergy_dumble_os_a2", "Dumble OS Module", 52557)
+    }];
+    assert_eq!(view(&s).results[0].install, RowInstall::Installed(None));
 }

@@ -111,6 +111,7 @@ export component Tone3000Panel inherits Rectangle {
                             can-install: Tone3000Bridge.can-install;
                             pick-arch(arch) => { Tone3000Bridge.pick-arch(tone.tone-id, arch); }
                             install => { Tone3000Bridge.install(tone.tone-id); }
+                            update => { Tone3000Bridge.update(tone.tone-id); }
                             uninstall => { Tone3000Bridge.uninstall(tone.plugin-id); }
                         }
                     }

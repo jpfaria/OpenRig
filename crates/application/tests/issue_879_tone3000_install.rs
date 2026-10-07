@@ -9,8 +9,11 @@ use std::sync::Mutex;
 use application::tone3000::api_client::{all_models, ApiError, Tone3000Api};
 use application::tone3000::api_types::{Model, Page, Tone};
 use application::tone3000::api_url::SearchQuery;
-use application::tone3000::install::{install_tone, InstallError, InstallProgress, InstallRequest};
+use application::tone3000::install::{
+    install_tone, update_tone, InstallError, InstallProgress, InstallRequest,
+};
 use application::tone3000::installed::{list_installed, remove_installed};
+use application::tone3000::source_stamp::STAMP_FILE;
 use application::tone3000::{Tone3000Architecture, Tone3000BlockType};
 use plugin_loader::manifest::{Backend, BlockType, NamArchitecture};
 
@@ -90,7 +93,8 @@ fn nam_api() -> FakeApi {
         "a1_models_count": 2, "a2_models_count": 2, "license": "t3k",
         "user": {"username": "someone"},
         "makes": [{"name": "Ibanez TS9"}],
-        "url": "https://www.tone3000.com/tones/fake-ts9-1"
+        "url": "https://www.tone3000.com/tones/fake-ts9-1",
+        "updated_at": "2026-05-01T10:00:00Z"
     }))
     .unwrap();
     let models = vec![
@@ -405,4 +409,94 @@ fn uninstall_refuses_anything_outside_tone3000() {
     }
     assert!(outside.is_dir());
     assert!(tone_root.join("tone3000_1").is_dir());
+}
+
+const NEWER: &str = "2026-06-15T08:30:00Z";
+
+fn captures_of(root: &Path) -> usize {
+    match &list_installed(root)[0].manifest.backend {
+        Backend::Nam { captures, .. } => captures.len(),
+        _ => panic!("expected NAM"),
+    }
+}
+
+#[test]
+fn the_install_remembers_the_tone_version() {
+    let root = tempfile::tempdir().unwrap();
+    let installed = install_tone(&nam_api(), root.path(), &request(1), &mut |_| {}).unwrap();
+    assert_eq!(
+        installed.updated_at.as_deref(),
+        Some("2026-05-01T10:00:00Z")
+    );
+    assert_eq!(
+        list_installed(root.path())[0].updated_at.as_deref(),
+        Some("2026-05-01T10:00:00Z")
+    );
+    assert!(plugin_loader::discover(root.path()).unwrap()[0].is_ok());
+}
+
+#[test]
+fn a_package_without_a_stamp_has_no_version() {
+    let root = tempfile::tempdir().unwrap();
+    install_tone(&nam_api(), root.path(), &request(1), &mut |_| {}).unwrap();
+    std::fs::remove_file(root.path().join("tone3000_1_a2").join(STAMP_FILE)).unwrap();
+    let listed = list_installed(root.path());
+    assert_eq!(
+        listed.len(),
+        1,
+        "a package from before the stamp still lists"
+    );
+    assert_eq!(listed[0].updated_at, None);
+}
+
+#[test]
+fn an_update_swaps_the_package_in_place() {
+    let root = tempfile::tempdir().unwrap();
+    let mut api = nam_api();
+    install_tone(&api, root.path(), &request(1), &mut |_| {}).unwrap();
+    assert_eq!(captures_of(root.path()), 2);
+
+    api.tone.updated_at = Some(NEWER.into());
+    api.models.truncate(1);
+    let updated = update_tone(&api, root.path(), &request(1), &mut |_| {}).unwrap();
+
+    assert_eq!(updated.plugin_id, "tone3000_1_a2");
+    assert_eq!(updated.updated_at.as_deref(), Some(NEWER));
+    assert_eq!(
+        list_installed(root.path())[0].updated_at.as_deref(),
+        Some(NEWER)
+    );
+    assert_eq!(captures_of(root.path()), 1);
+    assert_eq!(entries(root.path()), ["tone3000_1_a2"], "nothing left over");
+}
+
+#[test]
+fn a_failed_update_keeps_the_old_package() {
+    let root = tempfile::tempdir().unwrap();
+    let mut api = nam_api();
+    install_tone(&api, root.path(), &request(1), &mut |_| {}).unwrap();
+
+    api.tone.updated_at = Some(NEWER.into());
+    api.files.remove("https://cdn/a/d5.nam");
+    let result = update_tone(&api, root.path(), &request(1), &mut |_| {});
+
+    assert_eq!(result.unwrap_err(), InstallError::Api(ApiError::Http(404)));
+    let listed = list_installed(root.path());
+    assert_eq!(
+        listed[0].updated_at.as_deref(),
+        Some("2026-05-01T10:00:00Z")
+    );
+    assert_eq!(captures_of(root.path()), 2);
+    assert_eq!(entries(root.path()), ["tone3000_1_a2"], "nothing left over");
+}
+
+#[test]
+fn updating_a_tone_that_is_not_installed_is_refused() {
+    let root = tempfile::tempdir().unwrap();
+    let result = update_tone(&nam_api(), root.path(), &request(1), &mut |_| {});
+    assert_eq!(
+        result.unwrap_err(),
+        InstallError::NotInstalled("tone3000_1_a2".into())
+    );
+    assert!(entries(root.path()).is_empty());
 }

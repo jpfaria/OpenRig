@@ -1421,6 +1421,9 @@ msgstr "खोजें"
 msgid "btn-tone3000-install"
 msgstr "इंस्टॉल करें"
 
+msgid "btn-tone3000-update"
+msgstr "अपडेट करें"
+
 msgid "btn-tone3000-retry"
 msgstr "फिर कोशिश करें"
 

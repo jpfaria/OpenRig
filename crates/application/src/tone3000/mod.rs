@@ -22,6 +22,7 @@ pub mod manifest_build;
 pub mod models_pick;
 pub mod name_tokens;
 pub mod natural_sort;
+pub mod source_stamp;
 pub mod synthetic_di;
 pub mod token_class;
 

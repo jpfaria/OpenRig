@@ -1428,6 +1428,9 @@ msgstr "Rechercher"
 msgid "btn-tone3000-install"
 msgstr "Installer"
 
+msgid "btn-tone3000-update"
+msgstr "Mettre à jour"
+
 msgid "btn-tone3000-retry"
 msgstr "Réessayer"
 

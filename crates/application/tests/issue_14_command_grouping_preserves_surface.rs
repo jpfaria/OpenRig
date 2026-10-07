@@ -188,6 +188,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SearchTone3000",
     "SetTone3000ApiKey",
     "UninstallTone3000",
+    "UpdateTone3000",
 ];
 
 #[test]

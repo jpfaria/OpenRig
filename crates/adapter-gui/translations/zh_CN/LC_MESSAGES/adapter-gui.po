@@ -1420,6 +1420,9 @@ msgstr "搜索"
 msgid "btn-tone3000-install"
 msgstr "安装"
 
+msgid "btn-tone3000-update"
+msgstr "更新"
+
 msgid "btn-tone3000-retry"
 msgstr "重试"
 

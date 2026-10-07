@@ -48,6 +48,7 @@ pub fn installed_entry(manifest: &PluginManifest, removable: bool) -> Tone3000In
         architecture: manifest.architecture,
         captures,
         removable,
+        updated_at: None,
     }
 }
 

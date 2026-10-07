@@ -56,6 +56,8 @@ pub struct Tone3000InstalledEntry {
     /// The browser installed it, so the browser may remove it. A plugin
     /// from the plugins folder is only listed.
     pub removable: bool,
+    /// The TONE3000 tone version the browser installed; `None` when unknown.
+    pub updated_at: Option<String>,
 }
 
 /// The browser state as a value. Holds no key.
@@ -238,6 +240,7 @@ impl Tone3000ControlState {
             .iter()
             .map(|plugin| Tone3000InstalledEntry {
                 tone_ids: tone_id_of(&plugin.plugin_id).into_iter().collect(),
+                updated_at: plugin.updated_at.clone(),
                 ..installed_entry(&plugin.manifest, true)
             })
             .collect();

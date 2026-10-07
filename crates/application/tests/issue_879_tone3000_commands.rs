@@ -104,7 +104,8 @@ fn model(id: u64, name: &str, url: &str) -> Model {
 /// Every test uses its own tone id: the plugin registry is process-wide.
 fn ir_api(assets: &Path, tone_id: u64) -> FakeApi {
     let tone: Tone = serde_json::from_value(serde_json::json!({
-        "id": tone_id, "title": "Fake Cab", "format": "ir", "gear": "cab", "irs_count": 2
+        "id": tone_id, "title": "Fake Cab", "format": "ir", "gear": "cab", "irs_count": 2,
+        "updated_at": "2026-05-01T10:00:00Z"
     }))
     .unwrap();
     let loud = assets.join("loud.wav");
@@ -504,4 +505,70 @@ fn the_read_serves_the_browser_state() {
     assert_eq!(json["can_install"], true);
     assert!(json["installed"].as_array().unwrap().is_empty());
     assert_eq!(json["search"]["in_flight"], false);
+}
+
+#[test]
+fn update_reinstalls_the_package_and_keeps_it_in_the_catalog() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let rig = keyed_rig(ir_api(assets.path(), 114), root.path());
+    run(&rig.dispatcher, install(114)).unwrap();
+    wait_for(&rig.dispatcher, |e| {
+        matches!(e, Tone3000Event::Installed { .. })
+    });
+
+    run(
+        &rig.dispatcher,
+        Tone3000Command::UpdateTone3000 {
+            tone_id: 114,
+            architecture: None,
+        },
+    )
+    .unwrap();
+    let events = wait_for(&rig.dispatcher, |e| {
+        matches!(
+            e,
+            Tone3000Event::Installed { .. } | Tone3000Event::InstallFailed { .. }
+        )
+    });
+
+    assert!(events.contains(&Tone3000Event::Installed {
+        tone_id: 114,
+        plugin_id: "tone3000_114".into()
+    }));
+    let installed = rig.dispatcher.tone3000_snapshot().installed;
+    assert_eq!(installed.len(), 1);
+    assert_eq!(
+        installed[0].updated_at.as_deref(),
+        Some("2026-05-01T10:00:00Z")
+    );
+    assert!(plugin_loader::registry::find("tone3000_114").is_some());
+    let mut left: Vec<String> = std::fs::read_dir(root.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    left.sort();
+    assert_eq!(left, ["tone3000_114"]);
+}
+
+#[test]
+fn updating_a_tone_that_is_not_installed_fails() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let rig = keyed_rig(ir_api(assets.path(), 115), root.path());
+    run(
+        &rig.dispatcher,
+        Tone3000Command::UpdateTone3000 {
+            tone_id: 115,
+            architecture: None,
+        },
+    )
+    .unwrap();
+    let events = wait_for(&rig.dispatcher, |e| {
+        matches!(e, Tone3000Event::InstallFailed { .. })
+    });
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, Tone3000Event::InstallFailed { tone_id: 115, .. })));
+    assert!(rig.dispatcher.tone3000_snapshot().installed.is_empty());
 }

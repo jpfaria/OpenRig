@@ -6,6 +6,7 @@ use plugin_loader::manifest::PluginManifest;
 use plugin_loader::validate_manifest;
 
 use super::install_error::InstallError;
+use super::source_stamp::read_updated_at;
 
 const ID_PREFIX: &str = "tone3000_";
 pub const MANIFEST_FILE: &str = "manifest.yaml";
@@ -16,6 +17,8 @@ pub struct InstalledPlugin {
     pub plugin_id: String,
     pub dir: PathBuf,
     pub manifest: PluginManifest,
+    /// The TONE3000 tone version it holds; `None` when unknown.
+    pub updated_at: Option<String>,
 }
 
 /// Valid TONE3000 packages under `root`, by id. Half-written or foreign
@@ -37,6 +40,7 @@ pub fn list_installed(root: &Path) -> Vec<InstalledPlugin> {
             (manifest.id == plugin_id && validate_manifest(&manifest).is_ok()).then_some(
                 InstalledPlugin {
                     plugin_id,
+                    updated_at: read_updated_at(&dir),
                     dir,
                     manifest,
                 },

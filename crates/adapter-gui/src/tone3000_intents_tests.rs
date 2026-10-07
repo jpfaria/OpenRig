@@ -129,3 +129,16 @@ fn a_malformed_tone_id_sends_nothing() {
     assert!(sent.borrow().is_empty());
     assert!(picks.borrow().is_empty());
 }
+
+#[test]
+fn an_update_takes_the_architecture_the_user_picked() {
+    let (w, sent, _) = wired(Some(Tone3000Architecture::A1));
+    Tone3000Bridge::get(&w).invoke_update(SharedString::from("4521"));
+    assert_eq!(
+        *sent.borrow(),
+        vec![debug(Tone3000Command::UpdateTone3000 {
+            tone_id: 4521,
+            architecture: Some(Tone3000Architecture::A1),
+        })]
+    );
+}

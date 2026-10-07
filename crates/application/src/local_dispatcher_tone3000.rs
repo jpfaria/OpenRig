@@ -17,7 +17,7 @@ use crate::event::{Event, Tone3000Event};
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
 use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
-use crate::tone3000::install::{install_tone, InstallProgress, InstallRequest};
+use crate::tone3000::install::{install_tone, update_tone, InstallProgress, InstallRequest};
 use crate::tone3000::installed::{is_plugin_id, remove_installed};
 use crate::tone3000_state::{Tone3000ControlState, Tone3000Snapshot};
 
@@ -79,12 +79,26 @@ impl LocalDispatcher {
                 tone_id,
                 architecture,
                 block_type,
-            } => self.install_tone3000(InstallRequest {
+            } => self.install_tone3000(
+                InstallRequest {
+                    tone_id,
+                    architecture,
+                    block_type,
+                },
+                false,
+            ),
+            Tone3000Command::UninstallTone3000 { plugin_id } => self.uninstall_tone3000(plugin_id),
+            Tone3000Command::UpdateTone3000 {
                 tone_id,
                 architecture,
-                block_type,
-            }),
-            Tone3000Command::UninstallTone3000 { plugin_id } => self.uninstall_tone3000(plugin_id),
+            } => self.install_tone3000(
+                InstallRequest {
+                    tone_id,
+                    architecture,
+                    block_type: None,
+                },
+                true,
+            ),
         }
     }
 
@@ -120,7 +134,9 @@ impl LocalDispatcher {
         Ok(vec![])
     }
 
-    fn install_tone3000(&self, request: InstallRequest) -> Result<Vec<Event>> {
+    /// Installs `request` on a worker thread; `replace` updates a package
+    /// that is already there.
+    fn install_tone3000(&self, request: InstallRequest, replace: bool) -> Result<Vec<Event>> {
         let state = self.tone3000_state();
         let (api, root) = {
             let state = state.borrow();
@@ -139,7 +155,7 @@ impl LocalDispatcher {
         std::thread::Builder::new()
             .name("tone3000-install".into())
             .spawn(move || {
-                let result = run_install(api.as_ref(), root, &request, &tx);
+                let result = run_install(api.as_ref(), root, &request, replace, &tx);
                 let _ = tx.send(AsyncDone::Tone3000(Tone3000Done::Install {
                     tone_id,
                     result,
@@ -204,11 +220,13 @@ impl LocalDispatcher {
 }
 
 /// Installs, then brings the new package into the catalog so a block can
-/// pick it right away. Runs on the worker thread.
+/// pick it right away. An update drops the old catalog entry first, since
+/// the catalog keeps a loaded id as it is. Runs on the worker thread.
 fn run_install(
     api: &dyn crate::tone3000::api_client::Tone3000Api,
     root: PathBuf,
     request: &InstallRequest,
+    replace: bool,
     tx: &Sender<AsyncDone>,
 ) -> Result<String, String> {
     let tone_id = request.tone_id;
@@ -218,7 +236,15 @@ fn run_install(
             progress,
         }));
     };
-    let installed = install_tone(api, &root, request, &mut report).map_err(|e| e.to_string())?;
+    let installed = if replace {
+        update_tone(api, &root, request, &mut report)
+    } else {
+        install_tone(api, &root, request, &mut report)
+    }
+    .map_err(|e| e.to_string())?;
+    if replace {
+        let _ = plugin_loader::registry::unload(&installed.plugin_id);
+    }
     plugin_loader::registry::load_one(&installed.plugin_id, &[root])
         .map_err(|e| format!("installed, but the catalog did not load it: {e}"))?;
     Ok(installed.plugin_id)

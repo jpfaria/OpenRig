@@ -21,6 +21,8 @@ pub(crate) enum RowInstall {
     Idle,
     /// On disk; the id when the browser may remove it.
     Installed(Option<String>),
+    /// The browser's package, older than the tone on TONE3000.
+    Outdated(String),
     Running(InstallProgress),
     Failed(String),
 }
@@ -147,6 +149,9 @@ fn tone_row(tone: &Tone, snapshot: &Tone3000Snapshot, choices: &ArchChoices) -> 
             None => RowInstall::Running(e.progress.clone()),
         },
         None => match owned {
+            Some(p) if p.removable && is_outdated(p, tone) => {
+                RowInstall::Outdated(p.plugin_id.clone())
+            }
             Some(p) => RowInstall::Installed(p.removable.then(|| p.plugin_id.clone())),
             None => RowInstall::Idle,
         },
@@ -170,6 +175,15 @@ fn tone_row(tone: &Tone, snapshot: &Tone3000Snapshot, choices: &ArchChoices) -> 
             compact_count(tone.downloads_count)
         },
         install,
+    }
+}
+
+/// TONE3000 holds a different version than the package. Either side
+/// unknown reads as up to date.
+fn is_outdated(package: &Tone3000InstalledEntry, tone: &Tone) -> bool {
+    match (&package.updated_at, &tone.updated_at) {
+        (Some(on_disk), Some(published)) => on_disk != published,
+        _ => false,
     }
 }
 

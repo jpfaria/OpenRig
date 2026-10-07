@@ -1426,6 +1426,9 @@ msgstr "検索"
 msgid "btn-tone3000-install"
 msgstr "インストール"
 
+msgid "btn-tone3000-update"
+msgstr "アップデート"
+
 msgid "btn-tone3000-retry"
 msgstr "再試行"
 
