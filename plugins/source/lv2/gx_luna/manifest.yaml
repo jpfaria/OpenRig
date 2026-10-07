@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_luna
+display_name: Luna
+description: Luna — overdrive by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_luna_#_luna_
+binaries:
+  macos-universal: platform/macos-universal/gx_luna.dylib
+  linux-x86_64: platform/linux-x86_64/gx_luna.so
+  linux-aarch64: platform/linux-aarch64/gx_luna.so
+  windows-x86_64: platform/windows-x86_64/gx_luna.dll

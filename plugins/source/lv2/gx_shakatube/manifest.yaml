@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_shakatube
+display_name: Shaka Tube
+description: Shaka Tube — tube overdrive by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_shakatube_#_shakatube_
+binaries:
+  macos-universal: platform/macos-universal/gx_shakatube.dylib
+  linux-x86_64: platform/linux-x86_64/gx_shakatube.so
+  linux-aarch64: platform/linux-aarch64/gx_shakatube.so
+  windows-x86_64: platform/windows-x86_64/gx_shakatube.dll

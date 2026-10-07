@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: TAP Chorus/Flanger — classic chorus and flanger effect.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net
+  pt-BR:
+    description: TAP Chorus/Flanger — efeito clássico de chorus e flanger.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net

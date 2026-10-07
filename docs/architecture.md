@@ -26,7 +26,7 @@ Dependencies point inward: the core knows nothing about Slint, audio drivers or 
 | | `ir` | Partitioned FFT convolution |
 | | `lv2` | LV2 host |
 | | `vst3-host` | VST3 host |
-| | `plugin-loader` | Discovers and loads OpenRig-plugins packages (manifests, grids, captures) |
+| | `plugin-loader` | Discovers and loads plugin packages (manifests, grids, captures) from the bundled `plugins/source` tree and the user root |
 | | `feature-dsp` | Tuner pitch detection, spectrum FFT, metronome, tone descriptors |
 | Adapters | `adapter-gui` | The desktop app (Slint, `ui/`) |
 | | `adapter-mcp` | MCP server (library, `rmcp`, Streamable HTTP) on the live instance via `application::bridge` — see [mcp.md](mcp.md) |

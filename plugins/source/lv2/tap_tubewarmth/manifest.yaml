@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_tap_tubewarmth
+display_name: TAP Tubewarmth
+description: TAP TubeWarmth — subtle tube saturation and warmth.
+brand: tap
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://tap-plugins.sourceforge.net
+type: gain_pedal
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/tap/tubewarmth
+binaries:
+  macos-universal: platform/macos-universal/tap_tubewarmth.dylib
+  linux-x86_64: platform/linux-x86_64/tap_tubewarmth.so

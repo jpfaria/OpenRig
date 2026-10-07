@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: CAPS Spice — guitar overdrive/distortion.
+    license: GPL-2.0
+    homepage: http://quitte.de/dsp/caps.html
+  pt-BR:
+    description: CAPS Spice — overdrive/distorção para guitarra.
+    license: GPL-2.0
+    homepage: http://quitte.de/dsp/caps.html

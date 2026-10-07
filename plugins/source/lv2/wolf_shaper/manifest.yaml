@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_wolf_shaper
+display_name: Wolf Shaper
+description: Wolf Shaper — waveshaper distortion with visual curve editor.
+brand: wolf
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/wolf-plugins/wolf-shaper
+type: gain_pedal
+backend: lv2
+plugin_uri: https://github.com/pdesaulniers/wolf-shaper
+binaries:
+  macos-universal: platform/macos-universal/wolf-shaper_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/wolf-shaper_dsp.dll
+  linux-x86_64: platform/linux-x86_64/wolf-shaper_dsp.so
+  linux-aarch64: platform/linux-aarch64/wolf-shaper_dsp.so

@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_caps_plate
+display_name: CAPS Plate
+description: CAPS Plate — plate reverb with warm, dense tail.
+brand: caps
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: reverb
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Plate
+binaries:
+  macos-universal: platform/macos-universal/Plate.dylib
+  linux-x86_64: platform/linux-x86_64/Plate.so
+  linux-aarch64: platform/linux-aarch64/Plate.so

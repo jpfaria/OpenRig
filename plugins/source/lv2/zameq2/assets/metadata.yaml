@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: ZamEQ2 — 2-band parametric equalizer.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

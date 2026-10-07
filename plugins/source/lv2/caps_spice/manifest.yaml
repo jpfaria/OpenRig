@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_caps_spice
+display_name: Spice
+description: CAPS Spice — guitar overdrive/distortion.
+brand: caps
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: gain_pedal
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Spice
+binaries:
+  macos-universal: platform/macos-universal/Spice.dylib
+  linux-x86_64: platform/linux-x86_64/Spice.so
+  linux-aarch64: platform/linux-aarch64/Spice.so

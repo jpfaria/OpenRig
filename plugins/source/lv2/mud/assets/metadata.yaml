@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: Mud — low-frequency filter/muddiness control by Remaincalm.
+    license: MIT
+    homepage: https://github.com/remaincalm/mud

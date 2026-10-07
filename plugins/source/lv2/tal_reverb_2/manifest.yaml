@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_tal_reverb_2
+display_name: TAL Reverb II
+description: TAL-Reverb-2 — bright plate/space reverb (TAL, GPL port).
+brand: tal
+license: GPL-3.0
+homepage: https://github.com/DISTRHO/DISTRHO-Ports
+type: reverb
+backend: lv2
+plugin_uri: urn:juce:TalReverb2
+binaries:
+  macos-universal: platform/macos-universal/TAL-Reverb-2-lv2.dylib
+  linux-x86_64: platform/linux-x86_64/TAL-Reverb-2-lv2.so
+  linux-aarch64: platform/linux-aarch64/TAL-Reverb-2-lv2.so

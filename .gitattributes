@@ -5,3 +5,7 @@
 *.wav filter=lfs diff=lfs merge=lfs -text
 deps/NeuralAmpModelerCore.tar.gz filter=lfs diff=lfs merge=lfs -text
 *.m4a filter=lfs diff=lfs merge=lfs -text
+# #1093: VST3 bundle binaries carry no .so/.dylib/.dll extension on macOS
+# (Contents/MacOS/<Name>) and a .vst3 one on Windows (Contents/*-win/).
+plugins/source/vst3/**/Contents/MacOS/** filter=lfs diff=lfs merge=lfs -text
+plugins/source/vst3/**/Contents/*-win/** filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,68 @@
+manifest_version: 1
+id: lv2_tap_equalizer_bw
+display_name: TAP Equalizer/BW
+description: TAP Equalizer/BW — Butterworth equalizer variant.
+brand: tap
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://tap-plugins.sourceforge.net
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/tap/eqbw
+binaries:
+  macos-universal: platform/macos-universal/tap_eqbw.dylib
+  linux-x86_64: platform/linux-x86_64/tap_eqbw.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+# One tab per band — each band carries gain + freq + bandwidth.
+parameters:
+  - symbol: Band1GainDb
+    group: Band 1
+  - symbol: Band1FreqHz
+    group: Band 1
+  - symbol: Band1BandwidthOctaves
+    group: Band 1
+  - symbol: Band2GainDb
+    group: Band 2
+  - symbol: Band2FreqHz
+    group: Band 2
+  - symbol: Band2BandwidthOctaves
+    group: Band 2
+  - symbol: Band3GainDb
+    group: Band 3
+  - symbol: Band3FreqHz
+    group: Band 3
+  - symbol: Band3BandwidthOctaves
+    group: Band 3
+  - symbol: Band4GainDb
+    group: Band 4
+  - symbol: Band4FreqHz
+    group: Band 4
+  - symbol: Band4BandwidthOctaves
+    group: Band 4
+  - symbol: Band5GainDb
+    group: Band 5
+  - symbol: Band5FreqHz
+    group: Band 5
+  - symbol: Band5BandwidthOctaves
+    group: Band 5
+  - symbol: Band6GainDb
+    group: Band 6
+  - symbol: Band6FreqHz
+    group: Band 6
+  - symbol: Band6BandwidthOctaves
+    group: Band 6
+  - symbol: Band7GainDb
+    group: Band 7
+  - symbol: Band7FreqHz
+    group: Band 7
+  - symbol: Band7BandwidthOctaves
+    group: Band 7
+  - symbol: Band8GainDb
+    group: Band 8
+  - symbol: Band8FreqHz
+    group: Band 8
+  - symbol: Band8BandwidthOctaves
+    group: Band 8

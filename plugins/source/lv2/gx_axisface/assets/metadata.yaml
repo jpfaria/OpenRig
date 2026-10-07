@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Axis Face — silicon fuzz by Guitarix.
+    license: GPL-2.0
+    homepage: https://guitarix.org
+  pt-BR:
+    description: Axis Face — fuzz de silício pelo projeto Guitarix.
+    license: GPL-2.0
+    homepage: https://guitarix.org

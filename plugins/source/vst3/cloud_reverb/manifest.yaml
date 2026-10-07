@@ -1,0 +1,195 @@
+manifest_version: 1
+id: vst3_cloud_reverb
+display_name: Reverb CloudReverb
+description: CloudReverb — shimmer/algorithmic reverb (CloudSeed JUCE port).
+brand: xunil-cloud
+license: GPL-3.0-or-later
+homepage: https://github.com/xunil-cloud/CloudReverb
+type: vst3
+backend: vst3
+bundle: bundles/CloudReverb.vst3
+parameters:
+  - vst3_id: 535342674
+    name: inputmix
+    display_name: "InputMix"
+    group: "General"
+  - vst3_id: 892053696
+    name: predelay
+    display_name: "PreDelay"
+    group: "General"
+  - vst3_id: 526743795
+    name: highpass
+    display_name: "HighPass"
+    group: "High"
+  - vst3_id: 2021017957
+    name: lowpass
+    display_name: "LowPass"
+    group: "Low"
+  - vst3_id: 1679971148
+    name: tapcount
+    display_name: "TapCount"
+    group: "Tap"
+  - vst3_id: 787710025
+    name: taplength
+    display_name: "TapLength"
+    group: "Tap"
+  - vst3_id: 123571618
+    name: tapgain
+    display_name: "TapGain"
+    group: "Tap"
+  - vst3_id: 1680579063
+    name: tapdecay
+    display_name: "TapDecay"
+    group: "Tap"
+  - vst3_id: 1427260380
+    name: diffusionenabled
+    display_name: "DiffusionEnabled"
+    group: "Diffusion"
+  - vst3_id: 244573498
+    name: diffusionstages
+    display_name: "DiffusionStages"
+    group: "Diffusion"
+  - vst3_id: 1101978846
+    name: diffusiondelay
+    display_name: "DiffusionDelay"
+    group: "Diffusion"
+  - vst3_id: 1609188938
+    name: diffusionfeedback
+    display_name: "DiffusionFeedback"
+    group: "Diffusion"
+  - vst3_id: 181905755
+    name: linecount
+    display_name: "LineCount"
+    group: "Line"
+  - vst3_id: 182522319
+    name: linedelay
+    display_name: "LineDelay"
+    group: "Line"
+  - vst3_id: 182513670
+    name: linedecay
+    display_name: "LineDecay"
+    group: "Line"
+  - vst3_id: 1808531106
+    name: latediffusionenabled
+    display_name: "LateDiffusionEnabled"
+    group: "Late"
+  - vst3_id: 603240884
+    name: latediffusionstages
+    display_name: "LateDiffusionStages"
+    group: "Late"
+  - vst3_id: 1459917092
+    name: latediffusiondelay
+    display_name: "LateDiffusionDelay"
+    group: "Late"
+  - vst3_id: 543679556
+    name: latediffusionfeedback
+    display_name: "LateDiffusionFeedback"
+    group: "Late"
+  - vst3_id: 1179464885
+    name: postlowshelfgain
+    display_name: "PostLowShelfGain"
+    group: "Post"
+  - vst3_id: 478539238
+    name: postlowshelffrequency
+    display_name: "PostLowShelfFrequency"
+    group: "Post"
+  - vst3_id: 2122271847
+    name: posthighshelfgain
+    display_name: "PostHighShelfGain"
+    group: "Post"
+  - vst3_id: 583587188
+    name: posthighshelffrequency
+    display_name: "PostHighShelfFrequency"
+    group: "Post"
+  - vst3_id: 918447887
+    name: postcutofffrequency
+    display_name: "PostCutoffFrequency"
+    group: "Post"
+  - vst3_id: 1275139160
+    name: earlydiffusionmodamount
+    display_name: "EarlyDiffusionModAmount"
+    group: "Early"
+  - vst3_id: 1264390368
+    name: earlydiffusionmodrate
+    display_name: "EarlyDiffusionModRate"
+    group: "Early"
+  - vst3_id: 340225094
+    name: linemodamount
+    display_name: "LineModAmount"
+    group: "Line"
+  - vst3_id: 1133808718
+    name: linemodrate
+    display_name: "LineModRate"
+    group: "Line"
+  - vst3_id: 423704859
+    name: latediffusionmodamount
+    display_name: "LateDiffusionModAmount"
+    group: "Late"
+  - vst3_id: 349538915
+    name: latediffusionmodrate
+    display_name: "LateDiffusionModRate"
+    group: "Late"
+  - vst3_id: 123932820
+    name: tapseed
+    display_name: "TapSeed"
+    group: "Tap"
+  - vst3_id: 243815350
+    name: diffusionseed
+    display_name: "DiffusionSeed"
+    group: "Diffusion"
+  - vst3_id: 1534829172
+    name: delayseed
+    display_name: "DelaySeed"
+    group: "General"
+  - vst3_id: 1206714102
+    name: postdiffusionseed
+    display_name: "PostDiffusionSeed"
+    group: "Post"
+  - vst3_id: 1253825201
+    name: crossseed
+    display_name: "CrossSeed"
+    group: "General"
+  - vst3_id: 2055748035
+    name: dryout
+    display_name: "DryOut"
+    group: "General"
+  - vst3_id: 2144432718
+    name: predelayout
+    display_name: "PredelayOut"
+    group: "General"
+  - vst3_id: 1403004171
+    name: earlyout
+    display_name: "EarlyOut"
+    group: "Early"
+  - vst3_id: 348177077
+    name: mainout
+    display_name: "MainOut"
+    group: "General"
+  - vst3_id: 472877583
+    name: hipassenabled
+    display_name: "HiPassEnabled"
+    group: "General"
+  - vst3_id: 1806986780
+    name: lowpassenabled
+    display_name: "LowPassEnabled"
+    group: "Low"
+  - vst3_id: 1267708683
+    name: lowshelfenabled
+    display_name: "LowShelfEnabled"
+    group: "Low"
+  - vst3_id: 1641378969
+    name: highshelfenabled
+    display_name: "HighShelfEnabled"
+    group: "High"
+  - vst3_id: 1312330356
+    name: cutoffenabled
+    display_name: "CutoffEnabled"
+    group: "General"
+  - vst3_id: 895549611
+    name: latestagetap
+    display_name: "LateStageTap"
+    group: "Late"
+  - vst3_id: 1358293380
+    name: interpolation
+    display_name: "Interpolation"
+    group: "General"

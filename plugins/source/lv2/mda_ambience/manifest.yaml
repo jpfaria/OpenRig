@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_ambience
+display_name: MDA Ambience
+description: MDA Ambience — simple reverb/ambience plugin.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: reverb
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/Ambience
+binaries:
+  macos-universal: platform/macos-universal/Ambience.dylib
+  windows-x86_64: platform/windows-x86_64/Ambience.dll
+  linux-x86_64: platform/linux-x86_64/Ambience.so
+  linux-aarch64: platform/linux-aarch64/Ambience.so

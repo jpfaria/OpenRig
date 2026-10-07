@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_gx_voodofuzz
+display_name: Voodo Fuzz
+description: Voodo Fuzz — voodoo fuzz by Guitarix.
+brand: guitarix
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_voodoo_#_voodoo_
+binaries:
+  macos-universal: platform/macos-universal/gx_voodoo.dylib
+  linux-x86_64: platform/linux-x86_64/gx_voodoo.so
+  linux-aarch64: platform/linux-aarch64/gx_voodoo.so
+  windows-x86_64: platform/windows-x86_64/gx_voodoo.dll

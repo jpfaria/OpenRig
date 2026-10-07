@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_tal_dub_3
+display_name: TAL Dub-3
+description: TAL-Dub-3 — BBD-style dub delay with filtered feedback (TAL, GPL port).
+brand: tal
+license: GPL-3.0
+homepage: https://github.com/DISTRHO/DISTRHO-Ports
+type: delay
+backend: lv2
+plugin_uri: urn:juce:TalDub3
+binaries:
+  macos-universal: platform/macos-universal/TAL-Dub-3-lv2.dylib
+  linux-x86_64: platform/linux-x86_64/TAL-Dub-3-lv2.so
+  linux-aarch64: platform/linux-aarch64/TAL-Dub-3-lv2.so

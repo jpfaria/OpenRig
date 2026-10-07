@@ -1,0 +1,72 @@
+manifest_version: 1
+id: lv2_zamulticomp
+display_name: ZaMultiComp
+description: ZaMultiComp — 3-band multiband compressor.
+brand: zam
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: dyn
+backend: lv2
+plugin_uri: urn:zamaudio:ZaMultiComp
+binaries:
+  macos-universal: platform/macos-universal/ZaMultiComp_dsp.dylib
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+parameters:
+  - symbol: xover1
+    group: Global
+  - symbol: xover2
+    group: Global
+  - symbol: globalgain
+    group: Global
+  - symbol: toggle1
+    group: Band 1
+  - symbol: thr1
+    group: Band 1
+  - symbol: rat1
+    group: Band 1
+  - symbol: kn1
+    group: Band 1
+  - symbol: att1
+    group: Band 1
+  - symbol: rel1
+    group: Band 1
+  - symbol: mak1
+    group: Band 1
+  - symbol: listen1
+    group: Band 1
+  - symbol: toggle2
+    group: Band 2
+  - symbol: thr2
+    group: Band 2
+  - symbol: rat2
+    group: Band 2
+  - symbol: kn2
+    group: Band 2
+  - symbol: att2
+    group: Band 2
+  - symbol: rel2
+    group: Band 2
+  - symbol: mak2
+    group: Band 2
+  - symbol: listen2
+    group: Band 2
+  - symbol: toggle3
+    group: Band 3
+  - symbol: thr3
+    group: Band 3
+  - symbol: rat3
+    group: Band 3
+  - symbol: kn3
+    group: Band 3
+  - symbol: att3
+    group: Band 3
+  - symbol: rel3
+    group: Band 3
+  - symbol: mak3
+    group: Band 3
+  - symbol: listen3
+    group: Band 3

@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_overdrive
+display_name: MDA Overdrive
+description: MDA Overdrive — classic soft-clip overdrive plugin.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/Overdrive
+binaries:
+  macos-universal: platform/macos-universal/Overdrive.dylib
+  windows-x86_64: platform/windows-x86_64/Overdrive.dll
+  linux-x86_64: platform/linux-x86_64/Overdrive.so
+  linux-aarch64: platform/linux-aarch64/Overdrive.so

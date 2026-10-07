@@ -1,0 +1,49 @@
+manifest_version: 1
+id: lv2_bolliedelay
+display_name: Bollie Delay
+description: Bollie Delay — simple mono delay.
+brand: bollie
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: ''
+type: delay
+backend: lv2
+plugin_uri: https://ca9.eu/lv2/bolliedelay
+binaries:
+  macos-universal: platform/macos-universal/bolliedelay.dylib
+  linux-x86_64: platform/linux-x86_64/bolliedelay.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+parameters:
+  - symbol: tempo_mode
+    group: Tempo
+  - symbol: tempo_host
+    group: Tempo
+  - symbol: tempo_user
+    group: Tempo
+  - symbol: tap
+    group: Tempo
+  - symbol: div_l
+    group: Tempo
+  - symbol: div_r
+    group: Tempo
+  - symbol: mix
+    group: Delay
+  - symbol: feedback
+    group: Delay
+  - symbol: crossf
+    group: Delay
+  - symbol: low_on
+    group: Filter
+  - symbol: low_f
+    group: Filter
+  - symbol: low_q
+    group: Filter
+  - symbol: high_on
+    group: Filter
+  - symbol: high_f
+    group: Filter
+  - symbol: high_q
+    group: Filter

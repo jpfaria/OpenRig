@@ -38,11 +38,6 @@ cross_make_flags() {
 
 LIB_EXT=$(lib_ext)
 
-# --- Plugin build recipes ---
-# Each function builds one plugin group.
-# Convention: build_<plugin_name>
-# Must copy resulting .so/.dylib/.dll to $OUTPUT_DIR
-
 # Use a separate build directory to avoid conflicts with host CMakeCache
 BUILD_WORK_DIR="${BUILD_WORK_DIR:-/tmp/openrig-build}"
 mkdir -p "$BUILD_WORK_DIR"
@@ -109,6 +104,46 @@ collect_libs() {
     fi
 }
 
+# Collect a built plugin BUNDLE DIRECTORY (e.g. a VST3 `.vst3/`) into
+# $OUTPUT_DIR, preserving its internal `Contents/<arch>/` tree. Unlike
+# collect_libs (single shared objects), a VST3 bundle is a directory: each
+# platform runner only populates its own `Contents/<arch>/` subfolder, and the
+# commit-libs merge step unions them into the shipped cross-platform bundle.
+collect_bundle() {
+    local search_dir="$1"
+    local bundle_name="$2"
+    local found
+    found=$(find "$search_dir" -type d -name "$bundle_name" | head -1)
+    if [ -z "$found" ]; then
+        echo "  collect_bundle: no $bundle_name found under $search_dir" >&2
+        return 1
+    fi
+    rm -rf "${OUTPUT_DIR:?}/$bundle_name"
+    cp -R "$found" "$OUTPUT_DIR/$bundle_name"
+    echo "  collected bundle: $bundle_name ($(find "$OUTPUT_DIR/$bundle_name" -type f | wc -l | tr -d ' ') files)"
+}
+
+# Collect the SINGLE VST3 bundle built under $search_dir, normalising its folder
+# name to $dest_name. JUCE names the .vst3 after PRODUCT_NAME (often unequal to
+# the CMake target — e.g. "REEV-R.vst3"), which the manifest `bundle:` must
+# match exactly; rather than predict that name per plugin, each recipe builds
+# exactly one VST3 target and we rename whatever it produced to a stable name.
+# Fails loudly if zero or more than one .vst3 is found.
+collect_vst3() {
+    local search_dir="$1" dest_name="$2"
+    local found
+    found=()
+    while IFS= read -r d; do found+=("$d"); done \
+        < <(find "$search_dir" -type d -name "*.vst3")
+    if [ "${#found[@]}" -ne 1 ]; then
+        echo "  collect_vst3: expected exactly one .vst3 under $search_dir, found ${#found[@]}" >&2
+        return 1
+    fi
+    rm -rf "${OUTPUT_DIR:?}/$dest_name"
+    cp -R "${found[0]}" "$OUTPUT_DIR/$dest_name"
+    echo "  collected bundle: ${found[0]##*/} -> $dest_name ($(find "$OUTPUT_DIR/$dest_name" -type f | wc -l | tr -d ' ') files)"
+}
+
 # Build with Make (supports cross-compilation)
 do_make() {
     local src="$1"
@@ -150,197 +185,22 @@ do_meson() {
     LAST_BUILD_DIR="$build_dir"
 }
 
-# --- Plugin build recipes ---
-
-# NOTE: NAM is no longer built here. Since #612 the official
-# NeuralAmpModelerCore (deps/NeuralAmpModelerCore) is compiled from cpp/ by the
-# `nam` crate's build.rs during `cargo build` and linked as libnam_wrapper.
-# The packaging scripts pick the artifact straight out of cargo's build dir;
-# there is no committed prebuilt under libs/nam/ anymore.
-
-build_dragonfly_reverb() {
-    local src="$DEPS_DIR/dragonfly-reverb"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "*_dsp"
-}
-
-build_zam_plugins() {
-    local src="$DEPS_DIR/zam-plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "Zam*_dsp"
-}
-
-build_mod_utilities() {
-    local src="$DEPS_DIR/mod-utilities"
-    do_make "$src"
-    collect_libs "$src"
-}
-
-build_caps_lv2() {
-    local src="$DEPS_DIR/caps-lv2"
-    do_make "$src"
-    collect_libs "$src"
-}
-
-build_tap_lv2() {
-    local src="$DEPS_DIR/tap-lv2"
-    do_make "$src"
-    collect_libs "$src"
-}
-
-build_shiro_plugins() {
-    local src="$DEPS_DIR/SHIRO-Plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "*_dsp"
-}
-
-build_dpf_plugins() {
-    local src="$DEPS_DIR/DPF-Plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "*_dsp"
-}
-
-build_mverb() {
-    local src="$DEPS_DIR/MVerb"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "*_dsp"
-}
-
-build_mda_lv2() {
-    local src="$DEPS_DIR/mda-lv2"
-    do_meson "$src"
-    collect_libs "$LAST_BUILD_DIR"
-}
-
-build_fomp() {
-    local src="$DEPS_DIR/fomp"
-    do_meson "$src"
-    collect_libs "$LAST_BUILD_DIR"
-}
-
-build_invada_studio() {
-    local src="$DEPS_DIR/invada-studio"
-    do_make "$src"
-    collect_libs "$src"
-}
-
-build_wolf_shaper() {
-    local src="$DEPS_DIR/wolf-shaper"
-    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "*_dsp"
-}
-
-build_artyfx() {
-    local src="$DEPS_DIR/openAV-ArtyFX"
-    do_cmake "$src"
-    collect_libs "$LAST_BUILD_DIR" "artyfx"
-}
-
-build_sooperlooper() {
-    local src="$DEPS_DIR/sooperlooper"
-    cd "$src"
-    if [ ! -f configure ]; then
-        autoreconf -fi
-    fi
-    # shellcheck disable=SC2046
-    ./configure --prefix=/tmp/sl-install $([ -n "$CROSS_COMPILE" ] && echo "--host=$CROSS_COMPILE" || true)
-    make -j "$JOBS"
-    collect_libs "." "sooperlooper*"
-}
-
-build_setbfree() {
-    local src="$DEPS_DIR/setBfree"
-    do_make "$src"
-    collect_libs "$src" "b_*"
-}
-
-build_gxplugins() {
-    local src="$DEPS_DIR/GxPlugins.lv2"
-    local os=$(uname -s)
-
-    # GxPlugins use __attribute__((section(".rt.text"))) which is Linux/ELF-only.
-    # On macOS (Mach-O) and Windows (PE/MinGW) we strip it via sed and compile
-    # each plugin individually. Linux works straight via the upstream Makefile.
-    if [ "$os" != "Darwin" ] && [ -z "${MINGW_TARGET:-}" ] \
-       && ! echo "${CROSS_COMPILE:-}" | grep -q mingw; then
-        do_make "$src"
-        collect_libs "$src"
-        return
-    fi
-
-    # Per-plugin compile fallback (Darwin + MinGW).
-    local target compiler arch_flags target_flags output_ext
-    if [ "$os" = "Darwin" ]; then
-        target="darwin"
-        compiler="c++"
-        arch_flags="-arch arm64 -arch x86_64 -mmacosx-version-min=11.0"
-        target_flags="-bundle"
-        output_ext="dylib"
-    else
-        target="mingw"
-        compiler="${CXX:-g++}"
-        arch_flags=""
-        target_flags="-shared"
-        output_ext="dll"
-    fi
-
-    local lv2_cflags
-    lv2_cflags=$(pkg-config --cflags lv2 2>/dev/null || echo "")
-
-    for plugin_dir in "$src"/Gx*.lv2; do
-        [ -d "$plugin_dir" ] || continue
-        local name
-        name=$(grep "^	NAME" "$plugin_dir/Makefile" 2>/dev/null | head -1 | sed 's/.*= *//')
-        [ -n "$name" ] || continue
-
-        local cpp_file
-        cpp_file=$(ls "$plugin_dir/plugin/"*.cpp 2>/dev/null | head -1)
-        [ -n "$cpp_file" ] && [ -f "$cpp_file" ] || continue
-
-        local patched="$BUILD_WORK_DIR/gxplugins_${name}_patched.cpp"
-        sed 's/__attribute__((section("[^"]*")))//g' "$cpp_file" > "$patched"
-
-        # Some plugins include zita-resampler from a subdirectory
-        local extra_include=""
-        local zita_dir
-        zita_dir=$(find "$plugin_dir/dsp" -name "resampler.cc" -exec dirname {} \; 2>/dev/null | head -1)
-        if [ -n "$zita_dir" ]; then
-            extra_include="-I$zita_dir"
-        fi
-
-        # shellcheck disable=SC2086
-        if "$compiler" -std=c++11 \
-            $arch_flags \
-            -I"$plugin_dir" -I"$plugin_dir/dsp" -I"$plugin_dir/plugin" \
-            $extra_include $lv2_cflags \
-            -fPIC -DPIC -O2 \
-            -Wno-duplicate-decl-specifier -Wno-macro-redefined \
-            $target_flags -o "$OUTPUT_DIR/${name}.${output_ext}" \
-            "$patched" -lm 2>/dev/null; then
-            echo "  OK ($target): $name"
-        else
-            echo "  FAIL ($target): $name"
-        fi
-
-        rm -f "$patched"
-    done
-}
-
-build_chowcentaur() {
-    local src="$DEPS_DIR/AnalogTapeModel"
-    do_cmake "$src"
-    collect_libs "$LAST_BUILD_DIR" "ChowCentaur"
-}
-
-build_ojd() {
-    local src="$DEPS_DIR/Schrammel_OJD"
-    do_cmake "$src"
-    collect_libs "$LAST_BUILD_DIR" "OJD"
-}
+# --- Plugin build recipes (sourced modules) ---
+# Each backend's build_<name> functions live in scripts/recipes/*.sh so this
+# dispatcher stays small and the recipes are grouped by backend. Sourced
+# relative to THIS script (BASH_SOURCE), so it resolves both from the repo
+# checkout (CI runs `bash scripts/build-lib-internal.sh`) and from the Docker
+# image (Dockerfile.build-libs copies recipes/ next to the baked build-lib).
+RECIPES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/recipes"
+# shellcheck source=/dev/null
+source "$RECIPES_DIR/lv2.sh"
+# shellcheck source=/dev/null
+source "$RECIPES_DIR/vst3.sh"
 
 # --- Registry ---
 
 PLUGINS=(
+    nam
     dragonfly-reverb
     zam-plugins
     mod-utilities
@@ -359,12 +219,48 @@ PLUGINS=(
     bolliedelay
     gxplugins
     chowcentaur
+    chowtape
+    chowphaser
+    chowmatrix
+    chowmultitool
+    byod
+    reevr
+    sirial
+    qdelay
+    gate12
+    time12
+    filtr
+    zl_equalizer
+    zl_compressor
+    zl_splitter
+    zl_spectrum_equalizer
+    zl_warm
+    zl_inflator
+    cloudreverb
+    roomreverb
+    frequalizer
+    retuner
+    setekh
+    vitottx
+    aidax
+    dfzitarev1
+    master_me
+    fogpad
+    regrader
+    rechoir
+    transformant
+    darvaza
+    homecorrupter
     ojd
+    aether
+    x42
+    distrho
 )
 
 # Map plugin name to build function
 dispatch() {
     case "$1" in
+        nam)              build_nam ;;
         dragonfly-reverb) build_dragonfly_reverb ;;
         zam-plugins)      build_zam_plugins ;;
         mod-utilities)    build_mod_utilities ;;
@@ -383,7 +279,42 @@ dispatch() {
         bolliedelay)      build_bolliedelay ;;
         gxplugins)        build_gxplugins ;;
         chowcentaur)      build_chowcentaur ;;
+        chowtape)         build_chowtape ;;
+        chowphaser)       build_chowphaser ;;
+        chowmatrix)       build_chowmatrix ;;
+        chowmultitool)    build_chowmultitool ;;
+        byod)             build_byod ;;
+        reevr)            build_reevr ;;
+        sirial)           build_sirial ;;
+        qdelay)           build_qdelay ;;
+        gate12)           build_gate12 ;;
+        time12)           build_time12 ;;
+        filtr)            build_filtr ;;
+        zl_equalizer)         build_zl_equalizer ;;
+        zl_compressor)        build_zl_compressor ;;
+        zl_splitter)          build_zl_splitter ;;
+        zl_spectrum_equalizer) build_zl_spectrum_equalizer ;;
+        zl_warm)              build_zl_warm ;;
+        zl_inflator)          build_zl_inflator ;;
+        cloudreverb)      build_cloudreverb ;;
+        roomreverb)       build_roomreverb ;;
+        frequalizer)      build_frequalizer ;;
+        retuner)          build_retuner ;;
+        setekh)           build_setekh ;;
+        vitottx)          build_vitottx ;;
+        aidax)            build_aidax ;;
+        dfzitarev1)       build_dfzitarev1 ;;
+        master_me)        build_master_me ;;
+        fogpad)          build_fogpad ;;
+        regrader)        build_regrader ;;
+        rechoir)         build_rechoir ;;
+        transformant)    build_transformant ;;
+        darvaza)         build_darvaza ;;
+        homecorrupter)   build_homecorrupter ;;
         ojd)              build_ojd ;;
+        aether)           build_aether ;;
+        x42)              build_x42 ;;
+        distrho)          build_distrho ;;
         *) echo "Unknown plugin: $1"; exit 1 ;;
     esac
 }

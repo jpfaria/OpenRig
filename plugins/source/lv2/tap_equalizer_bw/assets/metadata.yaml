@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: TAP Equalizer/BW — Butterworth equalizer variant.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net

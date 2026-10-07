@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_fat1_autotune
+display_name: x42 Autotune
+description: x42 Autotune — chromatic pitch correction plugin.
+brand: x42
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/x42/fat1.lv2
+type: pitch
+backend: lv2
+plugin_uri: http://gareus.org/oss/lv2/fat1#scales
+binaries:
+  macos-universal: platform/macos-universal/fat1.dylib

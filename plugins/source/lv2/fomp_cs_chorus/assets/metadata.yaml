@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: FOMP CS Chorus — clean chorus effect.
+    license: GPL-3.0
+    homepage: https://drobilla.net/software/fomp
+  pt-BR:
+    description: FOMP CS Chorus — efeito de chorus limpo.
+    license: GPL-3.0
+    homepage: https://drobilla.net/software/fomp

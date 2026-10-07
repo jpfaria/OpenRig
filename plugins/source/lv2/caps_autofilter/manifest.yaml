@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_caps_autofilter
+display_name: AutoFilter
+description: CAPS AutoFilter — resonant filter with LFO modulation.
+brand: caps
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/AutoFilter
+binaries:
+  macos-universal: platform/macos-universal/AutoFilter.dylib
+  linux-x86_64: platform/linux-x86_64/AutoFilter.so
+  linux-aarch64: platform/linux-aarch64/AutoFilter.so

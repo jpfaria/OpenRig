@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: CAPS AutoFilter — resonant filter with LFO modulation.
+    license: GPL-2.0
+    homepage: http://quitte.de/dsp/caps.html
