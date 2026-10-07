@@ -8,6 +8,7 @@ pub mod drums;
 pub mod metronome;
 pub mod pitch_yin;
 pub mod quality_metrics;
+pub mod repeat_period;
 pub mod spectrum_fft;
 pub mod tone_descriptors;
 pub mod tone_profiles;

@@ -1,4 +1,4 @@
-//! #826 — the pure loop-edit transforms. Interleaved stereo, frame indices,
+//! The pure loop-edit transforms. Interleaved stereo, frame indices,
 //! no I/O, no engine state.
 
 use super::*;
@@ -11,6 +11,24 @@ fn ramp(frames: usize) -> Vec<f32> {
 
 fn frame(pcm: &[f32], i: usize) -> [f32; 2] {
     [pcm[i * 2], pcm[i * 2 + 1]]
+}
+
+const RATE: u32 = 48_000;
+
+/// A 2 s phrase of four held notes (half a second each), played 2.6 times
+/// between half a second of silence on each side. Interleaved stereo.
+fn phrase_take() -> Vec<f32> {
+    let r = RATE as f64;
+    let (lead, played) = ((0.5 * r) as usize, (5.2 * r) as usize);
+    let notes = [196.0, 247.0, 294.0, 330.0];
+    let mut pcm = vec![0.0f32; (lead + played + lead) * 2];
+    for i in 0..played {
+        let t = i as f64 / r;
+        let s = 0.3 * (std::f64::consts::TAU * notes[(t / 0.5) as usize % 4] * t).sin();
+        pcm[(lead + i) * 2] = s as f32;
+        pcm[(lead + i) * 2 + 1] = (s * 0.5) as f32;
+    }
+    pcm
 }
 
 #[test]
@@ -69,7 +87,7 @@ fn cut_removes_the_region_and_joins_the_halves() {
 #[test]
 fn the_seam_is_a_blend_not_a_step() {
     // The point of the seam: the join is blended, and nothing overshoots the
-    // source peak (equal-gain, #614).
+    // source peak (equal-gain).
     let pcm = ramp(400);
     let out = apply_edit(&pcm, LoopEditOp::Cut, 100, 200).unwrap();
     let peak = pcm.iter().fold(0.0f32, |a, s| a.max(s.abs()));
@@ -142,7 +160,7 @@ fn peaks_never_divides_by_zero_on_a_short_or_empty_loop() {
 
 #[test]
 fn content_bounds_find_where_the_playing_actually_starts_and_ends() {
-    // #826: the take the player keeps is rarely the take they recorded — there
+    // The take the player keeps is rarely the take they recorded — there
     // is a count-in at the head and a late release at the tail. "Fit" is the
     // one-button answer: find the music, drop the rest.
     let mut pcm = vec![0.0f32; 2000 * 2];
@@ -203,7 +221,9 @@ fn fitting_a_take_trims_the_silence_off_both_ends() {
         pcm[f * 2 + 1] = -0.5;
     }
 
-    let out = apply_edit(&pcm, LoopEditOp::Fit, 0, 0).expect("a take with music can be fitted");
+    let (op, start, end) =
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE).expect("a take with music can be fitted");
+    let out = apply_edit(&pcm, op, start, end).unwrap();
     let fitted = out.len() / 2;
     assert!(
         (2100..=2300).contains(&fitted),
@@ -216,7 +236,7 @@ fn fitting_a_take_trims_the_silence_off_both_ends() {
 #[test]
 fn fitting_a_silent_take_is_refused_rather_than_leaving_a_click() {
     assert_eq!(
-        apply_edit(&vec![0.0f32; 4000 * 2], LoopEditOp::Fit, 0, 0),
+        resolve_region(&vec![0.0f32; 4000 * 2], LoopEditOp::Fit, 0, 0, RATE),
         Err(LoopEditError::EmptyRegion)
     );
 }
@@ -245,5 +265,117 @@ fn fit_trims_a_take_whose_silence_is_real_world_hiss() {
     assert!(
         (3000..=3100).contains(&end),
         "the hiss after the last note is not the take ({end})"
+    );
+}
+
+// The same edit applied to every cycle of a loop that is several cycles
+// long, so a longer loop on the shared timeline follows the edit made on a
+// shorter one.
+
+#[test]
+fn a_one_cycle_edit_is_the_plain_edit() {
+    let pcm = ramp(1024);
+    for (op, start, end) in [(LoopEditOp::Keep, 64, 704), (LoopEditOp::Cut, 300, 500)] {
+        assert_eq!(
+            apply_edit_per_cycle(&pcm, op, start, end, 1024),
+            apply_edit(&pcm, op, start, end),
+            "{op:?}"
+        );
+    }
+}
+
+#[test]
+fn a_per_cycle_trim_keeps_the_region_of_every_cycle() {
+    let pcm = ramp(2048);
+    let out = apply_edit_per_cycle(&pcm, LoopEditOp::Keep, 100, 900, 1024).unwrap();
+
+    let per = 800 - SEAM_FRAMES;
+    assert_eq!(out.len() / 2, 2 * per);
+    assert_eq!(frame(&out, 300), frame(&pcm, 100 + 300));
+    assert_eq!(frame(&out, per + 300), frame(&pcm, 1024 + 100 + 300));
+}
+
+#[test]
+fn each_cycle_fades_in_over_the_tail_the_previous_cycle_dropped() {
+    // Cycle 2 follows cycle 1 the way the loop wraps: its head is blended
+    // with the frames cycle 1 lost at its end — and cycle 1, the top of the
+    // loop, with the frames the LAST cycle lost.
+    let pcm = ramp(2048);
+    let out = apply_edit_per_cycle(&pcm, LoopEditOp::Keep, 100, 900, 1024).unwrap();
+    let per = 800 - SEAM_FRAMES;
+    let j = 10;
+    let w = crate::crossfade::head_weight(j, SEAM_FRAMES);
+
+    let second = (1024 + 100 + j) as f32 * w + (836 + j) as f32 * (1.0 - w);
+    let first = (100 + j) as f32 * w + (1024 + 836 + j) as f32 * (1.0 - w);
+    assert!((out[(per + j) * 2] - second).abs() < 1e-2);
+    assert!((out[j * 2] - first).abs() < 1e-2);
+}
+
+#[test]
+fn an_edit_per_cycle_needs_whole_cycles() {
+    let pcm = ramp(1500);
+    assert_eq!(
+        apply_edit_per_cycle(&pcm, LoopEditOp::Keep, 100, 900, 1024),
+        Err(LoopEditError::OutOfRange)
+    );
+}
+
+#[test]
+fn a_region_past_the_cycle_is_out_of_range() {
+    let pcm = ramp(2048);
+    assert_eq!(
+        apply_edit_per_cycle(&pcm, LoopEditOp::Keep, 100, 1100, 1024),
+        Err(LoopEditError::OutOfRange)
+    );
+}
+
+#[test]
+fn resolving_fit_gives_the_bounds_of_the_playing() {
+    let mut pcm = vec![0.0f32; 4000 * 2];
+    for f in 800..3000 {
+        pcm[f * 2] = 0.5;
+        pcm[f * 2 + 1] = -0.5;
+    }
+    let (start, end) = content_bounds(&pcm).unwrap();
+    assert_eq!(
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE),
+        Ok((LoopEditOp::Keep, start, end))
+    );
+}
+
+#[test]
+fn resolving_a_plain_region_keeps_it() {
+    let pcm = ramp(1024);
+    assert_eq!(
+        resolve_region(&pcm, LoopEditOp::Cut, 10, 200, RATE),
+        Ok((LoopEditOp::Cut, 10, 200))
+    );
+}
+
+#[test]
+fn resolving_fit_on_silence_finds_nothing() {
+    let pcm = vec![0.0f32; 1024 * 2];
+    assert_eq!(
+        resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE),
+        Err(LoopEditError::EmptyRegion)
+    );
+}
+
+#[test]
+fn resolving_fit_on_a_repeating_phrase_keeps_whole_passes_of_it() {
+    // 2.6 passes of a 2 s phrase: FIT keeps two, from the first note, plus
+    // the seam's overlap into the third — so after the seam the loop is
+    // exactly two passes and its end runs into its start.
+    let pcm = phrase_take();
+    let (start, _) = content_bounds(&pcm).unwrap();
+
+    let (op, s, e) = resolve_region(&pcm, LoopEditOp::Fit, 0, 0, RATE).unwrap();
+
+    assert_eq!((op, s), (LoopEditOp::Keep, start));
+    let loop_len = (e - s - SEAM_FRAMES) as i64;
+    assert!(
+        (loop_len - 4 * RATE as i64).abs() < 240,
+        "two passes are 4 s, kept {loop_len} frames"
     );
 }
