@@ -57,7 +57,7 @@ export component LooperPresetPicker inherits Rectangle {
             }
 
             Flickable {
-                viewport-height: options-box.preferred-height;
+                content-height: options-box.preferred-height;
                 options-box := ListBox {
                     width: parent.width;
                     // Option 0 — "follow the chain" (clears the fixed link).

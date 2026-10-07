@@ -60,7 +60,7 @@ export component EndpointChecklistOverlay inherits Rectangle {
                 // inside the card instead of growing it off-screen.
                 ScrollView {
                     height: min(picker.height, 360px);
-                    viewport-height: picker.height;
+                    content-height: picker.height;
                     picker := ChannelPicker {
                         width: parent.width;
                         channels: ChainGraphOverlayState.checklist-items;

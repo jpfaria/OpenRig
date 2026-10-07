@@ -108,6 +108,8 @@ fn a_new_binding_at_the_end_of_a_long_list_scrolls_into_view() {
 
     click(&w, &element(&w, "SettingsPage::new-binding-btn"));
     assert_eq!(list.row_count(), 13);
+    // The scroll lands on the next tick, once the list has laid out the new row.
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(16));
 
     let pane = element(&w, "SettingsPage::section-scroll");
     let top = pane.absolute_position().y;

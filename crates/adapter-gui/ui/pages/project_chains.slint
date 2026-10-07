@@ -440,7 +440,7 @@ export component ProjectChainsPage inherits Rectangle {
                 y: 46px + 18px;
                 width: parent.width - 36px;
                 height: parent.height - 46px - 36px;
-                viewport-height: picker-modal.content-height;
+                content-height: picker-modal.content-height;
 
                 for type-item[index] in BlockEditorBridge.block-type-options : BlockTypeCard {
                     x: Math.mod(index, 4) * BlockTypeGrid.step;

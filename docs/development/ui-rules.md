@@ -47,7 +47,7 @@ bring back a PNG.
 
 ## 1. `PopupWindow` content does not reliably receive clicks
 
-In this Slint version (1.16.1) a `PopupWindow` renders its content on a separate
+Verified on Slint 1.16.1 (the rule stays in force on 1.18): a `PopupWindow` renders its content on a separate
 surface that does not reliably receive dispatched pointer events — neither via
 `i-slint-backend-testing` nor in the real running app. A `TouchArea` inside a
 `PopupWindow` can be visible and even found by `find_by_element_id`, and

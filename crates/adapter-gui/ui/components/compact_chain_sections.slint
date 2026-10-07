@@ -46,8 +46,8 @@ component SectionBody inherits Rectangle {
     background: Theme.panel;
     Flickable {
         width: 100%; height: 100%;
-        viewport-width: self.width;
-        viewport-height: root.content-height + 16px;
+        content-width: self.width;
+        content-height: root.content-height + 16px;
         @children
     }
 }

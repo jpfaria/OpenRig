@@ -95,8 +95,8 @@ export component MixerPanel inherits Rectangle {
             x: 16px; y: 14px;
             width: parent.width - 32px;
             height: parent.height - 28px;
-            viewport-width: max(self.width, root.shown.length * 120px);
-            viewport-height: self.height;
+            content-width: max(self.width, root.shown.length * 120px);
+            content-height: self.height;
 
             MixerSection {
                 x: 0; y: 0;

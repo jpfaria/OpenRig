@@ -136,11 +136,11 @@ export component DiLoopPanel inherits Rectangle {
         y: root.bar-h;
         width: parent.width;
         height: parent.height - self.y;
-        viewport-width: self.width;
-        viewport-height: body.preferred-height;
+        content-width: self.width;
+        content-height: body.preferred-height;
         // Wheel always; drag only when there is something to scroll, so a
         // short panel's sliders are never taken for a flick.
-        interactive: self.viewport-height > self.height;
+        interactive: self.content-height > self.height;
 
         body := VerticalLayout {
             width: parent.width;
@@ -232,8 +232,8 @@ export component DiLoopPanel inherits Rectangle {
                     x: 1px; y: 1px;
                     width: parent.width - 2px;
                     height: parent.height - 2px;
-                    viewport-width: self.width;
-                    viewport-height: root.sources.length * root.row-h;
+                    content-width: self.width;
+                    content-height: root.sources.length * root.row-h;
 
                     for src[i] in root.sources : Rectangle {
                         property <bool> is-take: i < root.take-rows.length && root.take-rows[i];
@@ -367,8 +367,8 @@ export component DiLoopPanel inherits Rectangle {
                     x: 1px; y: 1px;
                     width: parent.width - 2px;
                     height: parent.height - 2px;
-                    viewport-width: self.width;
-                    viewport-height: root.outputs.length * root.row-h;
+                    content-width: self.width;
+                    content-height: root.outputs.length * root.row-h;
 
                     for out[i] in root.outputs : Rectangle {
                         x: 0;

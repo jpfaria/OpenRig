@@ -99,11 +99,11 @@ export component ToneDoctorPanel inherits Rectangle {
         y: root.bar-h;
         width: parent.width;
         height: parent.height - self.y;
-        viewport-width: self.width;
-        viewport-height: root.pad + root.body-h + root.pad-bottom;
+        content-width: self.width;
+        content-height: root.pad + root.body-h + root.pad-bottom;
         // Wheel always; drag only when there is something to scroll, so the
         // seconds slider is never taken for a flick.
-        interactive: self.viewport-height > self.height;
+        interactive: self.content-height > self.height;
 
         // ── what to analyse ───────────────────────────────────────────────────
         left := VerticalLayout {

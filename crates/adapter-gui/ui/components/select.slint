@@ -207,8 +207,8 @@ export component Select inherits Rectangle {
                 y: root.header-height;
                 width: parent.width;
                 height: parent.height - root.header-height - 4px;
-                viewport-width: self.width;
-                viewport-height: root.options.length * root.row-height + 4px;
+                content-width: self.width;
+                content-height: root.options.length * root.row-height + 4px;
 
                 for opt[i] in root.options : Rectangle {
                     x: 4px;

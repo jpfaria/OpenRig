@@ -157,7 +157,7 @@ export component CompactChainViewPage inherits Rectangle {
         height: parent.height - 66px - sections.total-height;
         // #787: rows have their own heights now — the viewport is exactly the
         // trailing insert slot (the same geometry the drop indicator uses).
-        viewport-height: root.slot-y(root.compact-blocks.length);
+        content-height: root.slot-y(root.compact-blocks.length);
         interactive: false;
 
         // Insert slot before first block (invisible until hover)
@@ -404,7 +404,7 @@ export component CompactChainViewPage inherits Rectangle {
                 x: 18px; y: 46px + 18px;
                 width: parent.width - 36px;
                 height: parent.height - 46px - 36px;
-                viewport-height: parent.content-height;
+                content-height: parent.content-height;
 
                 // Same BlockTypeCard the main chains screen uses (#613) —
                 // single source of truth for the tile icons, so VST3 /

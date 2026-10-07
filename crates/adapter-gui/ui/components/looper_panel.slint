@@ -155,11 +155,11 @@ export component LooperPanelView inherits Rectangle {
         y: root.bar-h + root.actions-h;
         width: parent.width;
         height: parent.height - self.y;
-        viewport-width: self.width;
-        viewport-height: body.preferred-height;
+        content-width: self.width;
+        content-height: body.preferred-height;
         // Wheel always; drag only when there is something to scroll, so a
         // short panel's sliders are never taken for a flick.
-        interactive: self.viewport-height > self.height;
+        interactive: self.content-height > self.height;
 
         body := VerticalLayout {
             width: parent.width;

@@ -36,7 +36,6 @@ export component BlockParamGrid inherits ScrollView {
     in property <int> grid-cols;
     in property <length> grid-base-y;
     in property <length> grid-row-stride;
-    in property <length> content-height;
     in property <color> panel-text;
     // #398: the block's category colour, for the knobs' value arcs.
     in property <color> tint: Theme.accent;
@@ -45,8 +44,7 @@ export component BlockParamGrid inherits ScrollView {
     callback pick-file(string);
     callback update-bool(string, bool);
 
-    viewport-width: self.visible-width;
-    viewport-height: root.content-height;
+    content-width: self.visible-width;
 
     // Slot geometry of the param rows. `tab_slot` is the row's compacted
     // position among the rows that actually render, so it also drives the EQ

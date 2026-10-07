@@ -192,8 +192,8 @@ export component PresetSelect inherits Rectangle {
                 y: root.header-height;
                 width: parent.width;
                 height: parent.height - root.header-height - 4px;
-                viewport-width: self.width;
-                viewport-height: PresetPicker.options.length * root.row-height + 4px;
+                content-width: self.width;
+                content-height: PresetPicker.options.length * root.row-height + 4px;
 
                 for option[i] in PresetPicker.options : Rectangle {
                     x: 4px;

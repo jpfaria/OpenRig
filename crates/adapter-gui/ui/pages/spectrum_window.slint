@@ -192,7 +192,7 @@ export component SpectrumPanel inherits Rectangle {
         x: 0; y: root.bar-h;
         width: parent.width;
         height: parent.height - root.bar-h;
-        viewport-height: 14px + root.spectrum-rows.length * 200px;
+        content-height: 14px + root.spectrum-rows.length * 200px;
 
         for row[index] in root.spectrum-rows : SpectrumCard {
             x: 14px;

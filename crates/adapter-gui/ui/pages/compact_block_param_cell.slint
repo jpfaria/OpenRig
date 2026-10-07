@@ -221,7 +221,7 @@ export component CompactBlockParamCell inherits Rectangle {
                 drop-shadow-blur: 12px; drop-shadow-color: Theme.shadow;
                 Flickable {
                     width: parent.width; height: parent.height;
-                    viewport-height: root.param.option_labels.length * 30px + 6px;
+                    content-height: root.param.option_labels.length * 30px + 6px;
                     for option[oi] in root.param.option_labels : Rectangle {
                         x: 3px; y: 3px + oi * 30px;
                         width: parent.width - 6px; height: 28px;

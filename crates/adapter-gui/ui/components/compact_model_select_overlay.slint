@@ -60,8 +60,8 @@ export component CompactModelSelectOverlay inherits Rectangle {
                 y: 1px;
                 width: parent.width - 2px;
                 height: parent.height - 2px;
-                viewport-width: self.width;
-                viewport-height: rows.preferred-height;
+                content-width: self.width;
+                content-height: rows.preferred-height;
 
                 rows := VerticalLayout {
                     alignment: start;

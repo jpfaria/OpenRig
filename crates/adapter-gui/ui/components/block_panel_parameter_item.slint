@@ -226,7 +226,7 @@ export component BlockPanelParameterItem inherits Rectangle {
                     x: 0; y: 0;
                     width: parent.width;
                     height: parent.height;
-                    viewport-height: root.param.option_labels.length * 36px + 8px;
+                    content-height: root.param.option_labels.length * 36px + 8px;
 
                     for option[oi] in root.param.option_labels : Rectangle {
                         x: 4px;

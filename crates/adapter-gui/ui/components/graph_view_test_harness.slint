@@ -58,14 +58,14 @@ export component GraphViewScrollHarness inherits Window {
     height: 400px;
     in property <[GraphNode]> nodes;
     in-out property <float> zoom: 1.0;
-    out property <length> list-scroll-y: list.viewport-y;
+    out property <length> list-scroll-y: list.content-y;
 
     list := Flickable {
         x: 0px;
         y: 0px;
         width: 100%;
         height: 100%;
-        viewport-height: 1200px;
+        content-height: 1200px;
 
         GraphView {
             x: 0px;

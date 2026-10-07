@@ -93,7 +93,7 @@ component NavRow inherits Rectangle {
 export component SettingsPage inherits Rectangle {
     // Anchor a min size so the inner layouts can resolve without
     // bubbling preferred-width upward (which produces binding loops
-    // through the ScrollView viewport-width).
+    // through the ScrollView content-width).
     min-width: 720px;
     min-height: 480px;
     preferred-width: 960px;
@@ -125,6 +125,17 @@ export component SettingsPage inherits Rectangle {
     private property <string> io-expanded-binding: "";
 
     background: Theme.panel;
+
+    // The new binding lands at the end of the list: once the list has laid
+    // it out (the next tick, not inside the click), bring it into view.
+    scroll-to-end := Timer {
+        interval: 1ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            section-scroll.content-y = min(0px, section-scroll.visible-height - section-scroll.content-height);
+        }
+    }
 
     VerticalLayout {
         ToolBar {
@@ -249,10 +260,9 @@ export component SettingsPage inherits Rectangle {
                                 icon-only: true;
                                 icon: @image-url("../assets/plus.svg");
                                 label: @tr("btn-new-binding");
-                                // The new binding lands at the end of the list: bring it into view.
                                 clicked => {
                                     root.io-expanded-binding = SettingsBridge.create-io-binding("");
-                                    section-scroll.viewport-y = min(0px, section-scroll.visible-height - section-scroll.viewport-height);
+                                    scroll-to-end.running = true;
                                 }
                             }
                         }

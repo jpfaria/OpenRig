@@ -318,7 +318,7 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 64px;
             width: parent.width - 36px;
             height: parent.height - 82px;
-            viewport-height: root.recent-projects.length * 64px;
+            content-height: root.recent-projects.length * 64px;
 
             for recent[index] in root.recent-projects : RecentProjectRow {
                 y: index * 64px;

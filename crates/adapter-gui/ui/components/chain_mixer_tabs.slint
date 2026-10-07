@@ -86,8 +86,8 @@ export component ChainMixerTabs inherits Rectangle {
         x: 14px; y: root.body-top + 14px;
         width: parent.width - 28px;
         height: parent.height - self.y - 2px;
-        viewport-width: max(self.width, root.content-width);
-        viewport-height: self.height;
+        content-width: max(self.width, root.content-width);
+        content-height: self.height;
 
         for strip[i] in root.dual-rows : DualMixerStripView {
             x: root.dual-offset + i * root.dual-pitch; y: 0;

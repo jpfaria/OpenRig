@@ -28,9 +28,9 @@ export component DialogCard inherits Rectangle {
 
         // Never cut by the window: a dialog taller than it scrolls (#398).
         scroll := Flickable {
-            viewport-width: self.width;
-            viewport-height: max(self.height, root.card-height > 0 ? stack.min-height : stack.preferred-height);
-            interactive: self.viewport-height > self.height;
+            content-width: self.width;
+            content-height: max(self.height, root.card-height > 0 ? stack.min-height : stack.preferred-height);
+            interactive: self.content-height > self.height;
 
             stack := VerticalLayout {
                 width: parent.width;
