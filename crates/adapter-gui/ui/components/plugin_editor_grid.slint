@@ -101,13 +101,17 @@ export component PluginEditorGrid inherits Rectangle {
                         padding-left: 10px;
                         padding-right: 4px;
                         spacing: 4px;
+                        // The column grows to the longest capture name, so
+                        // every name reads whole.
                         Text {
                             horizontal-stretch: 1;
                             text: row.source-name;
                             color: Theme.ink-2;
                             font-size: Theme.min-font;
-                            overflow: elide;
                             vertical-alignment: center;
+                            init => {
+                                root.name-w = max(root.name-w, self.preferred-width + 48px);
+                            }
                         }
                         if PluginEditorBridge.mode == 1 : VerticalLayout {
                             alignment: center;
