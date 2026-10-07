@@ -11,6 +11,8 @@ plugins/source/
 deps/<upstream>/   git submodule pinned to a commit (see deps/DEPS.md)
 ```
 
+The VST3 catalog scans the `vst3/` folder of each plugin root plus the folder of every VST3 package the plugin loader found (`crates/project/src/vst3_scan_dirs.rs`), so a dev run from the checkout, whose root is `<cwd>/plugins`, finds the bundles under `source/vst3/` as well as the packaged layout `plugins/vst3/`.
+
 Every package is checked by `crates/plugin-loader/tests/bundled_catalog_valid.rs`: each manifest loads, every declared file exists, and only LV2/VST3 packages are present. The release `bundle-plugins` job runs that test before uploading the tree to the platform builds.
 
 ## Git LFS

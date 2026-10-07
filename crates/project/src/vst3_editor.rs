@@ -10,14 +10,15 @@
 //! synthesised from the plugin's parameters, see `vst3_host::catalog_params`).
 
 /// Initialise the VST3 plugin catalog by scanning standard system paths plus
-/// the `vst3/` sub-directory of each configured plugin root (issue #776), so a
-/// catalog VST3 shipped in the OpenRig plugins folder is discovered exactly
-/// like a system-installed one.
+/// the plugin folders (`crate::vst3_scan_dirs`), so a catalog VST3 shipped in
+/// the OpenRig plugins folder is discovered exactly like a system-installed
+/// one. Call it after `plugin_loader::registry::init_many`: the VST3 packages
+/// it found are part of the scan.
 ///
 /// Safe to call from a background thread. Subsequent calls are no-ops.
 pub fn init_vst3_catalog(sample_rate: f64, plugin_roots: &[std::path::PathBuf]) {
-    let extra_dirs: Vec<std::path::PathBuf> =
-        plugin_roots.iter().map(|root| root.join("vst3")).collect();
+    let extra_dirs =
+        crate::vst3_scan_dirs::vst3_scan_dirs(plugin_roots, plugin_loader::registry::packages());
     vst3_host::init_vst3_catalog(sample_rate, &extra_dirs);
 }
 
