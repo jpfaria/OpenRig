@@ -65,8 +65,8 @@ pub(crate) type IsolatedKey = (ChainId, IsolatedSource);
 pub(crate) struct DiStreamHandle {
     /// Where it plays; `None` when neither the saved reference nor the chain
     /// names an output.
-    output: Option<IsolatedOutput>,
-    cell: DiPlaybackCell,
+    pub(crate) output: Option<IsolatedOutput>,
+    pub(crate) cell: DiPlaybackCell,
     /// #785: the arm flags of EVERY render thread still alive for this chain —
     /// this arm's (last) plus any it superseded. Each thread runs while its own
     /// flag is `true`. Edits arrive faster than a render builds, so a hand-off
@@ -93,7 +93,7 @@ pub(crate) struct DiStreamHandle {
     /// port-mix path) and when a re-arm hands the live stream to a new handle.
     /// Carries the stream's sample rate so a re-arm can render at the rate the
     /// stream consumes without re-querying the device.
-    output_stream: Option<(cpal::Stream, u32)>,
+    pub(crate) output_stream: Option<(cpal::Stream, u32)>,
 }
 
 /// Stop every render thread in `workers` (idempotent).
@@ -186,11 +186,12 @@ impl ProjectRuntimeController {
     /// resolve/config failure the DI still renders (heard once an output exists).
     /// Returns the stream + its sample rate so the render matches the stream.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    fn build_di_output_stream(
+    pub(crate) fn build_di_output_stream(
         &self,
         chain: &Chain,
         output: &IsolatedOutput,
         cell: &DiPlaybackCell,
+        fade: crate::stream_handover::OutputFade,
     ) -> Option<(cpal::Stream, u32)> {
         use cpal::traits::StreamTrait;
         let out = &output.entry;
@@ -212,6 +213,7 @@ impl ProjectRuntimeController {
             resolved,
             Vec::new(), // no chain runtime slots — this stream plays ONLY the DI
             cell.clone(),
+            fade,
         )
         .ok()?;
         stream.play().ok()?;
@@ -221,11 +223,12 @@ impl ProjectRuntimeController {
     /// JACK build (Orange Pi) keeps the port-mix DI path unchanged (#808 wires
     /// the dedicated cpal output first).
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    fn build_di_output_stream(
+    pub(crate) fn build_di_output_stream(
         &self,
         _chain: &Chain,
         _output: &IsolatedOutput,
         _cell: &DiPlaybackCell,
+        _fade: crate::stream_handover::OutputFade,
     ) -> Option<(cpal::Stream, u32)> {
         None
     }
@@ -323,9 +326,10 @@ impl ProjectRuntimeController {
             if let Some(h) = prev.as_mut() {
                 h.output_stream = None; // moved output: drop the old stream
             }
-            output
-                .as_ref()
-                .and_then(|o| self.build_di_output_stream(chain, o, &cell))
+            output.as_ref().and_then(|o| {
+                let fade = crate::stream_handover::StreamHandover::cold().output_fade();
+                self.build_di_output_stream(chain, o, &cell, fade)
+            })
         };
         // The DI's own stream plays on the chosen output's channels; without
         // one (JACK, or a failed device resolve) the playback is mixed into the

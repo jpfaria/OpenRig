@@ -30,6 +30,12 @@ impl InputSeamWatch {
     fn is_stepped(&self) -> bool {
         self.detectors.iter().any(InputSeamDetector::is_tripped)
     }
+
+    fn reset(&mut self) {
+        for detector in &mut self.detectors {
+            detector.reset();
+        }
+    }
 }
 
 /// Feeds one received device buffer to the pipelines it reaches, then marks the
@@ -43,6 +49,13 @@ pub(crate) fn watch_input_seams(
     data: &[f32],
     input_total_channels: usize,
 ) {
+    if runtime.seam_reset.load(Ordering::Relaxed)
+        && runtime.seam_reset.swap(false, Ordering::AcqRel)
+    {
+        for state in input_states.iter_mut() {
+            state.seam_watch.reset();
+        }
+    }
     let skips = runtime.input_busy_skips.load(Ordering::Relaxed);
     for &seg_idx in segment_indices {
         let Some(InputProcessingState {
@@ -66,4 +79,14 @@ pub(crate) fn watch_input_seams(
         .iter()
         .any(|state| state.seam_watch.is_stepped());
     runtime.input_stepped.store(stepped, Ordering::Relaxed);
+}
+
+impl ChainRuntimeState {
+    /// #1081: the streams of this runtime were reopened, so its verdict starts
+    /// over: unmarked now, and every detector empty on the next input buffer.
+    /// Lock-free; called off the audio thread.
+    pub fn reset_input_seams(&self) {
+        self.seam_reset.store(true, Ordering::Release);
+        self.input_stepped.store(false, Ordering::Relaxed);
+    }
 }

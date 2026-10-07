@@ -139,6 +139,17 @@ impl ProjectRuntimeController {
         self.metronome_stream.borrow_mut().take();
     }
 
+    /// #1081: close the click's stream when it plays on one of `devices`, and
+    /// return the endpoint to reopen it on. Its settings stay.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub(crate) fn release_metronome_on(&self, devices: &[String]) -> Option<(String, Vec<usize>)> {
+        let closed = self
+            .metronome_stream
+            .borrow_mut()
+            .take_if(|handle| handle.plays_on(devices))?;
+        Some(closed.endpoint())
+    }
+
     /// Push new settings to the running callback (and to the next one opened).
     pub fn set_metronome_settings(&self, settings: MetronomeSettings) {
         self.metronome_shared.set_settings(settings);

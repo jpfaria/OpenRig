@@ -49,6 +49,7 @@ pub(crate) fn build_output_stream_for_output(
     resolved_output_device: ResolvedOutputDevice,
     slots: Vec<LiveRuntimeSlot>,
     di_cell: crate::di_playback::DiPlaybackCell,
+    mut fade: crate::stream_handover::OutputFade,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -105,6 +106,8 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        // #1081: the set's fade against the set it replaces.
+                        fade.apply(out, channels);
                     }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -143,6 +146,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -185,6 +189,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
@@ -228,6 +233,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =

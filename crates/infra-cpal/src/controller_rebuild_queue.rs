@@ -75,6 +75,11 @@ impl ProjectRuntimeController {
                 let _ = self.worker.submit(move || drop(old));
             }
         }
+        // #1081: close the stream sets a chain replaced once the set that
+        // replaced them plays on its own.
+        for active in self.active_chains.values_mut() {
+            active.swap.reap(now);
+        }
         let mut applied = 0;
         let mut still_pending = Vec::new();
         for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
@@ -174,6 +179,14 @@ impl ProjectRuntimeController {
                         .map(|j| self.di_playback_cell(&chain_id, j))
                         .collect();
                     self.stream_generation += 1;
+                    // #1081: the live set is not dropped here — it keeps
+                    // playing and fades out while the new one fades in.
+                    let previous = self.active_chains.remove(&chain_id);
+                    let swap = if previous.is_some() {
+                        crate::retired_streams::StreamSwap::replacing()
+                    } else {
+                        crate::retired_streams::StreamSwap::default()
+                    };
                     match crate::build_active_chain_runtime(
                         &chain_id,
                         &chain,
@@ -182,8 +195,12 @@ impl ProjectRuntimeController {
                         &self.io_bindings,
                         &di_cells,
                         self.stream_generation,
+                        swap,
                     ) {
-                        Ok(active) => {
+                        Ok(mut active) => {
+                            if let Some(previous) = previous {
+                                active.swap.retire(previous, now);
+                            }
                             self.streams.streams_built(
                                 &chain_id,
                                 self.stream_generation,
@@ -198,6 +215,9 @@ impl ProjectRuntimeController {
                         }
                         Err(e) => {
                             log::error!("chain '{}' stream build failed: {e}", chain_id.0);
+                            if let Some(previous) = previous {
+                                self.active_chains.insert(chain_id.clone(), previous);
+                            }
                             self.runtime_graph.remove_chain(&chain_id);
                         }
                     }
