@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_floaty
+display_name: Floaty
+description: Floaty — dreamy floating reverb/delay by Remaincalm.
+brand: remaincalm
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/remaincalm/floaty
+type: delay
+backend: lv2
+plugin_uri: http://remaincalm.org/plugins/floaty
+binaries:
+  macos-universal: platform/macos-universal/floaty_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/floaty_dsp.so

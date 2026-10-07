@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_tonemachine
+display_name: Tone Machine
+description: Tone Machine — octave fuzz by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_tonemachine_#_tonemachine_
+binaries:
+  macos-universal: platform/macos-universal/gx_tonemachine.dylib
+  linux-x86_64: platform/linux-x86_64/gx_tonemachine.so
+  linux-aarch64: platform/linux-aarch64/gx_tonemachine.so
+  windows-x86_64: platform/windows-x86_64/gx_tonemachine.dll

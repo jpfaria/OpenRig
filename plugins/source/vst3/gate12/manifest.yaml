@@ -1,0 +1,123 @@
+manifest_version: 1
+id: vst3_gate12
+display_name: Gate gate12
+description: GATE-12 — pattern-based trance/rhythm gate by tiagolr.
+brand: tiagolr
+license: GPL-3.0-or-later
+homepage: https://github.com/tiagolr/gate12
+type: vst3
+backend: vst3
+bundle: bundles/GATE-12.vst3
+parameters:
+  - vst3_id: 108124
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 1356393360
+    name: pattern
+    display_name: "Pattern"
+    group: "Pattern"
+  - vst3_id: 1356382654
+    name: pattern_sync
+    display_name: "Pattern Sync"
+    group: "Sync"
+  - vst3_id: 1087591864
+    name: trigger
+    display_name: "Trigger"
+    group: "Sync"
+  - vst3_id: 3545755
+    name: sync
+    display_name: "Sync"
+    group: "Sync"
+  - vst3_id: 3493088
+    name: rate_hz
+    display_name: "Rate Hz"
+    group: "Sync"
+  - vst3_id: 106629499
+    name: phase
+    display_name: "Phase"
+    group: "Pattern"
+  - vst3_id: 108114
+    name: min
+    display_name: "Min"
+    group: "Pattern"
+  - vst3_id: 107876
+    name: max
+    display_name: "Max"
+    group: "Pattern"
+  - vst3_id: 1248949678
+    name: smooth
+    display_name: "Smooth"
+    group: "Pattern"
+  - vst3_id: 740224584
+    name: attack
+    display_name: "Attack"
+    group: "Pattern"
+  - vst3_id: 1090594823
+    name: release
+    display_name: "Release"
+    group: "Pattern"
+  - vst3_id: 720390226
+    name: tension
+    display_name: "Tension"
+    group: "Pattern"
+  - vst3_id: 1341225222
+    name: attack_tension
+    display_name: "Attack Tension"
+    group: "Pattern"
+  - vst3_id: 1341241095
+    name: release_tension
+    display_name: "Release Tension"
+    group: "Pattern"
+  - vst3_id: 1255118840
+    name: stereo_offset
+    display_name: "Stereo Offset"
+    group: "Sync"
+  - vst3_id: 404672687
+    name: split_low
+    display_name: "Split Low"
+    group: "Pattern"
+  - vst3_id: 1807309735
+    name: split_high
+    display_name: "Split High"
+    group: "Pattern"
+  - vst3_id: 202283078
+    name: split_slope
+    display_name: "Split Slope"
+    group: "Pattern"
+  - vst3_id: 3534794
+    name: snap
+    display_name: "Snap"
+    group: "Pattern"
+  - vst3_id: 3181382
+    name: grid
+    display_name: "Grid"
+    group: "Pattern"
+  - vst3_id: 1983151019
+    name: sequencer_step
+    display_name: "Sequencer Step"
+    group: "Pattern"
+  - vst3_id: 2996819
+    name: audio_algorithm
+    display_name: "Audio Algorithm"
+    group: "Pattern"
+  - vst3_id: 602006635
+    name: audio_threshold
+    display_name: "Audio Threshold"
+    group: "Pattern"
+  - vst3_id: 109323182
+    name: audio_sensitivity
+    display_name: "Audio Sensitivity"
+    group: "Pattern"
+  - vst3_id: 1050619502
+    name: audio_lowcut
+    display_name: "Audio LowCut"
+    group: "Pattern"
+  - vst3_id: 915482976
+    name: audio_highcut
+    display_name: "Audio HighCut"
+    group: "Pattern"
+  - vst3_id: 1127703699
+    name: audio_offset
+    display_name: "Audio Offset"
+    group: "Sync"

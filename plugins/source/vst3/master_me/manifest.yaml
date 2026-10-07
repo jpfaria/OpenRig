@@ -1,0 +1,383 @@
+manifest_version: 1
+id: vst3_master_me
+display_name: Master master_me
+description: master_me — real-time automatic mastering chain (gate, EQ, leveler, compressor, limiter) by trummerschlunk.
+brand: trummerschlunk
+license: GPL-3.0-or-later
+homepage: https://github.com/trummerschlunk/master_me
+type: vst3
+backend: vst3
+bundle: bundles/master_me.vst3
+parameters:
+  - vst3_id: 0
+    name: buffer_size
+    display_name: "Buffer Size"
+    group: "General"
+  - vst3_id: 1
+    name: sample_rate
+    display_name: "Sample Rate"
+    group: "General"
+  - vst3_id: 2
+    name: current_program
+    display_name: "Current Program"
+    group: "General"
+  - vst3_id: 4
+    name: target
+    display_name: "Target"
+    group: "General"
+  - vst3_id: 5
+    name: input_gain
+    display_name: "input gain"
+    group: "General"
+  - vst3_id: 6
+    name: phase_l
+    display_name: "phase L"
+    group: "Phase"
+  - vst3_id: 7
+    name: phase_r
+    display_name: "phase R"
+    group: "Phase"
+  - vst3_id: 8
+    name: mono
+    display_name: "mono"
+    group: "General"
+  - vst3_id: 9
+    name: dc_blocker
+    display_name: "dc blocker"
+    group: "General"
+  - vst3_id: 10
+    name: stereo_correct
+    display_name: "stereo correct"
+    group: "General"
+  - vst3_id: 11
+    name: gate_bypass
+    display_name: "gate bypass"
+    group: "Gate"
+  - vst3_id: 12
+    name: gate_threshold
+    display_name: "gate threshold"
+    group: "Gate"
+  - vst3_id: 13
+    name: gate_attack
+    display_name: "gate attack"
+    group: "Gate"
+  - vst3_id: 14
+    name: gate_hold
+    display_name: "gate hold"
+    group: "Gate"
+  - vst3_id: 15
+    name: gate_release
+    display_name: "gate release"
+    group: "Gate"
+  - vst3_id: 16
+    name: eq_bypass
+    display_name: "eq bypass"
+    group: "Eq"
+  - vst3_id: 17
+    name: eq_highpass_freq
+    display_name: "eq highpass freq"
+    group: "Eq"
+  - vst3_id: 18
+    name: eq_tilt_gain
+    display_name: "eq tilt gain"
+    group: "Eq"
+  - vst3_id: 19
+    name: eq_side_gain
+    display_name: "eq side gain"
+    group: "Eq"
+  - vst3_id: 20
+    name: eq_side_freq
+    display_name: "eq side freq"
+    group: "Eq"
+  - vst3_id: 21
+    name: eq_side_bandwidth
+    display_name: "eq side bandwidth"
+    group: "Eq"
+  - vst3_id: 22
+    name: leveler_bypass
+    display_name: "leveler bypass"
+    group: "Leveler"
+  - vst3_id: 23
+    name: leveler_speed
+    display_name: "leveler speed"
+    group: "Leveler"
+  - vst3_id: 24
+    name: leveler_brake_threshold
+    display_name: "leveler brake threshold"
+    group: "Leveler"
+  - vst3_id: 25
+    name: leveler_max
+    display_name: "leveler max +"
+    group: "Leveler"
+  - vst3_id: 26
+    name: leveler_max
+    display_name: "leveler max -"
+    group: "Leveler"
+  - vst3_id: 27
+    name: kneecomp_bypass
+    display_name: "kneecomp bypass"
+    group: "Kneecomp"
+  - vst3_id: 28
+    name: kneecomp_strength
+    display_name: "kneecomp strength"
+    group: "Kneecomp"
+  - vst3_id: 29
+    name: kneecomp_tar_thresh
+    display_name: "kneecomp tar-thresh"
+    group: "Kneecomp"
+  - vst3_id: 30
+    name: kneecomp_attack
+    display_name: "kneecomp attack"
+    group: "Kneecomp"
+  - vst3_id: 31
+    name: kneecomp_release
+    display_name: "kneecomp release"
+    group: "Kneecomp"
+  - vst3_id: 32
+    name: kneecomp_knee
+    display_name: "kneecomp knee"
+    group: "Kneecomp"
+  - vst3_id: 33
+    name: kneecomp_link
+    display_name: "kneecomp link"
+    group: "Kneecomp"
+  - vst3_id: 34
+    name: kneecomp_ff_fb
+    display_name: "kneecomp ff-fb"
+    group: "Kneecomp"
+  - vst3_id: 35
+    name: kneecomp_makeup
+    display_name: "kneecomp makeup"
+    group: "Kneecomp"
+  - vst3_id: 36
+    name: kneecomp_dry_wet
+    display_name: "kneecomp dry/wet"
+    group: "Kneecomp"
+  - vst3_id: 37
+    name: mscomp_bypass
+    display_name: "mscomp bypass"
+    group: "General"
+  - vst3_id: 38
+    name: low_strength
+    display_name: "low strength"
+    group: "Low"
+  - vst3_id: 39
+    name: low_tar_thresh
+    display_name: "low tar-thresh"
+    group: "Low"
+  - vst3_id: 40
+    name: low_attack
+    display_name: "low attack"
+    group: "Low"
+  - vst3_id: 41
+    name: low_release
+    display_name: "low release"
+    group: "Low"
+  - vst3_id: 42
+    name: low_knee
+    display_name: "low knee"
+    group: "Low"
+  - vst3_id: 43
+    name: low_link
+    display_name: "low link"
+    group: "Low"
+  - vst3_id: 44
+    name: low_crossover
+    display_name: "low crossover"
+    group: "Low"
+  - vst3_id: 45
+    name: high_strength
+    display_name: "high strength"
+    group: "High"
+  - vst3_id: 46
+    name: high_tar_thresh
+    display_name: "high tar-thresh"
+    group: "High"
+  - vst3_id: 47
+    name: high_attack
+    display_name: "high attack"
+    group: "High"
+  - vst3_id: 48
+    name: high_release
+    display_name: "high release"
+    group: "High"
+  - vst3_id: 49
+    name: high_knee
+    display_name: "high knee"
+    group: "High"
+  - vst3_id: 50
+    name: high_link
+    display_name: "high link"
+    group: "High"
+  - vst3_id: 51
+    name: high_crossover
+    display_name: "high crossover"
+    group: "High"
+  - vst3_id: 52
+    name: makeup
+    display_name: "makeup"
+    group: "General"
+  - vst3_id: 53
+    name: limiter_bypass
+    display_name: "limiter bypass"
+    group: "Limiter"
+  - vst3_id: 54
+    name: limiter_strength
+    display_name: "limiter strength"
+    group: "Limiter"
+  - vst3_id: 55
+    name: limiter_tar_thresh
+    display_name: "limiter tar-thresh"
+    group: "Limiter"
+  - vst3_id: 56
+    name: limiter_attack
+    display_name: "limiter attack"
+    group: "Limiter"
+  - vst3_id: 57
+    name: limiter_release
+    display_name: "limiter release"
+    group: "Limiter"
+  - vst3_id: 58
+    name: limiter_knee
+    display_name: "limiter knee"
+    group: "Limiter"
+  - vst3_id: 59
+    name: limiter_ff_fb
+    display_name: "limiter ff-fb"
+    group: "Limiter"
+  - vst3_id: 60
+    name: limiter_makeup
+    display_name: "limiter makeup"
+    group: "Limiter"
+  - vst3_id: 61
+    name: brickwall_bypass
+    display_name: "brickwall bypass"
+    group: "Brickwall"
+  - vst3_id: 62
+    name: brickwall_ceiling
+    display_name: "brickwall ceiling"
+    group: "Brickwall"
+  - vst3_id: 63
+    name: brickwall_release
+    display_name: "brickwall release"
+    group: "Brickwall"
+  - vst3_id: 64
+    name: in_l
+    display_name: "in L"
+    group: "In"
+  - vst3_id: 65
+    name: in_r
+    display_name: "in R"
+    group: "In"
+  - vst3_id: 66
+    name: in_lufs_s
+    display_name: "in lufs-s"
+    group: "In"
+  - vst3_id: 67
+    name: leveler_gain
+    display_name: "leveler gain"
+    group: "Leveler"
+  - vst3_id: 68
+    name: out_lufs_s
+    display_name: "out lufs-s"
+    group: "Out"
+  - vst3_id: 69
+    name: out_l
+    display_name: "out L"
+    group: "Out"
+  - vst3_id: 70
+    name: out_r
+    display_name: "out R"
+    group: "Out"
+  - vst3_id: 71
+    name: gate_meter
+    display_name: "gate meter"
+    group: "Gate"
+  - vst3_id: 72
+    name: leveler_brake
+    display_name: "leveler brake"
+    group: "Leveler"
+  - vst3_id: 73
+    name: kneecomp_meter_0
+    display_name: "kneecomp meter 0"
+    group: "Kneecomp"
+  - vst3_id: 74
+    name: kneecomp_meter_1
+    display_name: "kneecomp meter 1"
+    group: "Kneecomp"
+  - vst3_id: 75
+    name: hbargraph0
+    display_name: "hbargraph0"
+    group: "General"
+  - vst3_id: 76
+    name: hbargraph1
+    display_name: "hbargraph1"
+    group: "General"
+  - vst3_id: 77
+    name: hbargraph2
+    display_name: "hbargraph2"
+    group: "General"
+  - vst3_id: 78
+    name: hbargraph3
+    display_name: "hbargraph3"
+    group: "General"
+  - vst3_id: 79
+    name: hbargraph4
+    display_name: "hbargraph4"
+    group: "General"
+  - vst3_id: 80
+    name: hbargraph5
+    display_name: "hbargraph5"
+    group: "General"
+  - vst3_id: 81
+    name: hbargraph6
+    display_name: "hbargraph6"
+    group: "General"
+  - vst3_id: 82
+    name: hbargraph7
+    display_name: "hbargraph7"
+    group: "General"
+  - vst3_id: 83
+    name: hbargraph8
+    display_name: "hbargraph8"
+    group: "General"
+  - vst3_id: 84
+    name: hbargraph9
+    display_name: "hbargraph9"
+    group: "General"
+  - vst3_id: 85
+    name: hbargraph10
+    display_name: "hbargraph10"
+    group: "General"
+  - vst3_id: 86
+    name: hbargraph11
+    display_name: "hbargraph11"
+    group: "General"
+  - vst3_id: 87
+    name: hbargraph12
+    display_name: "hbargraph12"
+    group: "General"
+  - vst3_id: 88
+    name: hbargraph13
+    display_name: "hbargraph13"
+    group: "General"
+  - vst3_id: 89
+    name: hbargraph14
+    display_name: "hbargraph14"
+    group: "General"
+  - vst3_id: 90
+    name: hbargraph15
+    display_name: "hbargraph15"
+    group: "General"
+  - vst3_id: 91
+    name: limiter_gain_reduction
+    display_name: "limiter gain reduction"
+    group: "Limiter"
+  - vst3_id: 92
+    name: lim
+    display_name: "lim"
+    group: "General"
+  - vst3_id: 93
+    name: histogram_buffer_size
+    display_name: "Histogram Buffer Size"
+    group: "General"

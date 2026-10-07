@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: MOD Low Pass Filter — clean low-pass filter.
+    license: GPL-2.0
+    homepage: https://github.com/moddevices/mod-utilities

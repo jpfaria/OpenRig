@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MVerb — studio-quality reverb based on the Dattorro reverb algorithm.
+    license: GPL-2.0
+    homepage: https://github.com/DISTRHO/MVerb
+  pt-BR:
+    description: MVerb — reverb de qualidade estúdio baseado no algoritmo de Dattorro.
+    license: GPL-2.0
+    homepage: https://github.com/DISTRHO/MVerb

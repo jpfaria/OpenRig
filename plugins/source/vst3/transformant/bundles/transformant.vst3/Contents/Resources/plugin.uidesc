@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+    <fonts>
+    </fonts>
+    <colors>
+        <color name="Focus" rgba="#279bffff"/>
+    </colors>
+    <template
+        maxSize="400, 600" minSize="400, 600" size="400, 600" name="view" opacity="1" origin="0, 0"
+        background-color="~ BlackCColor" background-color-draw-style="filled and stroked" bitmap="background"
+        class="CViewContainer" mouse-enabled="true" transparent="false">
+
+        <!-- VOWEL -->
+
+        <!-- vowel left -->
+        <view control-tag="Unit1::VowelL" class="CKnob" origin="102, 148" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- vowel right -->
+        <view control-tag="Unit1::VowelR" class="CKnob" origin="218, 148" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- vowel sync -->
+        <view control-tag="Unit1::VowelSync" class="CCheckBox" origin="192, 248" size="25, 40" autosize-to-fit="false"
+              background-offset="0, 0" boxfill-color="~ BlackCColor"  autosize="bottom"
+              boxframe-color="~ BlackCColor" checkmark-color="#ec2b2c"
+              default-value="0" draw-crossbox="true" font="~ NormalFontSmall" font-color="#ec2b2c" frame-width="1"
+              max-value="1" min-value="0" mouse-enabled="true" opacity="1" round-rect-radius="0"
+              title="" transparent="false" wants-focus="true" wheel-inc-value="0.1"
+        />
+
+        <!-- LFO -->
+
+        <!-- LFO left speed -->
+        <view control-tag="Unit1::LFOVowelL" class="CKnob" origin="34, 288" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- LFO left depth -->
+        <view control-tag="Unit1::LFOVowelLDepth" class="CKnob" origin="114, 348" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- LFO right speed -->
+        <view control-tag="Unit1::LFOVowelR" class="CKnob" origin="294, 288" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- LFO right depth -->
+        <view control-tag="Unit1::LFOVowelRDepth" class="CKnob" origin="212, 348" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- DISTORTION -->
+
+        <!-- drive -->
+        <view control-tag="Unit1::Drive" class="CKnob" origin="165, 458" size="72, 72"
+              angle-range="270" angle-start="135" autosize="right top"
+              background-offset="0, 0" circle-drawing="true" corona-color="#ec2b2c" corona-dash-dot="false"
+              corona-drawing="true" corona-from-center="false" corona-inset="5" corona-inverted="false"
+              corona-line-cap-butt="false" corona-outline="true" corona-outline-width-add="0" default-value="0.5"
+              handle-color="#ec2b2c" handle-line-width="7" handle-shadow-color="~ GreyCColor" max-value="1"
+              min-value="0" mouse-enabled="true" opacity="1" skip-handle-drawing="true" transparent="false"
+              value-inset="5" wants-focus="true" wheel-inc-value="0.1" zoom-factor="1.5"
+        />
+
+        <!-- distortion type -->
+        <view control-tag="Unit1::DistortionType" class="CCheckBox" origin="138, 525" size="25, 38" autosize-to-fit="false"
+              background-offset="0, 0" boxfill-color="~ BlackCColor"  autosize="bottom"
+              boxframe-color="~ BlackCColor" checkmark-color="#ec2b2c"
+              default-value="0" draw-crossbox="true" font="~ NormalFontSmall" font-color="#ec2b2c" frame-width="1"
+              max-value="1" min-value="0" mouse-enabled="true" opacity="1" round-rect-radius="0"
+              title="" transparent="false" wants-focus="true" wheel-inc-value="0.1"
+        />
+
+        <!-- distortion pre/post mix -->
+        <view control-tag="Unit1::DistortionChain" class="CCheckBox" origin="252, 525" size="25, 38" autosize-to-fit="false"
+              background-offset="0, 0" boxfill-color="~ BlackCColor"  autosize="bottom"
+              boxframe-color="~ BlackCColor" checkmark-color="#ec2b2c"
+              default-value="0" draw-crossbox="true" font="~ NormalFontSmall" font-color="#ec2b2c" frame-width="1"
+              max-value="1" min-value="0" mouse-enabled="true" opacity="1" round-rect-radius="0"
+              title="" transparent="false" wants-focus="true" wheel-inc-value="0.1"
+        />
+
+         <view class="CView" size="36, 8" origin="323, 561" bitmap="version" />
+
+    </template>
+    <variables/>
+    <custom>
+        <attributes color="Focus" enabled="false" name="FocusDrawing" width="1"/>
+        <attributes Size="5, 5" name="UIGridController"/>
+        <attributes SelectedTemplate="view" name="UITemplateController"/>
+        <attributes EditViewScale="1" EditorSize="0, 0, 882, 716"
+                    SplitViewSize_0_0="0.6402877697841726778449356061173602938652"
+                    SplitViewSize_0_1="0.3309352517985611474848894886235939338803"
+                    SplitViewSize_1_0="0.506474820143884896239683257590513676405"
+                    SplitViewSize_1_1="0.486330935251798546214985208280268125236"
+                    SplitViewSize_2_0="0.636054421768707523021646466077072545886"
+                    SplitViewSize_2_1="0.3582766439909297329080573035753332078457"
+                    TabSwitchValue="0" Version="1" name="UIEditController" />
+        <attributes name="UIAttributesController"/>
+        <attributes SelectedRow="23" name="UIViewCreatorDataSource"/>
+        <attributes SelectedRow="4" name="UIBitmapsDataSource"/>
+        <attributes Path="resource/plugin.uidesc" name="VST3Editor"/>
+        <attributes SelectedRow="2" name="UITagsDataSource"/>
+        <attributes SelectedRow="0" name="UIColorsDataSource"/>
+        <attributes SelectedRow="-1" name="UIGradientsDataSource"/>
+        <attributes SelectedRow="-1" name="UIFontsDataSource"/>
+    </custom>
+    <bitmaps>
+        <bitmap name="background" path="background.png"/>
+        <bitmap name="version" path="version.png"/>
+    </bitmaps>
+
+    <!-- map the controllers listed above to their paramids by tag index -->
+
+    <control-tags>
+        <control-tag name="UI::SendMessage"        tag="1000" />
+        <control-tag name="Unit1::VowelL"          tag="1" />
+        <control-tag name="Unit1::VowelR"          tag="2" />
+        <control-tag name="Unit1::VowelSync"       tag="3" />
+        <control-tag name="Unit1::LFOVowelL"       tag="4" />
+        <control-tag name="Unit1::LFOVowelLDepth"  tag="5" />
+        <control-tag name="Unit1::LFOVowelR"       tag="6" />
+        <control-tag name="Unit1::LFOVowelRDepth"  tag="7" />
+        <control-tag name="Unit1::DistortionType"  tag="8" />
+        <control-tag name="Unit1::Drive"           tag="9" />
+        <control-tag name="Unit1::DistortionChain" tag="10" />
+    </control-tags>
+</vstgui-ui-description>

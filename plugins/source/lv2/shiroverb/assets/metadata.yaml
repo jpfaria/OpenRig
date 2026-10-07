@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: Shiroverb — lush algorithmic reverb by Shiro Plugins.
+    license: GPL-3.0
+    homepage: https://github.com/Shiro-Plugins/shiroverb

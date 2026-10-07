@@ -135,8 +135,7 @@ try {
     if (Test-Path "presets") {
         Copy-Item -Recurse "presets"          "$stageDir\presets"
     }
-    # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
-    # ship via openrig-plugins.zip (extracted on first launch).
+    # LV2/VST3 plugins are versioned in this repo under plugins\source (#1093).
 
     # Bundle plugins as a pre-extracted directory next to openrig.exe.
     # plugin_loader::registry::init_many scans <exe_dir>/plugins plus

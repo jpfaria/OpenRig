@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_thruzero
+display_name: MDA ThruZero
+description: MDA ThruZero — flanging through zero effect.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: mod
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/ThruZero
+binaries:
+  macos-universal: platform/macos-universal/ThruZero.dylib
+  windows-x86_64: platform/windows-x86_64/ThruZero.dll
+  linux-x86_64: platform/linux-x86_64/ThruZero.so
+  linux-aarch64: platform/linux-aarch64/ThruZero.so

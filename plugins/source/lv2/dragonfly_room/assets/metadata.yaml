@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: Dragonfly Room Reverb — smaller room reverb simulation.
+    license: GPL-3.0
+    homepage: https://github.com/michaelwillis/dragonfly-reverb

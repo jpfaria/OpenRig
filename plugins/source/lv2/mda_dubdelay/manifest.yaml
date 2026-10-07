@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_dubdelay
+display_name: MDA DubDelay
+description: MDA DubDelay — dub-style delay with feedback tone control.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: delay
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/DubDelay
+binaries:
+  macos-universal: platform/macos-universal/DubDelay.dylib
+  windows-x86_64: platform/windows-x86_64/DubDelay.dll
+  linux-x86_64: platform/linux-x86_64/DubDelay.so
+  linux-aarch64: platform/linux-aarch64/DubDelay.so

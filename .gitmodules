@@ -1,0 +1,178 @@
+[submodule "deps/neural-amp-modeler-lv2"]
+	path = deps/neural-amp-modeler-lv2
+	url = https://github.com/mikeoliphant/neural-amp-modeler-lv2.git
+	ignore = dirty
+[submodule "deps/dragonfly-reverb"]
+	path = deps/dragonfly-reverb
+	url = https://github.com/michaelwillis/dragonfly-reverb.git
+[submodule "deps/zam-plugins"]
+	path = deps/zam-plugins
+	url = https://github.com/zamaudio/zam-plugins.git
+[submodule "deps/mod-utilities"]
+	path = deps/mod-utilities
+	url = https://github.com/mod-audio/mod-utilities.git
+[submodule "deps/caps-lv2"]
+	path = deps/caps-lv2
+	url = https://github.com/mod-audio/caps-lv2.git
+[submodule "deps/tap-lv2"]
+	path = deps/tap-lv2
+	url = https://github.com/moddevices/tap-lv2.git
+[submodule "deps/SHIRO-Plugins"]
+	path = deps/SHIRO-Plugins
+	url = https://github.com/ninodewit/SHIRO-Plugins.git
+[submodule "deps/DPF-Plugins"]
+	path = deps/DPF-Plugins
+	url = https://github.com/DISTRHO/DPF-Plugins.git
+[submodule "deps/MVerb"]
+	path = deps/MVerb
+	url = https://github.com/DISTRHO/MVerb.git
+[submodule "deps/mda-lv2"]
+	path = deps/mda-lv2
+	url = https://gitlab.com/drobilla/mda-lv2.git
+[submodule "deps/fomp"]
+	path = deps/fomp
+	url = https://gitlab.com/drobilla/fomp.git
+[submodule "deps/invada-studio"]
+	path = deps/invada-studio
+	url = https://github.com/BlokasLabs/invada-studio.git
+[submodule "deps/wolf-shaper"]
+	path = deps/wolf-shaper
+	url = https://github.com/wolf-plugins/wolf-shaper.git
+[submodule "deps/openAV-ArtyFX"]
+	path = deps/openAV-ArtyFX
+	url = https://github.com/openAVproductions/openAV-ArtyFX.git
+[submodule "deps/sooperlooper"]
+	path = deps/sooperlooper
+	url = https://github.com/essej/sooperlooper.git
+[submodule "deps/setBfree"]
+	path = deps/setBfree
+	url = https://github.com/pantherb/setBfree.git
+[submodule "deps/GxPlugins.lv2"]
+	path = deps/GxPlugins.lv2
+	url = https://github.com/brummer10/GxPlugins.lv2.git
+[submodule "deps/AnalogTapeModel"]
+	path = deps/AnalogTapeModel
+	url = https://github.com/jatinchowdhury18/AnalogTapeModel.git
+[submodule "deps/Schrammel_OJD"]
+	path = deps/Schrammel_OJD
+	url = https://github.com/JanosGit/Schrammel_OJD.git
+[submodule "deps/Aether"]
+	path = deps/Aether
+	url = https://github.com/Dougal-s/Aether.git
+[submodule "deps/darc.lv2"]
+	path = deps/darc.lv2
+	url = https://github.com/x42/darc.lv2.git
+[submodule "deps/dpl.lv2"]
+	path = deps/dpl.lv2
+	url = https://github.com/x42/dpl.lv2.git
+[submodule "deps/fil4.lv2"]
+	path = deps/fil4.lv2
+	url = https://github.com/x42/fil4.lv2.git
+[submodule "deps/DISTRHO-Ports"]
+	path = deps/DISTRHO-Ports
+	url = https://github.com/DISTRHO/DISTRHO-Ports.git
+[submodule "deps/KlonCentaur"]
+	path = deps/KlonCentaur
+	url = https://github.com/jatinchowdhury18/KlonCentaur.git
+[submodule "deps/ChowPhaser"]
+	path = deps/ChowPhaser
+	url = https://github.com/jatinchowdhury18/ChowPhaser.git
+[submodule "deps/ChowMatrix"]
+	path = deps/ChowMatrix
+	url = https://github.com/Chowdhury-DSP/ChowMatrix.git
+[submodule "deps/ChowMultiTool"]
+	path = deps/ChowMultiTool
+	url = https://github.com/Chowdhury-DSP/ChowMultiTool.git
+[submodule "deps/BYOD"]
+	path = deps/BYOD
+	url = https://github.com/Chowdhury-DSP/BYOD.git
+[submodule "deps/reevr"]
+	path = deps/reevr
+	url = https://github.com/tiagolr/reevr.git
+[submodule "deps/sirial"]
+	path = deps/sirial
+	url = https://github.com/tiagolr/sirial.git
+[submodule "deps/qdelay"]
+	path = deps/qdelay
+	url = https://github.com/tiagolr/qdelay.git
+[submodule "deps/gate12"]
+	path = deps/gate12
+	url = https://github.com/tiagolr/gate12.git
+[submodule "deps/time12"]
+	path = deps/time12
+	url = https://github.com/tiagolr/time12.git
+[submodule "deps/filtr"]
+	path = deps/filtr
+	url = https://github.com/tiagolr/filtr.git
+[submodule "deps/ZLEqualizer"]
+	path = deps/ZLEqualizer
+	url = https://github.com/ZL-Audio/ZLEqualizer.git
+[submodule "deps/ZLCompressor"]
+	path = deps/ZLCompressor
+	url = https://github.com/ZL-Audio/ZLCompressor.git
+[submodule "deps/ZLSplitter"]
+	path = deps/ZLSplitter
+	url = https://github.com/ZL-Audio/ZLSplitter.git
+[submodule "deps/ZLSpectrumEqualizer"]
+	path = deps/ZLSpectrumEqualizer
+	url = https://github.com/ZL-Audio/ZLSpectrumEqualizer.git
+[submodule "deps/ZLWarm"]
+	path = deps/ZLWarm
+	url = https://github.com/ZL-Audio/ZLWarm.git
+[submodule "deps/ZLInflator"]
+	path = deps/ZLInflator
+	url = https://github.com/ZL-Audio/ZLInflator.git
+[submodule "deps/CloudReverb"]
+	path = deps/CloudReverb
+	url = https://github.com/xunil-cloud/CloudReverb.git
+[submodule "deps/RoomReverb"]
+	path = deps/RoomReverb
+	url = https://github.com/cvde/RoomReverb.git
+[submodule "deps/Frequalizer"]
+	path = deps/Frequalizer
+	url = https://github.com/ffAudio/Frequalizer.git
+[submodule "deps/retuner"]
+	path = deps/retuner
+	url = https://github.com/kushview/retuner.git
+[submodule "deps/AIDA-X"]
+	path = deps/AIDA-X
+	url = https://github.com/AidaDSP/AIDA-X.git
+[submodule "deps/vitOTTx"]
+	path = deps/vitOTTx
+	url = https://github.com/Sakhnovkrg/vitOTTx.git
+[submodule "deps/MXTune"]
+	path = deps/MXTune
+	url = https://github.com/liuanlin-mx/MXTune.git
+[submodule "deps/setekh"]
+	path = deps/setekh
+	url = https://github.com/fullfxmedia/setekh.git
+[submodule "deps/dfzitarev1"]
+	path = deps/dfzitarev1
+	url = https://github.com/SpotlightKid/dfzitarev1.git
+[submodule "deps/master_me"]
+	path = deps/master_me
+	url = https://github.com/trummerschlunk/master_me.git
+[submodule "deps/fogpad"]
+	path = deps/fogpad
+	url = https://github.com/igorski/fogpad.git
+[submodule "deps/vst3sdk"]
+	path = deps/vst3sdk
+	url = https://github.com/steinbergmedia/vst3sdk.git
+[submodule "deps/regrader"]
+	path = deps/regrader
+	url = https://github.com/igorski/regrader.git
+[submodule "deps/rechoir"]
+	path = deps/rechoir
+	url = https://github.com/igorski/rechoir.git
+[submodule "deps/transformant"]
+	path = deps/transformant
+	url = https://github.com/igorski/transformant.git
+[submodule "deps/darvaza"]
+	path = deps/darvaza
+	url = https://github.com/igorski/darvaza.git
+[submodule "deps/homecorrupter"]
+	path = deps/homecorrupter
+	url = https://github.com/igorski/homecorrupter.git
+[submodule "deps/delirion"]
+	path = deps/delirion
+	url = https://github.com/igorski/delirion.git

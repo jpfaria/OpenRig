@@ -1,0 +1,231 @@
+manifest_version: 1
+id: vst3_filtr
+display_name: Filter filtr
+description: FILT-R — pattern-based envelope/modulation filter by tiagolr.
+brand: tiagolr
+license: AGPL-3.0-or-later
+homepage: https://github.com/tiagolr/filtr
+type: vst3
+backend: vst3
+bundle: bundles/FILT-R.vst3
+parameters:
+  - vst3_id: 108124
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 1356393360
+    name: cutoff_pattern
+    display_name: "Cutoff Pattern"
+    group: "Filter"
+  - vst3_id: 1119108848
+    name: res_pattern
+    display_name: "Res Pattern"
+    group: "Filter"
+  - vst3_id: 1195018026
+    name: link_patterns
+    display_name: "Link Patterns"
+    group: "Pattern"
+  - vst3_id: 1255118840
+    name: stereo_offset
+    display_name: "Stereo Offset"
+    group: "Sync"
+  - vst3_id: 404672687
+    name: split_low
+    display_name: "Split Low"
+    group: "Filter"
+  - vst3_id: 1807309735
+    name: split_high
+    display_name: "Split High"
+    group: "Filter"
+  - vst3_id: 202283078
+    name: split_slope
+    display_name: "Split Slope"
+    group: "Filter"
+  - vst3_id: 1356382654
+    name: pattern_sync
+    display_name: "Pattern Sync"
+    group: "Sync"
+  - vst3_id: 1087591864
+    name: trigger
+    display_name: "Trigger"
+    group: "Sync"
+  - vst3_id: 3545755
+    name: sync
+    display_name: "Sync"
+    group: "Sync"
+  - vst3_id: 3493088
+    name: rate_hz
+    display_name: "Rate Hz"
+    group: "Sync"
+  - vst3_id: 106629499
+    name: phase
+    display_name: "Phase"
+    group: "Pattern"
+  - vst3_id: 108114
+    name: min
+    display_name: "Min"
+    group: "Pattern"
+  - vst3_id: 107876
+    name: max
+    display_name: "Max"
+    group: "Pattern"
+  - vst3_id: 1248949678
+    name: smooth
+    display_name: "Smooth"
+    group: "Pattern"
+  - vst3_id: 740224584
+    name: attack
+    display_name: "Attack"
+    group: "Pattern"
+  - vst3_id: 1090594823
+    name: release
+    display_name: "Release"
+    group: "Pattern"
+  - vst3_id: 720390226
+    name: tension
+    display_name: "Tension"
+    group: "Pattern"
+  - vst3_id: 1341225222
+    name: attack_tension
+    display_name: "Attack Tension"
+    group: "Pattern"
+  - vst3_id: 1341241095
+    name: release_tension
+    display_name: "Release Tension"
+    group: "Pattern"
+  - vst3_id: 3534794
+    name: snap
+    display_name: "Snap"
+    group: "Pattern"
+  - vst3_id: 3181382
+    name: grid
+    display_name: "Grid"
+    group: "Pattern"
+  - vst3_id: 1983151019
+    name: sequencer_step
+    display_name: "Sequencer Step"
+    group: "Pattern"
+  - vst3_id: 3165055
+    name: gaindb
+    display_name: "GainDb"
+    group: "Mix"
+  - vst3_id: 97774752
+    name: filter_type
+    display_name: "Filter Type"
+    group: "Filter"
+  - vst3_id: 97556233
+    name: filter_mode
+    display_name: "Filter Mode"
+    group: "Filter"
+  - vst3_id: 882222341
+    name: filter_slope
+    display_name: "Filter Slope"
+    group: "Filter"
+  - vst3_id: 97517277
+    name: filter_lerp
+    display_name: "Filter Lerp"
+    group: "Filter"
+  - vst3_id: 868542692
+    name: filter_drive
+    display_name: "Filter Drive"
+    group: "Filter"
+  - vst3_id: 876773474
+    name: filter_morph
+    display_name: "Filter Morph"
+    group: "Filter"
+  - vst3_id: 798419949
+    name: cutoff
+    display_name: "Cutoff"
+    group: "Filter"
+  - vst3_id: 112800
+    name: resonance
+    display_name: "Resonance"
+    group: "Filter"
+  - vst3_id: 199929173
+    name: cutoff_offset
+    display_name: "Cutoff Offset"
+    group: "Filter"
+  - vst3_id: 150218035
+    name: resonance_offset
+    display_name: "Resonance Offset"
+    group: "Filter"
+  - vst3_id: 2996819
+    name: audio_algorithm
+    display_name: "Audio Algorithm"
+    group: "Pattern"
+  - vst3_id: 602006635
+    name: audio_threshold
+    display_name: "Audio Threshold"
+    group: "Filter"
+  - vst3_id: 109323182
+    name: audio_sensitivity
+    display_name: "Audio Sensitivity"
+    group: "Pattern"
+  - vst3_id: 1050619502
+    name: audio_lowcut
+    display_name: "Audio LowCut"
+    group: "Pattern"
+  - vst3_id: 915482976
+    name: audio_highcut
+    display_name: "Audio HighCut"
+    group: "Pattern"
+  - vst3_id: 1127703699
+    name: audio_offset
+    display_name: "Audio Offset"
+    group: "Sync"
+  - vst3_id: 620930698
+    name: cut_env_on
+    display_name: "Cut Env ON"
+    group: "Pattern"
+  - vst3_id: 121723751
+    name: cut_env_thresh
+    display_name: "Cut Env Thresh"
+    group: "Filter"
+  - vst3_id: 2068969085
+    name: cut_env_amount
+    display_name: "Cut Env Amount"
+    group: "Pattern"
+  - vst3_id: 2068969293
+    name: cut_env_attack
+    display_name: "Cut Env Attack"
+    group: "Pattern"
+  - vst3_id: 2068985166
+    name: cut_env_release
+    display_name: "Cut Env Release"
+    group: "Pattern"
+  - vst3_id: 2046785945
+    name: cut_env_lowcut
+    display_name: "Cut Env LowCut"
+    group: "Pattern"
+  - vst3_id: 1731871637
+    name: cut_env_highcut
+    display_name: "Cut Env HighCut"
+    group: "Pattern"
+  - vst3_id: 1796979436
+    name: res_env_on
+    display_name: "Res Env ON"
+    group: "Filter"
+  - vst3_id: 940928713
+    name: res_env_thresh
+    display_name: "Res Env Thresh"
+    group: "Filter"
+  - vst3_id: 2019257947
+    name: res_env_amount
+    display_name: "Res Env Amount"
+    group: "Filter"
+  - vst3_id: 2019258155
+    name: res_env_attack
+    display_name: "Res Env Attack"
+    group: "Filter"
+  - vst3_id: 2019274028
+    name: res_env_release
+    display_name: "Res Env Release"
+    group: "Filter"
+  - vst3_id: 718507259
+    name: res_env_lowcut
+    display_name: "Res Env LowCut"
+    group: "Filter"
+  - vst3_id: 1357421683
+    name: res_env_highcut
+    display_name: "Res Env HighCut"
+    group: "Filter"

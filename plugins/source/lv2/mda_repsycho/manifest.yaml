@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_mda_repsycho
+display_name: MDA RePsycho!
+description: MDA RePsycho! — pitch shifting effect.
+brand: mda
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: pitch
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/RePsycho
+binaries:
+  macos-universal: platform/macos-universal/RePsycho.dylib
+  windows-x86_64: platform/windows-x86_64/RePsycho.dll
+  linux-x86_64: platform/linux-x86_64/RePsycho.so
+  linux-aarch64: platform/linux-aarch64/RePsycho.so

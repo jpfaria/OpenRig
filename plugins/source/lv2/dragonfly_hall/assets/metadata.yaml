@@ -1,0 +1,10 @@
+i18n:
+  en-US:
+    description: Dragonfly Hall Reverb — algorithmic hall reverb with rich spatial
+      depth.
+    license: GPL-3.0
+    homepage: https://github.com/michaelwillis/dragonfly-reverb
+  pt-BR:
+    description: Dragonfly Hall — reverb de salão algorítmico com profundidade espacial.
+    license: GPL-3.0
+    homepage: https://github.com/michaelwillis/dragonfly-reverb

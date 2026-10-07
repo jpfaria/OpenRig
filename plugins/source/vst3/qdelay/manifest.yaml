@@ -1,0 +1,451 @@
+manifest_version: 1
+id: vst3_qdelay
+display_name: Delay qdelay
+description: QDelay — dual/ping-pong delay with per-channel feedback tone by tiagolr.
+brand: tiagolr
+license: GPL-3.0-or-later
+homepage: https://github.com/tiagolr/qdelay
+type: vst3
+backend: vst3
+bundle: bundles/QDelay.vst3
+parameters:
+  - vst3_id: 3357091
+    name: mode
+    display_name: "Mode"
+    group: "General"
+  - vst3_id: 1099846370
+    name: reverse
+    display_name: "Reverse"
+    group: "General"
+  - vst3_id: 769445945
+    name: disable_clipping
+    display_name: "Disable Clipping"
+    group: "General"
+  - vst3_id: 3321850
+    name: link
+    display_name: "Link"
+    group: "General"
+  - vst3_id: 1259989960
+    name: sync_l
+    display_name: "Sync L"
+    group: "Sync"
+  - vst3_id: 1259989966
+    name: sync_r
+    display_name: "Sync R"
+    group: "Sync"
+  - vst3_id: 1209376973
+    name: rate_l
+    display_name: "Rate L"
+    group: "Rate"
+  - vst3_id: 1209376979
+    name: rate_r
+    display_name: "Rate R"
+    group: "Rate"
+  - vst3_id: 1963876359
+    name: rate_sync_l
+    display_name: "Rate Sync L"
+    group: "Rate"
+  - vst3_id: 1963876365
+    name: rate_sync_r
+    display_name: "Rate Sync R"
+    group: "Rate"
+  - vst3_id: 108124
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 54048208
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 1955982213
+    name: feedback
+    display_name: "Feedback"
+    group: "General"
+  - vst3_id: 996468863
+    name: pipo_width
+    display_name: "Pipo Width"
+    group: "General"
+  - vst3_id: 878523250
+    name: haas_width
+    display_name: "Haas Width"
+    group: "General"
+  - vst3_id: 1350225673
+    name: pan_dry
+    display_name: "Pan Dry"
+    group: "Pan"
+  - vst3_id: 1764167701
+    name: pan_dry_sum
+    display_name: "Pan Dry Sum"
+    group: "Pan"
+  - vst3_id: 1350243524
+    name: pan_wet
+    display_name: "Pan Wet"
+    group: "Pan"
+  - vst3_id: 1070071888
+    name: pan_dry_sum
+    display_name: "Pan Dry Sum"
+    group: "Pan"
+  - vst3_id: 1255118840
+    name: stereo_width
+    display_name: "Stereo Width"
+    group: "General"
+  - vst3_id: 109854462
+    name: swing
+    display_name: "Swing"
+    group: "General"
+  - vst3_id: 3138982
+    name: feel
+    display_name: "Feel"
+    group: "General"
+  - vst3_id: 724022474
+    name: accent
+    display_name: "Accent"
+    group: "General"
+  - vst3_id: 2050763406
+    name: diffusion_amt
+    display_name: "Diffusion Amt"
+    group: "Diffusion"
+  - vst3_id: 1297172475
+    name: diffusion_size
+    display_name: "Diffusion Size"
+    group: "Diffusion"
+  - vst3_id: 1297075231
+    name: diffusion_path
+    display_name: "Diffusion Path"
+    group: "Diffusion"
+  - vst3_id: 2105674566
+    name: modulation_amt
+    display_name: "Modulation Amt"
+    group: "Modulation"
+  - vst3_id: 1523085309
+    name: modulation_rate
+    display_name: "Modulation Rate"
+    group: "Modulation"
+  - vst3_id: 288402570
+    name: saturation_pre
+    display_name: "Saturation Pre"
+    group: "Saturation"
+  - vst3_id: 524727994
+    name: saturation_pre_path
+    display_name: "Saturation Pre Path"
+    group: "Saturation"
+  - vst3_id: 350542745
+    name: saturation_post
+    display_name: "Saturation Post"
+    group: "Saturation"
+  - vst3_id: 350452892
+    name: saturation_mode
+    display_name: "Saturation Mode"
+    group: "Saturation"
+  - vst3_id: 118404529
+    name: saturation_drive
+    display_name: "Saturation Drive"
+    group: "Saturation"
+  - vst3_id: 350664475
+    name: saturation_trim
+    display_name: "Saturation Trim"
+    group: "Saturation"
+  - vst3_id: 117394314
+    name: saturation_color
+    display_name: "Saturation Color"
+    group: "Saturation"
+  - vst3_id: 350119346
+    name: saturation_bias
+    display_name: "Saturation Bias"
+    group: "Saturation"
+  - vst3_id: 288391264
+    name: saturation_dynamics
+    display_name: "Saturation Dynamics"
+    group: "Saturation"
+  - vst3_id: 1931307817
+    name: crusher_path
+    display_name: "Crusher Path"
+    group: "Crusher"
+  - vst3_id: 565233929
+    name: crusher_upsample
+    display_name: "Crusher Upsample"
+    group: "Crusher"
+  - vst3_id: 1891743055
+    name: crusher_samplerate
+    display_name: "Crusher Samplerate"
+    group: "Crusher"
+  - vst3_id: 1930898442
+    name: crusher_bitrate
+    display_name: "Crusher Bitrate"
+    group: "Crusher"
+  - vst3_id: 1646230827
+    name: tape_amount
+    display_name: "Tape Amount"
+    group: "General"
+  - vst3_id: 1856798499
+    name: flutter_rate
+    display_name: "Flutter Rate"
+    group: "Flutter"
+  - vst3_id: 1713365216
+    name: flutter_depth
+    display_name: "Flutter Depth"
+    group: "Flutter"
+  - vst3_id: 167789696
+    name: wow_rate
+    display_name: "Wow Rate"
+    group: "Wow"
+  - vst3_id: 893699875
+    name: wow_depth
+    display_name: "Wow Depth"
+    group: "Wow"
+  - vst3_id: 894080009
+    name: wow_drift
+    display_name: "Wow Drift"
+    group: "Wow"
+  - vst3_id: 1529437063
+    name: wow_variance
+    display_name: "Wow Variance"
+    group: "Wow"
+  - vst3_id: 1877845811
+    name: shifter_mode
+    display_name: "Shifter Mode"
+    group: "General"
+  - vst3_id: 1507142651
+    name: frequency_shift
+    display_name: "Frequency Shift"
+    group: "General"
+  - vst3_id: 1466835651
+    name: pitch_shift
+    display_name: "Pitch Shift"
+    group: "Pitch"
+  - vst3_id: 1848260418
+    name: pitch_mode
+    display_name: "Pitch Mode"
+    group: "Pitch"
+  - vst3_id: 1848336836
+    name: pitch_path
+    display_name: "Pitch Path"
+    group: "Pitch"
+  - vst3_id: 544536797
+    name: pitch_mix
+    display_name: "Pitch Mix"
+    group: "Pitch"
+  - vst3_id: 552997542
+    name: duck_threshold
+    display_name: "Duck Threshold"
+    group: "Duck"
+  - vst3_id: 1882119490
+    name: duck_amount
+    display_name: "Duck Amount"
+    group: "Duck"
+  - vst3_id: 1882119698
+    name: duck_attack
+    display_name: "Duck Attack"
+    group: "Duck"
+  - vst3_id: 1882126170
+    name: duck_hold
+    display_name: "Duck Hold"
+    group: "Duck"
+  - vst3_id: 1882135571
+    name: duck_release
+    display_name: "Duck Release"
+    group: "Duck"
+  - vst3_id: 1623610637
+    name: phaser_path
+    display_name: "Phaser Path"
+    group: "Phaser"
+  - vst3_id: 848044861
+    name: phaser_lfo_center
+    display_name: "Phaser LFO Center"
+    group: "Phaser"
+  - vst3_id: 928839387
+    name: phaser_lfo_depth
+    display_name: "Phaser LFO Depth"
+    group: "Phaser"
+  - vst3_id: 1623722883
+    name: phaser_sync
+    display_name: "Phaser Sync"
+    group: "Phaser"
+  - vst3_id: 1623670216
+    name: phaser_lfo_rate
+    display_name: "Phaser LFO Rate"
+    group: "Phaser"
+  - vst3_id: 1978725042
+    name: phaser_rate_sync
+    display_name: "Phaser Rate Sync"
+    group: "Phaser"
+  - vst3_id: 1853491896
+    name: phaser_resonance
+    display_name: "Phaser Resonance"
+    group: "Phaser"
+  - vst3_id: 937450784
+    name: phaser_morph
+    display_name: "Phaser Morph"
+    group: "Phaser"
+  - vst3_id: 1319694048
+    name: phaser_stereo
+    display_name: "Phaser Stereo"
+    group: "Phaser"
+  - vst3_id: 1853487220
+    name: phaser_mix
+    display_name: "Phaser Mix"
+    group: "Phaser"
+  - vst3_id: 622336984
+    name: eq_path
+    display_name: "EQ Path"
+    group: "General"
+  - vst3_id: 2049718607
+    name: input_eq_band1_mode
+    display_name: "Input EQ Band1 Mode"
+    group: "Input"
+  - vst3_id: 2049512996
+    name: input_eq_band1_freq
+    display_name: "Input EQ Band1 Freq"
+    group: "Input"
+  - vst3_id: 152240197
+    name: input_eq_band1_q
+    display_name: "Input EQ Band1 Q"
+    group: "Input"
+  - vst3_id: 2049526571
+    name: input_eq_band1_gain
+    display_name: "Input EQ Band1 Gain"
+    group: "Input"
+  - vst3_id: 231747988
+    name: input_eq_band1_bypass
+    display_name: "Input EQ Band1 Bypass"
+    group: "Input"
+  - vst3_id: 2078347758
+    name: input_eq_band2_mode
+    display_name: "Input EQ Band2 Mode"
+    group: "Input"
+  - vst3_id: 2078142147
+    name: input_eq_band2_freq
+    display_name: "Input EQ Band2 Freq"
+    group: "Input"
+  - vst3_id: 152241158
+    name: input_eq_band2_q
+    display_name: "Input EQ Band2 Q"
+    group: "Input"
+  - vst3_id: 2078155722
+    name: input_eq_band2_gain
+    display_name: "Input EQ Band2 Gain"
+    group: "Input"
+  - vst3_id: 1974558323
+    name: input_eq_band2_bypass
+    display_name: "Input EQ Band2 Bypass"
+    group: "Input"
+  - vst3_id: 2106976909
+    name: input_eq_band3_mode
+    display_name: "Input EQ Band3 Mode"
+    group: "Input"
+  - vst3_id: 2106771298
+    name: input_eq_band3_freq
+    display_name: "Input EQ Band3 Freq"
+    group: "Input"
+  - vst3_id: 152242119
+    name: input_eq_band3_q
+    display_name: "Input EQ Band3 Q"
+    group: "Input"
+  - vst3_id: 2106784873
+    name: input_eq_band3_gain
+    display_name: "Input EQ Band3 Gain"
+    group: "Input"
+  - vst3_id: 1569885010
+    name: input_eq_band3_bypass
+    display_name: "Input EQ Band3 Bypass"
+    group: "Input"
+  - vst3_id: 2135606060
+    name: input_eq_band4_mode
+    display_name: "Input EQ Band4 Mode"
+    group: "Input"
+  - vst3_id: 2135400449
+    name: input_eq_band4_freq
+    display_name: "Input EQ Band4 Freq"
+    group: "Input"
+  - vst3_id: 152243080
+    name: input_eq_band4_q
+    display_name: "Input EQ Band4 Q"
+    group: "Input"
+  - vst3_id: 2135414024
+    name: input_eq_band4_gain
+    display_name: "Input EQ Band4 Gain"
+    group: "Input"
+  - vst3_id: 1165211697
+    name: input_eq_band4_bypass
+    display_name: "Input EQ Band4 Bypass"
+    group: "Input"
+  - vst3_id: 1025662815
+    name: decay_eq_band1_mode
+    display_name: "Decay EQ Band1 Mode"
+    group: "Decay"
+  - vst3_id: 1025457204
+    name: decay_eq_band1_freq
+    display_name: "Decay EQ Band1 Freq"
+    group: "Decay"
+  - vst3_id: 149754933
+    name: decay_eq_band1_q
+    display_name: "Decay EQ Band1 Q"
+    group: "Decay"
+  - vst3_id: 1025470779
+    name: decay_eq_band1_gain
+    display_name: "Decay EQ Band1 Gain"
+    group: "Decay"
+  - vst3_id: 1809126308
+    name: decay_eq_band1_bypass
+    display_name: "Decay EQ Band1 Bypass"
+    group: "Decay"
+  - vst3_id: 1054291966
+    name: decay_eq_band2_mode
+    display_name: "Decay EQ Band2 Mode"
+    group: "Decay"
+  - vst3_id: 1054086355
+    name: decay_eq_band2_freq
+    display_name: "Decay EQ Band2 Freq"
+    group: "Decay"
+  - vst3_id: 149755894
+    name: decay_eq_band2_q
+    display_name: "Decay EQ Band2 Q"
+    group: "Decay"
+  - vst3_id: 1054099930
+    name: decay_eq_band2_gain
+    display_name: "Decay EQ Band2 Gain"
+    group: "Decay"
+  - vst3_id: 1404452995
+    name: decay_eq_band2_bypass
+    display_name: "Decay EQ Band2 Bypass"
+    group: "Decay"
+  - vst3_id: 1082921117
+    name: decay_eq_band3_mode
+    display_name: "Decay EQ Band3 Mode"
+    group: "Decay"
+  - vst3_id: 1082715506
+    name: decay_eq_band3_freq
+    display_name: "Decay EQ Band3 Freq"
+    group: "Decay"
+  - vst3_id: 149756855
+    name: decay_eq_band3_q
+    display_name: "Decay EQ Band3 Q"
+    group: "Decay"
+  - vst3_id: 1082729081
+    name: decay_eq_band3_gain
+    display_name: "Decay EQ Band3 Gain"
+    group: "Decay"
+  - vst3_id: 999779682
+    name: decay_eq_band3_bypass
+    display_name: "Decay EQ Band3 Bypass"
+    group: "Decay"
+  - vst3_id: 1111550268
+    name: decay_eq_band4_mode
+    display_name: "Decay EQ Band4 Mode"
+    group: "Decay"
+  - vst3_id: 1111344657
+    name: decay_eq_band4_freq
+    display_name: "Decay EQ Band4 Freq"
+    group: "Decay"
+  - vst3_id: 149757816
+    name: decay_eq_band4_q
+    display_name: "Decay EQ Band4 Q"
+    group: "Decay"
+  - vst3_id: 1111358232
+    name: decay_eq_band4_gain
+    display_name: "Decay EQ Band4 Gain"
+    group: "Decay"
+  - vst3_id: 595106369
+    name: decay_eq_band4_bypass
+    display_name: "Decay EQ Band4 Bypass"
+    group: "Decay"

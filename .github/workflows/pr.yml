@@ -41,11 +41,14 @@ jobs:
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
-          lfs: true
           # `git archive <base>` builds the baseline from the base ref, which
-          # must exist locally — full history + LFS (the vendored
-          # NeuralAmpModelerCore archive included, #974).
+          # must exist locally — full history.
           fetch-depth: 0
+
+      # #1093: every LFS object except the ~600 MB plugin tree, which no test
+      # here reads (#974's NeuralAmpModelerCore archive included).
+      - name: Pull LFS objects except the plugin tree
+        run: git lfs pull --exclude="plugins/source/**"
 
       - name: Run quality gate (Docker image)
         id: gate

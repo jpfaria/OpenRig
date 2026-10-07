@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_mda_detune
+display_name: MDA Detune
+description: MDA Detune — subtle pitch detuner for doubling effect.
+brand: mda
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: pitch
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/Detune
+binaries:
+  macos-universal: platform/macos-universal/Detune.dylib
+  windows-x86_64: platform/windows-x86_64/Detune.dll
+  linux-x86_64: platform/linux-x86_64/Detune.so
+  linux-aarch64: platform/linux-aarch64/Detune.so

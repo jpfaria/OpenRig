@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_mod_hpf
+display_name: MOD High Pass
+description: MOD High Pass Filter — clean high-pass filter.
+brand: mod
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://github.com/moddevices/mod-utilities
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/mod-devel/HighPassFilter
+binaries:
+  macos-universal: platform/macos-universal/mod-hpf.dylib
+  linux-x86_64: platform/linux-x86_64/mod-hpf.so
+  linux-aarch64: platform/linux-aarch64/mod-hpf.so

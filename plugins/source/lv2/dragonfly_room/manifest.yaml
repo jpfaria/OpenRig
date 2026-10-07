@@ -1,0 +1,54 @@
+manifest_version: 1
+id: lv2_dragonfly_room
+display_name: Dragonfly Room Reverb
+description: Dragonfly Room Reverb — smaller room reverb simulation.
+brand: dragonfly
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/michaelwillis/dragonfly-reverb
+type: reverb
+backend: lv2
+plugin_uri: urn:dragonfly:room
+binaries:
+  macos-universal: platform/macos-universal/DragonflyRoomReverb_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/DragonflyRoomReverb_dsp.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+# Tabs mirror the plugin's own UI sections.
+parameters:
+  - symbol: dry_level
+    group: Mix
+  - symbol: early_level
+    group: Mix
+  - symbol: late_level
+    group: Mix
+  - symbol: early_send
+    group: Mix
+  - symbol: size
+    group: Space
+  - symbol: width
+    group: Space
+  - symbol: predelay
+    group: Space
+  - symbol: diffuse
+    group: Space
+  - symbol: decay
+    group: Space
+  - symbol: in_low_cut
+    group: EQ
+  - symbol: in_high_cut
+    group: EQ
+  - symbol: early_damp
+    group: EQ
+  - symbol: late_damp
+    group: EQ
+  - symbol: low_boost
+    group: EQ
+  - symbol: boost_freq
+    group: EQ
+  - symbol: spin
+    group: Modulation
+  - symbol: wander
+    group: Modulation

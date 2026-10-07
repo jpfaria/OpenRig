@@ -1,0 +1,58 @@
+{
+  "Name": "Setekh",
+  "Version": "0.0.1",
+  "Factory Info": {
+    "Vendor": "Full FX Media",
+    "URL": "",
+    "E-Mail": "",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB4646584D5345544B",
+      "Category": "Audio Module Class",
+      "Name": "Setekh",
+      "Vendor": "Full FX Media",
+      "Version": "0.0.1",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD4646584D5345544B",
+      "Category": "Component Controller Class",
+      "Name": "Setekh",
+      "Vendor": "Full FX Media",
+      "Version": "0.0.1",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF01C0DEF00D4646584D5345544B",
+      "Category": "Plugin Compatibility Class",
+      "Name": "Setekh",
+      "Vendor": "Full FX Media",
+      "Version": "0.0.1",
+      "SDKVersion": "VST 3.7.12",
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

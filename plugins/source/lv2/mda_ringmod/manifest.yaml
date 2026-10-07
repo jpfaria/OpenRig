@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_ringmod
+display_name: MDA RingMod
+description: MDA RingMod — ring modulator effect.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: mod
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/RingMod
+binaries:
+  macos-universal: platform/macos-universal/RingMod.dylib
+  windows-x86_64: platform/windows-x86_64/RingMod.dll
+  linux-x86_64: platform/linux-x86_64/RingMod.so
+  linux-aarch64: platform/linux-aarch64/RingMod.so

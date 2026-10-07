@@ -1,0 +1,539 @@
+manifest_version: 1
+id: vst3_sirial
+display_name: Delay sirial
+description: Sirial — rhythmic, pattern-based multi-tap delay by tiagolr.
+brand: tiagolr
+license: GPL-3.0-or-later
+homepage: https://github.com/tiagolr/sirial
+type: vst3
+backend: vst3
+bundle: bundles/Sirial.vst3
+parameters:
+  - vst3_id: 3357091
+    name: mode
+    display_name: "Mode"
+    group: "General"
+  - vst3_id: 105139870
+    name: num_taps
+    display_name: "Num Taps"
+    group: "General"
+  - vst3_id: 1099846370
+    name: reverse
+    display_name: "Reverse"
+    group: "General"
+  - vst3_id: 3321850
+    name: link
+    display_name: "Link"
+    group: "General"
+  - vst3_id: 1469594127
+    name: triplet_grid
+    display_name: "Triplet Grid"
+    group: "General"
+  - vst3_id: 36460501
+    name: time_mode
+    display_name: "Time Mode"
+    group: "Time"
+  - vst3_id: 36649165
+    name: time_sync
+    display_name: "Time Sync"
+    group: "Time"
+  - vst3_id: 673510392
+    name: time_millis
+    display_name: "Time Millis"
+    group: "Time"
+  - vst3_id: 1291498252
+    name: tap_1_time_left
+    display_name: "Tap 1 Time Left %"
+    group: "Tap"
+  - vst3_id: 1291498258
+    name: tap_1_time_right
+    display_name: "Tap 1 Time Right %"
+    group: "Tap"
+  - vst3_id: 1686804191
+    name: tap_1_amp_left
+    display_name: "Tap 1 Amp Left"
+    group: "Tap"
+  - vst3_id: 1686804197
+    name: tap_1_amp_right
+    display_name: "Tap 1 Amp Right"
+    group: "Tap"
+  - vst3_id: 1769808535
+    name: tap_1_feedback
+    display_name: "Tap 1 Feedback"
+    group: "Tap"
+  - vst3_id: 1694701131
+    name: tap_1_feedback_global
+    display_name: "Tap 1 Feedback Global"
+    group: "Tap"
+  - vst3_id: 886824939
+    name: tap_2_time_left
+    display_name: "Tap 2 Time Left %"
+    group: "Tap"
+  - vst3_id: 886824945
+    name: tap_2_time_right
+    display_name: "Tap 2 Time Right %"
+    group: "Tap"
+  - vst3_id: 426824224
+    name: tap_2_amp_left
+    display_name: "Tap 2 Amp Left"
+    group: "Tap"
+  - vst3_id: 426824230
+    name: tap_2_amp_right
+    display_name: "Tap 2 Amp Right"
+    group: "Tap"
+  - vst3_id: 1573295030
+    name: tap_2_feedback
+    display_name: "Tap 2 Feedback"
+    group: "Tap"
+  - vst3_id: 900527180
+    name: tap_2_feedback_global
+    display_name: "Tap 2 Feedback Global"
+    group: "Tap"
+  - vst3_id: 482151626
+    name: tap_3_time_left
+    display_name: "Tap 3 Time Left %"
+    group: "Tap"
+  - vst3_id: 482151632
+    name: tap_3_time_right
+    display_name: "Tap 3 Time Right %"
+    group: "Tap"
+  - vst3_id: 1314327905
+    name: tap_3_amp_left
+    display_name: "Tap 3 Amp Left"
+    group: "Tap"
+  - vst3_id: 1314327911
+    name: tap_3_amp_right
+    display_name: "Tap 3 Amp Right"
+    group: "Tap"
+  - vst3_id: 1376781525
+    name: tap_3_feedback
+    display_name: "Tap 3 Feedback"
+    group: "Tap"
+  - vst3_id: 106353229
+    name: tap_3_feedback_global
+    display_name: "Tap 3 Feedback Global"
+    group: "Tap"
+  - vst3_id: 77478313
+    name: tap_4_time_left
+    display_name: "Tap 4 Time Left %"
+    group: "Tap"
+  - vst3_id: 77478319
+    name: tap_4_time_right
+    display_name: "Tap 4 Time Right %"
+    group: "Tap"
+  - vst3_id: 54347938
+    name: tap_4_amp_left
+    display_name: "Tap 4 Amp Left"
+    group: "Tap"
+  - vst3_id: 54347944
+    name: tap_4_amp_right
+    display_name: "Tap 4 Amp Right"
+    group: "Tap"
+  - vst3_id: 1180268020
+    name: tap_4_feedback
+    display_name: "Tap 4 Feedback"
+    group: "Tap"
+  - vst3_id: 1459662926
+    name: tap_4_feedback_global
+    display_name: "Tap 4 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1820288648
+    name: tap_5_time_left
+    display_name: "Tap 5 Time Left %"
+    group: "Tap"
+  - vst3_id: 1820288654
+    name: tap_5_time_right
+    display_name: "Tap 5 Time Right %"
+    group: "Tap"
+  - vst3_id: 941851619
+    name: tap_5_amp_left
+    display_name: "Tap 5 Amp Left"
+    group: "Tap"
+  - vst3_id: 941851625
+    name: tap_5_amp_right
+    display_name: "Tap 5 Amp Right"
+    group: "Tap"
+  - vst3_id: 983754515
+    name: tap_5_feedback
+    display_name: "Tap 5 Feedback"
+    group: "Tap"
+  - vst3_id: 665488975
+    name: tap_5_feedback_global
+    display_name: "Tap 5 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1415615335
+    name: tap_6_time_left
+    display_name: "Tap 6 Time Left %"
+    group: "Tap"
+  - vst3_id: 1415615341
+    name: tap_6_time_right
+    display_name: "Tap 6 Time Right %"
+    group: "Tap"
+  - vst3_id: 1829355300
+    name: tap_6_amp_left
+    display_name: "Tap 6 Amp Left"
+    group: "Tap"
+  - vst3_id: 1829355306
+    name: tap_6_amp_right
+    display_name: "Tap 6 Amp Right"
+    group: "Tap"
+  - vst3_id: 787241010
+    name: tap_6_feedback
+    display_name: "Tap 6 Feedback"
+    group: "Tap"
+  - vst3_id: 2018798672
+    name: tap_6_feedback_global
+    display_name: "Tap 6 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1010942022
+    name: tap_7_time_left
+    display_name: "Tap 7 Time Left %"
+    group: "Tap"
+  - vst3_id: 1010942028
+    name: tap_7_time_right
+    display_name: "Tap 7 Time Right %"
+    group: "Tap"
+  - vst3_id: 569375333
+    name: tap_7_amp_left
+    display_name: "Tap 7 Amp Left"
+    group: "Tap"
+  - vst3_id: 569375339
+    name: tap_7_amp_right
+    display_name: "Tap 7 Amp Right"
+    group: "Tap"
+  - vst3_id: 590727505
+    name: tap_7_feedback
+    display_name: "Tap 7 Feedback"
+    group: "Tap"
+  - vst3_id: 1224624721
+    name: tap_7_feedback_global
+    display_name: "Tap 7 Feedback Global"
+    group: "Tap"
+  - vst3_id: 606268709
+    name: tap_8_time_left
+    display_name: "Tap 8 Time Left %"
+    group: "Tap"
+  - vst3_id: 606268715
+    name: tap_8_time_right
+    display_name: "Tap 8 Time Right %"
+    group: "Tap"
+  - vst3_id: 1456879014
+    name: tap_8_amp_left
+    display_name: "Tap 8 Amp Left"
+    group: "Tap"
+  - vst3_id: 1456879020
+    name: tap_8_amp_right
+    display_name: "Tap 8 Amp Right"
+    group: "Tap"
+  - vst3_id: 394214000
+    name: tap_8_feedback
+    display_name: "Tap 8 Feedback"
+    group: "Tap"
+  - vst3_id: 430450770
+    name: tap_8_feedback_global
+    display_name: "Tap 8 Feedback Global"
+    group: "Tap"
+  - vst3_id: 201595396
+    name: tap_9_time_left
+    display_name: "Tap 9 Time Left %"
+    group: "Tap"
+  - vst3_id: 201595402
+    name: tap_9_time_right
+    display_name: "Tap 9 Time Right %"
+    group: "Tap"
+  - vst3_id: 196899047
+    name: tap_9_amp_left
+    display_name: "Tap 9 Amp Left"
+    group: "Tap"
+  - vst3_id: 196899053
+    name: tap_9_amp_right
+    display_name: "Tap 9 Amp Right"
+    group: "Tap"
+  - vst3_id: 197700495
+    name: tap_9_feedback
+    display_name: "Tap 9 Feedback"
+    group: "Tap"
+  - vst3_id: 1783760467
+    name: tap_9_feedback_global
+    display_name: "Tap 9 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1944405731
+    name: tap_10_time_left
+    display_name: "Tap 10 Time Left %"
+    group: "Tap"
+  - vst3_id: 1944405737
+    name: tap_10_time_right
+    display_name: "Tap 10 Time Right %"
+    group: "Tap"
+  - vst3_id: 1084402728
+    name: tap_10_amp_left
+    display_name: "Tap 10 Amp Left"
+    group: "Tap"
+  - vst3_id: 1084402734
+    name: tap_10_amp_right
+    display_name: "Tap 10 Amp Right"
+    group: "Tap"
+  - vst3_id: 1186990
+    name: tap_10_feedback
+    display_name: "Tap 10 Feedback"
+    group: "Tap"
+  - vst3_id: 989586516
+    name: tap_10_feedback_global
+    display_name: "Tap 10 Feedback Global"
+    group: "Tap"
+  - vst3_id: 267824471
+    name: tap_11_time_left
+    display_name: "Tap 11 Time Left %"
+    group: "Tap"
+  - vst3_id: 267824477
+    name: tap_11_time_right
+    display_name: "Tap 11 Time Right %"
+    group: "Tap"
+  - vst3_id: 1515235124
+    name: tap_11_amp_left
+    display_name: "Tap 11 Amp Left"
+    group: "Tap"
+  - vst3_id: 1515235130
+    name: tap_11_amp_right
+    display_name: "Tap 11 Amp Right"
+    group: "Tap"
+  - vst3_id: 1566815778
+    name: tap_11_feedback
+    display_name: "Tap 11 Feedback"
+    group: "Tap"
+  - vst3_id: 375685216
+    name: tap_11_feedback_global
+    display_name: "Tap 11 Feedback Global"
+    group: "Tap"
+  - vst3_id: 2010634806
+    name: tap_12_time_left
+    display_name: "Tap 12 Time Left %"
+    group: "Tap"
+  - vst3_id: 2010634812
+    name: tap_12_time_right
+    display_name: "Tap 12 Time Right %"
+    group: "Tap"
+  - vst3_id: 255255157
+    name: tap_12_amp_left
+    display_name: "Tap 12 Amp Left"
+    group: "Tap"
+  - vst3_id: 255255163
+    name: tap_12_amp_right
+    display_name: "Tap 12 Amp Right"
+    group: "Tap"
+  - vst3_id: 1370302273
+    name: tap_12_feedback
+    display_name: "Tap 12 Feedback"
+    group: "Tap"
+  - vst3_id: 1728994913
+    name: tap_12_feedback_global
+    display_name: "Tap 12 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1605961493
+    name: tap_13_time_left
+    display_name: "Tap 13 Time Left %"
+    group: "Tap"
+  - vst3_id: 1605961499
+    name: tap_13_time_right
+    display_name: "Tap 13 Time Right %"
+    group: "Tap"
+  - vst3_id: 1142758838
+    name: tap_13_amp_left
+    display_name: "Tap 13 Amp Left"
+    group: "Tap"
+  - vst3_id: 1142758844
+    name: tap_13_amp_right
+    display_name: "Tap 13 Amp Right"
+    group: "Tap"
+  - vst3_id: 1173788768
+    name: tap_13_feedback
+    display_name: "Tap 13 Feedback"
+    group: "Tap"
+  - vst3_id: 934820962
+    name: tap_13_feedback_global
+    display_name: "Tap 13 Feedback Global"
+    group: "Tap"
+  - vst3_id: 1201288180
+    name: tap_14_time_left
+    display_name: "Tap 14 Time Left %"
+    group: "Tap"
+  - vst3_id: 1201288186
+    name: tap_14_time_right
+    display_name: "Tap 14 Time Right %"
+    group: "Tap"
+  - vst3_id: 2030262519
+    name: tap_14_amp_left
+    display_name: "Tap 14 Amp Left"
+    group: "Tap"
+  - vst3_id: 2030262525
+    name: tap_14_amp_right
+    display_name: "Tap 14 Amp Right"
+    group: "Tap"
+  - vst3_id: 977275263
+    name: tap_14_feedback
+    display_name: "Tap 14 Feedback"
+    group: "Tap"
+  - vst3_id: 140647011
+    name: tap_14_feedback_global
+    display_name: "Tap 14 Feedback Global"
+    group: "Tap"
+  - vst3_id: 796614867
+    name: tap_15_time_left
+    display_name: "Tap 15 Time Left %"
+    group: "Tap"
+  - vst3_id: 796614873
+    name: tap_15_time_right
+    display_name: "Tap 15 Time Right %"
+    group: "Tap"
+  - vst3_id: 770282552
+    name: tap_15_amp_left
+    display_name: "Tap 15 Amp Left"
+    group: "Tap"
+  - vst3_id: 770282558
+    name: tap_15_amp_right
+    display_name: "Tap 15 Amp Right"
+    group: "Tap"
+  - vst3_id: 780761758
+    name: tap_15_feedback
+    display_name: "Tap 15 Feedback"
+    group: "Tap"
+  - vst3_id: 1493956708
+    name: tap_15_feedback_global
+    display_name: "Tap 15 Feedback Global"
+    group: "Tap"
+  - vst3_id: 391941554
+    name: tap_16_time_left
+    display_name: "Tap 16 Time Left %"
+    group: "Tap"
+  - vst3_id: 391941560
+    name: tap_16_time_right
+    display_name: "Tap 16 Time Right %"
+    group: "Tap"
+  - vst3_id: 1657786233
+    name: tap_16_amp_left
+    display_name: "Tap 16 Amp Left"
+    group: "Tap"
+  - vst3_id: 1657786239
+    name: tap_16_amp_right
+    display_name: "Tap 16 Amp Right"
+    group: "Tap"
+  - vst3_id: 584248253
+    name: tap_16_feedback
+    display_name: "Tap 16 Feedback"
+    group: "Tap"
+  - vst3_id: 699782757
+    name: tap_16_feedback_global
+    display_name: "Tap 16 Feedback Global"
+    group: "Tap"
+  - vst3_id: 249911978
+    name: global_random_amp
+    display_name: "Global Random Amp"
+    group: "Global"
+  - vst3_id: 1955982213
+    name: global_feedback
+    display_name: "Global Feedback"
+    group: "Global"
+  - vst3_id: 1050619502
+    name: lowcut
+    display_name: "Lowcut"
+    group: "General"
+  - vst3_id: 915482976
+    name: highcut
+    display_name: "highcut"
+    group: "General"
+  - vst3_id: 996468863
+    name: pipo_width
+    display_name: "Pipo Width"
+    group: "General"
+  - vst3_id: 1522949312
+    name: modulation_mode
+    display_name: "Modulation Mode"
+    group: "Modulation"
+  - vst3_id: 2105674566
+    name: modulation_amt
+    display_name: "Modulation Amt"
+    group: "Modulation"
+  - vst3_id: 1523085309
+    name: modulation_rate
+    display_name: "Modulation Rate"
+    group: "Modulation"
+  - vst3_id: 1095752093
+    name: modulation_rate_sync
+    display_name: "Modulation Rate Sync"
+    group: "Modulation"
+  - vst3_id: 1095563429
+    name: modulation_rate_mode
+    display_name: "Modulation Rate Mode"
+    group: "Modulation"
+  - vst3_id: 1350225673
+    name: pan_dry
+    display_name: "Pan Dry"
+    group: "Pan"
+  - vst3_id: 1764167701
+    name: pan_dry_sum
+    display_name: "Pan Dry Sum"
+    group: "Pan"
+  - vst3_id: 1350243524
+    name: pan_wet
+    display_name: "Pan Wet"
+    group: "Pan"
+  - vst3_id: 1070071888
+    name: pan_dry_sum
+    display_name: "Pan Dry Sum"
+    group: "Pan"
+  - vst3_id: 1255118840
+    name: stereo_width
+    display_name: "Stereo Width"
+    group: "General"
+  - vst3_id: 108124
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 54048208
+    name: mix
+    display_name: "Mix"
+    group: "Mix"
+  - vst3_id: 118404529
+    name: sat_drive
+    display_name: "Sat Drive"
+    group: "Sat"
+  - vst3_id: 117394314
+    name: sat_color
+    display_name: "Sat Color"
+    group: "Sat"
+  - vst3_id: 350529310
+    name: sat_path
+    display_name: "Sat Path"
+    group: "Sat"
+  - vst3_id: 2050763406
+    name: diffusion_amt
+    display_name: "Diffusion Amt"
+    group: "Diffusion"
+  - vst3_id: 1297172475
+    name: diffusion_size
+    display_name: "Diffusion Size"
+    group: "Diffusion"
+  - vst3_id: 1297075231
+    name: diffusion_path
+    display_name: "Diffusion Path"
+    group: "Diffusion"
+  - vst3_id: 552997542
+    name: duck_threshold
+    display_name: "Duck Threshold"
+    group: "Duck"
+  - vst3_id: 1882119490
+    name: duck_amount
+    display_name: "Duck Amount"
+    group: "Duck"
+  - vst3_id: 1882119698
+    name: duck_attack
+    display_name: "Duck Attack"
+    group: "Duck"
+  - vst3_id: 1882126170
+    name: duck_hold
+    display_name: "Duck Hold"
+    group: "Duck"
+  - vst3_id: 1882135571
+    name: duck_release
+    display_name: "Duck Release"
+    group: "Duck"

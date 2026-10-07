@@ -1,0 +1,199 @@
+manifest_version: 1
+id: vst3_chow_tape_model
+display_name: Tape ChowTapeModel
+description: ChowTapeModel — analog tape-machine saturation, wow/flutter and loss emulation by ChowDSP.
+brand: chowdsp
+license: GPL-3.0-or-later
+homepage: https://github.com/jatinchowdhury18/AnalogTapeModel
+type: vst3
+backend: vst3
+bundle: bundles/CHOWTapeModel.vst3
+parameters:
+  - vst3_id: 963329572
+    name: input_gain
+    display_name: "Input Gain"
+    group: "I/O"
+  - vst3_id: 1041081293
+    name: output_gain
+    display_name: "Output Gain"
+    group: "I/O"
+  - vst3_id: 824435163
+    name: dry_wet
+    display_name: "Dry/Wet"
+    group: "I/O"
+  - vst3_id: 719320229
+    name: input_filters_on_off
+    display_name: "Input Filters On/Off"
+    group: "I/O"
+  - vst3_id: 621974025
+    name: input_low_cut
+    display_name: "Input Low Cut"
+    group: "I/O"
+  - vst3_id: 2101200269
+    name: input_high_cut
+    display_name: "Input High Cut"
+    group: "I/O"
+  - vst3_id: 754706996
+    name: input_cut_makeup
+    display_name: "Input Cut Makeup"
+    group: "I/O"
+  - vst3_id: 620121635
+    name: tone_on_off
+    display_name: "Tone On/Off"
+    group: "Tone"
+  - vst3_id: 920698966
+    name: tone_bass
+    display_name: "Tone Bass"
+    group: "Tone"
+  - vst3_id: 559037963
+    name: tone_treble
+    display_name: "Tone Treble"
+    group: "Tone"
+  - vst3_id: 641151573
+    name: tone_transition_frequency
+    display_name: "Tone Transition Frequency"
+    group: "Tone"
+  - vst3_id: 1243163136
+    name: compression_on_off
+    display_name: "Compression On/Off"
+    group: "Compression"
+  - vst3_id: 1547647128
+    name: compression_amount
+    display_name: "Compression Amount"
+    group: "Compression"
+  - vst3_id: 1635712376
+    name: compression_attack
+    display_name: "Compression Attack"
+    group: "Compression"
+  - vst3_id: 933428951
+    name: compression_release
+    display_name: "Compression Release"
+    group: "Compression"
+  - vst3_id: 487895011
+    name: tape_on_off
+    display_name: "Tape On/Off"
+    group: "Tape"
+  - vst3_id: 95852938
+    name: tape_drive
+    display_name: "Tape Drive"
+    group: "Tape"
+  - vst3_id: 113638
+    name: tape_saturation
+    display_name: "Tape Saturation"
+    group: "Tape"
+  - vst3_id: 113126854
+    name: tape_bias
+    display_name: "Tape Bias"
+    group: "Tape"
+  - vst3_id: 3357091
+    name: tape_mode
+    display_name: "Tape Mode"
+    group: "Tape"
+  - vst3_id: 1856496404
+    name: loss_on_off
+    display_name: "Loss On/Off"
+    group: "Loss"
+  - vst3_id: 109641799
+    name: tape_speed
+    display_name: "Tape Speed"
+    group: "Loss"
+  - vst3_id: 135324739
+    name: tape_spacing
+    display_name: "Tape Spacing"
+    group: "Loss"
+  - vst3_id: 110330781
+    name: tape_thickness
+    display_name: "Tape Thickness"
+    group: "Loss"
+  - vst3_id: 102102
+    name: playhead_gap
+    display_name: "Playhead Gap"
+    group: "Loss"
+  - vst3_id: 1634116972
+    name: azimuth
+    display_name: "Azimuth"
+    group: "Loss"
+  - vst3_id: 1723790669
+    name: wow_flutter_on_off
+    display_name: "Wow/Flutter On/Off"
+    group: "Wow/Flutter"
+  - vst3_id: 3493088
+    name: flutter_rate
+    display_name: "Flutter Rate"
+    group: "Wow/Flutter"
+  - vst3_id: 95472323
+    name: flutter_depth
+    display_name: "Flutter Depth"
+    group: "Wow/Flutter"
+  - vst3_id: 167789696
+    name: wow_rate
+    display_name: "Wow Rate"
+    group: "Wow/Flutter"
+  - vst3_id: 893699875
+    name: wow_depth
+    display_name: "Wow Depth"
+    group: "Wow/Flutter"
+  - vst3_id: 1529437063
+    name: wow_variance
+    display_name: "Wow Variance"
+    group: "Wow/Flutter"
+  - vst3_id: 894080009
+    name: wow_drift
+    display_name: "Wow Drift"
+    group: "Wow/Flutter"
+  - vst3_id: 646380734
+    name: degrade_point1x
+    display_name: "Degrade Point1x"
+    group: "Degrade"
+  - vst3_id: 1470114231
+    name: degrade_on_off
+    display_name: "Degrade On/Off"
+    group: "Degrade"
+  - vst3_id: 1459688778
+    name: degrade_depth
+    display_name: "Degrade Depth"
+    group: "Degrade"
+  - vst3_id: 1545648655
+    name: degrade_amount
+    display_name: "Degrade Amount"
+    group: "Degrade"
+  - vst3_id: 1545668462
+    name: degrade_variance
+    display_name: "Degrade Variance"
+    group: "Degrade"
+  - vst3_id: 1545652532
+    name: degrade_envelope
+    display_name: "Degrade Envelope"
+    group: "Degrade"
+  - vst3_id: 1870420168
+    name: chew_on_off
+    display_name: "Chew On/Off"
+    group: "Chew"
+  - vst3_id: 1859994715
+    name: chew_depth
+    display_name: "Chew Depth"
+    group: "Chew"
+  - vst3_id: 960629216
+    name: chew_freq
+    display_name: "Chew Freq"
+    group: "Chew"
+  - vst3_id: 1555023551
+    name: chew_variance
+    display_name: "Chew Variance"
+    group: "Chew"
+  - vst3_id: 493067502
+    name: mid_side_mode
+    display_name: "Mid/Side Mode"
+    group: "Output"
+  - vst3_id: 65811861
+    name: stereo_balance
+    display_name: "Stereo Balance"
+    group: "Output"
+  - vst3_id: 317017904
+    name: stereo_makeup
+    display_name: "Stereo Makeup"
+    group: "Output"
+  - vst3_id: 812108508
+    name: mix_group
+    display_name: "Mix Group"
+    group: "Output"

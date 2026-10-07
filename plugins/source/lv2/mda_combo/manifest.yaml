@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_mda_combo
+display_name: MDA Combo
+description: MDA Combo — combo amp simulation.
+brand: mda
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: amp
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/Combo
+binaries:
+  macos-universal: platform/macos-universal/Combo.dylib
+  windows-x86_64: platform/windows-x86_64/Combo.dll
+  linux-x86_64: platform/linux-x86_64/Combo.so
+  linux-aarch64: platform/linux-aarch64/Combo.so

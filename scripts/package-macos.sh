@@ -120,14 +120,13 @@ cp -r assets                   "$APP/Contents/Resources/assets"
 if [ -d presets ]; then
     cp -r presets              "$APP/Contents/Resources/presets"
 fi
-# data/lv2, libs/lv2, captures were removed in 2011110d — LV2 plugins now
-# ship via openrig-plugins.zip (extracted on first launch).
+# LV2/VST3 plugins are versioned in this repo under plugins/source (#1093).
 
 # Bundle plugins as a pre-extracted directory. plugin_loader::registry::
 # init_many scans <.app>/Contents/Resources/plugins (this path) plus the
 # user-writable root in parallel. No first-launch extraction step.
 # Source dir comes from plugins_src_dir (OPENRIG_PLUGINS_DIR override or
-# plugins/source); a missing default is a NOTE — registry::init falls
+# plugins/source, pulled from LFS); a missing default is a NOTE — registry::init falls
 # back to the user root only. macOS .app only loads .dylib, so the
 # linux-*/windows-* platform dirs are dropped (issue #425).
 bundle_plugins "$PLUGINS_SRC" "$APP/Contents/Resources/plugins" "linux-*" "windows-*"

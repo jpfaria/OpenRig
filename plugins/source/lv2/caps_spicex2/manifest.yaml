@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_caps_spicex2
+display_name: Spice X2
+description: CAPS Spice X2 — stereo version of CAPS Spice overdrive.
+brand: caps
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://quitte.de/dsp/caps.html
+type: gain_pedal
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/SpiceX2
+binaries:
+  macos-universal: platform/macos-universal/SpiceX2.dylib
+  linux-x86_64: platform/linux-x86_64/SpiceX2.so
+  linux-aarch64: platform/linux-aarch64/SpiceX2.so
