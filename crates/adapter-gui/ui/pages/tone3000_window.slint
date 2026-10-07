@@ -9,6 +9,7 @@ import { Locale } from "../locale_globals.slint";
 import { ToolBar } from "../components/tool_bar.slint";
 import { SegControl } from "../components/seg_control.slint";
 import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { TextField } from "../components/text_field.slint";
 import { Tone3000Bridge } from "../components/tone3000_globals.slint";
 import { Tone3000Filters } from "../components/tone3000_filters.slint";
 import { Tone3000ToneItem } from "../components/tone3000_tone_row.slint";
@@ -32,7 +33,7 @@ export component Tone3000Panel inherits Rectangle {
 
             SegControl {
                 label: "TONE3000";
-                options: [@tr("tab-tone3000-browse"), @tr("tab-tone3000-installed", Tone3000Bridge.installed.length)];
+                options: [@tr("tab-tone3000-browse"), @tr("tab-tone3000-installed", Tone3000Bridge.installed-total)];
                 current: Tone3000Bridge.tab;
                 picked(i) => { Tone3000Bridge.tab = i; }
             }
@@ -110,6 +111,7 @@ export component Tone3000Panel inherits Rectangle {
                             can-install: Tone3000Bridge.can-install;
                             pick-arch(arch) => { Tone3000Bridge.pick-arch(tone.tone-id, arch); }
                             install => { Tone3000Bridge.install(tone.tone-id); }
+                            uninstall => { Tone3000Bridge.uninstall(tone.plugin-id); }
                         }
                     }
                 }
@@ -142,25 +144,35 @@ export component Tone3000Panel inherits Rectangle {
             }
         }
 
-        // ── Installed ──
-        if Tone3000Bridge.tab == 1 : Rectangle {
+        // ── Installed: every TONE3000 plugin, searchable by name ──
+        if Tone3000Bridge.tab == 1 : VerticalLayout {
             vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
 
-            if Tone3000Bridge.installed.length == 0 : CenterNote {
-                x: 32px;
-                width: parent.width - 64px;
-                text: @tr("status-tone3000-none-installed");
+            TextField {
+                text <=> Tone3000Bridge.installed-query;
+                placeholder: @tr("placeholder-tone3000-installed-search");
+                edited(text) => { Tone3000Bridge.filter-installed(text); }
             }
 
-            ScrollView {
-                x: 16px; y: 16px;
-                width: parent.width - 32px;
-                height: parent.height - 32px;
-                VerticalLayout {
-                    spacing: 8px;
-                    for package in Tone3000Bridge.installed : Tone3000InstalledItem {
-                        package: package;
-                        uninstall => { Tone3000Bridge.uninstall(package.plugin-id); }
+            Rectangle {
+                vertical-stretch: 1;
+
+                if Tone3000Bridge.installed.length == 0 : CenterNote {
+                    x: 16px;
+                    width: parent.width - 32px;
+                    text: Tone3000Bridge.installed-total == 0 ? @tr("status-tone3000-none-installed")
+                        : @tr("status-tone3000-no-installed-match");
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        for package in Tone3000Bridge.installed : Tone3000InstalledItem {
+                            package: package;
+                            uninstall => { Tone3000Bridge.uninstall(package.plugin-id); }
+                        }
                     }
                 }
             }

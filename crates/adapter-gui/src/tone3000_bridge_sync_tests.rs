@@ -38,7 +38,9 @@ fn drawn(rows: Vec<ToneRowView>) -> (Tone3000Window, Vec<crate::Tone3000ToneRow>
             block_type: "amp".into(),
             arch: "A2".into(),
             captures: 5,
+            removable: false,
         }],
+        installed_total: 9,
         ..Tone3000View::default()
     };
     set_tone3000_view(&Tone3000Bridge::get(&w), &view);
@@ -62,6 +64,8 @@ fn the_page_status_and_packages_reach_the_bridge() {
     let package = bridge.get_installed().row_data(0).unwrap();
     assert_eq!(package.plugin_id, "tone3000_9_a2");
     assert_eq!((package.arch.as_str(), package.captures), ("A2", 5));
+    assert!(!package.removable);
+    assert_eq!(bridge.get_installed_total(), 9);
 }
 
 #[test]
@@ -104,10 +108,13 @@ fn each_install_step_has_its_stage() {
 fn installed_and_failed_rows_read_as_such() {
     let a2 = Some(Tone3000Architecture::A2);
     let (_w, rows) = drawn(vec![
-        row(RowInstall::Installed, a2),
+        row(RowInstall::Installed(Some("tone3000_4521_a2".into())), a2),
         row(RowInstall::Failed("TONE3000 rate limit reached".into()), a2),
+        row(RowInstall::Installed(None), a2),
     ]);
     assert!(rows[0].installed && rows[0].error.is_empty());
+    assert_eq!(rows[0].plugin_id, "tone3000_4521_a2");
+    assert!(rows[2].installed && rows[2].plugin_id.is_empty());
     assert!(!rows[1].installed && !rows[1].installing);
     assert_eq!(rows[1].error, "TONE3000 rate limit reached");
 }

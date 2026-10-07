@@ -32,6 +32,10 @@ pub(crate) fn wire_tone3000(
         Rc::new(move |id, arch| p.pick(id, arch)),
         Rc::new(move |id| a.arch_of(id)),
     );
+    let f = ctx.clone();
+    Tone3000Bridge::get(tone3000_window).on_filter_installed(move |query| {
+        f.filter_installed(&query);
+    });
     let c = ctx.clone();
     let main = window.as_weak();
     Tone3000Bridge::get(window).on_open_tone3000_window(move || {

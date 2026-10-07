@@ -8,18 +8,23 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use infra_filesystem::Tone3000Config;
-use plugin_loader::manifest::{Backend, BlockType, NamArchitecture};
+use plugin_loader::manifest::{BlockType, NamArchitecture};
 use serde::Serialize;
 
 use crate::tone3000::api_client::Tone3000Api;
 use crate::tone3000::api_http::HttpTone3000Api;
 use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
+use crate::tone3000::catalog_tones::{installed_entry, loaded_catalog_entries};
 use crate::tone3000::install::InstallProgress;
-use crate::tone3000::installed::{list_installed, InstalledPlugin};
+use crate::tone3000::installed::list_installed;
 
 /// Builds the API client for a key. Tests swap in a fake.
 pub type Tone3000ApiFactory = Arc<dyn Fn(&str) -> Arc<dyn Tone3000Api> + Send + Sync>;
+
+/// The catalog plugins that came from TONE3000 outside the browser's folder.
+/// Read on every snapshot, so a catalog reload shows at once. Tests swap it.
+pub type Tone3000CatalogSource = Arc<dyn Fn() -> Vec<Tone3000InstalledEntry> + Send + Sync>;
 
 /// The last search, as a frontend renders it.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -38,15 +43,19 @@ pub struct Tone3000InstallEntry {
     pub error: Option<String>,
 }
 
-/// One TONE3000 package on disk.
+/// One plugin the user has from a TONE3000 tone.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Tone3000InstalledEntry {
     pub plugin_id: String,
-    pub tone_id: Option<u64>,
+    /// The TONE3000 tones it came from.
+    pub tone_ids: Vec<u64>,
     pub display_name: String,
     pub block_type: BlockType,
     pub architecture: Option<NamArchitecture>,
     pub captures: usize,
+    /// The browser installed it, so the browser may remove it. A plugin
+    /// from the plugins folder is only listed.
+    pub removable: bool,
 }
 
 /// The browser state as a value. Holds no key.
@@ -57,6 +66,7 @@ pub struct Tone3000Snapshot {
     pub can_install: bool,
     pub search: Tone3000SearchSnapshot,
     pub installs: Vec<Tone3000InstallEntry>,
+    /// The browser's packages first, then the catalog's.
     pub installed: Vec<Tone3000InstalledEntry>,
 }
 
@@ -68,6 +78,7 @@ pub struct Tone3000ControlState {
     /// The TONE3000 plugin root; `None` means installs are off.
     root: Option<PathBuf>,
     api_factory: Tone3000ApiFactory,
+    catalog: Tone3000CatalogSource,
     search: Tone3000SearchSnapshot,
     /// Bumped on every search, so a slow answer to an older one is dropped.
     search_generation: u64,
@@ -103,6 +114,7 @@ impl Tone3000ControlState {
             api_factory: Arc::new(|key: &str| -> Arc<dyn Tone3000Api> {
                 Arc::new(HttpTone3000Api::new(key))
             }),
+            catalog: Arc::new(loaded_catalog_entries),
             search: Tone3000SearchSnapshot::default(),
             search_generation: 0,
             installs: Vec::new(),
@@ -117,13 +129,23 @@ impl Tone3000ControlState {
         self
     }
 
+    pub fn with_catalog(mut self, catalog: Tone3000CatalogSource) -> Self {
+        self.catalog = catalog;
+        self
+    }
+
     pub fn snapshot(&self) -> Tone3000Snapshot {
         Tone3000Snapshot {
             key_configured: self.api_key.is_some(),
             can_install: self.api_key.is_some() && self.root.is_some(),
             search: self.search.clone(),
             installs: self.installs.clone(),
-            installed: self.installed.clone(),
+            installed: self
+                .installed
+                .iter()
+                .cloned()
+                .chain((self.catalog)())
+                .collect(),
         }
     }
 
@@ -214,24 +236,11 @@ impl Tone3000ControlState {
             .map(list_installed)
             .unwrap_or_default()
             .iter()
-            .map(installed_entry)
+            .map(|plugin| Tone3000InstalledEntry {
+                tone_ids: tone_id_of(&plugin.plugin_id).into_iter().collect(),
+                ..installed_entry(&plugin.manifest, true)
+            })
             .collect();
-    }
-}
-
-fn installed_entry(plugin: &InstalledPlugin) -> Tone3000InstalledEntry {
-    let manifest = &plugin.manifest;
-    let captures = match &manifest.backend {
-        Backend::Nam { captures, .. } | Backend::Ir { captures, .. } => captures.len(),
-        _ => 0,
-    };
-    Tone3000InstalledEntry {
-        plugin_id: plugin.plugin_id.clone(),
-        tone_id: tone_id_of(&plugin.plugin_id),
-        display_name: manifest.display_name.clone(),
-        block_type: manifest.block_type,
-        architecture: manifest.architecture,
-        captures,
     }
 }
 

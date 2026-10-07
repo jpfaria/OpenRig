@@ -21,6 +21,7 @@ pub(crate) fn set_tone3000_view(bridge: &Tone3000Bridge, view: &Tone3000View) {
     bridge.set_results(ModelRc::new(VecModel::from(results)));
     let installed: Vec<Tone3000InstalledRow> = view.installed.iter().map(installed_row).collect();
     bridge.set_installed(ModelRc::new(VecModel::from(installed)));
+    bridge.set_installed_total(view.installed_total as i32);
 }
 
 /// The window's architecture code: 1 = A1, 2 = A2, 0 for an IR tone.
@@ -52,7 +53,11 @@ fn tone_row(row: &ToneRowView) -> Tone3000ToneRow {
         ir_count: row.ir_count as i32,
         downloads: row.downloads.as_str().into(),
         arch: arch_to_int(row.arch),
-        installed: row.install == RowInstall::Installed,
+        installed: matches!(row.install, RowInstall::Installed(_)),
+        plugin_id: match &row.install {
+            RowInstall::Installed(Some(id)) => id.as_str().into(),
+            _ => SharedString::new(),
+        },
         installing: matches!(row.install, RowInstall::Running(_)),
         stage,
         done,
@@ -71,6 +76,7 @@ fn installed_row(row: &InstalledRowView) -> Tone3000InstalledRow {
         block_type: row.block_type.as_str().into(),
         arch: row.arch.as_str().into(),
         captures: row.captures as i32,
+        removable: row.removable,
     }
 }
 

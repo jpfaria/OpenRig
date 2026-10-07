@@ -1,7 +1,8 @@
 // Responsibility: renders one installed TONE3000 package.
 // The name with the block it loads as, its architecture and capture count;
 // the trash arms on the first click and removes on the second, like a
-// backing track. #398 vocabulary: a raised settings card, tag pills, the
+// backing track. A package from the plugins folder is not the browser's to
+// remove, so it shows where it lives instead of the trash. #398 vocabulary: a raised settings card, tag pills, the
 // danger confirm.
 import { Theme } from "../theme.slint";
 import { Tone3000InstalledRow } from "tone3000_globals.slint";
@@ -55,14 +56,18 @@ export component Tone3000InstalledItem inherits SettingsCard {
 
         VerticalLayout {
             alignment: center;
-            if !root.armed : FormButton {
+            if !root.package.removable : TagPill {
+                text: @tr("label-tone3000-plugins-folder");
+                tone: Theme.ink-3;
+            }
+            if root.package.removable && !root.armed : FormButton {
                 kind: FormButtonKind.ghost;
                 icon: @image-url("../assets/trash.svg");
                 icon-only: true;
                 label: @tr("btn-tone3000-uninstall");
                 clicked => { root.armed = true; }
             }
-            if root.armed : FormButton {
+            if root.package.removable && root.armed : FormButton {
                 kind: FormButtonKind.danger;
                 icon: @image-url("../assets/trash.svg");
                 label: @tr("btn-tone3000-uninstall-confirm");

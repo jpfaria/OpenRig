@@ -112,3 +112,11 @@ fn a_state_changed_elsewhere_is_redrawn_on_the_next_tick() {
     assert_eq!(*forwarded.borrow(), 0);
     assert_eq!(Tone3000Bridge::get(&w).get_results().row_count(), 0);
 }
+
+#[test]
+fn the_installed_filter_is_kept_until_changed() {
+    let (_w, ctx, _) = ctx(open_session());
+    assert_eq!(ctx.installed_query(), "");
+    ctx.filter_installed("dumble");
+    assert_eq!(ctx.installed_query(), "dumble");
+}

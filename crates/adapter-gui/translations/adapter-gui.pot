@@ -1456,3 +1456,12 @@ msgstr ""
 
 msgid "status-tone3000-none-installed"
 msgstr ""
+msgid "label-tone3000-plugins-folder"
+msgstr ""
+
+msgid "placeholder-tone3000-installed-search"
+msgstr ""
+
+msgid "status-tone3000-no-installed-match"
+msgstr ""
+

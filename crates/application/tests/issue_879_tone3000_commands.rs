@@ -376,7 +376,8 @@ fn an_install_reports_progress_then_lists_the_plugin() {
     assert!(snapshot.installs.is_empty());
     let entry = &snapshot.installed[0];
     assert_eq!(entry.plugin_id, "tone3000_107");
-    assert_eq!(entry.tone_id, Some(107));
+    assert_eq!(entry.tone_ids, vec![107]);
+    assert!(entry.removable);
     assert_eq!(entry.display_name, "Fake Cab");
     assert_eq!(entry.block_type, BlockType::Cab);
     assert_eq!(entry.captures, 2);

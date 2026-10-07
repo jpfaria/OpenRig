@@ -56,45 +56,82 @@ fn snapshot(tones: Vec<Tone>) -> Tone3000Snapshot {
 }
 
 fn installed(plugin_id: &str, arch: Option<NamArchitecture>) -> Tone3000InstalledEntry {
+    let tone_id = plugin_id
+        .strip_prefix("tone3000_")
+        .and_then(|rest| rest.split('_').next())
+        .and_then(|id| id.parse().ok());
     Tone3000InstalledEntry {
         plugin_id: plugin_id.into(),
-        tone_id: None,
+        tone_ids: tone_id.into_iter().collect(),
         display_name: "Plexi".into(),
         block_type: BlockType::GainPedal,
         architecture: arch,
         captures: 7,
+        removable: true,
     }
+}
+
+fn from_plugins_folder(plugin_id: &str, name: &str, tone_id: u64) -> Tone3000InstalledEntry {
+    Tone3000InstalledEntry {
+        plugin_id: plugin_id.into(),
+        tone_ids: vec![tone_id],
+        display_name: name.into(),
+        block_type: BlockType::Preamp,
+        architecture: Some(NamArchitecture::A2),
+        captures: 4,
+        removable: false,
+    }
+}
+
+fn view(s: &Tone3000Snapshot) -> Tone3000View {
+    tone3000_view(s, &ArchChoices::new(), "")
 }
 
 #[test]
 fn a_nam_tone_installs_as_a2_when_it_has_a2_captures() {
-    let view = tone3000_view(&snapshot(vec![tone(1, "nam", 4, 2)]), &ArchChoices::new());
+    let view = tone3000_view(
+        &snapshot(vec![tone(1, "nam", 4, 2)]),
+        &ArchChoices::new(),
+        "",
+    );
     assert_eq!(view.results[0].arch, Some(Tone3000Architecture::A2));
 }
 
 #[test]
 fn a_nam_tone_without_a2_captures_installs_as_a1() {
-    let view = tone3000_view(&snapshot(vec![tone(1, "nam", 4, 0)]), &ArchChoices::new());
+    let view = tone3000_view(
+        &snapshot(vec![tone(1, "nam", 4, 0)]),
+        &ArchChoices::new(),
+        "",
+    );
     assert_eq!(view.results[0].arch, Some(Tone3000Architecture::A1));
 }
 
 #[test]
 fn the_users_pick_wins_over_the_default_architecture() {
     let choices = ArchChoices::from([(1, Tone3000Architecture::A1)]);
-    let view = tone3000_view(&snapshot(vec![tone(1, "nam", 4, 2)]), &choices);
+    let view = tone3000_view(&snapshot(vec![tone(1, "nam", 4, 2)]), &choices, "");
     assert_eq!(view.results[0].arch, Some(Tone3000Architecture::A1));
 }
 
 #[test]
 fn an_ir_tone_has_no_architecture() {
-    let view = tone3000_view(&snapshot(vec![tone(1, "ir", 0, 0)]), &ArchChoices::new());
+    let view = tone3000_view(
+        &snapshot(vec![tone(1, "ir", 0, 0)]),
+        &ArchChoices::new(),
+        "",
+    );
     assert_eq!(view.results[0].arch, None);
     assert_eq!(view.results[0].ir_count, 3);
 }
 
 #[test]
 fn a_row_carries_the_name_author_gear_and_downloads() {
-    let view = tone3000_view(&snapshot(vec![tone(9, "nam", 4, 2)]), &ArchChoices::new());
+    let view = tone3000_view(
+        &snapshot(vec![tone(9, "nam", 4, 2)]),
+        &ArchChoices::new(),
+        "",
+    );
     let row = &view.results[0];
     assert_eq!(row.tone_id, 9);
     assert_eq!(row.title, "Tone 9");
@@ -106,7 +143,7 @@ fn a_row_carries_the_name_author_gear_and_downloads() {
 
 #[test]
 fn the_page_and_totals_come_from_the_last_search() {
-    let view = tone3000_view(&snapshot(vec![]), &ArchChoices::new());
+    let view = tone3000_view(&snapshot(vec![]), &ArchChoices::new(), "");
     assert_eq!((view.page, view.total_pages, view.total), (2, 3, 60));
     assert!(view.searched);
     assert!(!view.searching);
@@ -114,7 +151,7 @@ fn the_page_and_totals_come_from_the_last_search() {
 
 #[test]
 fn before_any_search_nothing_was_searched() {
-    let view = tone3000_view(&Tone3000Snapshot::default(), &ArchChoices::new());
+    let view = tone3000_view(&Tone3000Snapshot::default(), &ArchChoices::new(), "");
     assert!(!view.searched);
     assert!(view.results.is_empty());
     assert_eq!(view.page, 0);
@@ -124,7 +161,7 @@ fn before_any_search_nothing_was_searched() {
 fn a_failed_search_shows_its_message() {
     let mut s = Tone3000Snapshot::default();
     s.search.error = Some("TONE3000 rejected the API key".into());
-    let view = tone3000_view(&s, &ArchChoices::new());
+    let view = tone3000_view(&s, &ArchChoices::new(), "");
     assert_eq!(view.error, "TONE3000 rejected the API key");
     assert!(view.searched);
 }
@@ -133,18 +170,24 @@ fn a_failed_search_shows_its_message() {
 fn a_tone_is_installed_only_for_the_architecture_on_disk() {
     let mut s = snapshot(vec![tone(5, "nam", 4, 2)]);
     s.installed = vec![installed("tone3000_5_a1", Some(NamArchitecture::A1))];
-    let default = tone3000_view(&s, &ArchChoices::new());
+    let default = tone3000_view(&s, &ArchChoices::new(), "");
     assert_eq!(default.results[0].install, RowInstall::Idle);
-    let picked = tone3000_view(&s, &ArchChoices::from([(5, Tone3000Architecture::A1)]));
-    assert_eq!(picked.results[0].install, RowInstall::Installed);
+    let picked = tone3000_view(&s, &ArchChoices::from([(5, Tone3000Architecture::A1)]), "");
+    assert_eq!(
+        picked.results[0].install,
+        RowInstall::Installed(Some("tone3000_5_a1".into()))
+    );
 }
 
 #[test]
 fn an_installed_ir_tone_reads_installed() {
     let mut s = snapshot(vec![tone(5, "ir", 0, 0)]);
     s.installed = vec![installed("tone3000_5", None)];
-    let view = tone3000_view(&s, &ArchChoices::new());
-    assert_eq!(view.results[0].install, RowInstall::Installed);
+    let view = tone3000_view(&s, &ArchChoices::new(), "");
+    assert_eq!(
+        view.results[0].install,
+        RowInstall::Installed(Some("tone3000_5".into()))
+    );
 }
 
 #[test]
@@ -155,7 +198,7 @@ fn a_running_install_shows_its_progress() {
         progress: InstallProgress::Downloading { done: 2, total: 6 },
         error: None,
     }];
-    let view = tone3000_view(&s, &ArchChoices::new());
+    let view = tone3000_view(&s, &ArchChoices::new(), "");
     assert_eq!(
         view.results[0].install,
         RowInstall::Running(InstallProgress::Downloading { done: 2, total: 6 })
@@ -170,7 +213,7 @@ fn a_failed_install_shows_its_reason() {
         progress: InstallProgress::Fetching,
         error: Some("TONE3000 rate limit reached".into()),
     }];
-    let view = tone3000_view(&s, &ArchChoices::new());
+    let view = tone3000_view(&s, &ArchChoices::new(), "");
     assert_eq!(
         view.results[0].install,
         RowInstall::Failed("TONE3000 rate limit reached".into())
@@ -184,7 +227,7 @@ fn an_installed_package_row_names_its_block_architecture_and_captures() {
         installed("tone3000_5_a2", Some(NamArchitecture::A2)),
         installed("tone3000_6", None),
     ];
-    let view = tone3000_view(&s, &ArchChoices::new());
+    let view = tone3000_view(&s, &ArchChoices::new(), "");
     assert_eq!(
         view.installed[0],
         InstalledRowView {
@@ -193,6 +236,7 @@ fn an_installed_package_row_names_its_block_architecture_and_captures() {
             block_type: "gain_pedal".into(),
             arch: "A2".into(),
             captures: 7,
+            removable: true,
         }
     );
     assert_eq!(view.installed[1].arch, "");
@@ -205,4 +249,36 @@ fn counts_read_short() {
     assert_eq!(compact_count(1_000), "1k");
     assert_eq!(compact_count(15_340), "15.3k");
     assert_eq!(compact_count(2_500_000), "2.5M");
+}
+
+#[test]
+fn a_tone_from_the_plugins_folder_reads_installed_but_cannot_be_removed() {
+    let mut s = snapshot(vec![tone(52557, "nam", 2, 2)]);
+    s.installed = vec![from_plugins_folder(
+        "nam_synergy_dumble_os_a2",
+        "Dumble OS Module",
+        52557,
+    )];
+    assert_eq!(view(&s).results[0].install, RowInstall::Installed(None));
+    let a1 = tone3000_view(
+        &s,
+        &ArchChoices::from([(52557, Tone3000Architecture::A1)]),
+        "",
+    );
+    assert_eq!(a1.results[0].install, RowInstall::Idle);
+    assert!(!view(&s).installed[0].removable);
+}
+
+#[test]
+fn the_installed_list_filters_by_name_ignoring_case() {
+    let mut s = Tone3000Snapshot::default();
+    s.installed = vec![
+        from_plugins_folder("nam_synergy_dumble_os_a2", "Dumble OS Module", 1),
+        from_plugins_folder("nam_ada_mp_1", "MP-1", 2),
+    ];
+    let filtered = tone3000_view(&s, &ArchChoices::new(), "dumble");
+    let names: Vec<&str> = filtered.installed.iter().map(|r| r.name.as_str()).collect();
+    assert_eq!(names, vec!["Dumble OS Module"]);
+    assert_eq!(filtered.installed_total, 2);
+    assert_eq!(view(&s).installed.len(), 2);
 }

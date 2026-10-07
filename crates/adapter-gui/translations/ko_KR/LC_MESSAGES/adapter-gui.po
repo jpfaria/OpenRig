@@ -1555,3 +1555,12 @@ msgstr "TONE3000에서 앰프, 페달, IR을 검색하세요."
 
 msgid "status-tone3000-none-installed"
 msgstr "아직 설치된 TONE3000 캡처가 없습니다."
+msgid "label-tone3000-plugins-folder"
+msgstr "플러그인 폴더"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "설치된 항목을 이름으로 검색"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "이 이름과 일치하는 설치된 TONE3000 플러그인이 없습니다."
+

@@ -27,6 +27,8 @@ pub(crate) struct Tone3000Ctx {
     project_session: SessionCell,
     pub(crate) window: slint::Weak<Tone3000Window>,
     choices: Rc<RefCell<ArchChoices>>,
+    /// Narrows the Installed tab by name.
+    installed_query: Rc<RefCell<String>>,
     /// The state currently drawn; the tick redraws only when it differs.
     rendered: Rc<RefCell<Option<Tone3000Snapshot>>>,
     /// Why the last command was refused; cleared by the next accepted one.
@@ -44,6 +46,7 @@ impl Tone3000Ctx {
             project_session,
             window,
             choices: Rc::new(RefCell::new(ArchChoices::new())),
+            installed_query: Rc::new(RefCell::new(String::new())),
             rendered: Rc::new(RefCell::new(None)),
             refusal: Rc::new(RefCell::new(String::new())),
             forward,
@@ -55,7 +58,11 @@ impl Tone3000Ctx {
         let Some(snapshot) = tone3000_snapshot(&self.project_session) else {
             return;
         };
-        let mut view = tone3000_view(&snapshot, &self.choices.borrow());
+        let mut view = tone3000_view(
+            &snapshot,
+            &self.choices.borrow(),
+            &self.installed_query.borrow(),
+        );
         if view.error.is_empty() {
             view.error = self.refusal.borrow().clone();
         }
@@ -78,6 +85,17 @@ impl Tone3000Ctx {
     pub(crate) fn pick(&self, tone_id: u64, arch: Tone3000Architecture) {
         self.choices.borrow_mut().insert(tone_id, arch);
         self.render();
+    }
+
+    /// Narrow the Installed tab to names holding `query`.
+    pub(crate) fn filter_installed(&self, query: &str) {
+        *self.installed_query.borrow_mut() = query.to_string();
+        self.render();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn installed_query(&self) -> String {
+        self.installed_query.borrow().clone()
     }
 
     pub(crate) fn arch_of(&self, tone_id: u64) -> Option<Tone3000Architecture> {

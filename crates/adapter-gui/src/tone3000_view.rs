@@ -7,9 +7,9 @@ use std::collections::HashMap;
 
 use application::tone3000::api_types::Tone;
 use application::tone3000::install::InstallProgress;
-use application::tone3000::manifest_build::{plugin_id, PackageKind};
 use application::tone3000::Tone3000Architecture;
 use application::tone3000_state::{Tone3000InstalledEntry, Tone3000Snapshot};
+use plugin_loader::manifest::NamArchitecture;
 
 /// The architecture the user picked per tone. A tone missing here shows the
 /// one an install takes by default.
@@ -19,7 +19,8 @@ pub(crate) type ArchChoices = HashMap<u64, Tone3000Architecture>;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum RowInstall {
     Idle,
-    Installed,
+    /// On disk; the id when the browser may remove it.
+    Installed(Option<String>),
     Running(InstallProgress),
     Failed(String),
 }
@@ -48,6 +49,7 @@ pub(crate) struct InstalledRowView {
     /// `A1`, `A2`, or empty for an IR package.
     pub arch: String,
     pub captures: u32,
+    pub removable: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -62,9 +64,15 @@ pub(crate) struct Tone3000View {
     pub total: u32,
     pub results: Vec<ToneRowView>,
     pub installed: Vec<InstalledRowView>,
+    /// Every package, before the installed filter.
+    pub installed_total: usize,
 }
 
-pub(crate) fn tone3000_view(snapshot: &Tone3000Snapshot, choices: &ArchChoices) -> Tone3000View {
+pub(crate) fn tone3000_view(
+    snapshot: &Tone3000Snapshot,
+    choices: &ArchChoices,
+    installed_query: &str,
+) -> Tone3000View {
     let search = &snapshot.search;
     let page = search.results.as_ref();
     Tone3000View {
@@ -84,7 +92,13 @@ pub(crate) fn tone3000_view(snapshot: &Tone3000Snapshot, choices: &ArchChoices) 
                     .collect()
             })
             .unwrap_or_default(),
-        installed: snapshot.installed.iter().map(installed_row).collect(),
+        installed: snapshot
+            .installed
+            .iter()
+            .filter(|entry| matches_query(entry, installed_query))
+            .map(installed_row)
+            .collect(),
+        installed_total: snapshot.installed.len(),
     }
 }
 
@@ -122,16 +136,20 @@ fn is_ir(tone: &Tone) -> bool {
 
 fn tone_row(tone: &Tone, snapshot: &Tone3000Snapshot, choices: &ArchChoices) -> ToneRowView {
     let arch = default_arch(tone).map(|default| choices.get(&tone.id).copied().unwrap_or(default));
-    let kind = arch.map_or(PackageKind::Ir, PackageKind::Nam);
-    let package = plugin_id(tone.id, kind);
+    let owned = snapshot
+        .installed
+        .iter()
+        .find(|p| p.tone_ids.contains(&tone.id) && p.architecture == arch.map(nam_architecture));
     let entry = snapshot.installs.iter().find(|i| i.tone_id == tone.id);
     let install = match entry {
         Some(e) => match &e.error {
             Some(message) => RowInstall::Failed(message.clone()),
             None => RowInstall::Running(e.progress.clone()),
         },
-        None if snapshot.installed.iter().any(|p| p.plugin_id == package) => RowInstall::Installed,
-        None => RowInstall::Idle,
+        None => match owned {
+            Some(p) => RowInstall::Installed(p.removable.then(|| p.plugin_id.clone())),
+            None => RowInstall::Idle,
+        },
     };
     ToneRowView {
         tone_id: tone.id,
@@ -155,6 +173,19 @@ fn tone_row(tone: &Tone, snapshot: &Tone3000Snapshot, choices: &ArchChoices) -> 
     }
 }
 
+fn nam_architecture(arch: Tone3000Architecture) -> NamArchitecture {
+    match arch {
+        Tone3000Architecture::A1 => NamArchitecture::A1,
+        Tone3000Architecture::A2 => NamArchitecture::A2,
+    }
+}
+
+/// The installed filter: a case-blind match on the name; empty keeps all.
+fn matches_query(entry: &Tone3000InstalledEntry, query: &str) -> bool {
+    let query = query.trim().to_lowercase();
+    query.is_empty() || entry.display_name.to_lowercase().contains(&query)
+}
+
 fn installed_row(entry: &Tone3000InstalledEntry) -> InstalledRowView {
     InstalledRowView {
         plugin_id: entry.plugin_id.clone(),
@@ -168,6 +199,7 @@ fn installed_row(entry: &Tone3000InstalledEntry) -> InstalledRowView {
             .map(|a| a.as_str().to_owned())
             .unwrap_or_default(),
         captures: entry.captures as u32,
+        removable: entry.removable,
     }
 }
 

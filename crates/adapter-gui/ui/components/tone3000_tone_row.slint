@@ -1,8 +1,9 @@
 // Responsibility: renders one TONE3000 search result.
 // Name and author on the left with what the tone holds; on the right the
 // architecture the install takes (A1 / A2, NAM only) and the install action,
-// which turns into progress, INSTALLED or RETRY. A failed install shows its
-// reason under the name. #398 vocabulary: a raised settings card, tag pills,
+// which turns into progress, INSTALLED or RETRY. A package the browser
+// installed keeps a trash beside INSTALLED that arms on the first click and
+// removes on the second. A failed install shows its reason under the name. #398 vocabulary: a raised settings card, tag pills,
 // the accent action.
 import { Theme } from "../theme.slint";
 import { Tone3000ToneRow } from "tone3000_globals.slint";
@@ -17,9 +18,11 @@ export component Tone3000ToneItem inherits SettingsCard {
     in property <bool> can-install;
     callback pick-arch(int);
     callback install();
+    callback uninstall();
+    private property <bool> armed;
 
     height: max(80px, body.preferred-height);
-    border-color: root.tone.error != "" ? Theme.bad : Theme.hair;
+    border-color: root.tone.error != "" || root.armed ? Theme.bad : Theme.hair;
 
     body := HorizontalLayout {
         padding: 12px;
@@ -114,7 +117,7 @@ export component Tone3000ToneItem inherits SettingsCard {
                 horizontal-alignment: center;
                 wrap: word-wrap;
             }
-            if !root.tone.installing && root.tone.installed : HorizontalLayout {
+            if !root.tone.installing && root.tone.installed && !root.armed : HorizontalLayout {
                 alignment: center;
                 spacing: 6px;
                 VerticalLayout {
@@ -132,6 +135,22 @@ export component Tone3000ToneItem inherits SettingsCard {
                     font-size: Theme.min-font;
                     font-weight: 700;
                     vertical-alignment: center;
+                }
+                if root.tone.plugin-id != "" : FormButton {
+                    kind: FormButtonKind.ghost;
+                    icon: @image-url("../assets/trash.svg");
+                    icon-only: true;
+                    label: @tr("btn-tone3000-uninstall");
+                    clicked => { root.armed = true; }
+                }
+            }
+            if !root.tone.installing && root.tone.installed && root.armed : FormButton {
+                kind: FormButtonKind.danger;
+                icon: @image-url("../assets/trash.svg");
+                label: @tr("btn-tone3000-uninstall-confirm");
+                clicked => {
+                    root.armed = false;
+                    root.uninstall();
                 }
             }
             if !root.tone.installing && !root.tone.installed : FormButton {
