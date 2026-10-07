@@ -88,9 +88,12 @@ jobs:
           cache-on-failure: true
 
       - name: Install system dependencies
+        # A mirror that stops answering hangs apt silently; bound it.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          APT="sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o DPkg::Lock::Timeout=60"
+          $APT update
+          $APT install -y \
             libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
@@ -173,9 +176,12 @@ jobs:
 
       - name: Install system dependencies
         if: steps.vendor.outputs.bumped == 'true'
+        # A mirror that stops answering hangs apt silently; bound it.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          APT="sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o DPkg::Lock::Timeout=60"
+          $APT update
+          $APT install -y \
             libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
@@ -199,6 +205,8 @@ jobs:
     name: Coverage (reporting)
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Reporting only: never hold a runner longer than a full instrumented run.
+    timeout-minutes: 50
     steps:
       # The instrumented rebuild fills the runner's disk the same way the
       # Test Suite build does; drop the same unused toolchains first.
@@ -231,9 +239,12 @@ jobs:
           cache-on-failure: true
 
       - name: Install system dependencies
+        # A mirror that stops answering hangs apt silently; bound it.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          APT="sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o DPkg::Lock::Timeout=60"
+          $APT update
+          $APT install -y \
             libasound2-dev libudev-dev pkg-config clang libclang-dev \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
