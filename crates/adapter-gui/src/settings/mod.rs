@@ -30,6 +30,8 @@ pub(crate) mod paths_backing_tracks;
 pub(crate) mod paths_overrides;
 pub(crate) mod paths_seed;
 pub mod project_meta;
+pub mod tone3000_key;
+pub(crate) mod tone3000_key_record;
 
 #[cfg(test)]
 #[path = "paths_apply_tests.rs"]
@@ -56,3 +58,7 @@ mod appearance_followers_tests;
 #[cfg(test)]
 #[path = "appearance_pick_tests.rs"]
 mod appearance_pick_tests;
+
+#[cfg(test)]
+#[path = "tone3000_key_record_tests.rs"]
+mod tone3000_key_record_tests;

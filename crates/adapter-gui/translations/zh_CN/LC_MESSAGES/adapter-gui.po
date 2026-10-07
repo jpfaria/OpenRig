@@ -1379,3 +1379,187 @@ msgstr "浅色"
 
 msgid "appearance-dark"
 msgstr "深色"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 捕获"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "浏览"
+
+msgid "tab-tone3000-installed"
+msgstr "已安装 ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "每位用户使用自己的密钥。它只保存在这台机器上。"
+
+msgid "placeholder-tone3000-key"
+msgstr "粘贴你的 t3k_cs_ 密钥"
+
+msgid "status-tone3000-key-set"
+msgstr "已设置密钥"
+
+msgid "status-tone3000-key-unset"
+msgstr "未设置密钥"
+
+msgid "btn-tone3000-key-save"
+msgstr "保存"
+
+msgid "btn-tone3000-key-clear"
+msgstr "移除"
+
+msgid "btn-tone3000-search"
+msgstr "搜索"
+
+msgid "btn-tone3000-install"
+msgstr "安装"
+
+msgid "btn-tone3000-update"
+msgstr "更新"
+
+msgid "btn-tone3000-retry"
+msgstr "重试"
+
+msgid "btn-tone3000-uninstall"
+msgstr "卸载"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "确认"
+
+msgid "btn-tone3000-previous-page"
+msgstr "上一页"
+
+msgid "btn-tone3000-next-page"
+msgstr "下一页"
+
+msgid "placeholder-tone3000-search"
+msgstr "搜索音箱头、效果器、整套、IR"
+
+msgid "label-tone3000-format"
+msgstr "格式"
+
+msgid "label-tone3000-gear"
+msgstr "设备"
+
+msgid "label-tone3000-sort"
+msgstr "排序"
+
+msgid "label-tone3000-all"
+msgstr "全部"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "最相关"
+
+msgid "label-tone3000-sort-trending"
+msgstr "热门"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "下载最多"
+
+msgid "label-tone3000-sort-newest"
+msgstr "最新"
+
+msgid "label-tone3000-gear-amp"
+msgstr "音箱头"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "整套"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "音箱头 + 箱体"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "效果器"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "外置设备"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "箱体"
+
+msgid "label-tone3000-block-amp"
+msgstr "音箱头"
+
+msgid "label-tone3000-block-preamp"
+msgstr "前级"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "效果器"
+
+msgid "label-tone3000-block-cab"
+msgstr "箱体"
+
+msgid "label-tone3000-block-body"
+msgstr "琴体"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} · {} 次下载"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "已安装"
+
+msgid "label-tone3000-captures"
+msgstr "{} 个捕获"
+
+msgid "label-tone3000-page"
+msgstr "第 {} / {} 页 · {} 个音色"
+
+msgid "status-tone3000-downloading"
+msgstr "正在下载 {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "正在测量电平"
+
+msgid "status-tone3000-fetching"
+msgstr "正在准备"
+
+msgid "btn-tone3000-open-settings"
+msgstr "打开设置"
+
+msgid "link-tone3000-get-key"
+msgstr "在 tone3000.com 创建 Secret Key"
+
+msgid "title-tone3000-no-key"
+msgstr "需要 TONE3000 Secret Key"
+
+msgid "status-tone3000-no-key"
+msgstr "搜索和安装采样需要你自己的 TONE3000 Secret Key。请在设置中添加。"
+
+msgid "status-tone3000-searching"
+msgstr "正在搜索"
+
+msgid "status-tone3000-no-results"
+msgstr "没有匹配的音色。"
+
+msgid "status-tone3000-start"
+msgstr "在 TONE3000 搜索音箱头、效果器和 IR。"
+
+msgid "status-tone3000-none-installed"
+msgstr "尚未安装任何 TONE3000 捕获。"
+msgid "label-tone3000-plugins-folder"
+msgstr "插件文件夹"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "按名称搜索已安装"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "没有与此名称匹配的已安装 TONE3000 插件。"
+

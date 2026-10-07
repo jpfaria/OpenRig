@@ -1386,3 +1386,187 @@ msgstr "Light"
 
 msgid "appearance-dark"
 msgstr "Dark"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 captures"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "Browse"
+
+msgid "tab-tone3000-installed"
+msgstr "Installed ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "Each user brings their own key. It stays on this machine."
+
+msgid "placeholder-tone3000-key"
+msgstr "Paste your t3k_cs_ key"
+
+msgid "status-tone3000-key-set"
+msgstr "Key set"
+
+msgid "status-tone3000-key-unset"
+msgstr "No key"
+
+msgid "btn-tone3000-key-save"
+msgstr "Save"
+
+msgid "btn-tone3000-key-clear"
+msgstr "Remove"
+
+msgid "btn-tone3000-search"
+msgstr "Search"
+
+msgid "btn-tone3000-install"
+msgstr "Install"
+
+msgid "btn-tone3000-update"
+msgstr "Update"
+
+msgid "btn-tone3000-retry"
+msgstr "Retry"
+
+msgid "btn-tone3000-uninstall"
+msgstr "Uninstall"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "Confirm"
+
+msgid "btn-tone3000-previous-page"
+msgstr "Previous page"
+
+msgid "btn-tone3000-next-page"
+msgstr "Next page"
+
+msgid "placeholder-tone3000-search"
+msgstr "Search amps, pedals, rigs, IRs"
+
+msgid "label-tone3000-format"
+msgstr "Format"
+
+msgid "label-tone3000-gear"
+msgstr "Gear"
+
+msgid "label-tone3000-sort"
+msgstr "Sort"
+
+msgid "label-tone3000-all"
+msgstr "All"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "Best match"
+
+msgid "label-tone3000-sort-trending"
+msgstr "Trending"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "Most downloaded"
+
+msgid "label-tone3000-sort-newest"
+msgstr "Newest"
+
+msgid "label-tone3000-gear-amp"
+msgstr "Amp"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "Full rig"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "Amp + cab"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "Pedal"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "Outboard"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "Cab"
+
+msgid "label-tone3000-block-amp"
+msgstr "Amp"
+
+msgid "label-tone3000-block-preamp"
+msgstr "Preamp"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "Pedal"
+
+msgid "label-tone3000-block-cab"
+msgstr "Cab"
+
+msgid "label-tone3000-block-body"
+msgstr "Body"
+
+msgid "label-tone3000-author-downloads"
+msgstr "by {} · {} downloads"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "Installed"
+
+msgid "label-tone3000-captures"
+msgstr "{} captures"
+
+msgid "label-tone3000-page"
+msgstr "Page {} of {} · {} tones"
+
+msgid "status-tone3000-downloading"
+msgstr "Downloading {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "Measuring levels"
+
+msgid "status-tone3000-fetching"
+msgstr "Preparing"
+
+msgid "btn-tone3000-open-settings"
+msgstr "Open settings"
+
+msgid "link-tone3000-get-key"
+msgstr "Create a Secret Key on tone3000.com"
+
+msgid "title-tone3000-no-key"
+msgstr "TONE3000 Secret Key needed"
+
+msgid "status-tone3000-no-key"
+msgstr "Searching and installing captures uses your own TONE3000 Secret Key. Add it in Settings."
+
+msgid "status-tone3000-searching"
+msgstr "Searching"
+
+msgid "status-tone3000-no-results"
+msgstr "No tones match this search."
+
+msgid "status-tone3000-start"
+msgstr "Search TONE3000 for amps, pedals and IRs."
+
+msgid "status-tone3000-none-installed"
+msgstr "No TONE3000 captures installed yet."
+msgid "label-tone3000-plugins-folder"
+msgstr "Plugins folder"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "Search installed by name"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "No installed TONE3000 plugin matches this name."
+

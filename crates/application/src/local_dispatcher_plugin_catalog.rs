@@ -22,14 +22,18 @@ use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// Resolve the two plugin roots boot uses. Shared by reload /
-    /// load / unload so all three flows scan the same locations.
+    /// Resolve the plugin roots boot uses: bundled, user and the
+    /// TONE3000 installs (#879). Shared by reload / load / unload so all
+    /// three flows scan the same locations.
     fn plugin_roots(&self) -> Result<Vec<PathBuf>> {
         let bundled_root: PathBuf = infra_filesystem::detect_data_root().join("plugins");
-        let user_root = FilesystemStorage::app_config_path()
-            .map(|cfg| plugin_loader::plugins_root_from_config(&cfg))
+        let config_path = FilesystemStorage::app_config_path()
             .map_err(|e| anyhow::anyhow!("resolve app_config_path failed: {e}"))?;
-        Ok(vec![bundled_root, user_root])
+        Ok(vec![
+            bundled_root,
+            plugin_loader::plugins_root_from_config(&config_path),
+            plugin_loader::tone3000_root_from_config(&config_path),
+        ])
     }
 
     /// `Command::ReloadPluginCatalog` — re-scan the bundled + user

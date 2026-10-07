@@ -1,0 +1,91 @@
+// Responsibility: carries the TONE3000 browser window state.
+// The wiring mirrors the dispatcher's TONE3000 state onto this global and
+// routes every intent back as a command (#879). The Secret Key never reaches
+// it: the window only knows whether one is set.
+
+// One search result.
+export struct Tone3000ToneRow {
+    tone-id: string,
+    title: string,
+    author: string,
+    // TONE3000 gear, API spelling: amp, full-rig, amp-cab, pedal, outboard, ir, cab.
+    gear: string,
+    is-ir: bool,
+    a1-count: int,
+    a2-count: int,
+    ir-count: int,
+    downloads: string,
+    // The architecture the install takes: 1 = A1, 2 = A2, 0 for an IR tone.
+    arch: int,
+    // The package for that architecture is on disk.
+    installed: bool,
+    // TONE3000 has a newer version of the browser's package.
+    update-available: bool,
+    // The browser's package for it, which Uninstall removes; "" when the
+    // plugin comes from the plugins folder.
+    plugin-id: string,
+    installing: bool,
+    // While installing: 0 fetching, 1 downloading `done`/`total`, 2 measuring.
+    stage: int,
+    done: int,
+    total: int,
+    // The last install of this tone failed with this message.
+    error: string,
+}
+
+// One TONE3000 package on disk.
+export struct Tone3000InstalledRow {
+    plugin-id: string,
+    name: string,
+    // Manifest spelling: amp, preamp, gain_pedal, cab, body.
+    block-type: string,
+    // "A1", "A2", or "" for an IR package.
+    arch: string,
+    captures: int,
+    // The browser installed it; a plugins-folder plugin is only listed.
+    removable: bool,
+}
+
+export global Tone3000Bridge {
+    // ── Display state, mirrored from the dispatcher by the wiring ──
+    in-out property <bool> key-configured;
+    // A key is set and there is a folder to install into.
+    in-out property <bool> can-install;
+    in-out property <bool> searching;
+    // A search has answered since the window opened.
+    in-out property <bool> searched;
+    in-out property <string> error;
+    in-out property <int> page;
+    in-out property <int> total-pages;
+    in-out property <int> total;
+    in-out property <[Tone3000ToneRow]> results;
+    in-out property <[Tone3000InstalledRow]> installed;
+    // Every package, before the installed filter.
+    in-out property <int> installed-total;
+
+    // ── View state owned by the window ──
+    // 0 browse, 1 installed.
+    in-out property <int> tab;
+    in-out property <string> query;
+    // "" all, else the API spelling.
+    in-out property <string> format;
+    in-out property <string> gear;
+    in-out property <string> sort: "best-match";
+    // Narrows the Installed tab by name.
+    in-out property <string> installed-query;
+
+    // ── Intent, routed to the dispatcher by the wiring ──
+    callback open-tone3000-window();
+    // Open the settings screen on the section that holds the Secret Key.
+    callback open-settings();
+    // Run `query` with the filters from `page` (1-based).
+    callback search(int);
+    // Pick the architecture (1 = A1, 2 = A2) a tone installs as.
+    callback pick-arch(string, int);
+    callback install(string);
+    // Download an installed tone again, replacing its package.
+    callback update(string);
+    callback uninstall(string);
+    // `installed-query` changed.
+    callback filter-installed(string);
+}

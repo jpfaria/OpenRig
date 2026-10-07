@@ -81,3 +81,14 @@ pub fn plugins_root_from_config(config_path: &Path) -> PathBuf {
     }
     config_dir.join("plugins")
 }
+
+/// Directory where plugins installed from TONE3000 live (#879): a
+/// `tone3000/` folder next to `config_path`, apart from the bundled and
+/// user plugin trees, so changing `paths.plugins_path` never moves or hides
+/// what the user downloaded.
+pub fn tone3000_root_from_config(config_path: &Path) -> PathBuf {
+    config_path
+        .parent()
+        .unwrap_or(Path::new(""))
+        .join("tone3000")
+}

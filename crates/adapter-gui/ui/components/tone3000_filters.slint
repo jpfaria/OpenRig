@@ -1,0 +1,107 @@
+// Responsibility: renders the TONE3000 search bar.
+// Every filter choice re-runs the search from page 1, so what is listed always
+// matches what is lit. #398 vocabulary: a text field with the accent action,
+// then one segmented choice per filter under its caption.
+import { Theme } from "../theme.slint";
+import { Tone3000Bridge } from "tone3000_globals.slint";
+import { TextField } from "text_field.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+import { SegControl } from "seg_control.slint";
+import { FieldCaption } from "field_caption.slint";
+
+export component Tone3000Filters inherits VerticalLayout {
+    // API spellings, in the order the segments show them.
+    private property <[string]> format-keys: ["", "nam", "ir"];
+    private property <[string]> gear-keys: ["", "amp", "full-rig", "amp-cab", "pedal", "outboard", "cab"];
+    private property <[string]> sort-keys: ["best-match", "trending", "downloads-all-time", "newest"];
+
+    spacing: 10px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        TextField {
+            horizontal-stretch: 1;
+            text <=> Tone3000Bridge.query;
+            placeholder: @tr("placeholder-tone3000-search");
+            accepted => { Tone3000Bridge.search(1); }
+        }
+        FormButton {
+            kind: FormButtonKind.primary;
+            label: @tr("btn-tone3000-search");
+            enabled: Tone3000Bridge.key-configured;
+            clicked => { Tone3000Bridge.search(1); }
+        }
+    }
+
+    GridLayout {
+        spacing-horizontal: 12px;
+        spacing-vertical: 8px;
+        Row {
+            FieldCaption { text: @tr("label-tone3000-format"); }
+            HorizontalLayout {
+                alignment: start;
+                SegControl {
+                    label: @tr("label-tone3000-format");
+                    options: [@tr("label-tone3000-all"), "NAM", "IR"];
+                    current: Tone3000Bridge.format == "nam" ? 1 : Tone3000Bridge.format == "ir" ? 2 : 0;
+                    picked(i) => {
+                        Tone3000Bridge.format = root.format-keys[i];
+                        Tone3000Bridge.search(1);
+                    }
+                }
+            }
+        }
+        Row {
+            FieldCaption { text: @tr("label-tone3000-gear"); }
+            HorizontalLayout {
+                alignment: start;
+                SegControl {
+                    label: @tr("label-tone3000-gear");
+                    options: [
+                        @tr("label-tone3000-all"),
+                        @tr("label-tone3000-gear-amp"),
+                        @tr("label-tone3000-gear-full-rig"),
+                        @tr("label-tone3000-gear-amp-cab"),
+                        @tr("label-tone3000-gear-pedal"),
+                        @tr("label-tone3000-gear-outboard"),
+                        @tr("label-tone3000-gear-cab"),
+                    ];
+                    current: Tone3000Bridge.gear == "amp" ? 1
+                        : Tone3000Bridge.gear == "full-rig" ? 2
+                        : Tone3000Bridge.gear == "amp-cab" ? 3
+                        : Tone3000Bridge.gear == "pedal" ? 4
+                        : Tone3000Bridge.gear == "outboard" ? 5
+                        : Tone3000Bridge.gear == "cab" ? 6
+                        : 0;
+                    picked(i) => {
+                        Tone3000Bridge.gear = root.gear-keys[i];
+                        Tone3000Bridge.search(1);
+                    }
+                }
+            }
+        }
+        Row {
+            FieldCaption { text: @tr("label-tone3000-sort"); }
+            HorizontalLayout {
+                alignment: start;
+                SegControl {
+                    label: @tr("label-tone3000-sort");
+                    options: [
+                        @tr("label-tone3000-sort-best-match"),
+                        @tr("label-tone3000-sort-trending"),
+                        @tr("label-tone3000-sort-downloads"),
+                        @tr("label-tone3000-sort-newest"),
+                    ];
+                    current: Tone3000Bridge.sort == "trending" ? 1
+                        : Tone3000Bridge.sort == "downloads-all-time" ? 2
+                        : Tone3000Bridge.sort == "newest" ? 3
+                        : 0;
+                    picked(i) => {
+                        Tone3000Bridge.sort = root.sort-keys[i];
+                        Tone3000Bridge.search(1);
+                    }
+                }
+            }
+        }
+    }
+}

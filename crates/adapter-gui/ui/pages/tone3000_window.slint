@@ -1,0 +1,200 @@
+// Responsibility: renders the TONE3000 browser window.
+// Search the public TONE3000 catalog with the user's own Secret Key, install a
+// tone as a plugin (every capture, A1 or A2) and remove what is installed
+// (#879). Without a key the window says so and opens the settings section that
+// holds it. #398 vocabulary: the dark tool bar with the tabs, then the well.
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { SegControl } from "../components/seg_control.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { TextField } from "../components/text_field.slint";
+import { Tone3000Bridge } from "../components/tone3000_globals.slint";
+import { Tone3000Filters } from "../components/tone3000_filters.slint";
+import { Tone3000ToneItem } from "../components/tone3000_tone_row.slint";
+import { Tone3000InstalledItem } from "../components/tone3000_installed_row.slint";
+
+component CenterNote inherits Text {
+    color: Theme.ink-3;
+    font-size: Theme.min-font;
+    wrap: word-wrap;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+}
+
+export component Tone3000Panel inherits Rectangle {
+    background: Theme.well;
+
+    VerticalLayout {
+        ToolBar {
+            icon: @image-url("../assets/nam.svg");
+            title: "TONE3000";
+
+            SegControl {
+                label: "TONE3000";
+                options: [@tr("tab-tone3000-browse"), @tr("tab-tone3000-installed", Tone3000Bridge.installed-total)];
+                current: Tone3000Bridge.tab;
+                picked(i) => { Tone3000Bridge.tab = i; }
+            }
+        }
+
+        // ── Browse, no key: say why and open where it is set ──
+        if Tone3000Bridge.tab == 0 && !Tone3000Bridge.key-configured : VerticalLayout {
+            vertical-stretch: 1;
+            padding: 32px;
+            spacing: 16px;
+            alignment: center;
+            Text {
+                text: @tr("title-tone3000-no-key");
+                color: Theme.ink;
+                font-family: Locale.display-font-family;
+                font-size: 28px;
+                letter-spacing: 0.06 * 28px;
+                horizontal-alignment: center;
+            }
+            CenterNote {
+                text: @tr("status-tone3000-no-key");
+            }
+            HorizontalLayout {
+                alignment: center;
+                FormButton {
+                    kind: FormButtonKind.primary;
+                    icon: @image-url("../assets/gear.svg");
+                    label: @tr("btn-tone3000-open-settings");
+                    clicked => { Tone3000Bridge.open-settings(); }
+                }
+            }
+        }
+
+        // ── Browse ──
+        if Tone3000Bridge.tab == 0 && Tone3000Bridge.key-configured : VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+
+            Tone3000Filters { }
+
+            if Tone3000Bridge.error != "" : Rectangle {
+                height: max(40px, err.preferred-height + 16px);
+                border-radius: 4px;
+                background: Theme.bad-soft;
+                border-width: 1px;
+                border-color: Theme.bad;
+                err := Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: Tone3000Bridge.error;
+                    color: Theme.ink;
+                    font-size: Theme.min-font;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                vertical-stretch: 1;
+
+                if Tone3000Bridge.results.length == 0 : CenterNote {
+                    x: 24px;
+                    width: parent.width - 48px;
+                    text: Tone3000Bridge.searching ? @tr("status-tone3000-searching")
+                        : Tone3000Bridge.searched ? @tr("status-tone3000-no-results")
+                        : @tr("status-tone3000-start");
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        for tone in Tone3000Bridge.results : Tone3000ToneItem {
+                            tone: tone;
+                            can-install: Tone3000Bridge.can-install;
+                            pick-arch(arch) => { Tone3000Bridge.pick-arch(tone.tone-id, arch); }
+                            install => { Tone3000Bridge.install(tone.tone-id); }
+                            update => { Tone3000Bridge.update(tone.tone-id); }
+                            uninstall => { Tone3000Bridge.uninstall(tone.plugin-id); }
+                        }
+                    }
+                }
+            }
+
+            // ── Pages ──
+            if Tone3000Bridge.total-pages > 1 : HorizontalLayout {
+                spacing: 10px;
+                alignment: center;
+                FormButton {
+                    icon: @image-url("../assets/arrow-left.svg");
+                    icon-only: true;
+                    label: @tr("btn-tone3000-previous-page");
+                    enabled: Tone3000Bridge.page > 1 && !Tone3000Bridge.searching;
+                    clicked => { Tone3000Bridge.search(Tone3000Bridge.page - 1); }
+                }
+                Text {
+                    text: @tr("label-tone3000-page", Tone3000Bridge.page, Tone3000Bridge.total-pages, Tone3000Bridge.total);
+                    color: Theme.ink-2;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
+                }
+                FormButton {
+                    icon: @image-url("../assets/arrow-right.svg");
+                    icon-only: true;
+                    label: @tr("btn-tone3000-next-page");
+                    enabled: Tone3000Bridge.page < Tone3000Bridge.total-pages && !Tone3000Bridge.searching;
+                    clicked => { Tone3000Bridge.search(Tone3000Bridge.page + 1); }
+                }
+            }
+        }
+
+        // ── Installed: every TONE3000 plugin, searchable by name ──
+        if Tone3000Bridge.tab == 1 : VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+
+            TextField {
+                text <=> Tone3000Bridge.installed-query;
+                placeholder: @tr("placeholder-tone3000-installed-search");
+                edited(text) => { Tone3000Bridge.filter-installed(text); }
+            }
+
+            Rectangle {
+                vertical-stretch: 1;
+
+                if Tone3000Bridge.installed.length == 0 : CenterNote {
+                    x: 16px;
+                    width: parent.width - 32px;
+                    text: Tone3000Bridge.installed-total == 0 ? @tr("status-tone3000-none-installed")
+                        : @tr("status-tone3000-no-installed-match");
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        for package in Tone3000Bridge.installed : Tone3000InstalledItem {
+                            package: package;
+                            uninstall => { Tone3000Bridge.uninstall(package.plugin-id); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The standalone window is only a host for the panel.
+export component Tone3000Window inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: Locale.font-family;
+    default-font-size: 18px;
+    title: @tr("title-window-tone3000");
+    min-width: 760px;
+    min-height: 520px;
+    preferred-width: 920px;
+    preferred-height: 760px;
+    background: Theme.well;
+
+    Tone3000Panel {
+        width: 100%;
+        height: 100%;
+    }
+}

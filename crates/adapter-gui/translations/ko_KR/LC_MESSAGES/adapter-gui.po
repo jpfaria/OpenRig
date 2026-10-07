@@ -1383,3 +1383,187 @@ msgstr "라이트"
 
 msgid "appearance-dark"
 msgstr "다크"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 캡처"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "찾아보기"
+
+msgid "tab-tone3000-installed"
+msgstr "설치됨 ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "사용자마다 자신의 키를 사용합니다. 키는 이 컴퓨터에만 저장됩니다."
+
+msgid "placeholder-tone3000-key"
+msgstr "t3k_cs_ 키 붙여넣기"
+
+msgid "status-tone3000-key-set"
+msgstr "키 설정됨"
+
+msgid "status-tone3000-key-unset"
+msgstr "키 없음"
+
+msgid "btn-tone3000-key-save"
+msgstr "저장"
+
+msgid "btn-tone3000-key-clear"
+msgstr "제거"
+
+msgid "btn-tone3000-search"
+msgstr "검색"
+
+msgid "btn-tone3000-install"
+msgstr "설치"
+
+msgid "btn-tone3000-update"
+msgstr "업데이트"
+
+msgid "btn-tone3000-retry"
+msgstr "다시 시도"
+
+msgid "btn-tone3000-uninstall"
+msgstr "제거"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "확인"
+
+msgid "btn-tone3000-previous-page"
+msgstr "이전 페이지"
+
+msgid "btn-tone3000-next-page"
+msgstr "다음 페이지"
+
+msgid "placeholder-tone3000-search"
+msgstr "앰프, 페달, 리그, IR 검색"
+
+msgid "label-tone3000-format"
+msgstr "형식"
+
+msgid "label-tone3000-gear"
+msgstr "장비"
+
+msgid "label-tone3000-sort"
+msgstr "정렬"
+
+msgid "label-tone3000-all"
+msgstr "전체"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "관련도순"
+
+msgid "label-tone3000-sort-trending"
+msgstr "인기"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "다운로드순"
+
+msgid "label-tone3000-sort-newest"
+msgstr "최신순"
+
+msgid "label-tone3000-gear-amp"
+msgstr "앰프"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "풀 리그"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "앰프 + 캐비닛"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "페달"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "아웃보드"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "캐비닛"
+
+msgid "label-tone3000-block-amp"
+msgstr "앰프"
+
+msgid "label-tone3000-block-preamp"
+msgstr "프리앰프"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "페달"
+
+msgid "label-tone3000-block-cab"
+msgstr "캐비닛"
+
+msgid "label-tone3000-block-body"
+msgstr "바디"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} · 다운로드 {}"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "설치됨"
+
+msgid "label-tone3000-captures"
+msgstr "캡처 {}개"
+
+msgid "label-tone3000-page"
+msgstr "{} / {} 페이지 · 톤 {}개"
+
+msgid "status-tone3000-downloading"
+msgstr "다운로드 중 {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "레벨 측정 중"
+
+msgid "status-tone3000-fetching"
+msgstr "준비 중"
+
+msgid "btn-tone3000-open-settings"
+msgstr "설정 열기"
+
+msgid "link-tone3000-get-key"
+msgstr "tone3000.com에서 Secret Key 만들기"
+
+msgid "title-tone3000-no-key"
+msgstr "TONE3000 Secret Key가 필요합니다"
+
+msgid "status-tone3000-no-key"
+msgstr "캡처 검색과 설치에는 본인의 TONE3000 Secret Key가 사용됩니다. 설정에서 추가하세요."
+
+msgid "status-tone3000-searching"
+msgstr "검색 중"
+
+msgid "status-tone3000-no-results"
+msgstr "검색 결과가 없습니다."
+
+msgid "status-tone3000-start"
+msgstr "TONE3000에서 앰프, 페달, IR을 검색하세요."
+
+msgid "status-tone3000-none-installed"
+msgstr "아직 설치된 TONE3000 캡처가 없습니다."
+msgid "label-tone3000-plugins-folder"
+msgstr "플러그인 폴더"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "설치된 항목을 이름으로 검색"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "이 이름과 일치하는 설치된 TONE3000 플러그인이 없습니다."
+

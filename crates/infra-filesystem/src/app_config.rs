@@ -15,6 +15,7 @@ use crate::metronome_config::MetronomeConfig;
 use crate::midi_device::MidiDeviceSelection;
 use crate::mixer_config::MixerStripConfig;
 use crate::player_config::PlayerConfig;
+use crate::tone3000_config::Tone3000Config;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
@@ -90,6 +91,10 @@ pub struct AppConfig {
     /// Per-machine crash reporter choice (#1070, ADR 0003).
     #[serde(default)]
     pub crash_reporting: CrashReportingConfig,
+    /// Per-machine TONE3000 account (#879, ADR 0003). Absent until the user
+    /// sets a Secret Key.
+    #[serde(default, skip_serializing_if = "Tone3000Config::is_empty")]
+    pub tone3000: Tone3000Config,
 }
 
 fn default_true() -> bool {

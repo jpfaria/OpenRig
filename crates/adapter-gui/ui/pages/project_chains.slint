@@ -12,6 +12,8 @@ import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard, BlockTypeGrid } from "../components/block_value_widgets.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { MixerBridge } from "../components/mixer_globals.slint";
+import { Tone3000Bridge } from "../components/tone3000_globals.slint";
+import { Tone3000LogoButton } from "../components/tone3000_logo_button.slint";
 import { PlayerBridge } from "../components/player_globals.slint";
 import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
@@ -193,6 +195,11 @@ export component ProjectChainsPage inherits Rectangle {
                 icon: @image-url("../assets/mixer-faders.svg");
                 tooltip: @tr("tooltip-mixer");
                 clicked => { MixerBridge.open-mixer-window(); }
+            }
+            // #879: the TONE3000 browser — search, install, remove captures.
+            Tone3000LogoButton {
+                tooltip: @tr("tooltip-tone3000");
+                clicked => { Tone3000Bridge.open-tone3000-window(); }
             }
             HeaderIconAction {
                 on-chrome: true;

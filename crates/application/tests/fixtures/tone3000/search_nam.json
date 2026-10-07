@@ -1,0 +1,469 @@
+{
+ "data": [
+  {
+   "id": 66606,
+   "title": "REVV GENERATOR 120 (PURPLE) MKII",
+   "description": "Fixture description.",
+   "tags": [
+    {
+     "name": "7 string guitar tone"
+    },
+    {
+     "name": "aggressive guitar tone"
+    },
+    {
+     "name": "amp sim profile"
+    },
+    {
+     "name": "boutique high gain amp"
+    },
+    {
+     "name": "canadian guitar amp"
+    },
+    {
+     "name": "crushing rhythm tone"
+    },
+    {
+     "name": "djent guitar tone"
+    },
+    {
+     "name": "extended range guitar tone"
+    },
+    {
+     "name": "heavy guitar tone"
+    },
+    {
+     "name": "high gain amp"
+    },
+    {
+     "name": "metal guitar capture"
+    },
+    {
+     "name": "mix ready guitar tone"
+    },
+    {
+     "name": "modern metal tone"
+    },
+    {
+     "name": "modern rock tone"
+    },
+    {
+     "name": "nam"
+    },
+    {
+     "name": "nam capture"
+    },
+    {
+     "name": "neural amp model"
+    },
+    {
+     "name": "neural amp modeler"
+    },
+    {
+     "name": "no ir included"
+    },
+    {
+     "name": "preamp capture"
+    },
+    {
+     "name": "progressive metal amp"
+    },
+    {
+     "name": "recording guitar amp"
+    },
+    {
+     "name": "revv amp capture"
+    },
+    {
+     "name": "revv generator 120"
+    },
+    {
+     "name": "revv generator capture"
+    },
+    {
+     "name": "revv generator mkii"
+    },
+    {
+     "name": "revv purple channel"
+    },
+    {
+     "name": "studio guitar tone"
+    },
+    {
+     "name": "tight low end"
+    },
+    {
+     "name": "tight metal rhythm"
+    },
+    {
+     "name": "tone3000"
+    }
+   ],
+   "makes": [
+    {
+     "name": "REVV GENERATOR 120 MKII"
+    }
+   ],
+   "models_count": 30,
+   "a1_models_count": 10,
+   "a2_models_count": 20,
+   "irs_count": 0,
+   "custom_models_count": 0,
+   "favorites_count": 216,
+   "downloads_count": 3239,
+   "is_favorite": false,
+   "created_at": "2026-05-16T05:45:28.913664+00:00",
+   "updated_at": "2026-05-16T05:45:28.913664+00:00",
+   "published_at": "2026-05-16T05:45:28.874+00:00",
+   "license": "t3k",
+   "images": [
+    "https://api.tone3000.com/storage/v1/object/public/images/p6xdcany8do.jpg"
+   ],
+   "user": {
+    "username": "deathblossomaudio",
+    "avatar_url": null,
+    "display_name": "Deathblossomaudio",
+    "is_verified": true,
+    "url": "https://www.tone3000.com/deathblossomaudio"
+   },
+   "url": "https://www.tone3000.com/tones/revv-generator-120-purple-mkii-66606",
+   "format": "nam",
+   "gear": "amp"
+  },
+  {
+   "id": 66458,
+   "title": "REVV GENERATOR 120 (RED) MKIII",
+   "description": "Fixture description.",
+   "tags": [
+    {
+     "name": "7 string guitar tone"
+    },
+    {
+     "name": "aggressive guitar tone"
+    },
+    {
+     "name": "amp sim profile"
+    },
+    {
+     "name": "boutique high gain amp"
+    },
+    {
+     "name": "canadian guitar amp"
+    },
+    {
+     "name": "crushing rhythm tone"
+    },
+    {
+     "name": "djent guitar tone"
+    },
+    {
+     "name": "extended range guitar tone"
+    },
+    {
+     "name": "heavy guitar tone"
+    },
+    {
+     "name": "high gain amp"
+    },
+    {
+     "name": "metal guitar capture"
+    },
+    {
+     "name": "mix ready guitar tone"
+    },
+    {
+     "name": "modern metal tone"
+    },
+    {
+     "name": "modern rock tone"
+    },
+    {
+     "name": "nam"
+    },
+    {
+     "name": "nam capture"
+    },
+    {
+     "name": "neural amp model"
+    },
+    {
+     "name": "neural amp modeler"
+    },
+    {
+     "name": "no ir included"
+    },
+    {
+     "name": "preamp capture"
+    },
+    {
+     "name": "progressive metal amp"
+    },
+    {
+     "name": "recording guitar amp"
+    },
+    {
+     "name": "revv amp capture"
+    },
+    {
+     "name": "revv generator 120"
+    },
+    {
+     "name": "revv generator capture"
+    },
+    {
+     "name": "revv purple channel"
+    },
+    {
+     "name": "studio guitar tone"
+    },
+    {
+     "name": "tight low end"
+    },
+    {
+     "name": "tight metal rhythm"
+    },
+    {
+     "name": "tone3000"
+    }
+   ],
+   "makes": [
+    {
+     "name": "Revv Generator 120 MKIII"
+    }
+   ],
+   "models_count": 18,
+   "a1_models_count": 9,
+   "a2_models_count": 9,
+   "irs_count": 0,
+   "custom_models_count": 0,
+   "favorites_count": 220,
+   "downloads_count": 3616,
+   "is_favorite": false,
+   "created_at": "2026-05-15T04:18:09.467159+00:00",
+   "updated_at": "2026-09-04T04:32:23.983+00:00",
+   "published_at": "2026-05-15T04:18:09.436+00:00",
+   "license": "t3k",
+   "images": [
+    "https://api.tone3000.com/storage/v1/object/public/images/tlhb4d3ch5f.jpg"
+   ],
+   "user": {
+    "username": "deathblossomaudio",
+    "avatar_url": null,
+    "display_name": "Deathblossomaudio",
+    "is_verified": true,
+    "url": "https://www.tone3000.com/deathblossomaudio"
+   },
+   "url": "https://www.tone3000.com/tones/revv-generator-120-red-mkiii-66458",
+   "format": "nam",
+   "gear": "amp"
+  },
+  {
+   "id": 63292,
+   "title": "Revv G120 MKIII El34",
+   "description": "Fixture description.",
+   "tags": [
+    {
+     "name": "2020s"
+    },
+    {
+     "name": "distortion"
+    },
+    {
+     "name": "fat"
+    },
+    {
+     "name": "guitar"
+    },
+    {
+     "name": "high gain"
+    },
+    {
+     "name": "high-gain"
+    },
+    {
+     "name": "metal"
+    },
+    {
+     "name": "nam"
+    },
+    {
+     "name": "rock"
+    },
+    {
+     "name": "saturated"
+    },
+    {
+     "name": "tube"
+    }
+   ],
+   "makes": [
+    {
+     "name": "Earth Quaker Devices Plumes"
+    },
+    {
+     "name": "Horizon Devices Clarity Compressor"
+    },
+    {
+     "name": "Horizon Devices Precision Drive"
+    },
+    {
+     "name": "Ibanez Pentatone EQ"
+    },
+    {
+     "name": "Revv Generator 120 MKIII"
+    },
+    {
+     "name": "UAD Apollo Twin"
+    }
+   ],
+   "models_count": 17,
+   "a1_models_count": 9,
+   "a2_models_count": 8,
+   "irs_count": 0,
+   "custom_models_count": 0,
+   "favorites_count": 52,
+   "downloads_count": 1247,
+   "is_favorite": false,
+   "created_at": "2026-04-27T17:14:35.067849+00:00",
+   "updated_at": "2026-07-27T02:43:14.598826+00:00",
+   "published_at": "2026-04-27T17:14:35.034+00:00",
+   "license": "t3k",
+   "images": [
+    "https://api.tone3000.com/storage/v1/object/public/images/r889vil4x6h.jpg"
+   ],
+   "user": {
+    "username": "machrage99",
+    "avatar_url": null,
+    "display_name": null,
+    "is_verified": false,
+    "url": "https://www.tone3000.com/machrage99"
+   },
+   "url": "https://www.tone3000.com/tones/revv-g120-mkiii-el34-63292",
+   "format": "nam",
+   "gear": "amp"
+  },
+  {
+   "id": 68501,
+   "title": "Matamp GT1 mk III 100W MV Mode",
+   "description": "Fixture description.",
+   "tags": [
+    {
+     "name": "doom"
+    },
+    {
+     "name": "gt120"
+    },
+    {
+     "name": "matamp"
+    },
+    {
+     "name": "nam"
+    },
+    {
+     "name": "orange"
+    },
+    {
+     "name": "rockerverb"
+    },
+    {
+     "name": "science"
+    },
+    {
+     "name": "thunderverb"
+    }
+   ],
+   "makes": [
+    {
+     "name": "Matamp GT1 mk III 100W MV Mode"
+    }
+   ],
+   "models_count": 8,
+   "a1_models_count": 2,
+   "a2_models_count": 6,
+   "irs_count": 0,
+   "custom_models_count": 0,
+   "favorites_count": 84,
+   "downloads_count": 1233,
+   "is_favorite": false,
+   "created_at": "2026-06-01T10:49:00.826203+00:00",
+   "updated_at": "2026-06-01T13:32:55.758+00:00",
+   "published_at": "2026-06-01T10:49:00.777+00:00",
+   "license": "t3k",
+   "images": [
+    "https://api.tone3000.com/storage/v1/object/public/images/ct7xw288zql.jpg"
+   ],
+   "user": {
+    "username": "sohighrecording",
+    "avatar_url": null,
+    "display_name": null,
+    "is_verified": false,
+    "url": "https://www.tone3000.com/sohighrecording"
+   },
+   "url": "https://www.tone3000.com/tones/matamp-gt1-mk-iii-100w-mv-mode-68501",
+   "format": "nam",
+   "gear": "amp"
+  },
+  {
+   "id": 34018,
+   "title": "Peavey 6505 with Plumes",
+   "description": "Fixture description.",
+   "tags": [
+    {
+     "name": "earth quaker"
+    },
+    {
+     "name": "guitar"
+    },
+    {
+     "name": "guitaramp"
+    },
+    {
+     "name": "nam"
+    },
+    {
+     "name": "peavey 6505"
+    }
+   ],
+   "makes": [
+    {
+     "name": "Earth Quaker Devices Plumes"
+    },
+    {
+     "name": "Peavey 6505"
+    },
+    {
+     "name": "Redseven Amp Central"
+    }
+   ],
+   "models_count": 4,
+   "a1_models_count": 2,
+   "a2_models_count": 2,
+   "irs_count": 0,
+   "custom_models_count": 0,
+   "favorites_count": 15,
+   "downloads_count": 391,
+   "is_favorite": false,
+   "created_at": "2025-07-29T13:01:01.669376+00:00",
+   "updated_at": "2025-07-30T13:57:30.16+00:00",
+   "published_at": "2025-07-29T13:01:01.616+00:00",
+   "license": "t3k",
+   "images": [
+    "https://api.tone3000.com/storage/v1/object/public/images/itp0h2ijbsp.jpg"
+   ],
+   "user": {
+    "username": "davidmuella",
+    "avatar_url": null,
+    "display_name": null,
+    "is_verified": false,
+    "url": "https://www.tone3000.com/davidmuella"
+   },
+   "url": "https://www.tone3000.com/tones/peavey-6505-with-plumes-34018",
+   "format": "nam",
+   "gear": "amp"
+  }
+ ],
+ "page": 1,
+ "page_size": 5,
+ "total": 47,
+ "total_pages": 10
+}

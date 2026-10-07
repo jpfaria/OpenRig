@@ -342,6 +342,13 @@ mod midi_selection_mirror;
 pub mod panic_log;
 /// #1060: writes one stream to two sinks.
 pub mod tee_writer;
+mod tone3000_bridge_sync;
+mod tone3000_ctx;
+mod tone3000_intents;
+mod tone3000_links;
+mod tone3000_session;
+mod tone3000_view;
+mod tone3000_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 #[cfg(test)]
