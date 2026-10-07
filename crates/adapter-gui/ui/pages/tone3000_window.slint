@@ -13,7 +13,11 @@ import { TextField } from "../components/text_field.slint";
 import { Tone3000Bridge } from "../components/tone3000_globals.slint";
 import { Tone3000Filters } from "../components/tone3000_filters.slint";
 import { Tone3000ToneItem } from "../components/tone3000_tone_row.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 import { Tone3000InstalledItem } from "../components/tone3000_installed_row.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 component CenterNote inherits Text {
     color: Theme.ink-3;
@@ -197,4 +201,7 @@ export component Tone3000Window inherits Window {
         width: 100%;
         height: 100%;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

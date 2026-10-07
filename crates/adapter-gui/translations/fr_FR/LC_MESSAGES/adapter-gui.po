@@ -1725,3 +1725,35 @@ msgstr "Ajouter des captures"
 
 msgid "btn-plugin-editor-remove-capture"
 msgstr "Retirer la capture"
+msgid "title-setup-wizard"
+msgstr "Configuration initiale"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "ÉTAPE {} SUR {}"
+
+msgid "desc-wizard-language"
+msgstr "Choisissez la langue de l'application. Vous pourrez la changer plus tard dans les Réglages."
+
+msgid "desc-wizard-audio"
+msgstr "Activez l'interface audio où la guitare est branchée, puis réglez la fréquence d'échantillonnage et la taille du tampon."
+
+msgid "desc-wizard-io"
+msgstr "Nommez les entrées et sorties de l'interface : sur quel canal arrive la guitare et par où sort le son."
+
+msgid "desc-wizard-tone3000"
+msgstr "Collez votre clé TONE3000 pour chercher et installer des captures d'amplis et de pédales depuis l'application. Vous pourrez l'ajouter plus tard."
+
+msgid "btn-wizard-back"
+msgstr "Retour"
+
+msgid "btn-wizard-next"
+msgstr "Suivant"
+
+msgid "btn-wizard-skip"
+msgstr "Passer"
+
+msgid "btn-wizard-finish"
+msgstr "Terminer"

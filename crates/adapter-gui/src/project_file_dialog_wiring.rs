@@ -57,6 +57,16 @@ pub(crate) fn stop_the_previous_rig(project_session: &Rc<RefCell<Option<ProjectS
     }
 }
 
+/// Where the project dialogs open: the user's projects folder, created on
+/// first use so the dialog never falls back to an arbitrary directory.
+fn projects_dir() -> std::path::PathBuf {
+    let dir = infra_filesystem::default_projects_path();
+    if let Err(error) = std::fs::create_dir_all(&dir) {
+        log::warn!("could not create {}: {error}", dir.display());
+    }
+    dir
+}
+
 pub(crate) struct ProjectFileDialogCtx {
     pub project_paths: ProjectPaths,
     pub app_config: Rc<RefCell<AppConfig>>,
@@ -110,6 +120,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Project", &["yaml", "yml"])
                 .set_title(rust_i18n::t!("dialog-open-project").as_ref())
+                .set_directory(projects_dir())
                 .pick_file()
             else {
                 return;
@@ -276,6 +287,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     .add_filter("OpenRig Project", &["yaml", "yml"])
                     .set_title(rust_i18n::t!("dialog-save-project").as_ref())
                     .set_file_name("project.yaml")
+                    .set_directory(projects_dir())
                     .save_file()
                 else {
                     return;

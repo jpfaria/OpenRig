@@ -39,6 +39,7 @@ pub fn run_desktop_app(
     );
     crate::ui_watchdog::spawn();
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
+    infra_filesystem::legacy_user_data::copy_legacy_user_data();
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings = crate::boot_decisions::needs_audio_settings(&context, &settings);
     let project_paths = resolve_project_paths();

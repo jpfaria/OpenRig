@@ -14,6 +14,7 @@ pub(crate) mod appearance_followers;
 pub(crate) mod appearance_pick;
 pub(crate) mod appearance_wiring;
 pub mod audio;
+pub(crate) mod audio_direction;
 pub(crate) mod endpoint_build;
 pub(crate) mod endpoint_channels;
 pub(crate) mod endpoint_prefill;
@@ -32,6 +33,10 @@ pub(crate) mod paths_seed;
 pub mod project_meta;
 pub mod tone3000_key;
 pub(crate) mod tone3000_key_record;
+
+#[cfg(test)]
+#[path = "audio_direction_tests.rs"]
+mod audio_direction_tests;
 
 #[cfg(test)]
 #[path = "paths_apply_tests.rs"]

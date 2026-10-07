@@ -17,7 +17,7 @@ use crate::state::ProjectSession;
 use crate::{
     AppWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow, DrumsWindow, MetronomeWindow,
     MixerWindow, PlayerWindow, PluginEditorWindow, PluginInfoWindow, PluginsWindow,
-    ProjectSettingsWindow, SpectrumWindow, TunerWindow,
+    ProjectSettingsWindow, SpectrumWindow, Tone3000Window, TunerWindow,
 };
 
 struct SchemeWindows {
@@ -33,6 +33,7 @@ struct SchemeWindows {
     drums: Weak<DrumsWindow>,
     plugins: Weak<PluginsWindow>,
     plugin_editor: Weak<PluginEditorWindow>,
+    tone3000: Weak<Tone3000Window>,
     chain_editor: Rc<RefCell<Option<ChainEditorWindow>>>,
     plugin_info: Rc<RefCell<Option<PluginInfoWindow>>>,
 }
@@ -52,6 +53,7 @@ impl SchemeWindows {
             drums: windows.drums_window.as_weak(),
             plugins: windows.plugins_window.as_weak(),
             plugin_editor: windows.plugin_editor_window.as_weak(),
+            tone3000: windows.tone3000_window.as_weak(),
             chain_editor: windows.chain_editor_window.clone(),
             plugin_info: windows.plugin_info_window.clone(),
         }
@@ -92,6 +94,9 @@ impl SchemeWindows {
             apply(&w);
         }
         if let Some(w) = self.plugin_editor.upgrade() {
+            apply(&w);
+        }
+        if let Some(w) = self.tone3000.upgrade() {
             apply(&w);
         }
         if let Some(w) = self.chain_editor.borrow().as_ref() {

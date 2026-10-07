@@ -8,9 +8,8 @@
 /// from the source of truth.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ResolvedPaths {
-    /// User data root for the current install (`~/Library/Application
-    /// Support/OpenRig` on macOS, `%APPDATA%\OpenRig` on Windows,
-    /// `~/.local/share/openrig` on Linux). All `None` overrides
+    /// User folder for the current install (`~/.openrig` on macOS and
+    /// Linux, `%APPDATA%\OpenRig` on Windows). All `None` overrides
     /// resolve to a subfolder of this root.
     pub data_root: String,
     /// Effective preset directory: the override when set in

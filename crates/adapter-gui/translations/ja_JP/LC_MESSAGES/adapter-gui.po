@@ -1723,3 +1723,35 @@ msgstr "キャプチャを追加"
 
 msgid "btn-plugin-editor-remove-capture"
 msgstr "キャプチャを削除"
+msgid "title-setup-wizard"
+msgstr "初期設定"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "ステップ {} / {}"
+
+msgid "desc-wizard-language"
+msgstr "アプリの言語を選んでください。あとで設定から変更できます。"
+
+msgid "desc-wizard-audio"
+msgstr "ギターを接続したオーディオインターフェースをオンにし、サンプルレートとバッファサイズを設定します。"
+
+msgid "desc-wizard-io"
+msgstr "インターフェースの入出力に名前を付けます。ギターが入るチャンネルと音が出る先です。"
+
+msgid "desc-wizard-tone3000"
+msgstr "TONE3000 のキーを貼り付けると、アンプやペダルのキャプチャーをアプリ内で検索・インストールできます。あとで追加することもできます。"
+
+msgid "btn-wizard-back"
+msgstr "戻る"
+
+msgid "btn-wizard-next"
+msgstr "次へ"
+
+msgid "btn-wizard-skip"
+msgstr "スキップ"
+
+msgid "btn-wizard-finish"
+msgstr "完了"

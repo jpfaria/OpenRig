@@ -1,34 +1,20 @@
-//! Responsibility: resolves the per-OS location of the app's own config files.
+//! Responsibility: resolves where the app's own config files live.
 //!
-//! Split out of `lib.rs` (#873). Never hardcoded: macOS
-//! `~/Library/Application Support/OpenRig`, Windows `%APPDATA%\OpenRig`,
-//! Linux `~/.config/OpenRig`.
+//! The system config sits at the root of the user folder
+//! ([`crate::user_data_root`]): `~/.openrig` on macOS and Linux,
+//! `%APPDATA%\OpenRig` on Windows.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::PathBuf;
 
-use crate::FilesystemStorage;
+use crate::{user_data_root, FilesystemStorage};
 
 impl FilesystemStorage {
     pub fn gui_settings_path() -> Result<PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("gui-settings.yaml"))
+        Ok(user_data_root().join("gui-settings.yaml"))
     }
 
     pub fn app_config_path() -> Result<PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("config.yaml"))
+        Ok(user_data_root().join("config.yaml"))
     }
 }

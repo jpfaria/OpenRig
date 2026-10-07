@@ -276,7 +276,7 @@ fn detect_data_root_returns_existing_directory() {
 fn gui_settings_path_ends_with_expected_filename() {
     let path = FilesystemStorage::gui_settings_path().unwrap();
     assert!(
-        path.ends_with("OpenRig/gui-settings.yaml"),
+        path == crate::user_data_root().join("gui-settings.yaml"),
         "unexpected gui settings path: {:?}",
         path
     );
@@ -286,7 +286,7 @@ fn gui_settings_path_ends_with_expected_filename() {
 fn midi_map_path_ends_with_expected_filename() {
     let path = FilesystemStorage::midi_map_path().unwrap();
     assert!(
-        path.ends_with("OpenRig/midi-map.yaml"),
+        path == crate::user_data_root().join("midi-map.yaml"),
         "unexpected midi map path: {:?}",
         path
     );
@@ -296,7 +296,7 @@ fn midi_map_path_ends_with_expected_filename() {
 fn app_config_path_ends_with_expected_filename() {
     let path = FilesystemStorage::app_config_path().unwrap();
     assert!(
-        path.ends_with("OpenRig/config.yaml"),
+        path == crate::user_data_root().join("config.yaml"),
         "unexpected app config path: {:?}",
         path
     );

@@ -22,7 +22,7 @@ insert-error-select-send: "センド用のデバイスとチャンネルを選�
 warn-add-input: "少なくとも1つの入力を追加してください。"
 warn-add-output: "少なくとも1つの出力を追加してください。"
 
-status-wizard-select-input: "続行する前に入力を1つ以上選択してください。"
+status-wizard-select-devices: "続行する前に入力と出力をそれぞれ1つ以上選択してください。"
 status-audio-disconnected: "オーディオデバイスが切断されました — 再接続中..."
 status-audio-reconnected: "オーディオデバイスが再接続されました"
 status-audio-starting: "オーディオを開始しています..."
