@@ -11,8 +11,6 @@
 
 mod app_update;
 mod audio_health_tick;
-mod audio_wizard_step;
-mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
@@ -160,6 +158,8 @@ mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod session_dispatch;
 mod settings;
+mod setup_wizard_step;
+mod setup_wizard_wiring;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`

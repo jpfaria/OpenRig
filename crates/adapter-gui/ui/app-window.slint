@@ -32,7 +32,7 @@ import { ChainRigNav } from "models.slint";
 import { SplitEditorOverlay } from "components/split_editor_overlay.slint";
 import { EndpointChecklistOverlay } from "components/endpoint_checklist_overlay.slint";
 // #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, PlayerHarness, ProjectChainsHarness, OverlayPlacementHarness } from "test_harnesses.slint";
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness, SplitEditorHarness, EndpointChecklistHarness, MixerHarness, PlayerHarness, ProjectChainsHarness, OverlayPlacementHarness, SetupWizardHarness } from "test_harnesses.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -75,8 +75,10 @@ export component AppWindow inherits Window {
     in property <bool> touch-optimized;
     in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
-    in property <bool> show-audio-settings;
-    in-out property <int> wizard-step;
+    in property <bool> show-setup-wizard;
+    in property <int> wizard-step;
+    in property <bool> wizard-step-skippable;
+    in property <bool> wizard-step-last;
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <[ProjectChainItem]> project-chains;
@@ -113,8 +115,9 @@ export component AppWindow inherits Window {
     callback update-input-buffer-size(int, string);
     callback update-output-sample-rate(int, string);
     callback update-output-buffer-size(int, string);
-    callback go-to-output-step();
-    callback go-to-input-step();
+    callback wizard-next();
+    callback wizard-back();
+    callback wizard-skip();
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-settings();
@@ -232,8 +235,10 @@ export component AppWindow inherits Window {
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;
-        show-audio-settings: root.show-audio-settings;
+        show-setup-wizard: root.show-setup-wizard;
         wizard-step: root.wizard-step;
+        wizard-step-skippable: root.wizard-step-skippable;
+        wizard-step-last: root.wizard-step-last;
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-chains: root.project-chains;
@@ -257,8 +262,9 @@ export component AppWindow inherits Window {
         update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
         update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
         update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
-        go-to-output-step => { root.go-to-output-step(); }
-        go-to-input-step => { root.go-to-input-step(); }
+        wizard-next => { root.wizard-next(); }
+        wizard-back => { root.wizard-back(); }
+        wizard-skip => { root.wizard-skip(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }
@@ -312,8 +318,10 @@ export component AppWindow inherits Window {
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;
-        show-audio-settings: root.show-audio-settings;
+        show-setup-wizard: root.show-setup-wizard;
         wizard-step: root.wizard-step;
+        wizard-step-skippable: root.wizard-step-skippable;
+        wizard-step-last: root.wizard-step-last;
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-chains: root.project-chains;
@@ -337,8 +345,9 @@ export component AppWindow inherits Window {
         update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
         update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
         update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
-        go-to-output-step => { root.go-to-output-step(); }
-        go-to-input-step => { root.go-to-input-step(); }
+        wizard-next => { root.wizard-next(); }
+        wizard-back => { root.wizard-back(); }
+        wizard-skip => { root.wizard-skip(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }

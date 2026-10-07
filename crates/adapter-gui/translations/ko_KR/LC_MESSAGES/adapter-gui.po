@@ -1564,3 +1564,38 @@ msgstr "설치된 항목을 이름으로 검색"
 msgid "status-tone3000-no-installed-match"
 msgstr "이 이름과 일치하는 설치된 TONE3000 플러그인이 없습니다."
 
+msgid "title-setup-wizard"
+msgstr "초기 설정"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "{}단계 / {}"
+
+msgid "desc-wizard-language"
+msgstr "앱 언어를 선택하세요. 나중에 설정에서 바꿀 수 있습니다."
+
+msgid "desc-wizard-audio"
+msgstr "기타가 연결된 오디오 인터페이스를 켜고 샘플 레이트와 버퍼 크기를 설정하세요."
+
+msgid "desc-wizard-io"
+msgstr "인터페이스의 입력과 출력에 이름을 붙이세요: 기타가 들어오는 채널과 소리가 나가는 곳입니다."
+
+msgid "desc-wizard-midi"
+msgstr "사용할 MIDI 컨트롤러나 풋스위치를 켜세요. 컨트롤러가 없다면 이 단계를 건너뛰세요."
+
+msgid "desc-wizard-tone3000"
+msgstr "TONE3000 키를 붙여 넣으면 앱 안에서 앰프와 페달 캡처를 검색하고 설치할 수 있습니다. 나중에 추가해도 됩니다."
+
+msgid "btn-wizard-back"
+msgstr "뒤로"
+
+msgid "btn-wizard-next"
+msgstr "다음"
+
+msgid "btn-wizard-skip"
+msgstr "건너뛰기"
+
+msgid "btn-wizard-finish"
+msgstr "완료"

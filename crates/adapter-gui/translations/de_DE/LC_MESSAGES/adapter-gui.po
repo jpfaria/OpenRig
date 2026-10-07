@@ -1572,3 +1572,38 @@ msgstr "Installierte nach Namen suchen"
 msgid "status-tone3000-no-installed-match"
 msgstr "Kein installiertes TONE3000-Plugin passt zu diesem Namen."
 
+msgid "title-setup-wizard"
+msgstr "Ersteinrichtung"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "SCHRITT {} VON {}"
+
+msgid "desc-wizard-language"
+msgstr "Wählen Sie die Sprache der App. Sie können sie später in den Einstellungen ändern."
+
+msgid "desc-wizard-audio"
+msgstr "Aktivieren Sie das Audio-Interface, an dem die Gitarre hängt, und stellen Sie Abtastrate und Puffergröße ein."
+
+msgid "desc-wizard-io"
+msgstr "Benennen Sie die Ein- und Ausgänge des Interfaces: auf welchem Kanal die Gitarre ankommt und wo der Klang hinausgeht."
+
+msgid "desc-wizard-midi"
+msgstr "Aktivieren Sie die MIDI-Controller oder Fußschalter, die Sie nutzen möchten. Kein Controller? Überspringen Sie diesen Schritt."
+
+msgid "desc-wizard-tone3000"
+msgstr "Fügen Sie Ihren TONE3000-Schlüssel ein, um Amp- und Pedal-Captures direkt in der App zu suchen und zu installieren. Sie können ihn auch später hinzufügen."
+
+msgid "btn-wizard-back"
+msgstr "Zurück"
+
+msgid "btn-wizard-next"
+msgstr "Weiter"
+
+msgid "btn-wizard-skip"
+msgstr "Überspringen"
+
+msgid "btn-wizard-finish"
+msgstr "Fertig"

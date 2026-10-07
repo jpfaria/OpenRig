@@ -6,11 +6,15 @@ From a fresh install to playing through your first chain.
 
 See [Installing OpenRig](installation.md).
 
-## 2. Pick your audio interface
+## 2. Follow the setup wizard
 
-On the first launch OpenRig asks for the input of your audio interface, then its output, with the sample rate and buffer size. 48 kHz and a buffer of 128–256 samples is a good start: a smaller buffer means less latency, too small causes clicks. You can change this later in **Settings → Audio interface**.
+On the first launch a setup wizard walks you through five steps: **Language**, **Audio interface**, **I/O bindings**, **MIDI devices** and your **TONE3000 key**. MIDI and TONE3000 are optional and have a **Skip** button; the others need an answer before you move on.
 
-This also creates the `default` **I/O binding**: a named set of input and output channels that chains play through. **Settings → I/O bindings** lets you add more, for example one per guitar or one per pair of outputs.
+On **Audio interface**, tick your interface and set the sample rate and buffer size. 48 kHz and a buffer of 128–256 samples is a good start: a smaller buffer means less latency, too small causes clicks. Pick at least one input and one output to continue.
+
+On **I/O bindings**, create the **I/O binding** your chains play through: a named set of input and output channels, for example one per guitar or one per pair of outputs.
+
+Everything the wizard asks lives in **Settings** too, so you can change it later.
 
 ## 3. Create a project
 

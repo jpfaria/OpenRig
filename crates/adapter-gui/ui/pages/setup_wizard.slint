@@ -1,0 +1,241 @@
+// Responsibility: renders the first-run setup wizard page.
+// The settings page laid out as a walk: the rail lists the steps in order and
+// shows how far the user is, the content shows the step's own Settings
+// section, and the footer walks back, skips an optional step or moves on. The
+// page only shows the step it is told to; Rust decides where each button leads.
+import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
+import { SectionSystemAudio } from "settings/section_system_audio.slint";
+import { SectionSystemLanguage } from "settings/section_system_language.slint";
+import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
+import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
+import { SectionSystemTone3000Key } from "settings/section_system_tone3000_key.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { WizardStepRow } from "../components/wizard_step_row.slint";
+import { Locale } from "../locale_globals.slint";
+import { SettingsBridge } from "../settings_globals.slint";
+
+export component SetupWizardPage inherits Rectangle {
+    min-width: 720px;
+    min-height: 480px;
+
+    // The step shown: 0 language, 1 audio, 2 I/O, 3 MIDI, 4 TONE3000.
+    in property <int> step;
+    in property <bool> step-skippable;
+    in property <bool> step-last;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
+    callback next();
+    callback back();
+    callback skip();
+
+    private property <int> step-count: 5;
+    // The I/O binding opened on the bindings step, so "New binding" can open
+    // the one it creates.
+    private property <string> io-expanded-binding: "";
+
+    background: Theme.panel;
+
+    scroll-to-end := Timer {
+        interval: 1ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            step-scroll.content-y = min(0px, step-scroll.visible-height - step-scroll.content-height);
+        }
+    }
+
+    VerticalLayout {
+        ToolBar {
+            title: @tr("title-setup-wizard");
+        }
+
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // ── Progress rail ──────────────────────────────────────────
+            Rectangle {
+                min-width: 230px;
+                horizontal-stretch: 0;
+                background: Theme.panel-lo;
+
+                Rectangle {
+                    x: parent.width - 1px; y: 0;
+                    width: 1px; height: parent.height;
+                    background: Theme.hair;
+                }
+
+                VerticalLayout {
+                    padding-top: 12px;
+                    padding-right: 1px;
+                    spacing: 2px;
+                    alignment: start;
+
+                    WizardStepRow {
+                        number: 1;
+                        label: @tr("title-section-language");
+                        current: root.step == 0;
+                        done: root.step > 0;
+                    }
+                    WizardStepRow {
+                        number: 2;
+                        label: @tr("title-section-audio-interface");
+                        current: root.step == 1;
+                        done: root.step > 1;
+                    }
+                    WizardStepRow {
+                        number: 3;
+                        label: @tr("title-section-io-bindings");
+                        current: root.step == 2;
+                        done: root.step > 2;
+                    }
+                    WizardStepRow {
+                        number: 4;
+                        label: @tr("title-section-midi-devices");
+                        current: root.step == 3;
+                        done: root.step > 3;
+                    }
+                    WizardStepRow {
+                        number: 5;
+                        label: @tr("title-section-tone3000");
+                        current: root.step == 4;
+                        done: root.step > 4;
+                    }
+                }
+            }
+
+            // ── Step content ───────────────────────────────────────────
+            VerticalLayout {
+                horizontal-stretch: 1;
+
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    padding-top: 20px;
+                    padding-bottom: 12px;
+                    padding-left: 22px;
+                    padding-right: 22px;
+                    spacing: 6px;
+
+                    Text {
+                        text: @tr("label-wizard-step", root.step + 1, root.step-count);
+                        color: Theme.accent;
+                        font-size: Theme.min-font;
+                        font-weight: 600;
+                        letter-spacing: 0.12 * Theme.min-font;
+                    }
+
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        spacing: 16px;
+
+                        Text {
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                            text: root.step == 0 ? @tr("title-section-language")
+                                : root.step == 1 ? @tr("title-section-audio-interface")
+                                : root.step == 2 ? @tr("title-section-io-bindings")
+                                : root.step == 3 ? @tr("title-section-midi-devices")
+                                : @tr("title-section-tone3000");
+                            color: Theme.ink;
+                            font-family: Locale.display-font-family;
+                            font-size: 26px;
+                            letter-spacing: 0.05 * 26px;
+                        }
+
+                        if root.step == 2 : VerticalLayout {
+                            alignment: center;
+                            new-binding-btn := FormButton {
+                                icon-only: true;
+                                icon: @image-url("../assets/plus.svg");
+                                label: @tr("btn-new-binding");
+                                clicked => {
+                                    root.io-expanded-binding = SettingsBridge.create-io-binding("");
+                                    scroll-to-end.running = true;
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: root.step == 0 ? @tr("desc-wizard-language")
+                            : root.step == 1 ? @tr("desc-wizard-audio")
+                            : root.step == 2 ? @tr("desc-wizard-io")
+                            : root.step == 3 ? @tr("desc-wizard-midi")
+                            : @tr("desc-wizard-tone3000");
+                        color: Theme.ink-2;
+                        font-size: Theme.min-font;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle { height: 8px; }
+
+                    // An over-tall step scrolls inside the pane.
+                    step-scroll := ScrollView {
+                        vertical-stretch: 1;
+
+                        VerticalLayout {
+                            alignment: start;
+                            padding-right: 8px;
+
+                            if root.step == 0 : SectionSystemLanguage {}
+                            if root.step == 1 : SectionSystemAudio {
+                                sample-rate-options: root.sample-rate-options;
+                                buffer-size-options: root.buffer-size-options;
+                                bit-depth-options: root.bit-depth-options;
+                            }
+                            if root.step == 2 : SectionSystemIoBindings {
+                                expanded-binding-id <=> root.io-expanded-binding;
+                            }
+                            if root.step == 3 : SectionSystemMidiDevices {}
+                            if root.step == 4 : SectionSystemTone3000Key {}
+                        }
+                    }
+                }
+
+                // ── Footer: back on the left, skip and next on the right ──
+                Rectangle {
+                    height: 58px;
+                    background: Theme.panel-lo;
+
+                    Rectangle {
+                        x: 0; y: 0;
+                        width: parent.width; height: 1px;
+                        background: Theme.hair;
+                    }
+
+                    HorizontalLayout {
+                        padding-top: 12px;
+                        padding-bottom: 12px;
+                        padding-left: 22px;
+                        padding-right: 22px;
+                        spacing: 8px;
+
+                        if root.step > 0 : back-btn := FormButton {
+                            icon-only: true;
+                            icon: @image-url("../assets/arrow-left.svg");
+                            label: @tr("btn-wizard-back");
+                            clicked => { root.back(); }
+                        }
+
+                        Rectangle { horizontal-stretch: 1; }
+
+                        if root.step-skippable : skip-btn := FormButton {
+                            kind: FormButtonKind.ghost;
+                            label: @tr("btn-wizard-skip");
+                            clicked => { root.skip(); }
+                        }
+                        next-btn := FormButton {
+                            icon-only: true;
+                            kind: FormButtonKind.primary;
+                            icon: root.step-last ? @image-url("../assets/check.svg") : @image-url("../assets/arrow-right.svg");
+                            label: root.step-last ? @tr("btn-wizard-finish") : @tr("btn-wizard-next");
+                            clicked => { root.next(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
