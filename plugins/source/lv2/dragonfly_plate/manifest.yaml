@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_dragonfly_plate
+display_name: Dragonfly Plate Reverb
+description: Dragonfly Plate Reverb — classic plate reverb simulation.
+brand: dragonfly
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/michaelwillis/dragonfly-reverb
+type: reverb
+backend: lv2
+plugin_uri: urn:dragonfly:plate
+binaries:
+  macos-universal: platform/macos-universal/DragonflyPlateReverb_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/DragonflyPlateReverb_dsp.so

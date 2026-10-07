@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: MDA DubDelay — dub-style delay with feedback tone control.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

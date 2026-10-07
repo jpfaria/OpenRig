@@ -83,11 +83,11 @@ Never edit code in the main folder. Each agent works in a **clone** (`.solvers/i
 
 To test an agent's branch, the owner runs `git fetch && git checkout {type}/issue-N && git pull` **in his main folder**, or runs the app straight from the solver with the `run:` line below.
 
-**Setting up the workspace = `scripts/solver-setup.sh <N> <branch> [release-base]`.** It clones (never a worktree), creating and pushing the branch from `release-base` when it is not on the remote yet; brings in the NAM sources; links `plugins` to the config's `paths.plugins_path` (kept out of `git status` through `.git/info/exclude`); and prints the absolute `run:` command for the checklist. Re-running it on an existing workspace only completes what is missing, and it fails loudly when it cannot find the plugins.
+**Setting up the workspace = `scripts/solver-setup.sh <N> <branch> [release-base]`.** It clones (never a worktree), creating and pushing the branch from `release-base` when it is not on the remote yet; brings in the NAM sources; checks the config's `paths.plugins_path` (the NAM/IR captures — the LV2/VST3 tree is versioned in the clone under `plugins/source`, #1093); and prints the absolute `run:` command for the checklist. Re-running it on an existing workspace only completes what is missing, and it fails loudly when it cannot find the plugins.
 
 **Where the workspace lives is the machine owner's call.** When his global `CLAUDE.md` names a workspaces folder (e.g. an external disk, to keep clones and their `target/` off the internal disk), run `OPENRIG_SOLVERS_ROOT=<that folder> scripts/solver-setup.sh …`: the clone goes to `<that folder>/issue-N` and `.solvers/issue-N` becomes a link to it, so every path, guard and `run:` line stays `.solvers/issue-N`. The script fails loudly when the folder does not exist (disk not mounted). Without `OPENRIG_SOLVERS_ROOT` the clone lives in `.solvers/issue-N` itself.
 
-Without the `plugins` link an app opened from the solver loads **zero** plugin packages — any check involving NAM/IR/LV2/VST3 says "not found" and looks like a code bug. Check the app's startup log: `plugin catalog ready: … (N native, M disk package(s))` with `M > 0`.
+An app opened from the solver loads the LV2/VST3 packages from the clone's `plugins/source` (its LFS objects must be pulled) and the NAM/IR captures only through `OPENRIG_PLUGINS_ROOT` — without it any check involving NAM/IR says "not found" and looks like a code bug. Check the app's startup log: `plugin catalog ready: … (N native, M disk package(s))` with `M > 0`.
 
 After the merge, delivery ends only with these three steps — none is automatic:
 
@@ -107,7 +107,7 @@ The issue is the audit log. Comment with: the plan before starting; each push (h
 
 **Mandatory in every delivery the owner must validate** (ear, physical hardware). Visual checks (layout, dialogs, screens, mockup fidelity) are the agent's: it opens the app from the solver with an isolated `HOME` and a copied `--project` (`--config` alone still writes the owner's config, see `docs/cli.md`), clicks, captures the window and compares — they never become checklist items (#398). The checklist: the issue comment AND the chat reply carry a checklist with:
 
-1. TWO commands, each in its own code block, always both: the main folder `git fetch && git checkout {type}/issue-N && git pull`; and the solver = the `run:` line printed by `scripts/solver-setup.sh <N> <branch>`, verbatim (absolute path + `OPENRIG_PLUGINS_ROOT=<plugins folder>`, e.g. `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`; without `OPENRIG_PLUGINS_ROOT` the app opens with no plugins).
+1. TWO commands, each in its own code block, always both: the main folder `git fetch && git checkout {type}/issue-N && git pull`; and the solver = the `run:` line printed by `scripts/solver-setup.sh <N> <branch>`, verbatim (absolute path + `OPENRIG_PLUGINS_ROOT=<plugins folder>`, e.g. `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`; without `OPENRIG_PLUGINS_ROOT` the app opens with no NAM/IR captures).
 2. NUMBERED checkbox items (`1. [ ]`, `2. [ ]`, …), one per line, only what HE validates — never the tests or builds the agent already ran.
 
 No prose around it. It is the only list allowed in chat (`CLAUDE.md`, laws 2 and 3).

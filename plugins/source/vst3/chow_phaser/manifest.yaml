@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_chow_phaser
+display_name: Phaser ChowPhaser
+description: ChowPhaser — Wave Digital Filter phaser (Schulte "Compact Phasing A" style) by ChowDSP; stereo variant.
+brand: chowdsp
+license: BSD-3-Clause
+homepage: https://github.com/jatinchowdhury18/ChowPhaser
+type: vst3
+backend: vst3
+bundle: bundles/ChowPhaserStereo.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_x42_darc
+display_name: x42 Compressor
+description: x42 darc — program-dependent dynamic compressor with automatic knee and ratio.
+brand: x42
+license: GPL-2.0
+homepage: https://github.com/x42/darc.lv2
+type: dyn
+backend: lv2
+plugin_uri: http://gareus.org/oss/lv2/darc#stereo
+binaries:
+  macos-universal: platform/macos-universal/darc.dylib
+  windows-x86_64: platform/windows-x86_64/darc.dll
+  linux-x86_64: platform/linux-x86_64/darc.so
+  linux-aarch64: platform/linux-aarch64/darc.so

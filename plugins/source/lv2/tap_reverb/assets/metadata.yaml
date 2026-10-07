@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: TAP Reverberator — algorithmic reverb with multiple modes.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net
+  pt-BR:
+    description: TAP Reverberator — reverb algorítmico com múltiplos modos.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net

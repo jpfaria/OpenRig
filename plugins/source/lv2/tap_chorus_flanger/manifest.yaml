@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_tap_chorus_flanger
+display_name: TAP Chorus/Flanger
+description: TAP Chorus/Flanger — classic chorus and flanger effect.
+brand: tap
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://tap-plugins.sourceforge.net
+type: mod
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/tap/chorusflanger
+binaries:
+  macos-universal: platform/macos-universal/tap_chorusflanger.dylib
+  linux-x86_64: platform/linux-x86_64/tap_chorusflanger.so

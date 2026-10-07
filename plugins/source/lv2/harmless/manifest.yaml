@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_harmless
+display_name: Harmless
+description: Harmless — harmonic modulator by Shiro Plugins.
+brand: shiro
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/Shiro-Plugins/harmless
+type: mod
+backend: lv2
+plugin_uri: https://github.com/ninodewit/SHIRO-Plugins/plugins/harmless
+binaries:
+  macos-universal: platform/macos-universal/Harmless_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/Harmless_dsp.so
+  linux-aarch64: platform/linux-aarch64/Harmless_dsp.so

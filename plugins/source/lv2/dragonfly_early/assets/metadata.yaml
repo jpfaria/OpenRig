@@ -1,0 +1,6 @@
+i18n:
+  en-US:
+    description: Dragonfly Early Reflections — early reflection simulator for room
+      presence.
+    license: GPL-3.0
+    homepage: https://github.com/michaelwillis/dragonfly-reverb

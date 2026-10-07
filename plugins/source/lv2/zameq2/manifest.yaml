@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_zameq2
+display_name: ZamEQ2
+description: ZamEQ2 — 2-band parametric equalizer.
+brand: zam
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: filter
+backend: lv2
+plugin_uri: urn:zamaudio:ZamEQ2
+binaries:
+  macos-universal: platform/macos-universal/ZamEQ2_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamEQ2_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamEQ2_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamEQ2_dsp.so

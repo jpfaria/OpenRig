@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: TAP Equalizer — parametric equalizer with 8 fully configurable bands.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net
+  pt-BR:
+    description: TAP Equalizer — equalizador paramétrico com 8 bandas configuráveis.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net

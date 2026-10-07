@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_aida_x
+display_name: Amp AIDA-X
+description: AIDA-X — neural (RTNeural/NAM) amplifier and cabinet modeler by AidaDSP.
+brand: aidadsp
+license: GPL-3.0-or-later
+homepage: https://github.com/AidaDSP/AIDA-X
+type: vst3
+backend: vst3
+bundle: bundles/AIDA-X.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

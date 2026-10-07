@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_dop250
+display_name: DOP 250
+description: DOP 250 — overdrive by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_DOP250_#_DOP250_
+binaries:
+  macos-universal: platform/macos-universal/gx_DOP250.dylib
+  linux-x86_64: platform/linux-x86_64/gx_DOP250.so
+  linux-aarch64: platform/linux-aarch64/gx_DOP250.so
+  windows-x86_64: platform/windows-x86_64/gx_DOP250.dll

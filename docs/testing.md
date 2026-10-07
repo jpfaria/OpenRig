@@ -428,7 +428,7 @@ cargo test -p adapter-gui --lib no_infra_cpal
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on
 `OPENRIG_TEST_VST3_DIR` — the plugins `vst3/` dir (e.g.
-`<OpenRig-plugins>/plugins/source/vst3`) — and skip cleanly when it is unset,
+`plugins/source/vst3` in this repo) — and skip cleanly when it is unset,
 so CI and the parallel suite stay green. They must run single-threaded
 (`--test-threads=1`): JUCE plugins refuse *concurrent* instantiation.
 
@@ -448,7 +448,7 @@ so CI and the parallel suite stay green. They must run single-threaded
   addressed by its package id builds and renders.
 
 ```sh
-OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
+OPENRIG_TEST_VST3_DIR=$PWD/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
 

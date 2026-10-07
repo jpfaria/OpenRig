@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: FOMP Auto-Wah — envelope-controlled wah filter.
+    license: GPL-3.0
+    homepage: https://drobilla.net/software/fomp

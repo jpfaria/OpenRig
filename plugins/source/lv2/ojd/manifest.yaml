@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_ojd
+display_name: OJD
+description: OJD — open-source OCD-style overdrive by Schrammel.
+brand: schrammel
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/JohannesSchramm/OJD
+type: gain_pedal
+backend: lv2
+plugin_uri: https://github.com/JanosGit/Schrammel_OJD
+binaries:
+  macos-universal: platform/macos-universal/OJD.dylib
+  linux-x86_64: platform/linux-x86_64/OJD.so

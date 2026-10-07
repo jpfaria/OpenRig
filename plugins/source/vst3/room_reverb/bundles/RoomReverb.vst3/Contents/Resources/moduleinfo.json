@@ -1,0 +1,48 @@
+{
+  "Name": "Room Reverb",
+  "Version": "1.4.1",
+  "Factory Info": {
+    "Vendor": "ElephantDSP.com",
+    "URL": "https://www.ElephantDSP.com",
+    "E-Mail": "mail@ElephantDSP.com",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB4564737045727270",
+      "Category": "Audio Module Class",
+      "Name": "Room Reverb",
+      "Vendor": "ElephantDSP.com",
+      "Version": "1.4.1",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+        "Reverb",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD4564737045727270",
+      "Category": "Component Controller Class",
+      "Name": "Room Reverb",
+      "Vendor": "ElephantDSP.com",
+      "Version": "1.4.1",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+        "Reverb",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}
