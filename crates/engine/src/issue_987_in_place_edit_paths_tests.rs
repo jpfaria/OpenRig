@@ -405,8 +405,9 @@ fn a_live_edit_that_fails_to_build_keeps_the_nodes_it_had() {
 /// A live edit swaps its nodes under the processing lock (#987) whenever every
 /// fresh node could be built ahead; the swap must never log there — a log
 /// takes a lock and does I/O while the audio thread cannot run (invariant #8).
-/// An edit that needs a fresh VST3 or holds a `Select` keeps the quiesced
-/// path, which logs outside the lock.
+/// An edit whose fresh VST3 cannot be built ahead (#1081: its bundle live, or
+/// its build failing) or that holds a `Select` keeps the quiesced path, which
+/// logs outside the lock.
 #[test]
 fn a_live_edit_never_logs_while_it_holds_the_processing_lock() {
     // Prebuilt: the chorus and the level after it are built ahead.
@@ -420,7 +421,7 @@ fn a_live_edit_never_logs_while_it_holds_the_processing_lock() {
         "the prebuilt swap logged under the lock"
     );
 
-    // Quiesced by a VST3 that has to be built fresh.
+    // Quiesced by a fresh VST3 whose build fails ahead (bundle not installed).
     let vst3_off = chain(vec![level(true, 30.0), vst3(false)]);
     let vst3_on = chain(vec![level(true, 30.0), vst3(true)]);
     let quiesced = build(&vst3_off, ChannelMode::Stereo);

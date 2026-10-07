@@ -192,9 +192,15 @@ pub struct ChainRuntimeState {
     pub(crate) input_busy_skips: AtomicU64,
     /// #979: set by the input path when an input this runtime reads has
     /// arrived stepped (every buffer broken at the same position) for about a
-    /// second — see [`crate::input_seam_detector`]. Only a rebuilt runtime
-    /// clears it. Read off the audio thread.
+    /// second — see [`crate::input_seam_detector`]. A rebuilt runtime starts
+    /// clear, and a device restart clears it (#1081,
+    /// [`ChainRuntimeState::reset_input_seams`]). Read off the audio thread.
     pub(crate) input_stepped: AtomicBool,
+    /// #1081: asks the input path to start every seam detector over on its
+    /// next buffer — the streams were reopened on this same runtime, so what
+    /// the broken streams heard must not count. Set off the audio thread,
+    /// consumed by the input path.
+    pub(crate) seam_reset: AtomicBool,
     pub(crate) peak_load_ppm: AtomicU64,
     /// The sample rate (Hz) this runtime was built at — the rate its streams
     /// actually run at. Set once at construction, never mutated, so a plain

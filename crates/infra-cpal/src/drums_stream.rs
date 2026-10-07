@@ -149,6 +149,18 @@ impl ProjectRuntimeController {
         drop(previous);
     }
 
+    /// #1081: close the drums' stream when it plays on one of `devices`, and
+    /// return the endpoint to reopen it on. The kits and the groove stay.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub(crate) fn release_drums_on(&self, devices: &[String]) -> Option<(String, Vec<usize>)> {
+        let closed = self
+            .drums
+            .stream
+            .borrow_mut()
+            .take_if(|handle| devices.contains(&handle.device_id))?;
+        Some((closed.device_id.clone(), closed.targets.clone()))
+    }
+
     /// Close the drums' stream. Dropping the handle stops it.
     pub fn stop_drums(&self) {
         let previous = self.drums.stream.borrow_mut().take();
