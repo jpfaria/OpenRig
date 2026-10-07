@@ -70,7 +70,7 @@ read-only; the editor never offers to change them.
 - From the plugin's info window (the one the block opens).
 - From the **Plugins** window: a new top-bar button beside the TONE3000 one.
   It lists every plugin that is not bundled (bundled plugins are not shown).
-  Each row offers: info, edit parameters, restore the original, redo the
+  Each row offers: info, edit parameters, restore a version, redo the
   parameters and uninstall. A plugin from TONE3000 is marked as such and
   also offers **Update** when TONE3000 has a newer version.
 - The list filters by block type and by origin (plugins folder, TONE3000).
