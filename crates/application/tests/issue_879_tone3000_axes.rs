@@ -291,3 +291,21 @@ fn ir_captures_never_read_knobs() {
     assert_eq!(axis_names(&axes), ["preset"]);
     assert_eq!(axis(&axes, "preset").values, ["gain5", "gain7"].map(text));
 }
+
+#[test]
+fn a_dist_setting_is_the_distortion_knob() {
+    let names: Vec<String> = [2, 4, 6, 8]
+        .iter()
+        .flat_map(|t| (0..=10).map(move |d| format!("DS-1(Mod)_ Tone{t}-Dist{d}")))
+        .collect();
+    let axes = infer_axes(&names, CaptureKind::Nam);
+    assert_eq!(axis_names(&axes), ["tone", "distortion"]);
+    assert_eq!(
+        axis(&axes, "distortion").values,
+        (0..=10).map(|d| num(d as f64)).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        axis(&axes, "distortion").display_name.as_deref(),
+        Some("Distortion")
+    );
+}

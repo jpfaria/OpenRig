@@ -10,6 +10,7 @@ use super::name_tokens::is_number;
 const KNOBS: &[(&str, &str)] = &[
     ("gain", "gain"),
     ("drive", "drive"),
+    ("distortion", "distortion"),
     ("tone", "tone"),
     ("level", "level"),
     ("volume", "volume"),
@@ -37,6 +38,7 @@ const KNOBS: &[(&str, &str)] = &[
     ("treb", "treble"),
     ("lvl", "level"),
     ("dr", "drive"),
+    ("dist", "distortion"),
 ];
 
 /// How many tokens of a name look like `<abbreviation><number>`.
