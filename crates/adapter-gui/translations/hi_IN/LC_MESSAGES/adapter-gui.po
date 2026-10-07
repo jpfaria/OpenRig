@@ -222,7 +222,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "मिक्सर"
+msgstr "मिक्स"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1275,3 +1275,108 @@ msgstr "खोजें"
 
 msgid "status-drums-no-match"
 msgstr "कोई मेल नहीं मिला"
+
+msgid "tooltip-move-chain-up"
+msgstr "चेन ऊपर ले जाएँ"
+
+msgid "tooltip-move-chain-down"
+msgstr "चेन नीचे ले जाएँ"
+
+msgid "accessible-chain-power"
+msgstr "चेन चालू या बंद करें"
+
+msgid "compact-block-power"
+msgstr "ब्लॉक चालू या बंद करें"
+
+msgid "compact-block-remove"
+msgstr "ब्लॉक हटाएँ"
+
+msgid "block-editor-power"
+msgstr "ब्लॉक चालू या बंद करें"
+
+msgid "block-editor-info"
+msgstr "जानकारी"
+
+msgid "block-editor-remove"
+msgstr "ब्लॉक हटाएँ"
+
+msgid "block-editor-save"
+msgstr "ब्लॉक जोड़ें"
+
+msgid "label-mixer-chain"
+msgstr "चेन"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} बैंड"
+
+msgid "label-count-in-on"
+msgstr "1 बार"
+
+msgid "label-count-in-off"
+msgstr "बंद"
+
+msgid "title-settings"
+msgstr "सेटिंग्स"
+
+msgid "label-device-channels {} {}"
+msgstr "{} इनपुट · {} आउटपुट"
+
+msgid "help-buffer-latency"
+msgstr "प्रति ऑडियो ब्लॉक विलंब"
+
+msgid "btn-refresh-devices"
+msgstr "रीफ़्रेश"
+
+msgid "empty-no-midi-devices"
+msgstr "कोई MIDI डिवाइस नहीं मिला"
+
+msgid "placeholder-midi-alias"
+msgstr "उपनाम"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · चैनल {}"
+
+msgid "btn-edit"
+msgstr "संपादित करें"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "पथ"
+
+msgid "title-add-block"
+msgstr "ब्लॉक जोड़ें"
+
+msgid "di-source-label"
+msgstr "स्रोत"
+
+msgid "title-section-appearance"
+msgstr "रूप"
+
+msgid "label-theme"
+msgstr "थीम"
+
+msgid "appearance-system"
+msgstr "सिस्टम"
+
+msgid "appearance-light"
+msgstr "हल्का"
+
+msgid "appearance-dark"
+msgstr "गहरा"

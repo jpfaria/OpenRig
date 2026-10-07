@@ -1,4 +1,19 @@
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="12" cy="12" r="3"/>
-  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      <rect x="0" y="0" width="24" height="24" fill="#ffffff"/>
+      <circle cx="12" cy="12" r="2.9" fill="#000000"/>
+    </mask>
+  </defs>
+  <g mask="url(#cut)" fill="#ffffff">
+    <circle cx="12" cy="12" r="7"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(45 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(90 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(135 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(180 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(225 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(270 12 12)"/>
+    <rect x="10.4" y="1.6" width="3.2" height="4.4" rx=".7" transform="rotate(315 12 12)"/>
+  </g>
 </svg>

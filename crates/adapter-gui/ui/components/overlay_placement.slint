@@ -1,0 +1,36 @@
+// Responsibility: places an overlay inside the window.
+// #398 — nothing leaves the window. An overlay opens on its preferred side of
+// the thing that opened it; when it does not fit there it opens on the other
+// side, and when it fits on neither it is pinned inside the window. One taller
+// than the window is capped with `fit` and scrolls its content.
+
+export global OverlayPlacement {
+    // The gap kept between an overlay and the window edge.
+    out property <length> margin: 8px;
+
+    // Top edge for an overlay of height `h` that prefers to open below an
+    // anchor spanning `anchor-top`..`anchor-bottom`, in a window `limit` tall.
+    public pure function top(anchor-top: length, anchor-bottom: length, h: length, limit: length) -> length {
+        return anchor-bottom + h + root.margin <= limit ? anchor-bottom
+            : anchor-top - h - root.margin >= 0 ? anchor-top - h
+            : max(root.margin, limit - root.margin - h);
+    }
+
+    // The same, for an overlay that prefers to open above its anchor.
+    public pure function top-above(anchor-top: length, anchor-bottom: length, h: length, limit: length) -> length {
+        return anchor-top - h - root.margin >= 0 ? anchor-top - h
+            : anchor-bottom + h + root.margin <= limit ? anchor-bottom
+            : max(root.margin, limit - root.margin - h);
+    }
+
+    // Left edge for an overlay `w` wide that wants to start at `x`, in a
+    // window `limit` wide.
+    public pure function left(x: length, w: length, limit: length) -> length {
+        return max(root.margin, min(x, limit - root.margin - w));
+    }
+
+    // The height an overlay that wants `h` may take in a window `limit` tall.
+    public pure function fit(h: length, limit: length) -> length {
+        return min(h, limit - 2 * root.margin);
+    }
+}

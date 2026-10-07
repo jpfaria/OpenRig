@@ -15,6 +15,9 @@ export global AnalyzerBridge {
     in-out property <[TunerRow]> tuner-rows;
     in-out property <bool> tuner-mute-active;
     in-out property <bool> tuner-enabled: false;
+    // How many cents either side of the note read in tune — published by
+    // Rust from `tuner_tolerance::IN_TUNE_CENTS`; the scale marks that zone.
+    in-out property <float> tuner-in-tune-cents;
     callback open-tuner-window();
     callback close-tuner();
     callback toggle-tuner-mute(bool);

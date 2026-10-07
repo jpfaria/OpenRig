@@ -16,6 +16,8 @@ use project::chain::Chain;
 use project::endpoint_disables::{EndpointNode, EndpointRef};
 use project::physical_endpoint_label::physical_endpoint_label;
 
+use crate::port_block_names::port_block_names;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EndpointRow {
     pub(crate) io: String,
@@ -101,6 +103,9 @@ pub(crate) struct IoLabels {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) leaves: Vec<(PathRef, String)>,
+    /// #398: the binding each port block (insert, mid-chain input/output)
+    /// plays through, by block id.
+    pub(crate) ports: Vec<(String, String)>,
 }
 
 impl IoLabels {
@@ -109,6 +114,15 @@ impl IoLabels {
         self.leaves
             .iter()
             .find(|(path, _)| path == leaf)
+            .map(|(_, text)| text.as_str())
+            .unwrap_or_default()
+    }
+
+    /// The binding name port block `block_id` shows; empty for any other block.
+    pub(crate) fn port(&self, block_id: &str) -> &str {
+        self.ports
+            .iter()
+            .find(|(id, _)| id == block_id)
             .map(|(_, text)| text.as_str())
             .unwrap_or_default()
     }
@@ -148,6 +162,7 @@ pub(crate) fn io_labels(
                 (leaf, text)
             })
             .collect(),
+        ports: port_block_names(chain, registry, &none),
     }
 }
 

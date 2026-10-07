@@ -249,6 +249,28 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     Ok(devices)
 }
 
+/// The devices of the last snapshots, input side first, without enumerating
+/// and whatever their age: empty until the boot warmer or a picker has filled
+/// the cache. For readers polled many times a second, which must never start
+/// a CoreAudio enumeration.
+pub fn cached_device_descriptors() -> Vec<AudioDeviceDescriptor> {
+    let input = INPUT_DEVICE_CACHE.lock().unwrap().clone();
+    let output = OUTPUT_DEVICE_CACHE.lock().unwrap().clone();
+    snapshot_devices(&input, &output)
+}
+
+fn snapshot_devices(
+    input: &TimedDeviceCache,
+    output: &TimedDeviceCache,
+) -> Vec<AudioDeviceDescriptor> {
+    [input, output]
+        .into_iter()
+        .filter_map(|cache| cache.devices.as_deref())
+        .flatten()
+        .cloned()
+        .collect()
+}
+
 #[cfg(test)]
 #[path = "device_cache_tests.rs"]
 mod tests;

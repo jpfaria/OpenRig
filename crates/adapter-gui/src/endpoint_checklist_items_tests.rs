@@ -199,3 +199,45 @@ fn a_shared_row_is_checked_while_any_copy_still_plays() {
     );
     assert_eq!(labels(&outputs), vec![(OUT_12, true)]);
 }
+
+/// #398: an insert or a mid-chain port card is named after its E/S binding,
+/// never its kind again ("INSERT" over "INSERT").
+#[test]
+fn a_port_block_is_named_after_its_binding() {
+    let insert = |id: &str, io: &str| project::block::AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: project::block::AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "standard".into(),
+            io: io.into(),
+        }),
+    };
+    let c = chain(vec![
+        insert("ins", "main"),
+        insert("lost", "gone"),
+        insert("unset", ""),
+        crate::chain_graph_fixtures_tests::port_in("mid", "main", "In 1"),
+    ]);
+    let io = io_labels(&c, &registry(), &devices(), &devices(), "In", "Out");
+    let none = rust_i18n::t!("label-endpoints-none").to_string();
+    assert_eq!(io.port("ins"), "Scarlett");
+    assert_eq!(
+        io.port("lost"),
+        "gone",
+        "a binding gone from the registry keeps its id"
+    );
+    assert_eq!(io.port("unset"), none);
+    assert_eq!(io.port("mid"), "Scarlett");
+
+    let graph = crate::chain_graph_adapter::chain_graph(&c, &io);
+    let label = |id: &str| {
+        graph
+            .nodes
+            .iter()
+            .find(|n| n.id == id)
+            .map(|n| n.label.clone())
+            .unwrap_or_else(|| panic!("no node {id}"))
+    };
+    assert_eq!(label("ins"), "Scarlett");
+    assert_eq!(label("mid"), "Scarlett");
+}

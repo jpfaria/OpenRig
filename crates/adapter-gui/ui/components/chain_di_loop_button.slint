@@ -5,6 +5,7 @@
 // absolute position. The panel itself (DiLoopPanel) lives in app-window's root
 // overlay so it is never clipped by the chain list.
 
+import { HeaderIconStyle } from "header_icon_style.slint";
 import { DiPanel } from "di_panel_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 
@@ -19,24 +20,20 @@ export component ChainDiLoopButton inherits Rectangle {
     // Which `sources` entries are deletable saved takes.
     in property <[bool]> take-rows: [];
 
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    background: root.playing ? #6e8aff28
-                : ta.has-hover ? #ffffff10
-                : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: HeaderIconStyle.fill(ta.has-hover);
     animate background { duration: 150ms; }
 
     Image {
-        x: 5px;
-        y: 5px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: @image-url("../assets/headphones.svg");
         image-fit: contain;
-        colorize: root.playing ? #6e8aff
-                  : ta.has-hover ? #ffffff
-                  : #8a94a2;
+        colorize: HeaderIconStyle.tint(root.playing, ta.has-hover);
         animate colorize { duration: 150ms; }
     }
 
@@ -53,6 +50,7 @@ export component ChainDiLoopButton inherits Rectangle {
             // Open below the fone, the panel's right edge near it.
             DiPanel.x = root.absolute-position.x - 332px;
             DiPanel.y = root.absolute-position.y + 32px;
+            DiPanel.anchor-top = root.absolute-position.y;
             DiPanel.open = true;
         }
     }

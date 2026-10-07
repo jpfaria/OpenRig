@@ -11,6 +11,8 @@ import { SelectorKnob } from "selector_knob.slint";
 export component BlockPanelParameterItem inherits Rectangle {
     in property <BlockParameterItem> param;
     in property <color> panel-text;
+    // #398: the knob's value arc takes the block's category colour.
+    in property <color> tint: Theme.accent;
 
     callback update-number(string, float);
     callback select-option(string, int);
@@ -24,14 +26,13 @@ export component BlockPanelParameterItem inherits Rectangle {
     // Label
     Text {
         x: 0; y: 0; width: parent.width;
-        height: 22px;
+        height: 18px;
         text: root.param.label;
         color: root.panel-text;
-        font-family: "Bebas Neue";
         font-size: Theme.knob-caption-font;
-        font-weight: 700;
-        letter-spacing: 1.5px;
+        font-weight: 600;
         horizontal-alignment: center;
+        vertical-alignment: center;
         overflow: elide;
     }
 
@@ -66,7 +67,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 0 ? root.param.option_labels[0] : "";
-            color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 0 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 0 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
@@ -89,7 +90,7 @@ export component BlockPanelParameterItem inherits Rectangle {
                 : parent.n == 3 ? (root.param.option_labels.length > 2 ? root.param.option_labels[2] : "")
                 : (root.param.option_labels.length > 3 ? root.param.option_labels[3] : "");
             color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
-                ? #ffaa44 : parent.tc.with-alpha(0.7);
+                ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
             horizontal-alignment: left;
@@ -109,7 +110,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: parent.cx - 55px; y: parent.top-row;
             width: 110px; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
-            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 1 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: center;
@@ -128,7 +129,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: 0; y: parent.top-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
-            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 1 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
@@ -147,7 +148,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 2 ? root.param.option_labels[2] : "";
-            color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            color: 2 == parent.sel ? Theme.accent : parent.tc.with-alpha(0.7);
             font-size: Theme.knob-option-font;
             font-weight: 2 == parent.sel ? 700 : 400;
             horizontal-alignment: left;
@@ -166,9 +167,9 @@ export component BlockPanelParameterItem inherits Rectangle {
         x: 0; y: 22px;
         width: parent.width;
         height: 34px;
-        background: #060610;
+        background: Theme.well;
         border-width: 1px;
-        border-color: #252538;
+        border-color: Theme.hair-2;
         border-radius: 6px;
 
         Text {
@@ -178,7 +179,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
                 ? root.param.option_labels[root.param.selected_option_index]
                 : "";
-            color: #d8e0ff;
+            color: Theme.ink;
             font-size: 18px;
             font-weight: 700;
             vertical-alignment: center;
@@ -190,7 +191,7 @@ export component BlockPanelParameterItem inherits Rectangle {
             width: 18px;
             height: parent.height;
             text: "\u{25BC}";
-            color: #ffffff;
+            color: Theme.ink;
             font-size: 18px;
             vertical-alignment: center;
             horizontal-alignment: center;
@@ -211,12 +212,12 @@ export component BlockPanelParameterItem inherits Rectangle {
             Rectangle {
                 width: 100%;
                 height: 100%;
-                background: #08080e;
+                background: Theme.well;
                 border-width: 1px;
-                border-color: #2a2a40;
+                border-color: Theme.hair;
                 border-radius: 6px;
                 drop-shadow-blur: 20px;
-                drop-shadow-color: #000000c0;
+                drop-shadow-color: Theme.shadow;
                 drop-shadow-offset-x: 0px;
                 drop-shadow-offset-y: 6px;
                 clip: true;
@@ -225,7 +226,7 @@ export component BlockPanelParameterItem inherits Rectangle {
                     x: 0; y: 0;
                     width: parent.width;
                     height: parent.height;
-                    viewport-height: root.param.option_labels.length * 36px + 8px;
+                    content-height: root.param.option_labels.length * 36px + 8px;
 
                     for option[oi] in root.param.option_labels : Rectangle {
                         x: 4px;
@@ -233,14 +234,14 @@ export component BlockPanelParameterItem inherits Rectangle {
                         width: parent.width - 8px;
                         height: 36px;
                         border-radius: 5px;
-                        background: oi == root.param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+                        background: oi == root.param.selected_option_index ? Theme.accent-soft : (opt-ta.has-hover ? Theme.hover : transparent);
 
                         Text {
                             x: 12px; y: 0;
                             width: parent.width - 24px;
                             height: parent.height;
                             text: option;
-                            color: oi == root.param.selected_option_index ? #7788ff : #b0bce0;
+                            color: oi == root.param.selected_option_index ? Theme.accent : Theme.ink-2;
                             font-size: 18px;
                             font-weight: oi == root.param.selected_option_index ? 700 : 400;
                             vertical-alignment: center;
@@ -265,16 +266,16 @@ export component BlockPanelParameterItem inherits Rectangle {
         width: parent.width - 8px;
         height: 32px;
         border-radius: 6px;
-        background: file-ta.has-hover ? #ffffff18 : #00000030;
+        background: file-ta.has-hover ? Theme.hover : Theme.shadow;
         border-width: 1px;
-        border-color: #ffffff10;
+        border-color: Theme.hair;
 
         Text {
             x: 4px;
             width: parent.width - 8px;
             height: parent.height;
             text: root.param.value_text != "" ? root.param.value_text : @tr("btn-load-file");
-            color: root.param.value_text != "" ? #8090a0 : #4488cc;
+            color: root.param.value_text != "" ? Theme.ink-2 : Theme.accent;
             font-size: 18px;
             font-weight: 600;
             overflow: elide;
@@ -290,10 +291,11 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Numeric knob/stepper/slider ──
     if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
-        x: (parent.width - 36px) / 2;
-        y: 28px;
-        width: 36px;
-        height: 56px;
+        x: (parent.width - 48px) / 2;
+        y: 20px;
+        width: 48px;
+        height: 70px;
+        tint: root.tint;
         value: root.param.numeric_value;
         min-val: root.param.numeric_min;
         max-val: root.param.numeric_max;
@@ -303,18 +305,14 @@ export component BlockPanelParameterItem inherits Rectangle {
         changed(p, v) => { root.update-number(p, v); }
     }
 
-    // ── Boolean toggle (sprite) ──
-    // The toggle sprite is 33:45 (W:H ratio). width=32 gives a
-    // sprite-h ≈ 44 (closer to the 56px PanelKnob without dominating
-    // the cell). y=24 keeps the sprite top a few pixels above the knob
-    // top so the bigger switch reads as a deliberate stompbox stomp
-    // instead of a clipped knob.
+    // ── Boolean toggle (#398: the pill switch) ──
+    // Centred in the knob's 62px band so the switch sits level with the
+    // knobs of the same row.
     if root.param.widget_kind == "bool" : ToggleSwitch {
-        x: (parent.width - 32px) / 2;
-        y: 24px;
-        width: 32px;
-        height: 62px;
-        checked: root.param.bool_value;
+        x: (parent.width - self.width) / 2;
+        y: 24px + (62px - self.height) / 2;
+        on: root.param.bool_value;
+        label: root.param.label;
         toggled => { root.update-bool(root.param.path, !root.param.bool_value); }
     }
 }

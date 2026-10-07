@@ -113,7 +113,7 @@ export component TouchMain inherits Rectangle {
         ? ["Z","X","C","V","B","N","M"]
         : ["z","x","c","v","b","n","m"];
 
-    background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
+    background: root.show-project-launcher ? Theme.hero-bg : Theme.palette.background-gradient;
 
     if root.show-project-launcher : ProjectLauncherPage {
         width: parent.width;
@@ -286,10 +286,10 @@ export component TouchMain inherits Rectangle {
         y: root.height - 270px;
         width: root.width;
         height: 270px;
-        background: #1a1b1e;
+        background: Theme.panel-lo;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: -4px;
-        drop-shadow-color: #000000c0;
+        drop-shadow-color: Theme.shadow;
         VerticalLayout {
             padding: 4px;
             spacing: 3px;
@@ -299,12 +299,12 @@ export component TouchMain inherits Rectangle {
                 for num in ["1","2","3","4","5","6","7","8","9","0"] : Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: n-area.has-hover ? #3c7ded : #2d2e32;
+                    background: n-area.has-hover ? Theme.accent : Theme.panel-hi;
                     n-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(num); }
                     }
-                    Text { text: num; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: num; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 1: QWERTY (lowercase/uppercase based on shift)
@@ -313,12 +313,12 @@ export component TouchMain inherits Rectangle {
                 for key in root.kb-row1 : Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: r1-area.has-hover ? #3c7ded : #2d2e32;
+                    background: r1-area.has-hover ? Theme.accent : Theme.panel-hi;
                     r1-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 2: ASDFGHJKL
@@ -327,12 +327,12 @@ export component TouchMain inherits Rectangle {
                 for key in root.kb-row2 : Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: r2-area.has-hover ? #3c7ded : #2d2e32;
+                    background: r2-area.has-hover ? Theme.accent : Theme.panel-hi;
                     r2-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 3: Shift + ZXCVBNM + Backspace
@@ -342,33 +342,33 @@ export component TouchMain inherits Rectangle {
                 Rectangle {
                     horizontal-stretch: 1.5;
                     border-radius: 4px;
-                    background: shift-area.has-hover ? #4a88f0 : (root.kb-shift ? #3c7ded : #3a3b40);
+                    background: shift-area.has-hover ? Theme.accent : (root.kb-shift ? Theme.accent : Theme.ktrack);
                     shift-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.kb-shift = !root.kb-shift; }
                     }
-                    Text { text: "⇧"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⇧"; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 for key in root.kb-row3 : Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: r3-area.has-hover ? #3c7ded : #2d2e32;
+                    background: r3-area.has-hover ? Theme.accent : Theme.panel-hi;
                     r3-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 // Backspace key
                 Rectangle {
                     horizontal-stretch: 1.5;
                     border-radius: 4px;
-                    background: back-area.has-hover ? #3c7ded : #3a3b40;
+                    background: back-area.has-hover ? Theme.accent : Theme.ktrack;
                     back-area := TouchArea {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed("⌫"); }
                     }
-                    Text { text: "⌫"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⌫"; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 4: - . ⎵ ⏎
@@ -377,30 +377,30 @@ export component TouchMain inherits Rectangle {
                 Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: dash-area.has-hover ? #3c7ded : #2d2e32;
+                    background: dash-area.has-hover ? Theme.accent : Theme.panel-hi;
                     dash-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("-"); } }
-                    Text { text: "-"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "-"; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
-                    background: dot-area.has-hover ? #3c7ded : #2d2e32;
+                    background: dot-area.has-hover ? Theme.accent : Theme.panel-hi;
                     dot-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("."); } }
-                    Text { text: "."; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "."; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle {
                     horizontal-stretch: 4;
                     border-radius: 4px;
-                    background: space-area.has-hover ? #3c7ded : #2d2e32;
+                    background: space-area.has-hover ? Theme.accent : Theme.panel-hi;
                     space-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("⎵"); } }
-                    Text { text: "⎵"; font-size: 18px; color: #888888; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⎵"; font-size: 18px; color: Theme.ink-3; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle {
                     horizontal-stretch: 2;
                     border-radius: 4px;
-                    background: enter-area.has-hover ? #4a88f0 : #3c7ded;
+                    background: enter-area.has-hover ? Theme.accent : Theme.accent;
                     enter-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("⏎"); } }
-                    Text { text: "⏎"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⏎"; font-size: Theme.min-font; color: Theme.ink; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }
@@ -413,17 +413,17 @@ export component TouchMain inherits Rectangle {
         width: 48px;
         height: 48px;
         border-radius: 24px;
-        background: root.keyboard-visible ? #3c7ded : #2d2e32;
+        background: root.keyboard-visible ? Theme.accent : Theme.panel-hi;
         drop-shadow-blur: 8px;
         drop-shadow-offset-y: 2px;
-        drop-shadow-color: #00000080;
+        drop-shadow-color: Theme.shadow;
         TouchArea {
             mouse-cursor: pointer;
             clicked => { root.keyboard-visible = !root.keyboard-visible; root.kb-shift = false; }
             Text {
                 text: @tr("⌨");
                 font-size: 22px;
-                color: #ffffff;
+                color: Theme.ink;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -439,7 +439,7 @@ export component TouchMain inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #0405068a;
+        background: Theme.scrim;
 
         TouchArea {
             x: 0px;

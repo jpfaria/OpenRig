@@ -73,25 +73,24 @@ fn the_graph_views_accessible_labels_go_through_tr() {
     }
 }
 
-/// Spec §5.2: the split and mixer cards draw routing artwork with no text
-/// baked into the SVG. The card prints the translated name; SVG text would
-/// stay English, and it needs a font the Orange Pi may not have.
+/// Spec §5.2: the split and mixer cards print a translated name under the
+/// routing hub, never text baked into artwork (#398: the hub is drawn
+/// natively, one port per path, so it carries no SVG at all).
 #[test]
 fn the_routing_cards_draw_artwork_without_baked_in_text() {
     let card = read_component("graph_node_card.slint");
-    let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/assets");
-    for name in ["graph-split.svg", "graph-mix.svg"] {
-        assert!(
-            card.contains(name),
-            "graph_node_card.slint must draw the split and mixer art from {name}"
-        );
-        let svg = std::fs::read_to_string(assets.join(name))
-            .unwrap_or_else(|e| panic!("read {name}: {e}"));
-        assert!(
-            !svg.contains("<text"),
-            "{name} bakes text into the artwork; the card prints the translated name"
-        );
+    assert!(
+        card.contains("GraphHub {"),
+        "graph_node_card.slint must draw the split and mixer as GraphHub"
+    );
+    for key in ["@tr(\"graph-node-split\")", "@tr(\"graph-node-mixer\")"] {
+        assert!(card.contains(key), "the hub's name is the translated {key}");
     }
+    let hub = read_component("graph_hub.slint");
+    assert!(
+        !hub.contains("@image-url"),
+        "graph_hub.slint draws the hub itself; artwork would not grow with the path count"
+    );
 }
 
 /// Spec §5.1: the graph block card paints its states from the same

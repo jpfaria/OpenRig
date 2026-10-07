@@ -8,6 +8,11 @@
 //! #548 — the legacy single-file binding editor was dead UI once the
 //! profile-driven daemon shipped.)
 
+pub(crate) mod appearance;
+pub(crate) mod appearance_current;
+pub(crate) mod appearance_followers;
+pub(crate) mod appearance_pick;
+pub(crate) mod appearance_wiring;
 pub mod audio;
 pub(crate) mod endpoint_build;
 pub(crate) mod endpoint_channels;
@@ -37,3 +42,17 @@ mod paths_overrides_tests;
 #[cfg(test)]
 #[path = "integrations_toggle_tests.rs"]
 mod integrations_toggle_tests;
+
+#[cfg(test)]
+#[path = "appearance_tests.rs"]
+mod appearance_tests;
+
+#[cfg(test)]
+#[path = "appearance_current_tests.rs"]
+mod appearance_current_tests;
+#[cfg(test)]
+#[path = "appearance_followers_tests.rs"]
+mod appearance_followers_tests;
+#[cfg(test)]
+#[path = "appearance_pick_tests.rs"]
+mod appearance_pick_tests;

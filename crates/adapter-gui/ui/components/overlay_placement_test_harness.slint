@@ -1,0 +1,44 @@
+// Responsibility: hosts the overlays the window-containment tests place.
+// #398 TEST-ONLY harness: a 28 px icon button placed anywhere in a small window
+// with its hover label showing, and a dialog taller than the window, so the
+// headless test can prove neither leaves the window. Never shown in the app.
+
+import { IconTooltip } from "icon_tooltip.slint";
+import { DialogCard } from "dialog_card.slint";
+import { Theme } from "../theme.slint";
+import { WindowBoundsProbe } from "window_bounds.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
+
+export component OverlayPlacementHarness inherits Window {
+    width: 400px;
+    height: 300px;
+    in property <length> host-x;
+    in property <length> host-y;
+    in property <bool> dialog-open;
+    in property <int> dialog-lines: 16;
+
+    Rectangle {
+        x: root.host-x;
+        y: root.host-y;
+        width: 28px;
+        height: 28px;
+        background: Theme.panel;
+        IconTooltip {
+            text: "A hover label longer than its button";
+            show: true;
+        }
+    }
+
+    if root.dialog-open : DialogCard {
+        width: root.width;
+        height: root.height;
+        for i in root.dialog-lines : Text {
+            height: 30px;
+            text: "Line " + i;
+            color: Theme.ink;
+        }
+    }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
+}

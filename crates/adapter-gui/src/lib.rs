@@ -205,6 +205,7 @@ mod stepped_input_tick;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
+mod tuner_tolerance;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
@@ -243,7 +244,9 @@ mod chain_graph_drop;
 #[cfg(test)]
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
+mod chain_graph_lanes;
 mod chain_graph_models;
+mod chain_graph_ports;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
 pub mod crash_context;
@@ -284,6 +287,8 @@ mod helpers;
 mod issue_1006_meter_direction_tests;
 #[cfg(test)]
 mod issue_1074_meter_row_per_output_tests;
+#[cfg(test)]
+mod issue_398_paint_order_tests;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
@@ -380,6 +385,7 @@ mod model_search_wiring;
 /// #127: the UI must not name the audio backend outside the modules that own it.
 #[cfg(test)]
 mod no_infra_cpal_in_wiring_tests;
+mod port_block_names;
 mod port_wiring;
 mod preset_search;
 mod project_close_session;
@@ -400,6 +406,7 @@ mod recent_projects;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
+mod appearance_events;
 mod audio_settings_mode;
 mod block_drawer_state;
 mod block_editor_draft;
@@ -434,6 +441,7 @@ pub(crate) use project_ops::{
 };
 use state::UNTITLED_PROJECT_NAME;
 mod desktop_app;
+mod desktop_app_appearance;
 mod desktop_app_block_models;
 mod desktop_app_block_wiring;
 mod desktop_app_catalog;

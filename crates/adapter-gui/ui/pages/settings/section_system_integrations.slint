@@ -7,133 +7,89 @@
 // persisted and takes effect on next launch (the subsystems are wired at
 // bootstrap), hence the restart hint.
 //
-// Visual language mirrors the device-row toggle in
-// section_system_midi_devices.slint (blue check-square) for cross-screen
-// consistency.
+// #398: each subsystem is a raised card — its name, a quiet one-line
+// description, and an on/off switch at the right.
 
+import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
+import { SettingsCard } from "../../components/settings_card.slint";
+import { ToggleSwitch } from "../../components/toggle_switch.slint";
+
+component OptionCard inherits SettingsCard {
+    in property <string> title;
+    in property <string> description;
+    in property <bool> on;
+    callback toggled();
+
+    min-height: info.preferred-height;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        info := VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            spacing: 2px;
+
+            Text {
+                text: root.title;
+                color: Theme.ink;
+                font-size: Theme.min-font;
+                font-weight: 600;
+            }
+            Text {
+                text: root.description;
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                wrap: word-wrap;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            ToggleSwitch {
+                width: 34px;
+                height: 18px;
+                off-track: Theme.field-line;
+                on: root.on;
+                label: root.title;
+                toggled => { root.toggled(); }
+            }
+        }
+    }
+}
 
 export component SectionSystemIntegrations inherits Rectangle {
 
     background: transparent;
 
     VerticalLayout {
-        spacing: 12px;
+        spacing: 10px;
+        alignment: start;
 
-        // ── MIDI adapter row ──
-        // Row grows with the wrapped description instead of eliding it.
-        Rectangle {
-            height: max(56px, midi-info.preferred-height + 16px);
-            background: #1d2025;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: SettingsBridge.midi-enabled ? #2f4a6a : #2a2f38;
-            animate border-color { duration: 200ms; }
-
-            midi-info := VerticalLayout {
-                x: 16px;
-                width: parent.width - 16px - 56px;
-                alignment: center;
-                spacing: 2px;
-                Text {
-                    text: @tr("label-midi-enabled");
-                    color: #f3f6fb;
-                    font-size: 18px;
-                    vertical-alignment: center;
-                }
-                Text {
-                    text: @tr("desc-midi-enabled");
-                    color: #8a92a3;
-                    font-size: 18px;
-                    wrap: word-wrap;
-                }
-            }
-
-            Rectangle {
-                x: parent.width - 36px;
-                y: (parent.height - 20px) / 2;
-                width: 20px;
-                height: 20px;
-                background: SettingsBridge.midi-enabled ? #188cff : #1e2229;
-                border-width: 1px;
-                border-color: SettingsBridge.midi-enabled ? #45a7ff : #3d4450;
-                border-radius: 8px;
-
-                if SettingsBridge.midi-enabled : Image {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 12px;
-                    height: 12px;
-                    source: @image-url("../../assets/check.svg");
-                    colorize: #ffffff;
-                }
-
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { SettingsBridge.set-midi-enabled(!SettingsBridge.midi-enabled); }
-                }
-            }
+        OptionCard {
+            title: @tr("label-midi-enabled");
+            description: @tr("desc-midi-enabled");
+            on: SettingsBridge.midi-enabled;
+            toggled => { SettingsBridge.set-midi-enabled(!SettingsBridge.midi-enabled); }
         }
 
-        // ── MCP server row ──
-        Rectangle {
-            height: max(56px, mcp-info.preferred-height + 16px);
-            background: #1d2025;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: SettingsBridge.mcp-enabled ? #2f4a6a : #2a2f38;
-            animate border-color { duration: 200ms; }
-
-            mcp-info := VerticalLayout {
-                x: 16px;
-                width: parent.width - 16px - 56px;
-                alignment: center;
-                spacing: 2px;
-                Text {
-                    text: @tr("label-mcp-enabled");
-                    color: #f3f6fb;
-                    font-size: 18px;
-                    vertical-alignment: center;
-                }
-                Text {
-                    text: @tr("desc-mcp-enabled");
-                    color: #8a92a3;
-                    font-size: 18px;
-                    wrap: word-wrap;
-                }
-            }
-
-            Rectangle {
-                x: parent.width - 36px;
-                y: (parent.height - 20px) / 2;
-                width: 20px;
-                height: 20px;
-                background: SettingsBridge.mcp-enabled ? #188cff : #1e2229;
-                border-width: 1px;
-                border-color: SettingsBridge.mcp-enabled ? #45a7ff : #3d4450;
-                border-radius: 8px;
-
-                if SettingsBridge.mcp-enabled : Image {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 12px;
-                    height: 12px;
-                    source: @image-url("../../assets/check.svg");
-                    colorize: #ffffff;
-                }
-
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { SettingsBridge.set-mcp-enabled(!SettingsBridge.mcp-enabled); }
-                }
-            }
+        OptionCard {
+            title: @tr("label-mcp-enabled");
+            description: @tr("desc-mcp-enabled");
+            on: SettingsBridge.mcp-enabled;
+            toggled => { SettingsBridge.set-mcp-enabled(!SettingsBridge.mcp-enabled); }
         }
 
         // Restart hint — both switches take effect on next launch.
         Text {
             text: @tr("hint-restart-to-apply");
-            color: #6b7786;
-            font-size: 18px;
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
             wrap: word-wrap;
         }
     }

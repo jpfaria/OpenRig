@@ -310,6 +310,10 @@ impl CommandDispatcher for LocalDispatcher {
             Command::Settings(SettingsCommand::SetMcpEnabled { enabled }) => {
                 self.handle_set_mcp_enabled(enabled)
             }
+            // #398: the light/dark scheme → config.yaml.
+            Command::Settings(SettingsCommand::SetAppearance { appearance }) => {
+                self.handle_set_appearance(appearance)
+            }
 
             // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
             // output persisted into project via SetChainDiLoopOutput).

@@ -6,10 +6,15 @@
 // The panel reads its state from `MixerBridge`, so the same component serves
 // the standalone window and the inline (fullscreen/touch) placement.
 
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { MixerBridge, MixerStripRow } from "../components/mixer_globals.slint";
 import { MixerSection } from "../components/mixer_section.slint";
 import { ParamTabBar } from "../components/param_tab_bar.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component MixerPanel inherits Rectangle {
     // The inline overlay needs a close button; the standalone window closes via
@@ -21,71 +26,50 @@ export component MixerPanel inherits Rectangle {
     private property <[MixerStripRow]> shown: root.tab == 0 ? MixerBridge.inputs : MixerBridge.outputs;
     // The host window fits its width to this (`mixer_window_size.rs`).
     out property <int> shown-count: root.shown.length;
-    private property <length> body-top: 128px;
+    private property <length> bar-height: 46px;
+    private property <length> tabs-height: 44px;
+    private property <length> body-top: root.bar-height + root.tabs-height;
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    background: Theme.well;
 
-    // ── Header bar ───────────────────────────────────────────────────────
-    Rectangle {
+    ToolBar {
         x: 0; y: 0;
-        width: parent.width;
-        height: 72px;
-        background: #0c0e12;
-
-        Rectangle {
-            x: 0; y: parent.height - 1px;
-            width: parent.width; height: 1px;
-            background: #1c2028;
-        }
-
-        Image {
-            x: 20px; y: 24px;
-            width: 24px; height: 24px;
-            source: @image-url("../assets/mixer-faders.svg");
-            colorize: #c5cdd9;
-        }
-
-        Text {
-            x: 54px; y: 0;
-            width: 200px; height: parent.height;
-            text: @tr("label-mixer");
-            color: #e5ebf2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 3.0px;
-            vertical-alignment: center;
-        }
+        width: parent.width; height: root.bar-height;
+        icon: @image-url("../assets/mixer-faders.svg");
+        icon-tint: Theme.chrome-fg-2;
+        title: @tr("label-mixer");
 
         if root.show-close-button : Rectangle {
-            x: parent.width - 40px; y: 22px;
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
-            border-width: 1px;
-            border-color: #2c323d;
+            width: 30px;
+            border-radius: 4px;
+            background: close-ta.has-hover ? Theme.chrome-2 : transparent;
 
             Image {
-                x: (parent.width - 12px) / 2;
-                y: (parent.height - 12px) / 2;
-                width: 12px;
-                height: 12px;
-                source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
+                x: (parent.width - 14px) / 2; y: (parent.height - 14px) / 2;
+                width: 14px; height: 14px;
+                source: @image-url("../assets/close.svg");
+                colorize: close-ta.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2;
             }
 
             close-ta := TouchArea {
                 mouse-cursor: pointer;
                 clicked => { MixerBridge.close-mixer(); }
             }
+
+            accessible-role: button;
+            accessible-label: @tr("btn-close");
+            accessible-action-default => { MixerBridge.close-mixer(); }
         }
     }
 
     // ── Tabs — one side at a time ────────────────────────────────────────
     ParamTabBar {
-        x: 16px; y: 80px;
-        width: parent.width - 32px; height: 36px;
+        x: 0; y: root.bar-height;
+        width: parent.width; height: root.tabs-height;
         groups: [@tr("label-mixer-inputs"), @tr("label-mixer-outputs")];
         active: root.tab;
+        boxed: true;
+        display: true;
         select(i) => { root.tab = i; }
     }
 
@@ -94,40 +78,46 @@ export component MixerPanel inherits Rectangle {
         x: 24px; y: root.body-top;
         width: parent.width - 48px; height: parent.height - root.body-top;
         text: @tr("status-mixer-no-endpoints");
-        color: #6a6a82;
-        font-size: 18px;
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
         wrap: word-wrap;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
-    // ── Strips of the active tab ─────────────────────────────────────────
-    ScrollView {
-        x: 16px; y: root.body-top;
-        width: parent.width - 32px;
-        height: parent.height - root.body-top - 16px;
-        viewport-width: max(self.width, root.shown.length * 120px);
-        viewport-height: self.height;
+    // ── Strips of the active tab, on the well ────────────────────────────
+    Rectangle {
+        x: 0; y: root.body-top;
+        width: parent.width; height: parent.height - root.body-top;
+        background: Theme.well;
 
-        MixerSection {
-            x: 0; y: 0;
-            width: root.shown.length * 120px;
-            height: parent.height - 12px;
-            strips: root.shown;
+        ScrollView {
+            x: 16px; y: 14px;
+            width: parent.width - 32px;
+            height: parent.height - 28px;
+            content-width: max(self.width, root.shown.length * 120px);
+            content-height: self.height;
+
+            MixerSection {
+                x: 0; y: 0;
+                width: root.shown.length * 120px;
+                height: parent.height - 12px;
+                strips: root.shown;
+            }
         }
     }
 }
 
 export component MixerWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-mixer");
     min-width: 360px;
     min-height: 520px;
     preferred-width: 720px;
     preferred-height: 600px;
-    background: #050608;
+    background: Theme.page;
 
     out property <int> shown-strip-count: panel.shown-count;
 
@@ -136,4 +126,7 @@ export component MixerWindow inherits Window {
         height: 100%;
         show-close-button: false;
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

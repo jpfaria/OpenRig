@@ -34,7 +34,7 @@ It is **FORBIDDEN** to write, change or judge ("looks good") ANY layout/UI — `
 **The agent RENDERS and checks** — it does not guess:
 - Use the project's headless renderer: `tools/slint-render` (slint-interpreter → PNG, outside the workspace). Build: `cargo build --release --manifest-path tools/slint-render/Cargo.toml`. Usage: `slint-render <file.slint> <Component> <out.png> [w] [h]`. For components embedded in the app, write a standalone `.slint` mockup with fake data (root `inherits Window`, explicit size) and render THAT.
 - Open the PNG (Read) and check alignment/spacing/hierarchy **BEFORE saying "done"**. Guessing a layout and asking the owner to test it is a **forbidden anti-pattern** (it has burned a whole day of tokens shipping crooked screens).
-- Touched or created a screen → invoke `claude-plugin:ux-ui` + `slint-best-practices` **BEFORE the first `.slint` line**.
+- Touched or created a screen → invoke `claude-plugin:ux-ui` + `slint-best-practices` **BEFORE the first `.slint` line**, and build it in the language of `docs/gui/visual-language.md` (tokens, reusable components, mockup T01–T42); a screen that looks different from the mockup is not done.
 - **Mandatory SELF-REVIEW before showing the PNG** — run the checklist and FIX it yourself; never hand over a raw render for the owner to catch the basics (he is not a designer):
   - Clear hierarchy (size/weight, not everything the same).
   - Semantic colour: distinct states/categories get colour + meaning (e.g. mono/stereo badges in different colours), not everything grey.

@@ -15,6 +15,7 @@ fn labels() -> Vec<StreamIoLabels> {
             input_channels: String::new(),
             output_channels: String::new(),
             outputs: vec![],
+            ..Default::default()
         },
         StreamIoLabels {
             input: "GUITARRA 1 - SYN5050".into(),
@@ -22,6 +23,7 @@ fn labels() -> Vec<StreamIoLabels> {
             input_channels: String::new(),
             output_channels: String::new(),
             outputs: vec![],
+            ..Default::default()
         },
     ]
 }

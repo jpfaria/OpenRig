@@ -4,7 +4,7 @@
 //! A PNG render proves layout and nothing else: a control can sit in the right
 //! place with a TouchArea that is covered, mis-sized or wired to nothing. So
 //! this test instantiates the real `MetronomeWindow`, dispatches REAL pointer
-//! events at the power footswitch, the three tempo pills, the count-in pill and
+//! events at the power pill, the three tempo buttons, the count-in knob and
 //! the three selector knobs, and asserts each one fires its callback with the
 //! value the Rust wiring expects to receive.
 //!
@@ -90,10 +90,10 @@ fn every_metronome_control_fires_its_callback() {
 
     w.show().unwrap();
 
-    // ── Power footswitch ────────────────────────────────────────────────
+    // ── Power pill ──────────────────────────────────────────────────────
     assert!(
-        click_id(&w, "PowerFootSwitch::ta", 0),
-        "the power footswitch must be hittable"
+        click_id(&w, "PillSwitch::ta", 0),
+        "the power pill must be hittable"
     );
     assert_eq!(
         powered.get(),
@@ -101,20 +101,20 @@ fn every_metronome_control_fires_its_callback() {
         "pressing POWER while off must ask to turn the click ON"
     );
 
-    // ── Tempo row: −, TAP, + (count-in is a separate vintage toggle) ────
+    // ── Tempo: the − and + nudges under the BPM knob, then the TAP key ──
     assert_eq!(
         count_id(&w, "PillButton::ta"),
         3,
-        "the tempo row has exactly three pills: −, TAP, +"
+        "the tempo has exactly three buttons: −, +, TAP"
     );
 
     assert!(
         click_id(&w, "PillButton::ta", 0),
-        "the − pill must be hittable"
+        "the − button must be hittable"
     );
     assert!(
-        click_id(&w, "PillButton::ta", 2),
-        "the + pill must be hittable"
+        click_id(&w, "PillButton::ta", 1),
+        "the + button must be hittable"
     );
     assert_eq!(
         *bpm.borrow(),
@@ -123,15 +123,15 @@ fn every_metronome_control_fires_its_callback() {
     );
 
     assert!(
-        click_id(&w, "PillButton::ta", 1),
-        "the TAP pill must be hittable"
+        click_id(&w, "PillButton::ta", 2),
+        "the TAP key must be hittable"
     );
     assert_eq!(taps.get(), 1, "TAP must fire exactly one tap");
 
-    // ── Count-in vintage toggle ─────────────────────────────────────────
+    // ── Count-in: a two-position knob ───────────────────────────────────
     assert!(
-        click_id(&w, "VintageToggle::ta", 0),
-        "the count-in toggle must be hittable"
+        click_id(&w, "ToggleKnob::ta", 0),
+        "the count-in knob must be hittable"
     );
     assert_eq!(
         count_in.get(),

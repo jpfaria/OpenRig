@@ -1,16 +1,21 @@
 // Responsibility: renders one looper of the panel.
 // #323 — one looper in the panel: the transport line, plus a drawer with the
 // finer parameters. State is signalled by colour AND label, never colour
-// alone, and every target is 40 px so the row stays usable on the Orange Pi
-// touch screen.
+// alone, and the transport targets are 40 px so the row stays usable on the
+// Orange Pi touch screen.
 //
-// The transport is an absolute cluster of fixed 40 px buttons (the pattern of
-// every other icon cluster in this app); the drawer below uses layouts.
+// #398: a card on the panel. The top line is the round transport (rec, play,
+// clear), the state pill, the position track with its time, then the quiet
+// row actions. The drawer is a grid of captioned fields that fills as many
+// 150 px columns as the row is wide.
 
-import { Theme } from "../theme.slint";
+import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { LooperItem } from "../models.slint";
-import { LooperIconButton, LooperSlider, LooperSegmented } from "looper_controls.slint";
-import { LooperSelectField } from "looper_select_field.slint";
+import { LooperIconButton, LooperRowAction, LooperSlider, LooperSegmented } from "looper_controls.slint";
+import { LooperSelectField, LooperSelectBox } from "looper_select_field.slint";
+import { FieldCaption } from "field_caption.slint";
+import { ToggleSwitch } from "toggle_switch.slint";
 
 export component LooperRow inherits Rectangle {
     in property <LooperItem> looper;
@@ -20,7 +25,7 @@ export component LooperRow inherits Rectangle {
     in property <[string]> input-options;
     in property <[string]> output-options;
     // #323 phase 2: the preset options this loop can play through (index 0 =
-    // "follow the chain"); the picker button shows the current one.
+    // "follow the chain"); the picker field shows the current one.
     in property <[string]> preset-options;
 
     callback record();
@@ -44,192 +49,209 @@ export component LooperRow inherits Rectangle {
     callback save-take();
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
-    private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
-    private property <bool> playing: root.looper.state_code == 2 || root.looper.state_code == 3;
-    private property <bool> has-material: root.looper.state_code != 0;
-    private property <color> state-color:
-        root.looper.state_code == 1 ? #ff5f6d       // recording
-        : root.looper.state_code == 3 ? #ffb454     // overdubbing
-        : root.looper.state_code == 2 ? #6e8aff     // playing
-        : root.looper.state_code == 4 ? #c5cad4     // stopped
-        : #8a94a2;                                  // empty
+    private property <int> code: root.looper.state_code;
+    private property <bool> recording: root.code == 1 || root.code == 3;
+    private property <bool> playing: root.code == 2 || root.code == 3;
+    private property <bool> has-material: root.code != 0;
 
-    height: root.expanded ? 282px : 60px;
-    border-radius: 10px;
-    background: Theme.palette.card-secondary;
+    // The drawer grid: seven fields in as many 150 px columns as fit.
+    private property <length> inner-w: root.width - 24px;
+    private property <length> gap-x: 14px;
+    private property <length> gap-y: 10px;
+    private property <length> field-h: 60px;
+    private property <int> cols: Math.max(1, Math.floor((root.inner-w + root.gap-x) / (150px + root.gap-x)));
+    private property <length> cell-w: (root.inner-w - (root.cols - 1) * root.gap-x) / root.cols;
+    private property <int> rows: Math.ceil(7 / root.cols);
+    private property <length> drawer-h: 11px + root.rows * root.field-h + (root.rows - 1) * root.gap-y;
+
+    pure function cell-x(i: int) -> length {
+        return Math.mod(i, root.cols) * (root.cell-w + root.gap-x);
+    }
+    pure function cell-y(i: int) -> length {
+        return 11px + Math.floor(i / root.cols) * (root.field-h + root.gap-y);
+    }
+
+    height: 60px + (root.expanded ? 10px + root.drawer-h : 0px);
+    border-radius: 5px;
+    background: Theme.panel-hi;
     border-width: 1px;
-    border-color: root.recording ? root.state-color : Theme.palette.border;
-    clip: true;
+    border-color: Theme.hair;
 
-    // ── transport ───────────────────────────────────────────────────────
-    rec-btn := LooperIconButton {
-        x: 8px;
+    // ── the top line ────────────────────────────────────────────────────
+    HorizontalLayout {
+        x: 12px;
         y: 10px;
-        icon: @image-url("../assets/record.svg");
-        label: @tr("looper-record");
-        tint: root.recording ? #ffffff : #ff5f6d;
-        active-background: root.recording ? #ff5f6d : transparent;
-        // REC only arms while the chain is running — recording captures the
-        // live input through the chain's runtime, which exists only then.
-        is-enabled: root.looper.can_record;
-        clicked => { root.record(); }
-    }
-
-    play-btn := LooperIconButton {
-        x: 52px;
-        y: 10px;
-        icon: root.playing
-            ? @image-url("../assets/stop.svg")
-            : @image-url("../assets/play.svg");
-        label: root.playing ? @tr("looper-stop") : @tr("looper-play");
-        tint: root.playing ? #6e8aff : #e6ebf5;
-        is-enabled: root.has-material;
-        clicked => { root.play-stop(); }
-    }
-
-    // #323: single-take looper — no overdub layers, so there is no undo/redo.
-    // Stacking parts is done with SEPARATE loopers.
-    clear-btn := LooperIconButton {
-        x: 96px;
-        y: 10px;
-        icon: @image-url("../assets/trash.svg");
-        label: @tr("looper-clear");
-        is-enabled: root.has-material;
-        clicked => { root.clear(); }
-    }
-
-    // #826: reshape the take. Stopped-only — the store refuses an edit on a
-    // live loop, so an enabled button there would be a lie.
-    edit-btn := LooperIconButton {
-        x: 140px;
-        y: 10px;
-        icon: @image-url("../assets/pencil.svg");
-        label: @tr("looper-edit");
-        is-enabled: root.looper.can_edit;
-        clicked => { root.edit(); }
-    }
-
-    // #827: keep this loop as a named take any chain's DI can play. Needs
-    // material, and a closed take — a loop still recording has no end yet.
-    save-btn := LooperIconButton {
-        x: 184px;
-        y: 10px;
-        icon: @image-url("../assets/save.svg");
-        label: @tr("looper-take-save-title");
-        is-enabled: root.has-material && !root.recording;
-        clicked => { root.save-take(); }
-    }
-
-    // ── state + progress ────────────────────────────────────────────────
-    Rectangle {
-        x: 232px;
-        y: 10px;
-        width: parent.width - 232px - 96px;
+        width: parent.width - 24px;
         height: 40px;
-        clip: true;
-        background: transparent;
+        spacing: 8px;
 
-        Rectangle {
-            x: 0;
-            y: 6px;
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
-            background: root.state-color;
+        rec-btn := LooperIconButton {
+            icon: @image-url("../assets/record.svg");
+            label: @tr("looper-record");
+            tint: root.recording ? Gear.white : Theme.bad;
+            active-background: root.recording ? Theme.bad : transparent;
+            drop-shadow-blur: root.recording ? 10px : 0px;
+            drop-shadow-color: Theme.bad-soft;
+            // REC only arms while the chain is running — recording captures the
+            // live input through the chain's runtime, which exists only then.
+            is-enabled: root.looper.can_record;
+            clicked => { root.record(); }
         }
 
-        Text {
-            x: 14px;
-            y: 0;
-            width: parent.width - 14px - time-text.width - 4px;
-            height: 22px;
-            vertical-alignment: center;
-            // The label is picked here so every state string lives in the
-            // Slint catalog — the Rust side ships a code, not a sentence.
-            text: root.looper.state_code == 1 ? @tr("looper-state-recording")
-                : root.looper.state_code == 2 ? @tr("looper-state-playing")
-                : root.looper.state_code == 3 ? @tr("looper-state-overdubbing")
-                : root.looper.state_code == 4 ? @tr("looper-state-stopped")
-                : @tr("looper-state-empty");
-            color: root.state-color;
-            font-size: Theme.min-font;
-            font-weight: 600;
-            overflow: elide;
+        play-btn := LooperIconButton {
+            icon: root.playing
+                ? @image-url("../assets/stop.svg")
+                : @image-url("../assets/play.svg");
+            label: root.playing ? @tr("looper-stop") : @tr("looper-play");
+            tint: root.playing ? Gear.white : Theme.ink-2;
+            active-background: root.playing ? Theme.in : transparent;
+            is-enabled: root.has-material;
+            clicked => { root.play-stop(); }
         }
 
-        // Width follows the time text so "0:00 / 0:00" is never cut.
-        time-text := Text {
-            x: parent.width - self.width;
-            y: 0;
-            width: max(100px, self.preferred-width);
-            height: 22px;
-            vertical-alignment: center;
-            horizontal-alignment: right;
-            text: root.looper.time_label;
-            color: Theme.palette.text-muted;
-            font-size: Theme.min-font;
+        // #323: single-take looper — no overdub layers, so there is no undo/redo.
+        // Stacking parts is done with SEPARATE loopers.
+        clear-btn := LooperIconButton {
+            icon: @image-url("../assets/trash.svg");
+            label: @tr("looper-clear");
+            is-enabled: root.has-material;
+            clicked => { root.clear(); }
         }
 
-        Rectangle {
-            x: 0;
-            y: 26px;
-            width: parent.width;
-            height: 4px;
-            border-radius: 2px;
-            background: #2a3140;
+        // The state, in words, on its colour.
+        VerticalLayout {
+            alignment: center;
 
             Rectangle {
-                x: 0;
-                width: parent.width * root.looper.progress;
-                height: parent.height;
-                border-radius: 2px;
-                background: root.state-color;
+                // Grows with a longer translation, up to a cap; past it the
+                // label elides so the transport line never overflows.
+                width: max(96px, min(140px, state-text.preferred-width + 20px));
+                height: 28px;
+                border-radius: 3px;
+                background: root.code == 1 ? Theme.bad
+                    : root.code == 3 ? Theme.warn
+                    : root.code == 2 ? Theme.in
+                    : root.code == 4 ? Theme.hair-2
+                    : Theme.panel-lo;
+
+                state-text := Text {
+                    x: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    // The label is picked here so every state string lives in
+                    // the Slint catalog — the Rust side ships a code, not a
+                    // sentence.
+                    text: root.code == 1 ? @tr("looper-state-recording")
+                        : root.code == 2 ? @tr("looper-state-playing")
+                        : root.code == 3 ? @tr("looper-state-overdubbing")
+                        : root.code == 4 ? @tr("looper-state-stopped")
+                        : @tr("looper-state-empty");
+                    color: root.code == 1 || root.code == 2 || root.code == 3 ? Gear.white
+                        : root.code == 4 ? Theme.ink-2
+                        : Theme.ink-3;
+                    font-size: Theme.min-font;
+                    font-weight: 700;
+                    letter-spacing: 0.1 * Theme.min-font;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
             }
         }
-    }
 
-    gear-btn := LooperIconButton {
-        x: parent.width - 92px;
-        y: 10px;
-        icon: @image-url("../assets/gear.svg");
-        label: @tr("looper-parameters");
-        tint: root.expanded ? #6e8aff : #e6ebf5;
-        clicked => { root.toggle-drawer(); }
-    }
+        // Where the loop is: a thin track, red while recording, and the time.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 120px;
+            alignment: center;
+            spacing: 4px;
 
-    remove-btn := LooperIconButton {
-        x: parent.width - 48px;
-        y: 10px;
-        icon: @image-url("../assets/close.svg");
-        label: @tr("looper-remove");
-        tint: #d9959f;
-        clicked => { root.remove(); }
+            Rectangle {
+                height: 3px;
+                border-radius: 1.5px;
+                background: Theme.groove;
+                clip: true;
+
+                Rectangle {
+                    x: 0;
+                    width: parent.width * root.looper.progress;
+                    height: parent.height;
+                    background: root.recording ? Theme.bad : Theme.in;
+                }
+            }
+
+            Text {
+                text: root.looper.time_label;
+                font-family: Locale.mono-font-family;
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                font-weight: 500;
+                horizontal-alignment: right;
+            }
+        }
+
+        // #826: reshape the take. Stopped-only — the store refuses an edit on
+        // a live loop, so an enabled button there would be a lie.
+        edit-btn := LooperRowAction {
+            icon: @image-url("../assets/pencil.svg");
+            label: @tr("looper-edit");
+            is-enabled: root.looper.can_edit;
+            clicked => { root.edit(); }
+        }
+
+        // #827: keep this loop as a named take any chain's DI can play. Needs
+        // material, and a closed take — a loop still recording has no end yet.
+        save-btn := LooperRowAction {
+            icon: @image-url("../assets/save.svg");
+            label: @tr("looper-take-save-title");
+            is-enabled: root.has-material && !root.recording;
+            clicked => { root.save-take(); }
+        }
+
+        gear-btn := LooperRowAction {
+            icon: @image-url("../assets/gear.svg");
+            label: @tr("looper-parameters");
+            active: root.expanded;
+            clicked => { root.toggle-drawer(); }
+        }
+
+        remove-btn := LooperRowAction {
+            icon: @image-url("../assets/close.svg");
+            label: @tr("looper-remove");
+            clicked => { root.remove(); }
+        }
     }
 
     // ── parameter drawer ────────────────────────────────────────────────
-    if root.expanded : VerticalLayout {
+    if root.expanded : Rectangle {
         x: 12px;
-        y: 58px;
+        y: 60px;
         width: parent.width - 24px;
-        height: 216px;
-        spacing: 8px;
+        height: root.drawer-h;
 
         Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
             height: 1px;
-            background: Theme.palette.border;
+            background: Theme.hair-2;
         }
 
         // A select, never a row of buttons: a chain can have many endpoints
         // with long names.
         in-seg := LooperSelectField {
-            label-width: preset-label.width;
+            x: root.cell-x(0);
+            y: root.cell-y(0);
+            width: root.cell-w;
             label: @tr("looper-input");
             value: root.input-options[root.looper.input_index];
             open => { root.input-open(); }
         }
 
         out-seg := LooperSelectField {
-            label-width: preset-label.width;
+            x: root.cell-x(1);
+            y: root.cell-y(1);
+            width: root.cell-w;
             label: @tr("looper-output");
             value: root.output-options[root.looper.output_index];
             open => { root.output-open(); }
@@ -237,125 +259,92 @@ export component LooperRow inherits Rectangle {
 
         // #323 phase 2: which preset renders this loop. A modal picker (not a
         // segmented row) because a bank can hold many presets with long names.
-        preset-btn := Rectangle {
-            height: 28px;
+        Rectangle {
+            x: root.cell-x(2);
+            y: root.cell-y(2);
+            width: root.cell-w;
+            height: root.field-h;
 
-            // The drawer's label column: fits the widest (translated) label
-            // of every drawer row, which all share it so their controls align.
-            preset-label := Text {
+            FieldCaption {
                 x: 0;
-                width: max(74px, self.preferred-width, in-seg.label-natural,
-                    out-seg.label-natural, level-slider.label-natural,
-                    decay-slider.label-natural, speed-seg.label-natural);
-                height: parent.height;
-                vertical-alignment: center;
+                y: 0;
+                width: parent.width;
+                height: 22px;
                 text: @tr("looper-preset");
-                color: Theme.palette.text-muted;
-                font-size: Theme.min-font;
             }
 
-            Rectangle {
-                x: preset-label.width + 6px;
-                width: parent.width - preset-label.width - 6px;
-                height: parent.height;
-                border-radius: 6px;
-                border-width: 1px;
-                border-color: root.looper.preset_index > 0 ? #6e8aff : Theme.palette.border;
-                background: preset-ta.has-hover
-                    ? #6e8aff28
-                    : (root.looper.preset_index > 0 ? #6e8aff14 : transparent);
-
-                Text {
-                    x: 10px;
-                    width: parent.width - 34px;
-                    height: parent.height;
-                    vertical-alignment: center;
-                    // Option 0 is "follow the chain" (translated here); 1..N map
-                    // to preset-options[index - 1], the chain's bank names.
-                    text: root.looper.preset_index == 0
-                        ? @tr("looper-preset-follow")
-                        : root.preset-options[root.looper.preset_index - 1];
-                    color: root.looper.preset_index > 0
-                        ? Theme.palette.text-primary
-                        : Theme.palette.text-muted;
-                    font-size: Theme.min-font;
-                    overflow: elide;
-                }
-
-                Text {
-                    x: parent.width - 22px;
-                    width: 16px;
-                    height: parent.height;
-                    vertical-alignment: center;
-                    horizontal-alignment: center;
-                    text: "▸";
-                    color: Theme.palette.text-muted;
-                    font-size: Theme.min-font;
-                }
+            LooperSelectBox {
+                x: 0;
+                y: 28px;
+                width: parent.width;
+                // Option 0 is "follow the chain" (translated here); 1..N map
+                // to preset-options[index - 1], the chain's bank names.
+                value: root.looper.preset_index == 0
+                    ? @tr("looper-preset-follow")
+                    : root.preset-options[root.looper.preset_index - 1];
+                muted: root.looper.preset_index == 0;
+                hovered: preset-ta.has-hover;
 
                 preset-ta := TouchArea {
                     mouse-cursor: pointer;
                     clicked => { root.preset-open(); }
                 }
 
-                accessible-role: button;
+                accessible-role: combobox;
                 accessible-label: @tr("looper-preset");
                 accessible-action-default => { root.preset-open(); }
             }
         }
 
         level-slider := LooperSlider {
-            label-width: preset-label.width;
+            x: root.cell-x(3);
+            y: root.cell-y(3);
+            width: root.cell-w;
             label: @tr("looper-level");
             value: root.looper.mix;
             value-changed(v) => { root.mix-changed(v); }
         }
 
         decay-slider := LooperSlider {
-            label-width: preset-label.width;
+            x: root.cell-x(4);
+            y: root.cell-y(4);
+            width: root.cell-w;
             label: @tr("looper-decay");
             value: root.looper.decay;
             value-changed(v) => { root.decay-changed(v); }
         }
 
-        HorizontalLayout {
-            height: 28px;
-            spacing: 12px;
+        speed-seg := LooperSegmented {
+            x: root.cell-x(5);
+            y: root.cell-y(5);
+            width: root.cell-w;
+            label: @tr("looper-speed");
+            options: ["½×", "1×", "2×"];
+            selected-index: root.looper.speed_index;
+            picked(i) => { root.speed-picked(i); }
+        }
 
-            speed-seg := LooperSegmented {
-                label-width: preset-label.width;
-                label: @tr("looper-speed");
-                options: ["½×", "1×", "2×"];
-                selected-index: root.looper.speed_index;
-                picked(i) => { root.speed-picked(i); }
+        Rectangle {
+            x: root.cell-x(6);
+            y: root.cell-y(6);
+            width: root.cell-w;
+            height: root.field-h;
+
+            FieldCaption {
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: 22px;
+                text: @tr("looper-reverse");
             }
 
-            Rectangle {
-                // Follows the (translated) label.
-                width: max(132px, reverse-label.preferred-width + 20px);
-                border-radius: 6px;
-                border-width: 1px;
-                border-color: root.looper.reverse ? #6e8aff : Theme.palette.border;
-                background: root.looper.reverse ? #6e8aff28 : transparent;
-
-                reverse-label := Text {
-                    text: @tr("looper-reverse");
-                    color: root.looper.reverse
-                        ? Theme.palette.text-primary
-                        : Theme.palette.text-muted;
-                    font-size: Theme.min-font;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.reverse-toggled(!root.looper.reverse); }
-                }
-
-                accessible-role: checkbox;
-                accessible-label: @tr("looper-reverse");
-                accessible-checked: root.looper.reverse;
+            ToggleSwitch {
+                x: 0;
+                y: 28px + 6px;
+                on: root.looper.reverse;
+                label: @tr("looper-reverse");
+                off-track: Theme.field-line;
+                toggled => { root.reverse-toggled(!root.looper.reverse); }
             }
         }
     }

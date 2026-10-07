@@ -108,7 +108,7 @@ export component DesktopMain inherits Rectangle {
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
-    background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
+    background: root.show-project-launcher ? Theme.hero-bg : Theme.palette.background-gradient;
 
     if root.show-project-launcher : ProjectLauncherPage {
         width: parent.width;
@@ -289,7 +289,7 @@ export component DesktopMain inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            background: #0405068a;
+            background: Theme.scrim;
 
             TouchArea {
                 x: 0px;
@@ -302,8 +302,8 @@ export component DesktopMain inherits Rectangle {
             PluginInfoPanel {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
-                width: Math.min(480px, parent.width - 32px);
-                height: Math.min(560px, parent.height - 32px);
+                width: Math.min(760px, parent.width - 32px);
+                height: Math.min(self.content-height, parent.height - 32px);
                 screenshot: OverlayBridge.plugin-info-data.screenshot;
                 has-screenshot: OverlayBridge.plugin-info-data.has-screenshot;
                 plugin-name: OverlayBridge.plugin-info-data.plugin-name;

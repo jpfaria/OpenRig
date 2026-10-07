@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::appearance::Appearance;
 use crate::asset_paths::AssetPaths;
 use crate::crash_reporting_config::CrashReportingConfig;
 use crate::drums_config::DrumsConfig;
@@ -43,6 +44,10 @@ pub struct AppConfig {
     /// locale.
     #[serde(default)]
     pub language: Option<String>,
+    /// #398: light/dark scheme of the interface. `system` (the default)
+    /// follows the operating system.
+    #[serde(default)]
+    pub appearance: Appearance,
     /// Per-machine MIDI device selection (#513). Empty list = none seen
     /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
     #[serde(default)]

@@ -87,10 +87,10 @@ fn power_is_the_only_transport_switch_and_fill_fires_while_playing() {
     bridge.on_fill(move || f.set(f.get() + 1));
 
     assert_eq!(count(&w, FOOTSWITCH), 1, "FILL is the only footswitch");
-    assert!(click(&w, "PowerFootSwitch::ta", 0));
+    assert!(click(&w, "PillSwitch::ta", 0));
     assert_eq!(*powered.borrow(), vec![true], "POWER while silent plays");
     bridge.set_playing(true);
-    assert!(click(&w, "PowerFootSwitch::ta", 0));
+    assert!(click(&w, "PillSwitch::ta", 0));
     assert_eq!(
         *powered.borrow(),
         vec![true, false],
@@ -182,7 +182,7 @@ fn the_compact_view_has_no_drums_section() {
     w.show().unwrap();
 
     assert_eq!(count(&w, "CompactChainSections::drums-toggle"), 0);
-    assert_eq!(count(&w, "PowerFootSwitch::ta"), 0);
+    assert_eq!(count(&w, "DrumsPanel::power"), 0);
 }
 
 #[test]

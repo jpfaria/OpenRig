@@ -8,9 +8,9 @@ export component UpdateButton inherits Rectangle {
     width: row.preferred-width;
     height: 26px;
     border-radius: 4px;
-    background: touch.pressed ? #1273d6 : touch.has-hover ? #2a98ff : #188cff;
+    background: touch.pressed ? Theme.accent.darker(0.15) : touch.has-hover ? Theme.accent.brighter(0.1) : Theme.accent;
     border-width: 1px;
-    border-color: #45a7ff;
+    border-color: Theme.accent;
     accessible-role: button;
     accessible-label: @tr("btn-update-to {}", root.latest-version);
     accessible-action-default => { root.clicked(); }
@@ -26,12 +26,12 @@ export component UpdateButton inherits Rectangle {
             height: 16px;
             y: (parent.height - self.height) / 2;
             source: @image-url("../assets/arrow-down.svg");
-            colorize: #f4f7fb;
+            colorize: Theme.on-accent;
         }
 
         Text {
             text: @tr("btn-update-to {}", root.latest-version);
-            color: #f4f7fb;
+            color: Theme.on-accent;
             font-size: Theme.min-font;
             font-weight: 600;
             vertical-alignment: center;

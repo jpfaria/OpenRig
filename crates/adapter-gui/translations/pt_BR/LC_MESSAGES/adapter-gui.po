@@ -231,7 +231,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "Mixer"
+msgstr "Mix"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1288,3 +1288,108 @@ msgstr "Buscar"
 
 msgid "status-drums-no-match"
 msgstr "Nada encontrado"
+
+msgid "tooltip-move-chain-up"
+msgstr "Mover chain para cima"
+
+msgid "tooltip-move-chain-down"
+msgstr "Mover chain para baixo"
+
+msgid "accessible-chain-power"
+msgstr "Ligar ou desligar a chain"
+
+msgid "compact-block-power"
+msgstr "Ligar ou desligar o bloco"
+
+msgid "compact-block-remove"
+msgstr "Remover bloco"
+
+msgid "block-editor-power"
+msgstr "Ligar ou desligar o bloco"
+
+msgid "block-editor-info"
+msgstr "Informações"
+
+msgid "block-editor-remove"
+msgstr "Remover bloco"
+
+msgid "block-editor-save"
+msgstr "Adicionar bloco"
+
+msgid "label-mixer-chain"
+msgstr "CHAIN"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} BANDAS"
+
+msgid "label-count-in-on"
+msgstr "1 COMPASSO"
+
+msgid "label-count-in-off"
+msgstr "DESL."
+
+msgid "title-settings"
+msgstr "Configurações"
+
+msgid "label-device-channels {} {}"
+msgstr "{} entradas · {} saídas"
+
+msgid "help-buffer-latency"
+msgstr "Latência por bloco de áudio"
+
+msgid "btn-refresh-devices"
+msgstr "Atualizar"
+
+msgid "empty-no-midi-devices"
+msgstr "Nenhum dispositivo MIDI encontrado"
+
+msgid "placeholder-midi-alias"
+msgstr "Apelido"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · Canais {}"
+
+msgid "btn-edit"
+msgstr "Editar"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "CAMINHOS"
+
+msgid "title-add-block"
+msgstr "Adicionar bloco"
+
+msgid "di-source-label"
+msgstr "Fonte"
+
+msgid "title-section-appearance"
+msgstr "Aparência"
+
+msgid "label-theme"
+msgstr "Tema"
+
+msgid "appearance-system"
+msgstr "Sistema"
+
+msgid "appearance-light"
+msgstr "Claro"
+
+msgid "appearance-dark"
+msgstr "Escuro"

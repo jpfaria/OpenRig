@@ -197,6 +197,7 @@ pub(crate) fn wire_plugin_info_close(
             {
                 crate::Locale::get(&info_win)
                     .set_font_family(crate::i18n::font_for_persisted_runtime().into());
+                crate::settings::appearance_followers::follow(&info_win);
             }
 
             info_win.set_plugin_name(display_name.into());

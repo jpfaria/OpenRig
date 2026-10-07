@@ -1180,3 +1180,108 @@ msgstr ""
 
 msgid "status-drums-no-match"
 msgstr ""
+
+msgid "tooltip-move-chain-up"
+msgstr ""
+
+msgid "tooltip-move-chain-down"
+msgstr ""
+
+msgid "accessible-chain-power"
+msgstr ""
+
+msgid "compact-block-power"
+msgstr ""
+
+msgid "compact-block-remove"
+msgstr ""
+
+msgid "block-editor-power"
+msgstr ""
+
+msgid "block-editor-info"
+msgstr ""
+
+msgid "block-editor-remove"
+msgstr ""
+
+msgid "block-editor-save"
+msgstr ""
+
+msgid "label-mixer-chain"
+msgstr ""
+
+msgid "label-power"
+msgstr ""
+
+msgid "label-spectrum-bands"
+msgstr ""
+
+msgid "label-count-in-on"
+msgstr ""
+
+msgid "label-count-in-off"
+msgstr ""
+
+msgid "title-settings"
+msgstr ""
+
+msgid "label-device-channels {} {}"
+msgstr ""
+
+msgid "help-buffer-latency"
+msgstr ""
+
+msgid "btn-refresh-devices"
+msgstr ""
+
+msgid "empty-no-midi-devices"
+msgstr ""
+
+msgid "placeholder-midi-alias"
+msgstr ""
+
+msgid "label-endpoint-summary {} {}"
+msgstr ""
+
+msgid "btn-edit"
+msgstr ""
+
+msgid "label-count-in {}"
+msgstr ""
+
+msgid "label-count-out {}"
+msgstr ""
+
+msgid "label-pill-in {}"
+msgstr ""
+
+msgid "label-pill-out {}"
+msgstr ""
+
+msgid "label-endpoint-count {}"
+msgstr ""
+
+msgid "label-split-paths"
+msgstr ""
+
+msgid "title-add-block"
+msgstr ""
+
+msgid "di-source-label"
+msgstr ""
+
+msgid "title-section-appearance"
+msgstr ""
+
+msgid "label-theme"
+msgstr ""
+
+msgid "appearance-system"
+msgstr ""
+
+msgid "appearance-light"
+msgstr ""
+
+msgid "appearance-dark"
+msgstr ""

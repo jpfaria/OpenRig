@@ -4,8 +4,17 @@
 // configured `presets_path` (the adapter resolves the full path).
 // A second overlay (rendered by AppWindow) asks for overwrite
 // confirmation when the chosen name collides with an existing file.
+//
+// #398: the dialog card — the dark bar, the name field, Cancel and the primary
+// save; the overwrite step keeps the name and adds a warning box above
+// Cancel / Overwrite.
 
-import { LineEdit } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { DialogCard } from "dialog_card.slint";
+import { DialogFoot } from "dialog_foot.slint";
+import { ToolBar } from "tool_bar.slint";
+import { TextField } from "text_field.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
 
 export component PresetSaveOverlay inherits Rectangle {
     in property <bool> visible-overlay;
@@ -15,78 +24,43 @@ export component PresetSaveOverlay inherits Rectangle {
     callback cancel();
 
     visible: root.visible-overlay;
-    background: #000000b0;
 
-    if root.visible-overlay: Rectangle {
-        x: (root.width - self.width) / 2;
-        y: (root.height - self.height) / 2;
-        width: min(root.width * 0.7, 420px);
-        height: max(200px, save-col.preferred-height);
-        background: #1e1f22;
-        border-radius: 10px;
-        drop-shadow-blur: 16px;
-        drop-shadow-offset-y: 4px;
-        drop-shadow-color: #000000c0;
+    if root.visible-overlay: DialogCard {
+        width: root.width;
+        height: root.height;
+        card-width: 460px;
         // Issue #510 bug fix: focus the name field when the overlay
         // appears so the user can type immediately. Without this the
-        // LineEdit waits for an extra click before accepting keys.
-        init => { name-edit.focus(); }
+        // field waits for an extra click before accepting keys.
+        init => { name-edit.focus-field(); }
 
-        save-col := VerticalLayout {
-            padding: 20px;
-            spacing: 12px;
-            Text {
-                text: @tr("title-dialog-save-preset");
-                font-size: 18px;
-                color: #ffffff;
-                font-weight: 700;
-                horizontal-alignment: center;
-            }
-            name-edit := LineEdit {
+        ToolBar { title: @tr("title-dialog-save-preset"); }
+
+        VerticalLayout {
+            padding: 18px;
+            name-edit := TextField {
                 text <=> root.name-input;
-                placeholder-text: root.default-name;
+                placeholder: root.default-name;
                 accepted(t) => {
                     root.request-save(t == "" ? root.default-name : t);
                 }
             }
-            HorizontalLayout {
-                spacing: 8px;
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 40px;
-                    border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
-                    cancel-area := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.cancel(); }
-                    }
-                    Text {
-                        text: @tr("btn-cancel");
-                        font-size: 18px;
-                        color: #aaaaaa;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                }
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 40px;
-                    border-radius: 6px;
-                    background: confirm-area.has-hover ? #2c6cd0 : #3c7ded;
-                    confirm-area := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.request-save(root.name-input == "" ? root.default-name : root.name-input);
-                        }
-                    }
-                    Text {
-                        text: @tr("btn-save");
-                        font-size: 18px;
-                        color: #ffffff;
-                        font-weight: 700;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
+        }
+
+        DialogFoot {
+            cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
+                label: @tr("btn-cancel");
+                clicked => { root.cancel(); }
+            }
+            confirm-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/save.svg");
+                kind: FormButtonKind.primary;
+                label: @tr("btn-save");
+                clicked => {
+                    root.request-save(root.name-input == "" ? root.default-name : root.name-input);
                 }
             }
         }
@@ -100,74 +74,63 @@ export component PresetOverwriteOverlay inherits Rectangle {
     callback confirm();
 
     visible: root.visible-overlay;
-    background: #000000b0;
 
-    if root.visible-overlay: Rectangle {
-        x: (root.width - self.width) / 2;
-        y: (root.height - self.height) / 2;
-        width: min(root.width * 0.7, 420px);
-        // Grows with the (wrapped) message.
-        height: max(170px, overwrite-col.preferred-height);
-        background: #1e1f22;
-        border-radius: 10px;
-        drop-shadow-blur: 16px;
-        drop-shadow-offset-y: 4px;
-        drop-shadow-color: #000000c0;
+    if root.visible-overlay: DialogCard {
+        width: root.width;
+        height: root.height;
+        card-width: 460px;
 
-        overwrite-col := VerticalLayout {
-            padding: 20px;
-            spacing: 12px;
-            Text {
-                text: @tr("title-dialog-overwrite-preset");
-                font-size: 18px;
-                color: #ffffff;
-                font-weight: 700;
-                horizontal-alignment: center;
+        ToolBar { title: @tr("title-dialog-save-preset"); }
+
+        VerticalLayout {
+            padding: 18px;
+            spacing: 14px;
+
+            TextField {
+                text: root.preset-name;
+                read-only: true;
             }
-            Text {
-                text: @tr("msg-overwrite-preset", root.preset-name);
-                font-size: 18px;
-                color: #aaaaaa;
-                horizontal-alignment: center;
-                wrap: word-wrap;
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 40px;
-                    border-radius: 6px;
-                    background: cancel-area.has-hover ? #444 : #2d2e32;
-                    cancel-area := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.cancel(); }
-                    }
+
+            // The warning: a warm box with an amber edge.
+            Rectangle {
+                background: Theme.warn-soft;
+                border-radius: 4px;
+                height: warn-col.preferred-height;
+
+                Rectangle { x: 0; y: 0; width: 3px; height: parent.height; background: Theme.warn; }
+
+                warn-col := VerticalLayout {
+                    padding: 12px;
+                    padding-left: 15px;
+                    spacing: 4px;
                     Text {
-                        text: @tr("btn-cancel");
-                        font-size: 18px;
-                        color: #aaaaaa;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                }
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 40px;
-                    border-radius: 6px;
-                    background: confirm-area.has-hover ? #c0392b : #e74c3c;
-                    confirm-area := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.confirm(); }
-                    }
-                    Text {
-                        text: @tr("btn-overwrite");
-                        font-size: 18px;
-                        color: #ffffff;
+                        text: @tr("title-dialog-overwrite-preset");
+                        color: Theme.ink;
+                        font-size: Theme.min-font;
                         font-weight: 700;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: @tr("msg-overwrite-preset", root.preset-name);
+                        color: Theme.ink-2;
+                        font-size: Theme.min-font;
+                        wrap: word-wrap;
                     }
                 }
+            }
+        }
+
+        DialogFoot {
+            cancel-area := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
+                label: @tr("btn-cancel");
+                clicked => { root.cancel(); }
+            }
+            confirm-area := FormButton {
+                kind: FormButtonKind.primary;
+                label: @tr("btn-overwrite");
+                clicked => { root.confirm(); }
             }
         }
     }

@@ -105,7 +105,8 @@ pub fn wire(
                 crate::i18n::apply_bundled_translation(lang.as_deref());
                 // Swap default-font-family on the Slint side so CJK/Devanagari
                 // glyphs render against a face that actually contains them
-                // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
+                // (Barlow and Bebas Neue are Latin-only and produce tofu □□ in
+                // ja/zh/ko/hi).
                 let new_locale_for_font = locale_for_runtime(lang.as_deref());
                 let new_font = font_family_for_locale(&new_locale_for_font);
                 eprintln!(

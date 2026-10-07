@@ -86,7 +86,8 @@ use application::command_schema::command_variant_names;
 /// `DeletePlayerTrack` — the trash on the user's own tracks. The drum machine
 /// adds its ten `DrumsCommand` leaves (play, stop, toggle, enable, kit, groove,
 /// fill, volume, output) — the drums follow the project tempo (#1050).
-const COMMAND_VARIANT_COUNT: usize = 137;
+/// #398 bumped to 138 with `SetAppearance` — the light/dark scheme.
+const COMMAND_VARIANT_COUNT: usize = 138;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

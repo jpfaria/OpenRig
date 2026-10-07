@@ -1,0 +1,76 @@
+// Responsibility: renders a text button of a form or dialog.
+// #398: one flat button vocabulary for every form. `normal` is a field-coloured
+// button with a hairline, `primary` the accent action (Apply, Add), `ghost` a
+// quiet secondary action (Reset) and `danger` the destructive confirm.
+import { Theme, Gear } from "../theme.slint";
+import { IconTooltip } from "icon_tooltip.slint";
+
+export enum FormButtonKind { normal, primary, ghost, danger }
+
+export component FormButton inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    in property <FormButtonKind> kind: FormButtonKind.normal;
+    in property <bool> small: false;
+    in property <bool> enabled: true;
+    // An action its icon says alone (save, delete, add, close): a square with
+    // the icon, its name shown on hover and kept for screen readers (#398).
+    in property <bool> icon-only: false;
+    callback clicked();
+
+    private property <color> ink: root.kind == FormButtonKind.primary ? Theme.on-accent
+        : root.kind == FormButtonKind.danger ? Gear.white
+        : root.kind == FormButtonKind.ghost ? Theme.ink-2
+        : Theme.ink;
+
+    height: root.small ? 28px : 34px;
+    min-width: root.icon-only ? root.height : row.preferred-width;
+    max-width: root.icon-only ? root.height : 100000px;
+    border-radius: 4px;
+    opacity: root.enabled ? 1.0 : 0.45;
+    background: root.kind == FormButtonKind.primary ? (ta.has-hover && root.enabled ? Theme.accent.brighter(0.08) : Theme.accent)
+        : root.kind == FormButtonKind.danger ? Theme.bad
+        : root.kind == FormButtonKind.ghost ? (ta.has-hover && root.enabled ? Theme.hover : transparent)
+        : (ta.has-hover && root.enabled ? Theme.panel-hi : Theme.field);
+    border-width: root.kind == FormButtonKind.normal ? 1px : 0;
+    border-color: Theme.hair;
+
+    row := HorizontalLayout {
+        padding-left: root.icon-only ? 0px : root.small ? 10px : 14px;
+        padding-right: root.icon-only ? 0px : root.small ? 10px : 14px;
+        spacing: 7px;
+        alignment: center;
+
+        if root.icon.width > 0 : VerticalLayout {
+            alignment: center;
+            Image {
+                width: 16px;
+                height: 16px;
+                source: root.icon;
+                colorize: root.ink;
+            }
+        }
+
+        if !root.icon-only : Text {
+            text: root.label;
+            color: root.ink;
+            font-size: Theme.min-font;
+            font-weight: 600;
+            letter-spacing: 0.04 * Theme.min-font;
+            vertical-alignment: center;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+        clicked => { root.clicked(); }
+    }
+
+    IconTooltip { text: root.label; show: ta.has-hover && root.icon-only; prefer-above: true; }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.clicked(); }
+}

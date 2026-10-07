@@ -6,7 +6,7 @@ use slint::{ModelRc, SharedString, VecModel};
 use crate::metronome_controls_wiring::refresh_metronome_outputs;
 use crate::metronome_view::resolve_output_endpoint;
 use crate::player_category_view::{category_tabs, selected_category, tracks_in};
-use crate::player_view::{loop_label, semitones_label, speed_label, time_label, track_name};
+use crate::player_view::{format_clock, loop_label, semitones_label, speed_label, track_name};
 use crate::player_wiring::PlayerCtx;
 use crate::PlayerTrackRow;
 
@@ -53,14 +53,16 @@ pub(crate) fn render_snapshot(ctx: &PlayerCtx) {
 /// means nothing is playing.
 pub(crate) fn render_reading(ctx: &PlayerCtx) {
     let reading = ctx.live.player().unwrap_or_default();
-    let label = time_label(reading.position_seconds, reading.duration_seconds);
+    let position = format_clock(reading.position_seconds);
+    let duration = format_clock(reading.duration_seconds);
     ctx.for_each_bridge(|bridge| {
         bridge.set_playing(reading.playing);
         bridge.set_loading(reading.loading);
         bridge.set_failed(reading.failed);
         bridge.set_position(reading.position_seconds as f32);
         bridge.set_duration(reading.duration_seconds as f32);
-        bridge.set_time_label(SharedString::from(label.as_str()));
+        bridge.set_position_label(SharedString::from(position.as_str()));
+        bridge.set_duration_label(SharedString::from(duration.as_str()));
     });
 }
 

@@ -137,7 +137,10 @@ pub fn start_meter_polling(
             let mut streams = build_streams_from_taps(taps.as_ref(), cid, RING_CAPACITY);
             // #1074: one level per output, off the same labels the rows use.
             if let Some(chain) = project.chains.iter().find(|c| c.id == *cid) {
-                let labels = project_stream_labels(chain, &session.io_bindings.borrow());
+                let labels = engine::stream_io_labels::chain_stream_io_labels(
+                    chain,
+                    &session.io_bindings.borrow(),
+                );
                 attach_route_meters(taps.as_ref(), cid, &labels, &mut streams);
             }
             streams
@@ -234,8 +237,12 @@ fn refresh_chain_meter_row(
         .map(|(_, streams)| streams.clone())
         .unwrap_or_default();
     let project_streams = project_stream_count(&project.chains[idx], &session.io_bindings.borrow());
-    // #928: the E/S names ride the same rows, from the same segment map.
-    let stream_labels = project_stream_labels(&project.chains[idx], &session.io_bindings.borrow());
+    // The rows name the interfaces from the device snapshot, never enumerating.
+    let stream_labels = project_stream_labels(
+        &project.chains[idx],
+        &session.io_bindings.borrow(),
+        &crate::device_refresh_list::cached_devices(),
+    );
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
     // so the `enabled` flag — not just the resolved count — gates the

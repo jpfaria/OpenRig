@@ -1,0 +1,49 @@
+// Responsibility: renders a framed list of rows.
+// #398: rows sit on the field colour inside one hairline frame, each divided
+// from the one above by a faint line; a chosen row is tinted with an accent
+// edge. `ListBox` is the frame, `ListRow` one row.
+import { Theme } from "../theme.slint";
+
+export component ListBox inherits Rectangle {
+    border-radius: 4px;
+    clip: true;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: Theme.hair;
+
+    VerticalLayout {
+        padding: 1px;
+        @children
+    }
+}
+
+export component ListRow inherits Rectangle {
+    // False on the first row: it has no divider above it.
+    in property <bool> divided: true;
+    in property <bool> on: false;
+
+    min-height: 44px;
+    background: root.on ? Theme.accent-soft : transparent;
+
+    if root.divided : Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 1px;
+        background: Theme.hair-2;
+    }
+
+    if root.on : Rectangle {
+        x: 0; y: 0;
+        width: 3px; height: parent.height;
+        background: Theme.accent;
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        spacing: 10px;
+        alignment: stretch;
+        @children
+    }
+}

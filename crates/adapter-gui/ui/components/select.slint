@@ -10,9 +10,14 @@
 // `opened` (publish the full list) and `query-changed` (republish filtered) to
 // its own small global, mirroring `PresetPicker`. `picked(key)` reports the
 // chosen option's stable key.
+//
+// #398: the field is the form's select box (field colour, thin outline, a small
+// chevron); the dropdown is a panel card whose active row is the accent tint.
 
 import { Theme } from "../theme.slint";
 import { SelectOption } from "../models.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 export component Select inherits Rectangle {
     // ── data ──────────────────────────────────────────────────────────
@@ -27,7 +32,7 @@ export component Select inherits Rectangle {
     in property <string> search-placeholder;
     in property <string> empty-text;            // "no results" row
     in property <length> field-font-size: 18px;
-    in property <int> field-font-weight: 800;
+    in property <int> field-font-weight: 500;
 
     // ── popup ─────────────────────────────────────────────────────────
     in-out property <string> search;
@@ -46,12 +51,11 @@ export component Select inherits Rectangle {
         root.options.length > 0 ? root.options.length * root.row-height : root.row-height;
     private property <bool> has-icon: root.field-icon.width > 0;
 
-    height: 38px;
-    border-radius: 6px;
-    background: #0a0d12;
+    height: 32px;
+    border-radius: 3px;
+    background: Theme.field;
     border-width: 1px;
-    border-color: ta.has-hover ? #4d5868 : #2b3340;
-    animate border-color { duration: 150ms; }
+    border-color: ta.has-hover ? Theme.ink-3 : Theme.field-line;
 
     if root.has-icon : Image {
         x: 10px;
@@ -60,28 +64,28 @@ export component Select inherits Rectangle {
         height: 16px;
         source: root.field-icon;
         image-fit: contain;
-        colorize: root.field-icon-active ? #6e8aff : #8a94a2;
+        colorize: root.field-icon-active ? Theme.accent : Theme.ink-2;
     }
 
     Text {
-        x: root.has-icon ? 34px : 14px;
-        width: parent.width - (root.has-icon ? 34px : 14px) - 30px;
+        x: root.has-icon ? 32px : 10px;
+        width: parent.width - (root.has-icon ? 32px : 10px) - 28px;
         height: parent.height;
         text: root.field-label != "" ? root.field-label : root.placeholder;
-        color: root.field-label != "" ? #f1f4f8 : #6a6a82;
+        color: root.field-label != "" ? Theme.ink : Theme.ink-3;
         font-size: root.field-font-size;
         font-weight: root.field-font-weight;
         vertical-alignment: center;
         overflow: elide;
     }
     Image {
-        x: parent.width - 30px;
-        y: (parent.height - 16px) / 2;
-        width: 16px;
-        height: 16px;
-        source: @image-url("../assets/arrow-down.svg");
+        x: parent.width - 21px;
+        y: (parent.height - 11px) / 2;
+        width: 11px;
+        height: 11px;
+        source: @image-url("../assets/chevron-down.svg");
         image-fit: contain;
-        colorize: ta.has-hover ? #ffffff : #8a94a2;
+        colorize: Theme.ink-3;
     }
 
     ta := TouchArea {
@@ -97,20 +101,22 @@ export component Select inherits Rectangle {
 
     pop := PopupWindow {
         x: root.popup-x;
-        y: root.height + 4px;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
         width: root.popup-width;
-        height: min(root.header-height + root.list-height + 8px, root.max-popup-height);
+        height: OverlayPlacement.fit(min(root.header-height + root.list-height + 8px, root.max-popup-height), WindowBounds.height);
         close-policy: close-on-click-outside;
 
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #0a0d12;
+            background: Theme.panel;
             border-width: 1px;
-            border-color: #2b3340;
+            border-color: Theme.hair;
             border-radius: 6px;
             drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
+            drop-shadow-color: Theme.shadow;
             drop-shadow-offset-y: 6px;
             clip: true;
 
@@ -120,10 +126,10 @@ export component Select inherits Rectangle {
                 y: 6px;
                 width: parent.width - 12px;
                 height: 40px;
-                background: #15191f;
+                background: Theme.field;
                 border-width: 1px;
-                border-color: #2b3340;
-                border-radius: 6px;
+                border-color: Theme.field-line;
+                border-radius: 3px;
 
                 Image {
                     x: 10px;
@@ -131,7 +137,7 @@ export component Select inherits Rectangle {
                     width: 16px;
                     height: 16px;
                     source: @image-url("../modules/surrealism-ui/icons/search.svg");
-                    colorize: #6a6a82;
+                    colorize: Theme.ink-3;
                 }
 
                 input := TextInput {
@@ -140,7 +146,7 @@ export component Select inherits Rectangle {
                     width: parent.width - 30px - (root.search == "" ? 8px : 28px);
                     height: parent.height;
                     text <=> root.search;
-                    color: #d8e0ff;
+                    color: Theme.ink;
                     font-size: Theme.min-font;
                     horizontal-alignment: left;
                     vertical-alignment: center;
@@ -156,7 +162,7 @@ export component Select inherits Rectangle {
                     width: parent.width - 38px;
                     height: parent.height;
                     text: root.search-placeholder;
-                    color: #6a6a82;
+                    color: Theme.ink-3;
                     font-size: Theme.min-font;
                     vertical-alignment: center;
                 }
@@ -177,7 +183,7 @@ export component Select inherits Rectangle {
                         width: 12px;
                         height: 12px;
                         source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                        colorize: #8a8aa2;
+                        colorize: Theme.ink-2;
                     }
                 }
             }
@@ -189,7 +195,7 @@ export component Select inherits Rectangle {
                 width: parent.width;
                 height: 36px;
                 text: root.empty-text;
-                color: #6a6a82;
+                color: Theme.ink-3;
                 font-size: Theme.min-font;
                 vertical-alignment: center;
                 horizontal-alignment: center;
@@ -201,26 +207,26 @@ export component Select inherits Rectangle {
                 y: root.header-height;
                 width: parent.width;
                 height: parent.height - root.header-height - 4px;
-                viewport-width: self.width;
-                viewport-height: root.options.length * root.row-height + 4px;
+                content-width: self.width;
+                content-height: root.options.length * root.row-height + 4px;
 
                 for opt[i] in root.options : Rectangle {
                     x: 4px;
                     y: i * root.row-height;
                     width: parent.width - 8px;
                     height: root.row-height;
-                    border-radius: 4px;
+                    border-radius: 3px;
                     background: opt.key == root.active-key
-                        ? Theme.palette.accent-end
-                        : (row-ta.has-hover ? #1b2230 : transparent);
+                        ? Theme.accent-soft
+                        : (row-ta.has-hover ? Theme.hover : transparent);
                     Text {
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
                         text: opt.label;
-                        color: #f1f4f8;
+                        color: Theme.ink;
                         font-size: Theme.min-font;
-                        font-weight: opt.key == root.active-key ? 800 : 600;
+                        font-weight: opt.key == root.active-key ? 600 : 500;
                         vertical-alignment: center;
                         overflow: elide;
                     }

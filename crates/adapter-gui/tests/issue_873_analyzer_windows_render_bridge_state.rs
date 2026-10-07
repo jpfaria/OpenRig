@@ -35,6 +35,7 @@ fn a_tuner_row() -> TunerRow {
         cents: 1.78,
         frequency: 98.1,
         active: true,
+        in_tune: true,
     }
 }
 

@@ -1,0 +1,37 @@
+// Responsibility: renders a small text button sitting on a dark bar.
+// #398: a dark field with a hairline ring on the chrome ("Close" on a dialog's
+// bar), so it reads as part of the bar instead of a light form button.
+import { Theme } from "../theme.slint";
+
+export component BarButton inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    height: 28px;
+    min-width: label-text.preferred-width + 24px;
+    border-radius: 4px;
+    background: ta.has-hover ? Theme.chrome-2 : Theme.chrome-field;
+    border-width: 1px;
+    border-color: Theme.chrome-field-line;
+
+    label-text := Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: Theme.chrome-fg;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        letter-spacing: 0.04 * Theme.min-font;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+}
