@@ -21,10 +21,18 @@ dictionary). The user knows what the token means and the app does not.
 3. **Create plugins.** Later, the user builds a plugin from scratch in the
    app: pick the captures, define the parameters, write the package.
 
+## Editing in place, with a way back
+
+- An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
+  (plugins folder included).
+- **Recovery:** the first edit keeps the original manifest, so the user can
+  restore the plugin to how it was.
+- **Redo:** the user can ask the app to build the parameters again.
+
 ## Open questions
 
-- Plugins from the plugins folder (the OpenRig-plugins checkout): edit the
-  `manifest.yaml` in place, or save the edit as a user override?
+- What "redo" starts from: the capture names again, or a fresh install from
+  TONE3000?
 
 ## Rules it must follow
 
