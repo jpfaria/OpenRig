@@ -34,6 +34,12 @@ a grid with one row per capture (its original name and its file) and one
 column per parameter (its name, and whether it is a knob or a choice). Every
 cell is editable, and parameters can be added or removed.
 
+## Creating a plugin
+
+A plugin built from scratch is written to the plugins folder, at
+`<paths.plugins_path>/<backend>/<id>/`, with the chosen captures copied into
+the package.
+
 ## Editing in place, with a way back
 
 - An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
