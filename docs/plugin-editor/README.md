@@ -18,6 +18,8 @@ dictionary). The user knows what the token means and the app does not.
 2. **Edit after installing.** Any plugin's parameters can be edited later:
    rename an axis, change it from choice to knob, rename values. This covers
    every plugin, not only TONE3000 ones.
+3. **Create plugins.** Later, the user builds a plugin from scratch in the
+   app: pick the captures, define the parameters, write the package.
 
 ## Open questions
 
