@@ -49,6 +49,10 @@ pub const URI_PATHS: &str = "openrig://paths";
 pub const URI_CHAIN_PRESETS_TEMPLATE: &str = "openrig://chains/{chain}/presets";
 /// #561 (expanded scope): full plugin catalog as JSON.
 pub const URI_PLUGINS: &str = "openrig://plugins";
+/// The plugins the user owns, with origin and saved versions.
+pub const URI_PLUGIN_LIBRARY: &str = "openrig://plugin-library";
+/// One owned plugin's capture grid: `openrig://plugin-library/{id}`.
+pub const URI_PLUGIN_LIBRARY_PREFIX: &str = "openrig://plugin-library/";
 /// #561 (expanded scope): URI template for text search.
 /// Concrete URIs look like `openrig://plugins/search/<query>`.
 /// Matched BEFORE [`URI_PLUGIN_PREFIX`] so `search` is never read
@@ -193,6 +197,20 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_PLUGIN_LIBRARY,
+                "Plugins the user owns (plugins folder, TONE3000): origin, captures, saved versions — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                "openrig://plugin-library/{id}",
+                "One owned plugin's capture grid (replace {id} with a plugin id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_PATHS,
                 "Effective resolved system paths (data root + every configurable directory) — JSON",
             ),
@@ -312,6 +330,10 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
+            URI_PLUGIN_LIBRARY => QueryKind::PluginLibrary,
+            other if other.starts_with(URI_PLUGIN_LIBRARY_PREFIX) => QueryKind::PluginLibraryGrid {
+                plugin_id: other[URI_PLUGIN_LIBRARY_PREFIX.len()..].to_string(),
+            },
             other if other.starts_with(URI_PLUGIN_SEARCH_PREFIX) => QueryKind::FindPlugins {
                 query: other[URI_PLUGIN_SEARCH_PREFIX.len()..].to_string(),
             },
@@ -351,6 +373,10 @@ pub fn uri_for(kind: &QueryKind) -> String {
         }
         QueryKind::ListProjectPresets => URI_PRESETS.to_string(),
         QueryKind::ListPluginCatalog => URI_PLUGINS.to_string(),
+        QueryKind::PluginLibrary => URI_PLUGIN_LIBRARY.to_string(),
+        QueryKind::PluginLibraryGrid { plugin_id } => {
+            format!("{URI_PLUGIN_LIBRARY_PREFIX}{plugin_id}")
+        }
         QueryKind::Paths => URI_PATHS.to_string(),
         QueryKind::ListChainPresets { chain } => {
             format!("openrig://chains/{}/presets", chain.0)

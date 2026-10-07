@@ -34,7 +34,10 @@ pub enum CatalogOpError {
 ///   the call stay valid (the previous slice is leaked, not freed),
 ///   just like [`reload`].
 pub fn unload(id: &str) -> Result<(), CatalogOpError> {
-    let current = packages();
+    // Read and swap under one write lock, so an edit on another thread
+    // never swaps in a slice built from a catalog this one replaced.
+    let mut registry = REGISTRY.write().expect("REGISTRY poisoned");
+    let current: &'static [LoadedPackage] = *registry;
     let Some(entry) = current.iter().find(|p| p.manifest.id == id) else {
         return Err(CatalogOpError::NotFound(id.to_string()));
     };
@@ -44,10 +47,9 @@ pub fn unload(id: &str) -> Result<(), CatalogOpError> {
     let next: Vec<LoadedPackage> = current
         .iter()
         .filter(|p| p.manifest.id != id)
-        .map(|p| (*p).clone())
+        .cloned()
         .collect();
-    let leaked: &'static [LoadedPackage] = Box::leak(next.into_boxed_slice());
-    *REGISTRY.write().expect("REGISTRY poisoned") = leaked;
+    *registry = Box::leak(next.into_boxed_slice());
     Ok(())
 }
 
@@ -62,8 +64,7 @@ pub fn unload(id: &str) -> Result<(), CatalogOpError> {
 /// - Returns [`CatalogOpError::NotFound`] when no package with `id`
 ///   is discoverable under any of the supplied roots.
 pub fn load_one(id: &str, plugins_roots: &[std::path::PathBuf]) -> Result<(), CatalogOpError> {
-    let current = packages();
-    if current.iter().any(|p| p.manifest.id == id) {
+    if packages().iter().any(|p| p.manifest.id == id) {
         return Ok(());
     }
     let mut found: Option<LoadedPackage> = None;
@@ -94,9 +95,15 @@ pub fn load_one(id: &str, plugins_roots: &[std::path::PathBuf]) -> Result<(), Ca
     let Some(new_entry) = found else {
         return Err(CatalogOpError::NotFound(id.to_string()));
     };
-    let mut next: Vec<LoadedPackage> = current.iter().map(|p| (*p).clone()).collect();
+    // The disk scan ran unlocked; the catalog is read again under the
+    // write lock, so a package another thread added meanwhile is kept.
+    let mut registry = REGISTRY.write().expect("REGISTRY poisoned");
+    let current: &'static [LoadedPackage] = *registry;
+    if current.iter().any(|p| p.manifest.id == id) {
+        return Ok(());
+    }
+    let mut next: Vec<LoadedPackage> = current.to_vec();
     next.push(new_entry);
-    let leaked: &'static [LoadedPackage] = Box::leak(next.into_boxed_slice());
-    *REGISTRY.write().expect("REGISTRY poisoned") = leaked;
+    *registry = Box::leak(next.into_boxed_slice());
     Ok(())
 }

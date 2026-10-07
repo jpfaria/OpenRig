@@ -3526,6 +3526,7 @@ dependencies = [
  "block-wah",
  "domain",
  "log",
+ "plugin-loader",
  "project",
  "serde",
  "serde_yaml",

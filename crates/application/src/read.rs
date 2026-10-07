@@ -127,6 +127,16 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         QueryKind::ChainMixer { chain } => {
             crate::query_chain_mixer::chain_mixer_json(ctx.project, ctx.io_bindings, chain)
         }
+        QueryKind::PluginLibrary => Ok(crate::query_plugin_library::plugin_library_json(
+            &ctx.dispatcher.plugin_library_roots(),
+        )),
+        QueryKind::PluginLibraryGrid { plugin_id } => {
+            crate::query_plugin_library::plugin_grid_json(
+                &ctx.dispatcher.plugin_library_roots(),
+                plugin_id,
+            )
+            .map_err(|e| format!("{e:#}"))
+        }
     }
 }
 

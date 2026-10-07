@@ -126,6 +126,9 @@ impl CommandBridge {
             | QueryKind::DrumsState
             | QueryKind::Tone3000State
             | QueryKind::MixerState
+            // The owned plugin folders are a session attachment.
+            | QueryKind::PluginLibrary
+            | QueryKind::PluginLibraryGrid { .. }
             // #1007: needs the frontend's I/O bindings to name the strips.
             | QueryKind::ChainMixer { .. }
             | QueryKind::ChainLatency { .. }

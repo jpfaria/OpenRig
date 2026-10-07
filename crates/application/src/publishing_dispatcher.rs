@@ -193,6 +193,14 @@ impl CommandDispatcher for PublishingDispatcher {
         self.inner.tone3000_snapshot()
     }
 
+    fn attach_plugins_folder(&self, folder: Option<PathBuf>) {
+        self.inner.attach_plugins_folder(folder)
+    }
+
+    fn plugin_library_roots(&self) -> crate::plugin_library::PluginRoots {
+        self.inner.plugin_library_roots()
+    }
+
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
         self.inner.attach_mixer_state(state)
     }

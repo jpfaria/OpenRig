@@ -8,6 +8,7 @@ pub mod api_url;
 pub mod axes;
 pub mod axis_rows;
 pub mod block_type;
+pub mod capture_levels;
 pub mod catalog_tones;
 pub mod convolve;
 pub mod enum_tokens;
