@@ -27,12 +27,10 @@ dictionary). The user knows what the token means and the app does not.
   (plugins folder included).
 - **Recovery:** the first edit keeps the original manifest, so the user can
   restore the plugin to how it was.
-- **Redo:** the user can ask the app to build the parameters again.
-
-## Open questions
-
-- What "redo" starts from: the capture names again, or a fresh install from
-  TONE3000?
+- **Redo:** the user can ask the app to build the parameters again. Redo
+  reads the capture names again. For a plugin from TONE3000 it first checks
+  the tone's `updated_at` and downloads the captures again when TONE3000 has
+  a newer version (the install stores `updated_at` for this).
 
 ## Rules it must follow
 
