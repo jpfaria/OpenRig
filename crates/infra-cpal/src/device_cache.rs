@@ -61,6 +61,8 @@ pub fn invalidate_device_cache() {
     crate::device_config_cache::invalidate();
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     crate::device_lookup::invalidate();
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    crate::device_name_cache::invalidate();
     #[cfg(all(target_os = "linux", feature = "jack"))]
     invalidate_proc_cache();
     log::info!("device descriptor cache invalidated (stale-while-revalidate)");

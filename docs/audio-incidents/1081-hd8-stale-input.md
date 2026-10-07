@@ -82,11 +82,19 @@ audio for about a second.
   (2026-10-05 23:01, 2026-10-06 18:11:36, 18:12:06, 18:12:36 UTC) OpenRig was
   the only process with the HD 8 open. What starts those episodes is unknown.
 - OpenRig's own periodic device scan starts the episodes OpenRig is alone in:
-  **OPEN** — OpenRig enumerates every output device about every 10 s (each
-  pass about 1 s, `infra_cpal::device_enum` in its log), and its audio client
-  logs `AUHAL UpdateStreamFormats` while it does. Not measured against an
-  onset: the marks' 3 s of input start already stale, so the onset is
-  earlier than the mark.
+  **OPEN, strongest candidate** — OpenRig re-reads the device list every
+  10 s (`device_cache`, `DEVICE_CACHE_TTL`) while chains play. Measured
+  2026-10-07 13:07:41 -03:00 in the system log, one scan of 6 output
+  devices: 31 `setPlayState Stopped` from OpenRig's own process, 15 of them on
+  the HD 8 (12 Output, 3 Input), i.e. an IOProc started and stopped on the
+  running HD 8 inside OpenRig's own IO context 15 times per scan, forever.
+  Source: cpal 0.17.3 `Device::description()` calls
+  `supported_input_configs()` and `supported_output_configs()` uncached, and
+  each builds an AUHAL, which attaches to the default output (the HD 8)
+  before it is pointed at the device asked about. Fixed in the scan (see
+  Shipped). Not measured against an onset: the marks' 3 s of input start
+  already stale, so the onset is earlier than the mark; the next weeks
+  without a mark are the evidence.
 - Output-only clients (Spotify) are hit: **OPEN** — they never read the input,
   so they cannot show it; the output path was not measured.
 - The engine is clean again once every client stops the HD 8: **OPEN** — a
@@ -130,6 +138,11 @@ audio for about a second.
 - Every mark keeps the system's audio log of the 5 minutes before it
   (`system-audio-log.txt`, `adapter-gui/src/stepped_input_system_log.rs`), so
   the next episode shows what the system and OpenRig did at the onset.
+
+- Device names are read once per device list (`infra-cpal/src/device_name_cache.rs`):
+  the 10 s scan no longer calls cpal's `description()`, so it no longer
+  starts and stops IOProcs on the HD 8. A hot-plug or a settings save still
+  re-reads them once.
 
 ## Open
 

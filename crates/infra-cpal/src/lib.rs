@@ -26,6 +26,8 @@ mod jack_supervisor;
 mod device_config_cache;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod device_lookup;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_name_cache;
 
 mod host;
 pub use host::audio_backend_name;

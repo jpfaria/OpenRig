@@ -171,7 +171,7 @@ pub(crate) fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescri
             if !is_hardware_device(&id) {
                 continue;
             }
-            let name = device.description()?.name().to_string();
+            let name = crate::device_name_cache::name_of(&device, &id)?;
             if devices
                 .iter()
                 .any(|d: &AudioDeviceDescriptor| d.name == name)
@@ -226,7 +226,7 @@ pub(crate) fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescr
             if !is_hardware_device(&id) {
                 continue;
             }
-            let name = device.description()?.name().to_string();
+            let name = crate::device_name_cache::name_of(&device, &id)?;
             if devices
                 .iter()
                 .any(|d: &AudioDeviceDescriptor| d.name == name)
