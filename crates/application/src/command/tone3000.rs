@@ -35,7 +35,7 @@ pub enum Tone3000Command {
     /// The user's TONE3000 Secret Key (`t3k_cs_…`). Blank clears it.
     SetTone3000ApiKey { key: String },
 
-    /// Remove an installed TONE3000 plugin (`tone3000_*`).
+    /// Remove a TONE3000 plugin from the plugins folder.
     UninstallTone3000 { plugin_id: String },
 
     /// Download an installed tone again, replacing its package in place.
