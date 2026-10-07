@@ -7,6 +7,7 @@ import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { SetupWizardBridge } from "setup_wizard_globals.slint";
 import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, SetupWizardPage, ProjectChainsPage, ChainEditorPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow, MetronomePanel, MetronomeBridge, MixerPanel, MixerBridge, PlayerPanel, PlayerBridge, DrumsPanel, DrumsBridge } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
@@ -23,9 +24,6 @@ export component TouchMain inherits Rectangle {
     in property <string> project-title;
     in-out property <string> project-name-draft;
     in property <bool> show-setup-wizard;
-    in property <int> wizard-step;
-    in property <bool> wizard-step-skippable;
-    in property <bool> wizard-step-last;
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectChainItem]> project-chains;
@@ -50,9 +48,6 @@ export component TouchMain inherits Rectangle {
     callback update-input-buffer-size(int, string);
     callback update-output-sample-rate(int, string);
     callback update-output-buffer-size(int, string);
-    callback wizard-next();
-    callback wizard-back();
-    callback wizard-skip();
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-settings();
@@ -477,14 +472,14 @@ export component TouchMain inherits Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: parent.height;
-        step: root.wizard-step;
-        step-skippable: root.wizard-step-skippable;
-        step-last: root.wizard-step-last;
+        step: SetupWizardBridge.step;
+        step-skippable: SetupWizardBridge.step-skippable;
+        step-last: SetupWizardBridge.step-last;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        next => { root.wizard-next(); }
-        back => { root.wizard-back(); }
-        skip => { root.wizard-skip(); }
+        next => { SetupWizardBridge.next(); }
+        back => { SetupWizardBridge.back(); }
+        skip => { SetupWizardBridge.skip(); }
     }
 }

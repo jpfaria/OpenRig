@@ -5,7 +5,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{audio_saved, show_step, wire, SetupWizardCtx};
-use crate::AppWindow;
+use slint::ComponentHandle;
+
+use crate::{AppWindow, SetupWizardBridge};
+
+fn bridge(window: &AppWindow) -> SetupWizardBridge<'_> {
+    window.global::<SetupWizardBridge>()
+}
 
 fn wired(step: i32) -> AppWindow {
     i_slint_backend_testing::init_no_event_loop();
@@ -25,31 +31,31 @@ fn wired(step: i32) -> AppWindow {
 #[test]
 fn next_on_the_language_step_shows_the_audio_step() {
     let window = wired(0);
-    window.invoke_wizard_next();
-    assert_eq!(window.get_wizard_step(), 1);
-    assert!(!window.get_wizard_step_skippable());
+    bridge(&window).invoke_next();
+    assert_eq!(bridge(&window).get_step(), 1);
+    assert!(!bridge(&window).get_step_skippable());
 }
 
 #[test]
 fn next_on_the_io_step_shows_the_last_step() {
     let window = wired(2);
-    window.invoke_wizard_next();
-    assert_eq!(window.get_wizard_step(), 3);
-    assert!(window.get_wizard_step_last());
-    assert!(window.get_wizard_step_skippable());
+    bridge(&window).invoke_next();
+    assert_eq!(bridge(&window).get_step(), 3);
+    assert!(bridge(&window).get_step_last());
+    assert!(bridge(&window).get_step_skippable());
 }
 
 #[test]
 fn back_on_the_io_step_shows_the_audio_step() {
     let window = wired(2);
-    window.invoke_wizard_back();
-    assert_eq!(window.get_wizard_step(), 1);
+    bridge(&window).invoke_back();
+    assert_eq!(bridge(&window).get_step(), 1);
 }
 
 #[test]
 fn next_on_the_last_step_closes_the_wizard() {
     let window = wired(3);
-    window.invoke_wizard_next();
+    bridge(&window).invoke_next();
     assert!(!window.get_show_setup_wizard());
 }
 
@@ -57,7 +63,7 @@ fn next_on_the_last_step_closes_the_wizard() {
 fn a_successful_audio_save_moves_the_wizard_to_the_io_step() {
     let window = wired(1);
     audio_saved(&window);
-    assert_eq!(window.get_wizard_step(), 2);
+    assert_eq!(bridge(&window).get_step(), 2);
 }
 
 #[test]
@@ -65,5 +71,5 @@ fn an_audio_save_outside_the_wizard_moves_nothing() {
     let window = wired(1);
     window.set_show_setup_wizard(false);
     audio_saved(&window);
-    assert_eq!(window.get_wizard_step(), 1);
+    assert_eq!(bridge(&window).get_step(), 1);
 }

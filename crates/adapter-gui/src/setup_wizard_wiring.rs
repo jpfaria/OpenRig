@@ -11,7 +11,7 @@ use crate::setup_wizard_step::{
     WizardMove,
 };
 use crate::state::ProjectSession;
-use crate::AppWindow;
+use crate::{AppWindow, SetupWizardBridge};
 
 #[path = "setup_wizard_io_persist.rs"]
 mod io_persist;
@@ -28,14 +28,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: SetupWizardCtx) {
         let ctx = Rc::clone(&ctx);
         move || {
             if let Some(window) = weak.upgrade() {
-                let step = window.get_wizard_step();
+                let step = window.global::<SetupWizardBridge>().get_step();
                 apply(&window, &ctx, step, decide(step));
             }
         }
     };
-    window.on_wizard_next(press(on_next));
-    window.on_wizard_back(press(on_back));
-    window.on_wizard_skip(press(on_skip));
+    let bridge = window.global::<SetupWizardBridge>();
+    bridge.on_next(press(on_next));
+    bridge.on_back(press(on_back));
+    bridge.on_skip(press(on_skip));
 }
 
 fn apply(window: &AppWindow, ctx: &SetupWizardCtx, step: i32, mv: WizardMove) {
@@ -58,16 +59,17 @@ pub(crate) fn show_step(window: &AppWindow, step: i32) {
     let Some(current) = SetupStep::from_index(step) else {
         return;
     };
-    window.set_wizard_step(step);
-    window.set_wizard_step_skippable(current.skippable());
-    window.set_wizard_step_last(current.is_last());
+    let bridge = window.global::<SetupWizardBridge>();
+    bridge.set_step(step);
+    bridge.set_step_skippable(current.skippable());
+    bridge.set_step_last(current.is_last());
 }
 
 /// Called after the audio devices were saved: the wizard moves on only when
 /// the save came from its own audio step.
 pub(crate) fn audio_saved(window: &AppWindow) {
-    if let Some(next) = after_audio_saved(window.get_show_setup_wizard(), window.get_wizard_step())
-    {
+    let step = window.global::<SetupWizardBridge>().get_step();
+    if let Some(next) = after_audio_saved(window.get_show_setup_wizard(), step) {
         show_step(window, next);
     }
 }
