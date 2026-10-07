@@ -35,6 +35,7 @@ ignore:
   # had its logic pulled out into a tested module — what remains in them really
   # is registration and window setters.
   - "crates/adapter-gui/src/desktop_app.rs"
+  - "crates/adapter-gui/src/desktop_app_appearance.rs"
   - "crates/adapter-gui/src/desktop_app_language.rs"
   - "crates/adapter-gui/src/desktop_app_mcp.rs"
   - "crates/adapter-gui/src/desktop_app_project_wiring.rs"
@@ -48,7 +49,9 @@ ignore:
   # that IS tested — `recent_projects_wiring` → `recent_project_open` +
   # `recent_project_remove`, `preset_save_wiring` → `preset_save`,
   # `latency_probe` → `latency_probe_run` + `latency_badge_expiry`,
-  # `drums_wiring` → `drums_ctx` + `drums_session`, and so on.
+  # `drums_wiring` → `drums_ctx` + `drums_session`,
+  # `settings/appearance_wiring` → `appearance` + `appearance_pick` (#398),
+  # and so on.
   # What is left in the file is `window.on_x(...)` and window setters. They are
   # here because they meet the criterion above, NOT to move a number: each one
   # earned its place by having its logic taken out first, and the day a body
@@ -73,6 +76,7 @@ ignore:
   - "crates/adapter-gui/src/preset_save_wiring.rs"
   - "crates/adapter-gui/src/project_file_dialog_wiring.rs"
   - "crates/adapter-gui/src/recent_projects_wiring.rs"
+  - "crates/adapter-gui/src/settings/appearance_wiring.rs"
   - "crates/adapter-gui/src/settings/integrations.rs"
   - "crates/adapter-gui/src/spectrum_wiring.rs"
   - "crates/adapter-gui/src/tuner_wiring.rs"

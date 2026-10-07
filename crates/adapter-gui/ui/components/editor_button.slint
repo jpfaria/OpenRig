@@ -25,7 +25,11 @@ export component EditorButton inherits Rectangle {
         : root.on-bar ? Theme.chrome-fg
         : Theme.ink;
 
-    min-width: root.icon-only ? root.height : row.preferred-width;
+    // A labelled button asks for its whole label but, in a row too narrow
+    // for every label, gives way down to an ellipsis instead of pushing the
+    // row's last buttons out of the editor's card.
+    min-width: root.icon-only ? root.height : row.min-width;
+    preferred-width: root.icon-only ? root.height : row.preferred-width;
     max-width: root.icon-only ? root.height : 100000px;
     height: 28px;
     border-radius: 4px;
@@ -64,6 +68,7 @@ export component EditorButton inherits Rectangle {
             font-weight: 600;
             letter-spacing: 0.04 * Theme.min-font;
             vertical-alignment: center;
+            overflow: elide;
         }
     }
 

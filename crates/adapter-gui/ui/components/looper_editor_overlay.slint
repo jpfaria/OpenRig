@@ -48,7 +48,7 @@ export component LooperEditorOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         // Widens for longer (translated) button labels, within the window.
-        width: min(root.width - 80px, max(760px, buttons.min-width + 36px));
+        width: min(root.width - 80px, max(760px, buttons.preferred-width + 36px));
         // Grows with its content (the status line may wrap).
         height: root.bar-h + editor-col.preferred-height;
         background: Theme.panel;
