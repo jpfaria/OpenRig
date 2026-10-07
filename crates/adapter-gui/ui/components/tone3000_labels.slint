@@ -1,0 +1,25 @@
+// Responsibility: translates TONE3000 category keys into the user's language.
+
+export global Tone3000Labels {
+    // TONE3000 gear, API spelling.
+    public pure function gear(key: string) -> string {
+        return key == "amp" ? @tr("label-tone3000-gear-amp")
+            : key == "full-rig" ? @tr("label-tone3000-gear-full-rig")
+            : key == "amp-cab" ? @tr("label-tone3000-gear-amp-cab")
+            : key == "pedal" ? @tr("label-tone3000-gear-pedal")
+            : key == "outboard" ? @tr("label-tone3000-gear-outboard")
+            : key == "ir" ? @tr("label-tone3000-gear-ir")
+            : key == "cab" ? @tr("label-tone3000-gear-cab")
+            : key;
+    }
+
+    // OpenRig block type, manifest spelling.
+    public pure function block(key: string) -> string {
+        return key == "amp" ? @tr("label-tone3000-block-amp")
+            : key == "preamp" ? @tr("label-tone3000-block-preamp")
+            : key == "gain_pedal" ? @tr("label-tone3000-block-gain-pedal")
+            : key == "cab" ? @tr("label-tone3000-block-cab")
+            : key == "body" ? @tr("label-tone3000-block-body")
+            : key;
+    }
+}

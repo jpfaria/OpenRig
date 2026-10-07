@@ -87,6 +87,8 @@ impl Event {
             | Event::MetronomeTapped
             // The backing-track player is its own stream, never a chain.
             | Event::Player(_)
+            // #879: the TONE3000 browser is app-wide.
+            | Event::Tone3000(_)
             | Event::DrumsTransportChanged { .. }
             | Event::DrumFillTriggered
             | Event::DrumsSettingsChanged { .. }

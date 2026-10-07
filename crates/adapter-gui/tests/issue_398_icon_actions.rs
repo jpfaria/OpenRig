@@ -59,10 +59,23 @@ const OBVIOUS: &[&str] = &[
     "looper-editor-undo",
     "looper-editor-redo",
     "looper-editor-close",
+    "btn-wizard-back",
+    "btn-wizard-next",
+    "btn-wizard-finish",
+    "btn-tone3000-uninstall",
+    "btn-tone3000-previous-page",
+    "btn-tone3000-next-page",
 ];
 
 /// Actions no icon says; they keep their words.
 const WORDED: &[&str] = &[
+    "btn-tone3000-uninstall-confirm",
+    "btn-tone3000-key-save",
+    "btn-tone3000-key-clear",
+    "btn-tone3000-open-settings",
+    "btn-tone3000-search",
+    "btn-tone3000-install",
+    "btn-tone3000-retry",
     "btn-overwrite",
     "btn-reset-path",
     "looper-editor-fit",
@@ -72,6 +85,15 @@ const WORDED: &[&str] = &[
     "tone-doctor-diagnose",
     "tone-doctor-diagnosing",
     "tone-doctor-rerun",
+    "btn-wizard-skip",
+    "btn-tone3000-search",
+    "btn-tone3000-install",
+    "btn-tone3000-retry",
+    "btn-tone3000-update",
+    "btn-tone3000-uninstall-confirm",
+    "btn-tone3000-open-settings",
+    "btn-tone3000-key-save",
+    "btn-tone3000-key-clear",
 ];
 
 const BUTTONS: &[&str] = &["FormButton {", "EditorButton {", "PanelActionButton {"];

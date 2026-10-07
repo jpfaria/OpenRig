@@ -10,13 +10,35 @@ page for the working rule.
 > another machine, does this value have to travel with it?"* is **yes**. Otherwise it
 > belongs to **SYSTEM**.
 
-- **System** → `config.yaml` in the per-OS config dir. Belongs to the installation /
-  machine / user.
+- **System** → `config.yaml` at the root of the user folder. Belongs to the
+  installation / machine / user.
 - **Project** → fields inside `project.yaml` (see
   [project format](projects/project-format.md)). Belongs to the rig / setlist
   and travels with the file.
 - **Precedence at load time** → project overrides system on dimensions both can
   describe.
+
+## The user folder
+
+Everything OpenRig writes for a user lives in one folder: `~/.openrig` on macOS
+and Linux, `%APPDATA%\OpenRig` on Windows.
+
+```
+~/.openrig/
+  config.yaml          system config
+  midi-profile.yaml    MIDI device profile
+  midi-bindings.yaml   system-wide MIDI bindings fallback
+  presets/             default presets folder
+  projects/            where the project dialogs open
+  looper-takes/  evaluations/  backing-tracks/  midi-profiles/  tone3000/
+```
+
+On first start the app copies into it every entry of the folders older releases
+used (macOS `~/Library/Application Support/OpenRig`; Linux
+`~/.local/share/openrig` and `~/.config/OpenRig`) that the user folder does not
+hold yet. It never overwrites and never deletes the old folder, and a
+`.legacy-copied` marker keeps it from running twice. A project saved at the root
+of the user folder never writes its sidecar `config.yaml` over the system config.
 
 ## Where each thing lives
 
@@ -33,8 +55,8 @@ page for the working rule.
   `plugins_path` (NAM/IR/LV2 packs),
   `evaluations_path` (tone-analyzer outputs),
   `backing_tracks_path` (the user's own backing tracks). Each defaults to
-  a folder under the OS data root (`~/Library/Application
-  Support/OpenRig`, `%APPDATA%\OpenRig`, `~/.local/share/openrig`)
+  a folder under the user folder (`~/.openrig` on macOS and Linux,
+  `%APPDATA%\OpenRig` on Windows)
   and is machine-local per ADR 0003 — never travels with
   `project.yaml`.
 - `input_devices` / `output_devices` — per-device audio settings: `device_id`,
@@ -67,6 +89,10 @@ page for the working rule.
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists
   on this machine. Strips at unity, unmuted and not soloed are not stored; a missing
   entry means 0 dB, so a config without `mixer` changes nothing.
+- `tone3000` — `api_key`, the user's own TONE3000 Secret Key (`t3k_cs_…`)
+  used by the in-app browser ([tone3000.md](tone3000.md)). Each user brings
+  their own key, so it never travels with `project.yaml`; the UI only shows
+  whether one is set.
 - `crash_reporting` — where this machine sends crash reports: `provider`
   (`sentry` by default, or `none`) and an optional `dsn` that overrides the
   one baked into release builds. See [crash-reporting.md](crash-reporting.md).

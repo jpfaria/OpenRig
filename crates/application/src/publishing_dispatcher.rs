@@ -182,6 +182,17 @@ impl CommandDispatcher for PublishingDispatcher {
         self.inner.drums_library()
     }
 
+    fn attach_tone3000_state(
+        &self,
+        state: Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>,
+    ) {
+        self.inner.attach_tone3000_state(state)
+    }
+
+    fn tone3000_snapshot(&self) -> crate::tone3000_state::Tone3000Snapshot {
+        self.inner.tone3000_snapshot()
+    }
+
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
         self.inner.attach_mixer_state(state)
     }

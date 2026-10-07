@@ -1,0 +1,208 @@
+{
+ "data": [
+  {
+   "id": 476540,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:37.261906+00:00",
+   "updated_at": "2026-05-25T16:47:37.261906+00:00",
+   "name": "CLEAN 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476540/download/bqmrp4542v7_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476538,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:36.383936+00:00",
+   "updated_at": "2026-05-25T16:47:36.383936+00:00",
+   "name": "RHYTHM 4",
+   "model_url": "https://www.tone3000.com/api/v1/models/476538/download/e9p5b5jds7m_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476535,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:35.406746+00:00",
+   "updated_at": "2026-05-25T16:47:35.406746+00:00",
+   "name": "CRUNCH 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476535/download/wx4sqe45j3b_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476533,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:34.608303+00:00",
+   "updated_at": "2026-05-25T16:47:34.608303+00:00",
+   "name": "RHYTHM 5 PLUMES OD",
+   "model_url": "https://www.tone3000.com/api/v1/models/476533/download/vr9ft8yaryi_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476531,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:33.766265+00:00",
+   "updated_at": "2026-05-25T16:47:33.766265+00:00",
+   "name": "RHYTHM 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476531/download/w6uxxqfbadd_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476529,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:33.063868+00:00",
+   "updated_at": "2026-05-25T16:47:33.063868+00:00",
+   "name": "RHYTHM 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476529/download/bof7g4skvu_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476527,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:32.379514+00:00",
+   "updated_at": "2026-05-25T16:47:32.379514+00:00",
+   "name": "CRUNCH 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476527/download/lxipz97n71q_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476525,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:31.583199+00:00",
+   "updated_at": "2026-05-25T16:47:31.583199+00:00",
+   "name": "CRUNCH 3",
+   "model_url": "https://www.tone3000.com/api/v1/models/476525/download/u83qy2kgnq_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476523,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:30.740455+00:00",
+   "updated_at": "2026-05-25T16:47:30.740455+00:00",
+   "name": "RHYTHM 3",
+   "model_url": "https://www.tone3000.com/api/v1/models/476523/download/b3rix0rp46d_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476521,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:29.615819+00:00",
+   "updated_at": "2026-05-25T16:47:29.615819+00:00",
+   "name": "CLEAN 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476521/download/1xhiu20mj6b_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476499,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:20.933658+00:00",
+   "updated_at": "2026-05-25T16:47:20.933658+00:00",
+   "name": "CLEAN 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476499/download/bqmrp4542v7_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476497,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:20.254199+00:00",
+   "updated_at": "2026-05-25T16:47:20.254199+00:00",
+   "name": "RHYTHM 4",
+   "model_url": "https://www.tone3000.com/api/v1/models/476497/download/e9p5b5jds7m_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476495,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:19.503118+00:00",
+   "updated_at": "2026-05-25T16:47:19.503118+00:00",
+   "name": "CRUNCH 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476495/download/wx4sqe45j3b_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476493,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:18.711361+00:00",
+   "updated_at": "2026-05-25T16:47:18.711361+00:00",
+   "name": "RHYTHM 5 PLUMES OD",
+   "model_url": "https://www.tone3000.com/api/v1/models/476493/download/vr9ft8yaryi_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476492,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:17.732977+00:00",
+   "updated_at": "2026-05-25T16:47:17.732977+00:00",
+   "name": "RHYTHM 1",
+   "model_url": "https://www.tone3000.com/api/v1/models/476492/download/w6uxxqfbadd_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476489,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:16.499635+00:00",
+   "updated_at": "2026-05-25T16:47:16.499635+00:00",
+   "name": "RHYTHM 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476489/download/bof7g4skvu_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476487,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:15.694478+00:00",
+   "updated_at": "2026-05-25T16:47:15.694478+00:00",
+   "name": "CRUNCH 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476487/download/lxipz97n71q_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476485,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:15.045905+00:00",
+   "updated_at": "2026-05-25T16:47:15.045905+00:00",
+   "name": "CRUNCH 3",
+   "model_url": "https://www.tone3000.com/api/v1/models/476485/download/u83qy2kgnq_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476483,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:14.10642+00:00",
+   "updated_at": "2026-05-25T16:47:14.10642+00:00",
+   "name": "RHYTHM 3",
+   "model_url": "https://www.tone3000.com/api/v1/models/476483/download/b3rix0rp46d_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  },
+  {
+   "id": 476481,
+   "tone_id": 66606,
+   "created_at": "2026-05-25T16:47:13.212009+00:00",
+   "updated_at": "2026-05-25T16:47:13.212009+00:00",
+   "name": "CLEAN 2",
+   "model_url": "https://www.tone3000.com/api/v1/models/476481/download/1xhiu20mj6b_a2.nam",
+   "size": null,
+   "architecture_version": "2"
+  }
+ ],
+ "page": 1,
+ "page_size": 100,
+ "total": 20,
+ "total_pages": 1
+}

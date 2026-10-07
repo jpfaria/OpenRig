@@ -48,6 +48,12 @@ export global SettingsBridge {
     in-out property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #879: whether a TONE3000 Secret Key is saved. The key itself never
+    // comes back to the UI; "" clears it. Takes effect at once.
+    in-out property <bool> tone3000-key-configured;
+    callback set-tone3000-key(string);
+    // Open the TONE3000 page where the user creates a Secret Key.
+    callback open-tone3000-keys-page();
 
     // ── System / I/O bindings (#716) ─────────────────────────────────────
     // `io-binding-names` feeds the chain-level endpoint picker; the registry

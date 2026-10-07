@@ -11,8 +11,6 @@
 
 mod app_update;
 mod audio_health_tick;
-mod audio_wizard_step;
-mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
@@ -160,6 +158,8 @@ mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod session_dispatch;
 mod settings;
+mod setup_wizard_step;
+mod setup_wizard_wiring;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
@@ -343,6 +343,13 @@ mod midi_selection_mirror;
 pub mod panic_log;
 /// #1060: writes one stream to two sinks.
 pub mod tee_writer;
+mod tone3000_bridge_sync;
+mod tone3000_ctx;
+mod tone3000_intents;
+mod tone3000_links;
+mod tone3000_session;
+mod tone3000_view;
+mod tone3000_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 #[cfg(test)]

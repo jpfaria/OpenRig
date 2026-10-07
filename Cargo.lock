@@ -353,8 +353,11 @@ dependencies = [
  "infra-yaml",
  "ir",
  "log",
+ "nam",
+ "percent-encoding",
  "plugin-loader",
  "project",
+ "realfft",
  "roxmltree",
  "schemars 0.8.22",
  "serde",
@@ -362,6 +365,7 @@ dependencies = [
  "serde_yaml",
  "symphonia",
  "tempfile",
+ "ureq",
  "vst3-host",
 ]
 
