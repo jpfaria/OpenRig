@@ -227,6 +227,7 @@ pub(crate) fn assemble_chain_runtime_state(
         xrun_count: AtomicU64::new(0),
         input_busy_skips: AtomicU64::new(0),
         input_stepped: std::sync::atomic::AtomicBool::new(false),
+        seam_reset: std::sync::atomic::AtomicBool::new(false),
         peak_load_ppm: AtomicU64::new(0),
         // Issue #723 — remember the real build rate so the live probe beep
         // is synthesized at the device rate, never a hardcoded 48000.

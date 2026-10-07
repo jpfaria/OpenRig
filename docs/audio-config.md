@@ -321,8 +321,8 @@ to the steady-state sound:
   frames. The old runtime is released on the control side once no audio thread
   holds it.
 - **New streams fade in over the old ones (cpal).** A structural edit (an IR
-  swapped, a block added) and the stepped-input restart open brand-new streams
-  for the chain. The live set is not dropped when the new one is installed: it
+  swapped, a block added) opens brand-new streams for the chain. The live set
+  is not dropped when the new one is installed: it
   keeps playing while the new set runs unheard for 4096 output frames (its
   cushions, its fade from silence, its cold blocks), then the two crossfade
   over 2048 frames with complementary raised-cosine gains
@@ -330,6 +330,8 @@ to the steady-state sound:
   backend sums them. The old set is closed on the control tick once the new
   one plays alone, or after 2 s if the new one is never heard
   (`retired_streams`). A reverb's tail in the old set ends with its fade.
+  The stepped-input restart is the exception: it closes the old set first
+  (see **Stepped-input detector**).
 - **The DSP worker waits for the swap.** The per-input worker retries
   the processing lock for up to one period, sleeping 20 µs between tries,
   instead of dropping the buffer; the device callback keeps its plain
@@ -1253,22 +1255,36 @@ not move when that happens, so each pipeline watches its own input channels.
 - **Per pipeline** (`runtime_input_seams.rs`). A runtime is marked stepped only
   while one of its own pipelines reads a tripped channel; another chain's
   input never marks it.
-- **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on the 2 s poll tick).
-  A marked chain gets a fresh activation, alone: new streams and a new
-  runtime come up while the old ones keep playing, then crossfade in (see
-  **New streams fade in over the old ones**). On Linux/JACK, whose live swap
-  is not wired, the chain is still switched off and on. After an attempt that
-  chain waits 30 s before the next one; other chains do not wait.
+- **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on the 2 s poll tick;
+  `infra-cpal/src/controller_device_restart.rs`). On cpal the restart is the
+  device's (#1081). coreaudiod runs one IO context per process per device,
+  alive while any of OpenRig's streams on it runs, so a new set opened beside
+  the old one would inherit the broken IO. Every OpenRig stream on the device
+  the stepped input reads is closed — each chain that reads or plays there,
+  the metronome, the player, the drums, the isolated DI and looper outputs —
+  and after 100 ms opened again. The chains reopen on the same runtimes from
+  the device config their streams were resolved against, through the warm-up
+  and fade-in of **New streams fade in over the old ones**; the metronome,
+  player and drums restart cold. Each reopened runtime starts its verdict
+  over, so another chain on that device does not restart it again. A chain
+  on another device is not touched. On Linux/JACK, whose live swap is not
+  wired, the chain is still switched off and on. After an attempt that chain
+  waits 30 s before the next one; other chains do not wait.
 - **Mark on disk** (`adapter-gui/src/stepped_input_mark.rs`). Before every
   restart the evidence is written to `<user data>/incidents/stepped-input/`:
   `input-<k>.wav` (the last seconds of each input stream, every device
   channel), `cycles-<k>.csv` (callback timing), `device-<k>.json` and
   `device-after-<k>.json` (the device at the trip and 3 s after the restart)
-  and `openrig.json` (the open streams and the chain's routes). The last 10
-  marks are kept.
+  `openrig.json` (the open streams and the chain's routes) and, on macOS,
+  `system-audio-log.txt` (the system's audio log of the 5 minutes before: the
+  audio daemon, the drivers and every app's audio client — who started or
+  stopped IO on the device, HAL errors; about 7 MB). The last 10 marks are
+  kept.
 
 The restart is not a fix — it should never be needed, and the mark is there
-to find the cause. On cpal it no longer cuts the sound.
+to find the cause. On cpal it cuts OpenRig's sound on that device for the
+close, the 100 ms pause, the stream build and the warm-up; the length was not
+measured.
 
 ## Multi-rate streams
 

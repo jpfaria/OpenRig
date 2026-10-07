@@ -14,7 +14,7 @@ use anyhow::bail;
 use anyhow::Result;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::DeviceTrait;
 
 use domain::AudioDeviceDescriptor;
 
@@ -56,21 +56,12 @@ pub fn list_devices() -> Result<Vec<String>> {
     {
         let host = get_host();
         let mut devices = Vec::new();
-        for device in host.input_devices()? {
-            let description = device.description()?;
-            devices.push(format!(
-                "input: {} | device_id: {}",
-                description,
-                device.id()?
-            ));
-        }
-        for device in host.output_devices()? {
-            let description = device.description()?;
-            devices.push(format!(
-                "output: {} | device_id: {}",
-                description,
-                device.id()?
-            ));
+        for (direction, is_input) in [("input", true), ("output", false)] {
+            for device in crate::device_list::devices_of(&host, is_input)? {
+                let id = device.id()?.to_string();
+                let name = crate::device_name_cache::name_of(&device, &id)?;
+                devices.push(format!("{direction}: {name} | device_id: {id}"));
+            }
         }
         Ok(devices)
     }
@@ -166,12 +157,12 @@ pub(crate) fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescri
     {
         let host = select_host_for_enumeration();
         let mut devices = Vec::new();
-        for device in host.input_devices()? {
+        for device in crate::device_list::devices_of(&host, true)? {
             let id = device.id()?.to_string();
             if !is_hardware_device(&id) {
                 continue;
             }
-            let name = device.description()?.name().to_string();
+            let name = crate::device_name_cache::name_of(&device, &id)?;
             if devices
                 .iter()
                 .any(|d: &AudioDeviceDescriptor| d.name == name)
@@ -221,12 +212,12 @@ pub(crate) fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescr
     {
         let host = select_host_for_enumeration();
         let mut devices = Vec::new();
-        for device in host.output_devices()? {
+        for device in crate::device_list::devices_of(&host, false)? {
             let id = device.id()?.to_string();
             if !is_hardware_device(&id) {
                 continue;
             }
-            let name = device.description()?.name().to_string();
+            let name = crate::device_name_cache::name_of(&device, &id)?;
             if devices
                 .iter()
                 .any(|d: &AudioDeviceDescriptor| d.name == name)
