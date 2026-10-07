@@ -66,6 +66,9 @@ pub(crate) struct ActiveChainRuntime {
     /// DSP worker thread handle (Linux/JACK only). Dropped when chain stops.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     pub(crate) _dsp_worker: Option<DspWorkerHandle>,
+    /// #1081: this set's fade against the set it replaced, and the replaced
+    /// sets still fading out. Last, so they close after this set's own streams.
+    pub(crate) swap: crate::retired_streams::StreamSwap,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]

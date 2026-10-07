@@ -13,7 +13,7 @@
 | `scripts/package-macos.sh [version]` | Packages macOS: an ad-hoc inside-out signature + a verification gate, then `dist/OpenRig-<version>-macos-universal.dmg`. Bundled plugins: `OPENRIG_PLUGINS_DIR=/path/plugins/source` overrides the source (default `plugins/source`; an override that does not exist is a fatal error) |
 | `scripts/package-linux.sh` | Packages Linux `.tar.gz`/`.deb`/`.rpm`/`.AppImage` (patchelf RUNPATH for `libnam_wrapper` + `libseat`) |
 | `scripts/package-windows.ps1` | Packages Windows: a `.zip` bundle and a WiX `.msi` installer, from already-built release binaries |
-| `scripts/build-windows-installer.ps1` | Builds the Windows `.msi` + `.zip` on a local Windows machine: release build, plugin tree from a local OpenRig-plugins checkout, then `package-windows.ps1` |
+| `scripts/build-windows-installer.ps1` | Builds the Windows `.msi` + `.zip` on a local Windows machine: release build, only the LV2 and VST3 plugins from a local OpenRig-plugins checkout (NAM and IR are not bundled), then `package-windows.ps1` |
 | `scripts/lib/console-binaries.{sh,tsv}` | The single source of the console-style binaries shipped next to the GUI (`openrig-console`, `openrig-console-rig`, `openrig-render`). The packagers build and stage from it; tested by `scripts/tests/console_bundle_test.sh` |
 | `scripts/lib/plugins-bundle.sh` | Plugin-bundling helpers sourced by the packagers; tested by `scripts/tests/plugins_bundle_test.sh` |
 | `scripts/lib/release-version.sh` | `release_version_from_tag` (ref → semver) + `set_workspace_version` (writes `[workspace.package]`'s `version` without touching the `[workspace.dependencies]` pins). The tag is the source of truth: every `release.yml` job runs it BEFORE compiling, because the footer renders `env!("CARGO_PKG_VERSION")`. Refuses non-semver input; tested by `scripts/tests/release_version_test.sh` |
@@ -73,3 +73,7 @@ cd .solvers/issue-N && cargo clean && ./scripts/build-deb-local.sh
 ```
 
 Mandatory after: a `git merge`, editing a struct/enum in 2+ crates, changing a `#[cfg(...)]`, the first `build-*local.sh` of the session.
+
+## Build scripts and a shared target directory
+
+Clones can share one cargo target directory (`target-dir` in `~/.cargo/config.toml`), and cargo gives a workspace member the same build-script hash in every clone, so a build script compiled in one clone runs in another. A build script therefore reads its package directory with `std::env::var_os("CARGO_MANIFEST_DIR")` when it runs, never `env!("CARGO_MANIFEST_DIR")`: `env!` freezes the clone that compiled it, and the GUI shipped another clone's translations that way (every key added on the branch showed raw). Guarded by `crates/adapter-gui/tests/build_script_reads_its_own_clone.rs`.

@@ -135,6 +135,7 @@ fn switching_a_chain_off_frees_its_runtime_on_the_worker_not_on_the_caller() {
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            swap: Default::default(),
         },
     );
     controller.streams.streams_built(&chain_id, 1, 1, 2);

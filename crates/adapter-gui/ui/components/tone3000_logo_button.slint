@@ -1,0 +1,36 @@
+// Responsibility: renders the top-bar button that opens the TONE3000 browser.
+// The TONE3000 mark keeps its own colours (it is their logo, not one of our
+// icons), so unlike `HeaderIconAction` it is never colorized; it only takes
+// the chrome hover fill and the hover label (#879).
+import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
+import { IconTooltip } from "icon_tooltip.slint";
+
+export component Tone3000LogoButton inherits Rectangle {
+    in property <string> tooltip;
+    callback clicked();
+
+    width: 60px;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: area.has-hover ? Theme.chrome-2 : transparent;
+
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        height: HeaderIconStyle.icon;
+        source: @image-url("../assets/tone3000-logo.svg");
+        image-fit: contain;
+    }
+
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    IconTooltip { text: root.tooltip; show: area.has-hover; }
+
+    accessible-role: button;
+    accessible-label: root.tooltip;
+    accessible-action-default => { root.clicked(); }
+}

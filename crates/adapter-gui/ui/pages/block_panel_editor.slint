@@ -1,15 +1,14 @@
 // Responsibility: renders the detached block editor.
+import { Theme } from "../theme.slint";
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { BlockEditorBridge } from "../block_editor_globals.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
-import { FootSwitch } from "../components/foot_switch.slint";
-import { PowerSwitch } from "../components/power_switch.slint";
-import { PanelSlider } from "../components/panel_slider.slint";
+import { BlockPowerButton } from "../components/block_power_button.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
 import { BlockPanelHeader } from "../components/block_panel_header.slint";
-import { BlockPanelBrandStrip } from "../components/block_panel_brand_strip.slint";
+import { BlockPanelBrandZone } from "../components/block_panel_brand_zone.slint";
 import { BlockPanelParameterItem } from "../components/block_panel_parameter_item.slint";
 import { BlockParamGrid } from "../components/block_param_grid.slint";
 import { ParamTabBar } from "../components/param_tab_bar.slint";
@@ -65,12 +64,6 @@ export component BlockPanelEditor inherits Rectangle {
         ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].brand
         : "";
 
-    private property <string> selected-type-label:
-        BlockEditorBridge.block-drawer-selected-model-index >= 0
-        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
-        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].type_label
-        : "";
-
     private property <string> selected-model-label:
         BlockEditorBridge.block-drawer-selected-model-index >= 0
         && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
@@ -88,6 +81,14 @@ export component BlockPanelEditor inherits Rectangle {
         && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
         ? BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].icon_kind
         : "";
+
+    // #398: the block's category colour (the bar's category, the brand
+    // stripe, the knobs' value arcs).
+    private property <color> category:
+        BlockEditorBridge.block-drawer-selected-type-index >= 0
+        && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+        ? BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].accent_color
+        : Theme.accent;
 
     private property <image> selected-icon-source:
         root.selected-icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
@@ -108,18 +109,14 @@ export component BlockPanelEditor inherits Rectangle {
         : root.selected-icon-kind == "utility" ? @image-url("../assets/tuner.svg")
         : @image-url("../assets/gear.svg");
 
-    // Badge dimensions (for computing ModelSelector right boundary)
-    private property <length> badge-width:
-        root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
-    private property <length> brand-strip-height: 0px;
     // Parameter-tab bar (#780): >1 group only, and never on an EQ-widget block
     // (#878) — there the tabs filter a knob grid the block never shows, and
     // their 40px pushes the band sliders past the bottom of the window.
     private property <bool> has-param-tabs:
         root.block-parameter-groups.length > 1 && !root.has-eq-widget;
     private property <length> tab-bar-height: root.has-param-tabs ? 40px : 0px;
-    private property <length> content-top: root.header-height + root.tab-bar-height + root.brand-strip-height;
+    private property <length> content-top: root.header-height + root.tab-bar-height;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: BlockEditorBridge.curve-editor-points.length > 0 || BlockEditorBridge.multi-slider-points.length > 0;
     // Panel-height is driven by the Rust knob-grid policy
@@ -128,22 +125,25 @@ export component BlockPanelEditor inherits Rectangle {
     // instead of being clipped by the footer / drawer below. `grid-row-stride`
     // is the vertical step between rows — match `ROW_STRIDE_PX` in Rust.
     private property <length> grid-row-stride: 100px;
-    private property <length> base-panel-height: root.width / 4;
+    // #398: the brand zone left of the controls; an EQ block has none (its
+    // widget takes the window's width).
+    private property <length> brand-w: root.has-eq-widget ? 0px : 250px;
     // Rust sizes the strip for every block kind, EQ included: an EQ strip holds
     // the power switch plus whatever knobs its widget does not draw (#878).
     private property <length> panel-height: root.panel-knob-inner-height;
     private property <length> footer-height: BlockEditorBridge.block-drawer-edit-mode ? 0px : 52px;
 
-    background: #0a0a0e;
+    background: Theme.panel;
 
     // ── HEADER (48px) ──────────────────────────────────────────────
     BlockPanelHeader {
+        z: 10;
         x: 0; y: 0;
         width: parent.width;
         height: root.header-height;
         selected-icon-source: root.selected-icon-source;
         block-type-label: root.block-type-label;
-        badge-width: root.badge-width;
+        category: root.category;
         edit-mode: BlockEditorBridge.block-drawer-edit-mode;
         // #608: hide the catalog picker for generic NAM/IR file-loaders;
         // the decision is computed in Rust and carried on the type item.
@@ -155,9 +155,8 @@ export component BlockPanelEditor inherits Rectangle {
         selected-model: BlockEditorBridge.block-drawer-selected-model-index >= 0
             && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
             ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index]
-            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+            : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: Colors.transparent, panel_text: Colors.transparent, brand_strip_bg: Colors.transparent, model_font: "" };
         search-text <=> BlockEditorBridge.block-model-search-text;
-        type-label: root.selected-type-label;
         icon-kind: root.selected-icon-kind;
         selected-model-id: root.selected-model-id;
         choose-model-by-id(id) => { BlockEditorBridge.choose-block-model-by-id(id); }
@@ -167,61 +166,39 @@ export component BlockPanelEditor inherits Rectangle {
         save-block => { BlockEditorBridge.save-block-drawer(); }
     }
 
-    if root.has-param-tabs : ParamTabBar {
+    if !root.has-eq-widget : BlockPanelBrandZone {
         x: 0;
         y: root.header-height;
-        width: parent.width;
+        width: root.brand-w;
+        height: root.height - root.header-height;
+        selected-brand: root.selected-brand;
+        selected-model-label: root.selected-model-label;
+        category: root.category;
+        enabled: BlockEditorBridge.block-drawer-enabled;
+        toggle-power => { BlockEditorBridge.toggle-block-drawer-enabled(); }
+    }
+
+    if root.has-param-tabs : ParamTabBar {
+        x: root.brand-w;
+        y: root.header-height;
+        width: parent.width - root.brand-w;
         height: root.tab-bar-height;
         groups: root.block-parameter-groups;
         active: root.active-parameter-group;
+        boxed: true;
         select(i) => { root.select-parameter-group(i); }
     }
 
-    // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
-    // Panel colors from model data
-    private property <color> panel-bg:
-        BlockEditorBridge.block-drawer-selected-model-index >= 0
-        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
-        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].panel_bg
-        : #2c2e34;
-    private property <color> panel-text:
-        BlockEditorBridge.block-drawer-selected-model-index >= 0
-        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
-        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].panel_text
-        : #8090a0;
-    private property <color> brand-strip-bg:
-        BlockEditorBridge.block-drawer-selected-model-index >= 0
-        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
-        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].brand_strip_bg
-        : #1a1a1a;
-    private property <string> model-font:
-        BlockEditorBridge.block-drawer-selected-model-index >= 0
-        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
-        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].model_font
-        : "";
-
+    // ── CONTROL AREA (right of the brand zone, below the tabs) ──
     Rectangle {
-        x: 0;
+        x: root.brand-w;
         y: root.content-top;
-        width: parent.width;
-        height: root.panel-height;
+        width: parent.width - root.brand-w;
+        // An EQ block keeps its short strip above the widget; every other
+        // block fills the window under the bar.
+        height: root.has-eq-widget ? root.panel-height : root.height - root.content-top;
         clip: true;
-        background: root.panel-bg;
-
-        // ── Brand strip (marca + modelo) — hidden for EQ blocks ──
-        BlockPanelBrandStrip {
-            x: 0;
-            y: 0;
-            width: parent.width;
-            has-eq-widget: root.has-eq-widget;
-            selected-brand: root.selected-brand;
-            selected-model-id: root.selected-model-id;
-            brand-strip-bg: root.brand-strip-bg;
-            panel-text: root.panel-text;
-            selected-model-label: root.selected-model-label;
-            selected-icon-source: root.selected-icon-source;
-            model-font: root.model-font;
-        }
+        background: Theme.panel;
 
         // ── Knob grid (overlays OR params, never both) ──
         // The wrap policy is universal: knob_overlays (curated NAM / native
@@ -234,11 +211,13 @@ export component BlockPanelEditor inherits Rectangle {
         // An EQ block still shows the rows its widget does not draw (#878) —
         // `BlockPanelParameterItem` renders nothing for the widget-owned ones.
         property <bool> show-params: !self.show-overlays;
-        property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
-        property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
+        property <length> grid-area-x: has-stream ? parent.width - 220px : 16px;
+        property <length> grid-area-w: has-stream ? 212px : parent.width - 32px;
+        // Cells keep a knob's width and stack from the left (the mockup's
+        // `minmax(86px, 1fr)` auto-fill), never stretched across the area.
         property <length> grid-cell-w:
-            root.effective-grid-cols > 0 ? self.grid-area-w / root.effective-grid-cols : 64px;
-        property <length> grid-base-y: root.base-panel-height * 0.54;
+            root.effective-grid-cols > 0 ? Math.min(self.grid-area-w / root.effective-grid-cols, 104px) : 64px;
+        property <length> grid-base-y: 18px;
 
         // Wrapped knob/param grid. The panel window grows to fit every row
         // (issue #500/#622), so the grid is laid out at its full content
@@ -247,7 +226,7 @@ export component BlockPanelEditor inherits Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: root.panel-knob-inner-height;
+            height: parent.height;
             knob-overlays: BlockEditorBridge.block-knob-overlays;
             param-items: BlockEditorBridge.block-parameter-items;
             has-param-tabs: root.has-param-tabs;
@@ -259,8 +238,11 @@ export component BlockPanelEditor inherits Rectangle {
             grid-cols: root.effective-grid-cols;
             grid-base-y: parent.grid-base-y;
             grid-row-stride: root.grid-row-stride;
-            content-height: root.panel-knob-inner-height;
-            panel-text: root.panel-text;
+            content-height: root.has-eq-widget
+                ? parent.height
+                : Math.max(parent.height, self.grid-base-y + root.panel-grid-rows * root.grid-row-stride);
+            panel-text: Theme.ink-2;
+            tint: root.category;
             update-number(p, v) => { BlockEditorBridge.update-block-parameter-number(p, v); }
             select-option(p, i) => { BlockEditorBridge.select-block-parameter-option(p, i); }
             pick-file(p) => { BlockEditorBridge.pick-block-parameter-file(p); }
@@ -276,8 +258,7 @@ export component BlockPanelEditor inherits Rectangle {
         x: 8px;
         y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
-        height: root.height - root.header-height - root.brand-strip-height
-            - root.panel-height - 16px;
+        height: root.height - root.header-height - root.panel-height - 16px;
         points: BlockEditorBridge.curve-editor-points;
         total-curve: BlockEditorBridge.eq-total-curve;
         band-curves: BlockEditorBridge.eq-band-curves;
@@ -289,24 +270,23 @@ export component BlockPanelEditor inherits Rectangle {
         x: 8px;
         y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
-        height: root.height - root.header-height - root.brand-strip-height
-            - root.panel-height - 16px;
+        height: root.height - root.header-height - root.panel-height - 16px;
         points: BlockEditorBridge.multi-slider-points;
         update-parameter(path, value) => { BlockEditorBridge.update-block-parameter-number(path, value); }
     }
 
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
     if BlockEditorBridge.block-stream-data.stream-kind != "" && BlockEditorBridge.block-stream-data.stream-kind != "spectrum" : Rectangle {
-        x: 56px;
+        x: root.brand-w + 16px;
         y: root.content-top + root.panel-height * 0.52;
-        width: Math.min(parent.width - 56px - 230px, 240px);
+        width: Math.min(parent.width - root.brand-w - 16px - 230px, 240px);
         height: root.panel-height * 0.46;
 
         // Waiting for signal — shown until pitch is detected
         if !BlockEditorBridge.block-stream-data.active : Text {
             x: 0; y: 0; width: parent.width; height: parent.height;
             text: @tr("–");
-            color: #3a4050;
+            color: Theme.hair;
             font-size: 28px; font-weight: 900;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -323,7 +303,7 @@ export component BlockPanelEditor inherits Rectangle {
             Text {
                 x: 0; y: 0; width: parent.width; height: 22px;
                 text: entry.key;
-                color: #506070;
+                color: Theme.ink-3;
                 font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
                 horizontal-alignment: center; vertical-alignment: center;
                 overflow: elide;
@@ -332,7 +312,7 @@ export component BlockPanelEditor inherits Rectangle {
             Text {
                 x: 0; y: 22px; width: parent.width; height: parent.height - 34px;
                 text: entry.text;
-                color: entry.value > 0.5 ? #29df85 : #f3f6fb;
+                color: entry.value > 0.5 ? Theme.ok : Theme.ink;
                 font-size: entry.text.character-count <= 3 ? 28px : 18px;
                 font-weight: 900;
                 horizontal-alignment: center;
@@ -342,20 +322,20 @@ export component BlockPanelEditor inherits Rectangle {
             if entry.key == "cents" : Rectangle {
                 x: 6px; y: parent.height - 10px;
                 width: parent.width - 12px; height: 6px;
-                background: #1a1e28;
+                background: Theme.panel;
                 border-radius: 3px;
 
                 Rectangle {
                     x: (parent.width - 1px) / 2;
                     y: 0; width: 1px; height: parent.height;
-                    background: #405060;
+                    background: Theme.ktrack;
                 }
 
                 Rectangle {
                     property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
                     x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
                     y: 0; width: 6px; height: parent.height;
-                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? Theme.ok : Theme.bad;
                     border-radius: 3px;
                 }
             }
@@ -364,11 +344,11 @@ export component BlockPanelEditor inherits Rectangle {
 
     // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
     if BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum" : Rectangle {
-        x: 8px;
-        y: root.content-top + 4px;
-        width: parent.width - 16px;
-        height: root.panel-height - 28px;
-        background: #06060e;
+        x: root.brand-w + 8px;
+        y: root.content-top + 8px;
+        width: parent.width - root.brand-w - 16px;
+        height: root.height - root.content-top - 16px;
+        background: Theme.page;
         border-radius: 4px;
         clip: true;
 
@@ -385,7 +365,7 @@ export component BlockPanelEditor inherits Rectangle {
             y: (parent.height - 24px) * (1.0 - db-label.norm);
             width: parent.width;
             height: 1px;
-            background: #ffffff18;
+            background: Theme.hair;
 
             Text {
                 x: 2px;
@@ -394,7 +374,7 @@ export component BlockPanelEditor inherits Rectangle {
                 height: 22px;
                 vertical-alignment: center;
                 text: db-label.label;
-                color: #ffffff40;
+                color: Theme.ink-3;
                 font-size: 18px;
                 horizontal-alignment: left;
             }
@@ -417,10 +397,10 @@ export component BlockPanelEditor inherits Rectangle {
                 y: parent.usable-h - self.bar-h;
                 width: parent.width - 2px;
                 height: self.bar-h;
-                background: entry.value > 0.85 ? #ff4433
-                    : entry.value > 0.65 ? #ffaa22
-                    : entry.value > 0.3 ? #44cc88
-                    : #4488ff;
+                background: entry.value > 0.85 ? Theme.bad
+                    : entry.value > 0.65 ? Theme.warn
+                    : entry.value > 0.3 ? Theme.ok
+                    : Theme.in;
                 border-radius: 1px;
             }
 
@@ -430,10 +410,10 @@ export component BlockPanelEditor inherits Rectangle {
                 y: Math.max(0px, parent.usable-h - entry.peak * parent.usable-h - 1px);
                 width: parent.width - 2px;
                 height: 2px;
-                background: entry.peak > 0.85 ? #ff8877
-                    : entry.peak > 0.65 ? #ffcc66
-                    : entry.peak > 0.3 ? #88ffcc
-                    : #88bbff;
+                background: entry.peak > 0.85 ? Theme.bad.brighter(0.3)
+                    : entry.peak > 0.65 ? Theme.warn.brighter(0.2)
+                    : entry.peak > 0.3 ? Theme.ok.brighter(0.4)
+                    : Theme.in.brighter(0.4);
                 opacity: entry.peak > 0.01 ? 1.0 : 0.0;
             }
 
@@ -445,7 +425,7 @@ export component BlockPanelEditor inherits Rectangle {
                 height: 22px;
                 vertical-alignment: center;
                 text: entry.text;
-                color: #ffffff55;
+                color: Theme.ink-3;
                 font-size: 18px;
                 horizontal-alignment: center;
                 overflow: elide;
@@ -453,17 +433,11 @@ export component BlockPanelEditor inherits Rectangle {
         }
     }
 
-    // ── Power switch — root level so it always renders above panel content ──
-    // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
-    // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
-    // Falls to 62% when knob overlays are present so it sits alongside the knobs.
-    private property <length> power-y: root.content-top + 4px;
-
-    FootSwitch {
-        x: 8px;
-        y: root.power-y;
-        width: 48px;
-        height: 66px;
+    // ── Power for an EQ block: it has no brand zone, so the round button
+    // sits at the left of its strip, above the widget.
+    if root.has-eq-widget : BlockPowerButton {
+        x: 15px;
+        y: root.content-top + 11px;
         enabled: BlockEditorBridge.block-drawer-enabled;
         clicked => { BlockEditorBridge.toggle-block-drawer-enabled(); }
     }

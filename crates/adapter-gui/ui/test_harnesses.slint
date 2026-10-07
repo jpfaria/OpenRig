@@ -1,0 +1,17 @@
+// Responsibility: gathers the test-only harnesses the headless UI tests drive.
+// #749/#780/#398 — each harness is a small window around one component, never
+// shown in the app; app-window.slint re-exports them so Rust sees the types.
+export { DiLoopHarness } from "components/di_loop_test_harness.slint";
+export { LooperHarness } from "components/looper_panel_test_harness.slint";
+export { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
+export { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
+export { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
+export { GraphViewHarness, GraphViewScrollHarness } from "components/graph_view_test_harness.slint";
+export { ChainRowGraphSplitMixHarness } from "components/chain_row_graph_test_harness.slint";
+export { SplitEditorHarness } from "components/split_editor_test_harness.slint";
+export { EndpointChecklistHarness } from "components/endpoint_checklist_test_harness.slint";
+export { MixerHarness } from "components/mixer_test_harness.slint";
+export { PlayerHarness } from "components/player_test_harness.slint";
+export { ProjectChainsHarness } from "components/project_chains_test_harness.slint";
+export { OverlayPlacementHarness } from "components/overlay_placement_test_harness.slint";
+export { SetupWizardHarness } from "pages/setup_wizard_test_harness.slint";

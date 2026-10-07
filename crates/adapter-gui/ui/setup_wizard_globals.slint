@@ -1,0 +1,15 @@
+// Responsibility: holds the setup wizard's current step state.
+//
+// Rust sets the step and the footer buttons it allows; `DesktopMain` and
+// `TouchMain` read them here instead of having them forwarded down from
+// `AppWindow`.
+
+export global SetupWizardBridge {
+    // The step shown: 0 language, 1 audio, 2 I/O, 3 TONE3000.
+    in-out property <int> step;
+    in-out property <bool> step-skippable;
+    in-out property <bool> step-last;
+    callback next();
+    callback back();
+    callback skip();
+}

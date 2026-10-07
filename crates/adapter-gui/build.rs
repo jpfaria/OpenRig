@@ -12,6 +12,13 @@ mod mo_freshness;
 /// always sufficed on macOS/Linux. Only reserved address space, not memory.
 const SLINT_COMPILE_STACK_BYTES: usize = 64 * 1024 * 1024;
 
+/// The package directory of the clone being built. Read when the script runs:
+/// every clone shares one target directory and cargo reuses a compiled build
+/// script across clones, so `env!` would keep the clone that compiled it.
+fn manifest_dir() -> PathBuf {
+    PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"))
+}
+
 fn main() {
     // The Slint compiler recurses through the whole UI tree. A build script's
     // main thread gets the OS default stack: 8 MiB on macOS/Linux, 1 MiB on
@@ -42,7 +49,7 @@ fn compile_ui() {
     // The locale Slint translate() picks at runtime comes from
     // `slint::select_bundled_translation(...)` which we call from
     // i18n::init_translations once we resolve the user's preference.
-    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest = manifest_dir();
     let translations = manifest.join("translations");
     // DefaultTranslationContext::None — disable Slint's default emission of
     // the enclosing component name as msgctxt. Our .po files are flat (no
@@ -83,7 +90,7 @@ fn compile_ui() {
 /// the bundled translations Slint already embedded via
 /// `with_bundled_translations`, so the app stays fully functional.
 fn compile_translations() {
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest = manifest_dir();
     let translations_src = manifest.join("translations");
     if !translations_src.exists() {
         return;

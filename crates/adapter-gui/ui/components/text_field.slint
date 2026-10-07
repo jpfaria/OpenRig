@@ -1,0 +1,71 @@
+// Responsibility: renders a one-line text field.
+// #398: a field-coloured box with the field outline that turns into a 2px
+// accent ring while focused; an empty field shows its placeholder in the
+// quiet ink.
+import { Theme } from "../theme.slint";
+
+export component TextField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> read-only: false;
+    // The typed text's face; empty keeps the window's UI face.
+    in property <string> font-family;
+    out property <bool> has-focus: input.has-focus;
+    callback edited(string);
+    callback accepted(string);
+
+    public function focus-field() {
+        input.focus();
+    }
+
+    height: 36px;
+    min-width: 80px;
+    border-radius: 3px;
+    background: Theme.field;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.field-line;
+
+    // Read and typed by assistive tech, and by the headless tests the same way.
+    accessible-role: text-input;
+    accessible-value: root.text;
+    accessible-placeholder-text: root.placeholder;
+    accessible-read-only: root.read-only;
+    accessible-action-set-value(v) => {
+        root.text = v;
+        root.edited(v);
+    }
+
+    if root.text == "" : Text {
+        x: 10px;
+        width: parent.width - 20px;
+        height: parent.height;
+        text: root.placeholder;
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // The text scrolls inside its own clip so a long path never draws over
+    // the outline.
+    Rectangle {
+        x: 10px;
+        width: parent.width - 20px;
+        height: parent.height;
+        clip: true;
+
+        input := TextInput {
+            width: parent.width;
+            height: parent.height;
+            text <=> root.text;
+            read-only: root.read-only;
+            single-line: true;
+            color: Theme.ink;
+            font-family: root.font-family;
+            font-size: Theme.min-font;
+            vertical-alignment: center;
+            edited => { root.edited(self.text); }
+            accepted => { root.accepted(self.text); }
+        }
+    }
+}

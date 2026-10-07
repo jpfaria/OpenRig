@@ -222,7 +222,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "मिक्सर"
+msgstr "मिक्स"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1275,3 +1275,324 @@ msgstr "खोजें"
 
 msgid "status-drums-no-match"
 msgstr "कोई मेल नहीं मिला"
+
+msgid "tooltip-move-chain-up"
+msgstr "चेन ऊपर ले जाएँ"
+
+msgid "tooltip-move-chain-down"
+msgstr "चेन नीचे ले जाएँ"
+
+msgid "accessible-chain-power"
+msgstr "चेन चालू या बंद करें"
+
+msgid "compact-block-power"
+msgstr "ब्लॉक चालू या बंद करें"
+
+msgid "compact-block-remove"
+msgstr "ब्लॉक हटाएँ"
+
+msgid "block-editor-power"
+msgstr "ब्लॉक चालू या बंद करें"
+
+msgid "block-editor-info"
+msgstr "जानकारी"
+
+msgid "block-editor-remove"
+msgstr "ब्लॉक हटाएँ"
+
+msgid "block-editor-save"
+msgstr "ब्लॉक जोड़ें"
+
+msgid "label-mixer-chain"
+msgstr "चेन"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} बैंड"
+
+msgid "label-count-in-on"
+msgstr "1 बार"
+
+msgid "label-count-in-off"
+msgstr "बंद"
+
+msgid "title-settings"
+msgstr "सेटिंग्स"
+
+msgid "label-device-channels {} {}"
+msgstr "{} इनपुट · {} आउटपुट"
+
+msgid "help-buffer-latency"
+msgstr "प्रति ऑडियो ब्लॉक विलंब"
+
+msgid "btn-refresh-devices"
+msgstr "रीफ़्रेश"
+
+msgid "empty-no-midi-devices"
+msgstr "कोई MIDI डिवाइस नहीं मिला"
+
+msgid "placeholder-midi-alias"
+msgstr "उपनाम"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · चैनल {}"
+
+msgid "btn-edit"
+msgstr "संपादित करें"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "पथ"
+
+msgid "title-add-block"
+msgstr "ब्लॉक जोड़ें"
+
+msgid "di-source-label"
+msgstr "स्रोत"
+
+msgid "title-section-appearance"
+msgstr "रूप"
+
+msgid "label-theme"
+msgstr "थीम"
+
+msgid "appearance-system"
+msgstr "सिस्टम"
+
+msgid "appearance-light"
+msgstr "हल्का"
+
+msgid "appearance-dark"
+msgstr "गहरा"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 कैप्चर"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "खोजें"
+
+msgid "tab-tone3000-installed"
+msgstr "इंस्टॉल ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "हर उपयोगकर्ता अपनी key लाता है। यह इसी मशीन पर रहती है।"
+
+msgid "placeholder-tone3000-key"
+msgstr "अपनी t3k_cs_ key पेस्ट करें"
+
+msgid "status-tone3000-key-set"
+msgstr "Key सेट है"
+
+msgid "status-tone3000-key-unset"
+msgstr "कोई key नहीं"
+
+msgid "btn-tone3000-key-save"
+msgstr "सहेजें"
+
+msgid "btn-tone3000-key-clear"
+msgstr "हटाएँ"
+
+msgid "btn-tone3000-search"
+msgstr "खोजें"
+
+msgid "btn-tone3000-install"
+msgstr "इंस्टॉल करें"
+
+msgid "btn-tone3000-update"
+msgstr "अपडेट करें"
+
+msgid "btn-tone3000-retry"
+msgstr "फिर कोशिश करें"
+
+msgid "btn-tone3000-uninstall"
+msgstr "अनइंस्टॉल"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "पुष्टि करें"
+
+msgid "btn-tone3000-previous-page"
+msgstr "पिछला पेज"
+
+msgid "btn-tone3000-next-page"
+msgstr "अगला पेज"
+
+msgid "placeholder-tone3000-search"
+msgstr "एम्प, पेडल, रिग, IR खोजें"
+
+msgid "label-tone3000-format"
+msgstr "फ़ॉर्मेट"
+
+msgid "label-tone3000-gear"
+msgstr "गियर"
+
+msgid "label-tone3000-sort"
+msgstr "क्रम"
+
+msgid "label-tone3000-all"
+msgstr "सभी"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "सबसे प्रासंगिक"
+
+msgid "label-tone3000-sort-trending"
+msgstr "ट्रेंडिंग"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "सबसे ज़्यादा डाउनलोड"
+
+msgid "label-tone3000-sort-newest"
+msgstr "नवीनतम"
+
+msgid "label-tone3000-gear-amp"
+msgstr "एम्प"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "पूरा रिग"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "एम्प + कैब"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "पेडल"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "आउटबोर्ड"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "कैब"
+
+msgid "label-tone3000-block-amp"
+msgstr "एम्प"
+
+msgid "label-tone3000-block-preamp"
+msgstr "प्रीएम्प"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "पेडल"
+
+msgid "label-tone3000-block-cab"
+msgstr "कैब"
+
+msgid "label-tone3000-block-body"
+msgstr "बॉडी"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} द्वारा · {} डाउनलोड"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "इंस्टॉल है"
+
+msgid "label-tone3000-captures"
+msgstr "{} कैप्चर"
+
+msgid "label-tone3000-page"
+msgstr "पेज {} / {} · {} टोन"
+
+msgid "status-tone3000-downloading"
+msgstr "डाउनलोड हो रहा है {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "लेवल मापे जा रहे हैं"
+
+msgid "status-tone3000-fetching"
+msgstr "तैयारी हो रही है"
+
+msgid "btn-tone3000-open-settings"
+msgstr "सेटिंग्स खोलें"
+
+msgid "link-tone3000-get-key"
+msgstr "tone3000.com पर Secret Key बनाएँ"
+
+msgid "title-tone3000-no-key"
+msgstr "TONE3000 Secret Key आवश्यक है"
+
+msgid "status-tone3000-no-key"
+msgstr "कैप्चर खोजने और इंस्टॉल करने के लिए आपकी अपनी TONE3000 Secret Key चाहिए। इसे सेटिंग्स में जोड़ें।"
+
+msgid "status-tone3000-searching"
+msgstr "खोज जारी है"
+
+msgid "status-tone3000-no-results"
+msgstr "इस खोज से कोई टोन नहीं मिला।"
+
+msgid "status-tone3000-start"
+msgstr "TONE3000 पर एम्प, पेडल और IR खोजें।"
+
+msgid "status-tone3000-none-installed"
+msgstr "अभी तक कोई TONE3000 कैप्चर इंस्टॉल नहीं है।"
+msgid "label-tone3000-built-in"
+msgstr "अंतर्निहित"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "इंस्टॉल किए गए नाम से खोजें"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "इस नाम से कोई इंस्टॉल किया गया TONE3000 प्लगइन नहीं मिला।"
+
+msgid "title-setup-wizard"
+msgstr "प्रारंभिक सेटअप"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "चरण {} / {}"
+
+msgid "desc-wizard-language"
+msgstr "ऐप की भाषा चुनें। आप इसे बाद में सेटिंग्स में बदल सकते हैं।"
+
+msgid "desc-wizard-audio"
+msgstr "वह ऑडियो इंटरफ़ेस चालू करें जिसमें गिटार लगा है, फिर सैंपल रेट और बफ़र साइज़ सेट करें।"
+
+msgid "desc-wizard-io"
+msgstr "इंटरफ़ेस के इनपुट और आउटपुट को नाम दें: गिटार किस चैनल पर आता है और आवाज़ कहाँ से निकलती है।"
+
+msgid "desc-wizard-tone3000"
+msgstr "ऐप के अंदर से amp और पेडल कैप्चर खोजने और इंस्टॉल करने के लिए अपनी TONE3000 कुंजी चिपकाएँ। आप इसे बाद में भी जोड़ सकते हैं।"
+
+msgid "btn-wizard-back"
+msgstr "वापस"
+
+msgid "btn-wizard-next"
+msgstr "आगे"
+
+msgid "btn-wizard-skip"
+msgstr "छोड़ें"
+
+msgid "btn-wizard-finish"
+msgstr "समाप्त"

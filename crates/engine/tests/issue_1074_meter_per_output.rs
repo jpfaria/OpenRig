@@ -128,11 +128,13 @@ fn a_stream_lists_every_output_it_feeds() {
                 route: 0,
                 name: "GUITARRA 1 - MAIN".into(),
                 channels: "1,2".into(),
+                device: device.into(),
             },
             OutputIoLabel {
                 route: 1,
                 name: "GUITARRA 1 - SYN5050".into(),
                 channels: "17,18".into(),
+                device: device.into(),
             },
         ]
     );

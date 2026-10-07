@@ -66,8 +66,13 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) =
-                build_chain_streams(&chain.id, resolved, slots, &[])?;
+            let (input_streams, output_streams) = build_chain_streams(
+                &chain.id,
+                resolved,
+                slots,
+                &[],
+                &crate::stream_handover::StreamHandover::cold(),
+            )?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }

@@ -392,6 +392,22 @@ fn spawn_bumps_buffer_on_post_ready_socket_vanished() {
     assert!(clamp_event.is_some(), "BufferClampedTo must be emitted");
 }
 
+// #398: 2048 is a selectable buffer; the fallback must never shrink it.
+#[test]
+fn spawn_fallback_never_shrinks_the_largest_selectable_buffer() {
+    let mut sup = make_supervisor();
+    sup.backend
+        .queue_post_ready(&name(), PostReadyStatus::SocketVanished);
+    let config = JackConfig {
+        buffer_size: 2048,
+        ..JackConfig::test_default()
+    };
+    let meta = sup
+        .ensure_server(&name(), &config, &mut noop_hook())
+        .unwrap();
+    assert!(meta.buffer_size >= 2048, "got {}", meta.buffer_size);
+}
+
 // DriverFailure is treated identically to SocketVanished from the
 // buffer-fallback perspective.
 #[test]

@@ -1,0 +1,11 @@
+/* Responsibility: the Claude section's install terminal. */
+.term{border-radius:var(--r);overflow:hidden;background:#0f1318;box-shadow:var(--shadow)}
+.term-h{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;background:var(--chrome-2);border-bottom:1px solid #000}
+.term-h i{width:10px;height:10px;border-radius:50%;background:#3a434f}
+.term-h span{margin-left:8px;font:600 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:#8b96a5}
+.term pre{margin:0;padding:16px 18px;overflow-x:auto;font:500 13.5px/1.75 var(--mono);color:#d9dde3}
+.term pre .p{color:var(--accent);user-select:none}
+.term pre .c{color:#6d7886}
+@media (max-width:560px){.term pre{padding:14px;font-size:11px}}
+.skills-note{margin:14px 0 0;font-size:14.5px;color:var(--page-fg-2)}
+.skills-note a{color:var(--page-h);text-decoration-color:var(--accent);text-underline-offset:3px}

@@ -1,4 +1,5 @@
 // Responsibility: holds the colours a block tile paints its states with.
+import { Theme } from "../theme.slint";
 // Single source of truth for the chain row's BlockChip and the graph view's
 // block card (#328 §5.1 parity): a bypassed, unavailable, dragged or
 // MIDI-marked block must read the same on both.
@@ -6,10 +7,10 @@
 export global BlockTileStyle {
     // #606: a block whose model is not installed — amber, distinct from the
     // grey of a block the user switched off — and dimmed as a whole.
-    out property <color> unavailable-tint: #b07a3c;
+    out property <color> unavailable-tint: Theme.accent;
     out property <float> unavailable-opacity: 0.5;
-    out property <color> disabled-tint: #5c6678;
-    out property <color> dragging-tint: #8b95a5;
+    out property <color> disabled-tint: Theme.ink-3;
+    out property <color> dragging-tint: Theme.ink-2;
 
     // Type-label colour.
     public pure function label-color(unavailable: bool, enabled: bool, accent: color) -> color {
@@ -28,7 +29,7 @@ export global BlockTileStyle {
     // neighbor toggle would act on (light) are outlined only while a MIDI
     // command is recent; dimmer when the block is off.
     public pure function marker-background(visible: bool, selected: bool) -> color {
-        return (visible && selected) ? #f0a02014 : transparent;
+        return (visible && selected) ? Theme.accent.with-alpha(0.08) : transparent;
     }
 
     public pure function marker-border-width(visible: bool, selected: bool, neighbor: bool) -> length {
@@ -38,9 +39,9 @@ export global BlockTileStyle {
     public pure function marker-border-color(visible: bool, selected: bool, neighbor: bool, enabled: bool) -> color {
         return visible
             ? (selected
-                ? (enabled ? #f0a020 : #f0a02066)
+                ? (enabled ? Theme.accent : Theme.accent-line)
                 : neighbor
-                    ? (enabled ? #f0a0207a : #f0a02040)
+                    ? (enabled ? Theme.accent.with-alpha(0.48) : Theme.accent.with-alpha(0.25))
                     : transparent)
             : transparent;
     }

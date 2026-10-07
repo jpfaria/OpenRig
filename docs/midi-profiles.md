@@ -12,7 +12,7 @@ For the design rationale and the 10-phase plan, see
 ## Profile file format
 
 A profile lives in `assets/midi-profiles/<name>.yaml` (factory,
-bundled) or `~/.local/share/openrig/midi-profiles/<name>.yaml` (user,
+bundled) or `~/.openrig/midi-profiles/<name>.yaml` (user; `%APPDATA%\OpenRig` on Windows,
 created via Settings → MIDI → [Customize]). Each YAML has a matching
 `<name>.md` next to it with the human-readable bank/switch table.
 

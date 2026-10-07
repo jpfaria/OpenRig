@@ -1,0 +1,30 @@
+// Responsibility: holds the look of an icon button in a chain header.
+// #398: every icon of a chain header is quiet (ink-3) until hovered (ink on a
+// panel-lo fill) or lit (accent). The header's own icons and the trigger
+// buttons beside them read these, so the cluster looks like one row. On the
+// dark chrome bar they read chrome-fg-2, then chrome-fg on a chrome-2 fill.
+
+import { Theme } from "../theme.slint";
+
+export global HeaderIconStyle {
+    out property <length> size: 30px;
+    out property <length> icon: 18px;
+    out property <length> radius: 4px;
+
+    public pure function tint(active: bool, hover: bool) -> color {
+        return active ? Theme.accent : hover ? Theme.ink : Theme.ink-3;
+    }
+
+    public pure function fill(hover: bool) -> color {
+        return hover ? Theme.panel-lo : transparent;
+    }
+
+    // The same button on the dark chrome bar (the compact view's header).
+    public pure function chrome-tint(active: bool, hover: bool) -> color {
+        return active ? Theme.accent : hover ? Theme.chrome-fg : Theme.chrome-fg-2;
+    }
+
+    public pure function chrome-fill(hover: bool) -> color {
+        return hover ? Theme.chrome-2 : transparent;
+    }
+}

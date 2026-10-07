@@ -39,6 +39,7 @@ pub fn run_desktop_app(
     );
     crate::ui_watchdog::spawn();
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
+    infra_filesystem::legacy_user_data::copy_legacy_user_data();
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings = crate::boot_decisions::needs_audio_settings(&context, &settings);
     let project_paths = resolve_project_paths();
@@ -103,6 +104,8 @@ pub fn run_desktop_app(
     let output_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
+    let windows = crate::desktop_app_windows::create()?;
+    crate::desktop_app_appearance::wire(&windows, project_session.clone(), app_config.clone());
     let crate::desktop_app_windows::DesktopWindows {
         window,
         project_settings_window,
@@ -114,9 +117,10 @@ pub fn run_desktop_app(
         mixer_window,
         player_window,
         drums_window,
+        tone3000_window,
         chain_editor_window,
         plugin_info_window,
-    } = crate::desktop_app_windows::create()?;
+    } = windows;
     let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
     // The analyzer owns each session; these are the same cells, for the reads
     // (`GuiLiveSource::tuner`, `openrig://tuner`) that answer from them.
@@ -142,6 +146,7 @@ pub fn run_desktop_app(
             mixer_window: &mixer_window,
             player_window: &player_window,
             drums_window: &drums_window,
+            tone3000_window: &tone3000_window,
             chain_editor_window: chain_editor_window.clone(),
             plugin_info_window: plugin_info_window.clone(),
         },
@@ -153,6 +158,17 @@ pub fn run_desktop_app(
         &project_settings_window,
         project_session.clone(),
         app_config.clone(),
+    );
+    crate::settings::tone3000_key::wire(
+        &window,
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+    );
+    crate::tone3000_links::wire_keys_page(
+        &window,
+        &project_settings_window,
+        Rc::new(crate::plugin_info::open_homepage),
     );
     // #716: System / I/O bindings editor.
     crate::settings::io_bindings::wire(
@@ -493,20 +509,32 @@ pub fn run_desktop_app(
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
     crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
-    crate::chain_rig_nav_wiring::wire(
+    let nav_ctx = crate::chain_rig_nav_wiring::ChainRigNavCtx {
+        project_session: project_session.clone(),
+        project_chains: project_chains.clone(),
+        runtime_attach: runtime_attach.clone(),
+        input_chain_devices: input_chain_devices.clone(),
+        output_chain_devices: output_chain_devices.clone(),
+        toast_timer: toast_timer.clone(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        open_compact_window: open_compact_window.clone(),
+    };
+    crate::chain_rig_nav_wiring::wire(&window, nav_ctx.clone());
+    // #879: the TONE3000 browser; what its tick drains reaches the UI as the
+    // MCP drain's events do.
+    let (weak_main, events_ctx) = (window.as_weak(), nav_ctx.clone());
+    crate::tone3000_wiring::wire_tone3000(
         &window,
-        crate::chain_rig_nav_wiring::ChainRigNavCtx {
-            project_session: project_session.clone(),
-            project_chains: project_chains.clone(),
-            runtime_attach: runtime_attach.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            toast_timer: toast_timer.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            open_compact_window: open_compact_window.clone(),
-        },
+        &tone3000_window,
+        &project_session,
+        Rc::new(move |events: &[application::event::Event]| {
+            if let Some(w) = weak_main.upgrade() {
+                crate::chain_rig_nav_wiring::apply_events_to_ui(&w, &events_ctx, events);
+            }
+        }),
     );
+    crate::tone3000_links::wire_open_settings(&tone3000_window, &window, &project_settings_window);
     crate::plugin_info_inline_wiring::wire(&window);
     // Ao fechar a janela principal, encerra todo o processo
     window.window().on_close_requested(|| {
@@ -539,17 +567,7 @@ pub fn run_desktop_app(
             addr,
             &window,
             &project_session,
-            crate::chain_rig_nav_wiring::ChainRigNavCtx {
-                project_session: project_session.clone(),
-                project_chains: project_chains.clone(),
-                runtime_attach: runtime_attach.clone(),
-                input_chain_devices: input_chain_devices.clone(),
-                output_chain_devices: output_chain_devices.clone(),
-                toast_timer: toast_timer.clone(),
-                saved_project_snapshot: saved_project_snapshot.clone(),
-                project_dirty: project_dirty.clone(),
-                open_compact_window: open_compact_window.clone(),
-            },
+            nav_ctx.clone(),
             crate::desktop_app_mcp::McpDeps {
                 project_runtime: project_runtime.clone(),
                 tuner_session,
@@ -565,17 +583,7 @@ pub fn run_desktop_app(
     let _midi_drain_timer = match midi_map {
         Some(arg) => Some(crate::midi_adapter_wiring::wire(
             window.as_weak(),
-            crate::chain_rig_nav_wiring::ChainRigNavCtx {
-                project_session: project_session.clone(),
-                project_chains: project_chains.clone(),
-                runtime_attach: runtime_attach.clone(),
-                input_chain_devices: input_chain_devices.clone(),
-                output_chain_devices: output_chain_devices.clone(),
-                toast_timer: toast_timer.clone(),
-                saved_project_snapshot: saved_project_snapshot.clone(),
-                project_dirty: project_dirty.clone(),
-                open_compact_window: open_compact_window.clone(),
-            },
+            nav_ctx.clone(),
             arg,
         )?),
         None => None,

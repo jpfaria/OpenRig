@@ -715,6 +715,7 @@ fn live_rig(scene: Scene) -> ProjectRuntimeController {
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            swap: Default::default(),
         },
     );
     // Log of the live chain: 1 input stream and 5 output streams.

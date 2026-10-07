@@ -51,6 +51,7 @@ pub(crate) fn build_output_stream_for_output(
     resolved_output_device: ResolvedOutputDevice,
     slots: Vec<LiveRuntimeSlot>,
     di_cell: crate::di_playback::DiPlaybackCell,
+    mut fade: crate::stream_handover::OutputFade,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -117,6 +118,8 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        // #1081: the set's fade against the set it replaces.
+                        fade.apply(out, channels);
                     }));
                 },
                 crate::stream_error::stream_error_handler(format!(
@@ -157,6 +160,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_i16(*src);
@@ -200,6 +204,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_u16(*src);
@@ -243,6 +248,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             playback_ns,
                         );
+                        fade.apply(&mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst = f32_to_i32(*src);

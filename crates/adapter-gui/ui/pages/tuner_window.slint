@@ -2,264 +2,174 @@
 // TunerWindow — top-bar feature replacing the chromatic_tuner plugin block.
 // One row per active input channel of each enabled chain.
 //
-// Visual: stompbox-style card with amber LCD à la x42 Tuna / Korg / Boss.
-// Card paints `tuner-box.png` (scratched-black pedal texture, lifted from
-// the LV2 tuna plugin assets) as background, then floats an LCD rectangle
-// in front. LCD goes amber (#ccaa66) when active, vivid green (#ccff66)
-// when in tune, dim ochre (#776633) when no signal.
+// #398: a dark tool bar with MUTE and POWER pills, then one LCD per input on
+// the well. Each LCD reads like a strobe tuner: the input and its pitch across
+// the top, a cents scale with a lit needle, and the note large on the right.
+// Amber while tuning, green in tune, dim with no signal.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { AnalyzerBridge } from "../analyzer_globals.slint";
 import { TunerRow } from "../analyzer_rows.slint";
+import { LcdGlass } from "../components/lcd_glass.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
+import { PillSwitch } from "../components/pill_switch.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 export { TunerRow }
 
-// Power footswitch — same sprite + size used by block FootSwitch
-// (see components/foot_switch.slint). No label, no LED.
-component PowerFootSwitch inherits Rectangle {
-    in property <bool> active;
-    callback toggled();
-
-    width: 48px;
-    height: 48px;
-    clip: true;
-
-    // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
-    // Top = pressed/on, bottom = released/off.
-    Image {
-        source: @image-url("../assets/sprites/footswitch.png");
-        x: 0;
-        y: root.active ? -parent.height : 0;
-        width: parent.width;
-        height: 2 * parent.height;
-        image-fit: fill;
-        image-rendering: smooth;
-    }
-    TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.toggled(); }
-    }
-}
-
-// Mute switch — label "MUTE" on top, vintage toggle below, red LED on
-// the right of the toggle. Disabled (dimmed, non-interactive) when
-// the tuner is powered off.
-component MuteSwitch inherits Rectangle {
-    in property <bool> active;
-    in property <bool> enabled: true;
-    callback toggled();
-
-    width: 50px;
-    height: 58px;
-    opacity: root.enabled ? 1.0 : 0.35;
-
-    // Label centred over the toggle sprite only — not the toggle+LED row.
-    // Sized from the text so the 18px label is never cut.
-    Text {
-        x: 4px + (26px - self.width) / 2; y: 0;
-        width: self.preferred-width; height: 22px;
-        text: @tr("label-mute");
-        color: root.active ? #ff7878 : #8a95a5;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.2px;
-        horizontal-alignment: center;
-    }
-
-    // Toggle sprite — left side of the row below the label.
-    Rectangle {
-        x: 4px; y: 24px;
-        width: 26px; height: 34px;
-        clip: true;
-        Image {
-            source: @image-url("../assets/sprites/toggleswitch.png");
-            x: root.active ? -parent.width : 0;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-        TouchArea {
-            mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
-            clicked => {
-                if (root.enabled) {
-                    root.toggled();
-                }
-            }
-        }
-    }
-
-    // Red LED on the right of the toggle, vertically centered with it.
-    Rectangle {
-        x: 36px; y: 34px;
-        width: 14px; height: 14px;
-        clip: true;
-        Image {
-            source: @image-url("../assets/sprites/led-red.png");
-            x: root.active ? 0 : -parent.width;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-    }
-}
-
-
-// ── Single-row tuner card — stompbox + LCD ───────────────────────────────
+// ── One input's LCD ──────────────────────────────────────────────────────
+// A string reads like a pedal tuner: the arrow on the side the note has to
+// move toward lights (flat: the left one, sharp: the right one); in tune,
+// both light green, the needle sits in the marked zone and the note goes
+// green. Rust decides "in tune" (`tuner_tolerance`); this only draws it.
 component TunerCard inherits Rectangle {
     in property <TunerRow> data;
+    in property <float> tolerance;
 
-    property <bool> in-tune: data.active && Math.abs(data.cents) < 5.0;
-    property <color> lcd-bg: !data.active
-        ? #776633
-        : in-tune
-            ? #ccff66
-            : #ccaa66;
-    property <color> needle-color: !data.active
-        ? #4a3a1a
-        : in-tune
-            ? #2a6633
-            : Math.abs(data.cents) < 15.0 ? #b87a1a : #a02828;
+    property <color> lit: !data.active ? Theme.lcd-off : data.in-tune ? Theme.lcd-in : Theme.lcd-glow;
+    property <bool> flat-on: data.active && (data.in-tune || data.cents < 0);
+    property <bool> sharp-on: data.active && (data.in-tune || data.cents > 0);
+    property <length> note-w: 196px;
+    property <length> arrow: 26px;
+    property <length> scale-h: 80px;
+    // The ticks stand on this line; the scale's numbers sit under it.
+    property <length> base: scale-h - 22px;
+    property <length> needle-h: 54px;
 
-    // Card IS the LCD — amber/green display floating on the dark window
-    // background, no metallic frame.
-    height: 96px;
-    border-radius: 6px;
-    background: root.lcd-bg;
-    border-width: 1px;
-    border-color: #00000099;
-    clip: true;
-    drop-shadow-blur: 6px;
-    drop-shadow-color: #00000080;
+    height: 136px;
 
-    // Inner shadow — top + left dark bands to fake glass depth
-    Rectangle {
-        x: 0; y: 0;
-        width: parent.width; height: 2px;
-        background: #00000044;
-    }
-    Rectangle {
-        x: 0; y: 0;
-        width: 2px; height: parent.height;
-        background: #00000044;
-    }
+    LcdGlass {
+        width: 100%;
+        height: 100%;
 
-    // Channel label (top-left, small)
-    Text {
-        x: 14px; y: 8px;
-        width: parent.width - 130px;
-        height: 22px;
-        text: root.data.label;
-        color: #2a1f0a;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
-        overflow: elide;
-    }
+        hz := Text {
+            x: parent.width - 16px - self.width; y: 10px;
+            width: self.preferred-width; height: 22px;
+            text: !root.data.active || root.data.frequency <= 0.0
+                ? "— Hz"
+                : (root.data.cents > 0 ? "+" : "") + Math.round(root.data.cents) + " ct · "
+                    + Math.round(root.data.frequency * 100) / 100 + " Hz";
+            color: Theme.lcd-dim;
+            font-family: Locale.mono-font-family;
+            font-size: Theme.min-font;
+            letter-spacing: 0.08 * Theme.min-font;
+            vertical-alignment: center;
+        }
 
-    // Hz readout (top-right)
-    Text {
-        x: parent.width - 14px - self.width; y: 8px;
-        width: max(96px, self.preferred-width); height: 22px;
-        text: root.data.active && root.data.frequency > 0.0
-            ? Math.round(root.data.frequency * 100) / 100 + " Hz"
-            : "----- Hz";
-        color: #1a1206;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.2px;
-        horizontal-alignment: right;
-    }
+        Text {
+            x: 16px; y: 10px;
+            width: parent.width - 42px - hz.width; height: 22px;
+            text: root.data.label;
+            font-family: Locale.mono-font-family;
+            color: Theme.lcd-dim;
+            font-size: Theme.min-font;
+            letter-spacing: 0.08 * Theme.min-font;
+            vertical-alignment: center;
+            overflow: elide;
+        }
 
-    // Note glyph (left, huge)
-    Text {
-        x: 18px; y: 22px;
-        width: 100px; height: 64px;
-        text: root.data.active ? root.data.note : "—";
-        color: #1a1206;
-        font-family: "Bebas Neue";
-        font-size: 56px;
-        horizontal-alignment: left;
-        vertical-alignment: center;
-    }
-    // Octave subscript
-    if root.data.active : Text {
-        x: 78px; y: 36px;
-        width: 40px; height: 26px;
-        text: root.data.octave + "";
-        color: #1a1206;
-        font-family: "Bebas Neue";
-        font-size: 22px;
-        horizontal-alignment: left;
-        vertical-alignment: center;
-    }
-
-    // Cents bar (right)
-    Rectangle {
-        x: parent.width - 220px;
-        y: 30px;
-        width: 200px;
-        height: 22px;
-        background: #00000033;
-        border-radius: 3px;
-        border-width: 1px;
-        border-color: #00000066;
-
-        // Center marker
+        // The cents scale: 21 ticks from -50 to +50, every fifth one taller,
+        // over the zone that reads in tune.
         Rectangle {
-            x: parent.width / 2 - 1px;
-            y: 3px;
-            width: 2px;
-            height: parent.height - 6px;
-            background: #1a120688;
+            x: 16px; y: 42px;
+            width: parent.width - 48px - root.note-w;
+            height: root.scale-h;
+
+            zone := Rectangle {
+                x: parent.width * (50 - root.tolerance) / 100;
+                y: root.base - root.needle-h;
+                width: parent.width * root.tolerance / 50;
+                height: root.needle-h;
+                border-radius: 2px;
+                background: Theme.lcd-in.with-alpha(root.data.in-tune ? 0.30 : 0.12);
+            }
+
+            for t[i] in 21 : Rectangle {
+                x: parent.width * i / 20 - 0.5px;
+                y: root.base - self.height;
+                width: 1px;
+                height: Math.mod(i, 5) != 0 ? 10px : (i == 10 ? 40px : 20px);
+                background: i != 10 ? Theme.lcd-off : root.data.in-tune ? Theme.lcd-in : Theme.lcd-faint;
+            }
+
+            for v in [-50, -25, 0, 25, 50] : Text {
+                x: parent.width * (v + 50) / 100 - self.width / 2;
+                y: root.base + 1px;
+                width: self.preferred-width; height: 22px;
+                text: (v > 0 ? "+" : "") + v;
+                color: Theme.lcd-faint;
+                font-family: Locale.mono-font-family;
+                font-size: Theme.min-font;
+            }
+
+            if root.data.active : Rectangle {
+                x: parent.width * (Math.clamp(root.data.cents, -50.0, 50.0) + 50) / 100 - 1.5px;
+                y: root.base - root.needle-h;
+                width: 3px; height: root.needle-h;
+                border-radius: 2px;
+                background: root.lit;
+                drop-shadow-blur: 8px;
+                drop-shadow-color: root.lit;
+            }
         }
 
-        // Major ticks
-        for tick in [-50, -25, 25, 50] : Rectangle {
-            x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 6px)) - 0.5px;
-            y: 4px;
-            width: 1px;
-            height: 6px;
-            background: #1a120666;
-        }
-        // Sub-ticks
-        for tick in [-10, -5, 5, 10] : Rectangle {
-            x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 6px)) - 0.5px;
-            y: parent.height - 9px;
-            width: 1px;
-            height: 5px;
-            background: #1a120666;
-        }
-        // Needle
-        if root.data.active : Rectangle {
-            x: (parent.width / 2)
-                + (Math.clamp(root.data.cents, -50.0, 50.0) / 50.0 * (parent.width / 2 - 6px))
-                - 3px;
-            y: 2px;
-            width: 6px;
-            height: parent.height - 4px;
-            border-radius: 3px;
-            background: root.needle-color;
-        }
-    }
+        // ▶ note ◀ — the arrows point at the note they lead the string to.
+        Rectangle {
+            x: parent.width - 16px - root.note-w; y: 36px;
+            width: root.note-w; height: parent.height - 46px;
 
-    // Cents readout
-    Text {
-        x: parent.width - 220px;
-        y: 56px;
-        width: 200px;
-        height: 22px;
-        text: root.data.active
-            ? (root.data.cents >= 0
-                ? "+" + Math.round(root.data.cents) + " ¢"
-                : Math.round(root.data.cents) + " ¢")
-            : "-- ¢";
-        color: #1a1206;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
-        horizontal-alignment: center;
+            property <length> pair-w: note.width + 2px + octave.width;
+            property <length> arrow-y: (self.height - root.arrow) / 2;
+
+            Image {
+                x: 0; y: parent.arrow-y;
+                width: root.arrow; height: root.arrow;
+                source: @image-url("../assets/tuner-flat.svg");
+                colorize: Theme.lcd-lamp;
+            }
+
+            if root.flat-on : flat-lit := Image {
+                x: 0; y: parent.arrow-y;
+                width: root.arrow; height: root.arrow;
+                source: @image-url("../assets/tuner-flat.svg");
+                colorize: root.lit;
+            }
+
+            Image {
+                x: parent.width - root.arrow; y: parent.arrow-y;
+                width: root.arrow; height: root.arrow;
+                source: @image-url("../assets/tuner-sharp.svg");
+                colorize: Theme.lcd-lamp;
+            }
+
+            if root.sharp-on : sharp-lit := Image {
+                x: parent.width - root.arrow; y: parent.arrow-y;
+                width: root.arrow; height: root.arrow;
+                source: @image-url("../assets/tuner-sharp.svg");
+                colorize: root.lit;
+            }
+
+            note := Text {
+                x: (parent.width - parent.pair-w) / 2; y: 0;
+                width: self.preferred-width; height: parent.height;
+                text: root.data.active ? root.data.note : "—";
+                color: root.lit;
+                font-family: Locale.display-font-family;
+                font-size: 64px;
+                vertical-alignment: center;
+            }
+
+            octave := Text {
+                x: note.x + note.width + 2px; y: parent.height / 2 - 30px;
+                width: self.preferred-width; height: 22px;
+                text: root.data.active ? root.data.octave : "";
+                color: root.lit;
+                font-family: Locale.mono-font-family;
+                font-size: 20px;
+            }
+        }
     }
 }
 
@@ -271,143 +181,100 @@ export component TunerPanel inherits Rectangle {
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;
     in property <bool> tuner-enabled: false;
+    in property <float> in-tune-cents: AnalyzerBridge.tuner-in-tune-cents;
     in property <bool> show-close-button: false;
     callback close-tuner();
     callback toggle-mute(bool);
     callback toggle-enabled(bool);
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    property <length> bar-h: 46px;
 
-    // ── Header bar ───────────────────────────────────────────────────────
-    Rectangle {
+    background: Theme.well;
+
+    ToolBar {
         x: 0; y: 0;
         width: parent.width;
-        height: 72px;
-        background: #0c0e12;
+        icon: @image-url("../assets/tuner.svg");
+        title: @tr("label-tuner");
 
-        Rectangle {
-            x: 0; y: parent.height - 1px;
-            width: parent.width; height: 1px;
-            background: #1c2028;
-        }
-
-        // Power footswitch — first thing in the header. Same size as the
-        // FootSwitch used inside chain blocks. No LED, no label.
-        PowerFootSwitch {
-            x: 14px; y: (72px - self.height) / 2;
-            active: root.tuner-enabled;
-            toggled => { root.toggle-enabled(!root.tuner-enabled); }
-        }
-
-        // Tuner icon
-        Image {
-            x: 78px; y: 24px;
-            width: 24px; height: 24px;
-            source: @image-url("../assets/tuner.svg");
-            colorize: #c5cdd9;
-        }
-
-        Text {
-            x: 110px; y: 0;
-            width: self.preferred-width; height: parent.height;
-            text: @tr("label-tuner");
-            color: #e5ebf2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 3.0px;
-            vertical-alignment: center;
-        }
-
-        // Close button (inline mode only)
-        if root.show-close-button : Rectangle {
-            x: parent.width - 40px; y: 22px;
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
-            border-width: 1px;
-            border-color: #2c323d;
-
-            Image {
-                x: (parent.width - 12px) / 2;
-                y: (parent.height - 12px) / 2;
-                width: 12px;
-                height: 12px;
-                source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
-            }
-
-            close-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.close-tuner(); }
-            }
-        }
-
-        // Mute switch (right side) — label "MUTE" on top, toggle + LED below.
-        // Only interactive while the tuner is powered on; dimmed otherwise.
-        MuteSwitch {
-            x: root.show-close-button ? parent.width - 102px : parent.width - 62px;
-            y: (72px - self.height) / 2;
-            active: root.mute-active;
+        // MUTE only acts while the tuner is on.
+        PillSwitch {
+            text: @tr("label-mute");
+            on: root.mute-active;
+            warn: true;
             enabled: root.tuner-enabled;
             toggled => { root.toggle-mute(!root.mute-active); }
         }
-    }
 
-    // ── Empty state ──────────────────────────────────────────────────────
-    if root.tuner-rows.length == 0 : Rectangle {
-        x: 0; y: 72px;
-        width: parent.width;
-        height: parent.height - 72px;
-
-        Text {
-            x: 0; y: parent.height / 2 - 32px;
-            width: parent.width; height: 24px;
-            text: @tr("status-no-active-inputs");
-            color: #4a525e;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 2.4px;
-            horizontal-alignment: center;
+        PillSwitch {
+            text: @tr("label-power");
+            on: root.tuner-enabled;
+            toggled => { root.toggle-enabled(!root.tuner-enabled); }
         }
-        // Wraps (and grows) instead of running off a narrow window.
-        Text {
-            x: 16px; y: parent.height / 2 - 4px;
-            width: parent.width - 32px; height: self.preferred-height;
-            text: @tr("status-tuner-empty-help");
-            color: #4a525e;
-            font-family: "Inter";
-            font-size: 18px;
-            horizontal-alignment: center;
-            wrap: word-wrap;
+
+        if root.show-close-button : ToolBarClose {
+            clicked => { root.close-tuner(); }
         }
     }
 
-    // ── Tuner cards ──────────────────────────────────────────────────────
+    // ── Empty state: the LCD says why it is blank ────────────────────────
+    if root.tuner-rows.length == 0 : LcdGlass {
+        x: 14px; y: root.bar-h + 14px;
+        width: parent.width - 28px;
+        height: empty-col.preferred-height;
+
+        empty-col := VerticalLayout {
+            padding-top: 28px;
+            padding-bottom: 28px;
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 8px;
+
+            Text {
+                text: @tr("status-no-active-inputs");
+                color: Theme.lcd-glow;
+                font-size: 26px;
+                letter-spacing: 0.08 * 26px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: @tr("status-tuner-empty-help");
+                color: Theme.lcd-dim;
+                font-size: Theme.min-font;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    // ── One LCD per input ────────────────────────────────────────────────
     if root.tuner-rows.length > 0 : ScrollView {
-        x: 16px; y: 88px;
-        width: parent.width - 32px;
-        height: parent.height - 104px;
-        viewport-height: root.tuner-rows.length * 108px;
+        x: 0; y: root.bar-h;
+        width: parent.width;
+        height: parent.height - root.bar-h;
+        content-height: 14px + root.tuner-rows.length * 148px;
 
         for row[index] in root.tuner-rows : TunerCard {
-            x: 0;
-            y: index * 108px;
-            width: parent.width - 8px;
+            x: 14px;
+            y: 14px + index * 148px;
+            width: parent.width - 28px;
             data: row;
+            tolerance: root.in-tune-cents;
         }
     }
 }
 
 export component TunerWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-tuner");
     min-width: 480px;
     min-height: 220px;
     preferred-width: 560px;
     preferred-height: 380px;
-    background: #050608;
+    background: Theme.well;
 
     // Rows and power come from the bridge — that is the channel
     // `tuner_wiring` publishes on, the same way MetronomeWindow reads
@@ -430,4 +297,7 @@ export component TunerWindow inherits Window {
         toggle-mute(m) => { root.toggle-mute(m); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

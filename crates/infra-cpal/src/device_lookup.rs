@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use anyhow::Result;
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::DeviceTrait;
 
 /// Devices remembered by id from the last walk. Generic so the rule can be
 /// pinned without a sound card (`device_lookup_tests`).
@@ -103,11 +103,7 @@ pub(crate) fn invalidate() {
 }
 
 fn walk(host: &cpal::Host, is_input: bool) -> Result<Vec<(String, cpal::Device)>> {
-    let devices = if is_input {
-        host.input_devices()?
-    } else {
-        host.output_devices()?
-    };
+    let devices = crate::device_list::devices_of(host, is_input)?;
     let mut seen = Vec::new();
     for device in devices {
         seen.push((device.id()?.to_string(), device));

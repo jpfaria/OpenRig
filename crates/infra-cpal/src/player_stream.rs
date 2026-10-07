@@ -110,7 +110,19 @@ impl ProjectRuntimeController {
         self.player.shared.set_settings(settings);
     }
 
-    fn open_player_output(&self, device_id: &str, targets: &[usize]) -> Result<()> {
+    /// #1081: close the player's stream when it plays on one of `devices`, and
+    /// return the endpoint to reopen it on. The track and where it is stay.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub(crate) fn release_player_on(&self, devices: &[String]) -> Option<(String, Vec<usize>)> {
+        let closed = self
+            .player
+            .output
+            .borrow_mut()
+            .take_if(|handle| handle.plays_on(devices))?;
+        Some(closed.endpoint())
+    }
+
+    pub(crate) fn open_player_output(&self, device_id: &str, targets: &[usize]) -> Result<()> {
         if self
             .player
             .output

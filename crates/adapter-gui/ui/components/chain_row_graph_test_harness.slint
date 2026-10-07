@@ -6,6 +6,7 @@
 // the Rust type of the Split → Mix row; never shown in the running app.
 
 import { ChainRowGraph } from "../pages/chain_row_graph.slint";
+import { BlockHoverLayer } from "block_hover_layer.slint";
 import "../fonts/BebasNeue.ttf";
 
 export component ChainRowGraphLinearHarness inherits Window {
@@ -35,6 +36,13 @@ export component ChainRowGraphLinearHarness inherits Window {
             { from_id: "amp", to_id: "rev", from_x: 314px, from_y: 50px, to_x: 446px, to_y: 50px },
             { from_id: "rev", to_id: "__io_output", from_x: 446px, from_y: 50px, to_x: 578px, to_y: 50px },
         ];
+    }
+    // #398: the block tooltip is a window-level layer, as in AppWindow.
+    BlockHoverLayer {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
     }
 }
 
@@ -87,6 +95,13 @@ export component ChainRowGraphSplitMixHarness inherits Window {
             { from_id: "rev", to_id: "__io_output", from_x: 710px, from_y: 104px, to_x: 842px, to_y: 104px },
         ];
     }
+    // #398: the block tooltip is a window-level layer, as in AppWindow.
+    BlockHoverLayer {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+    }
 }
 
 export component ChainRowGraphYHarness inherits Window {
@@ -117,5 +132,12 @@ export component ChainRowGraphYHarness inherits Window {
             { from_id: "__split_1", to_id: "b1", from_x: 182px, from_y: 104px, to_x: 314px, to_y: 158px },
             { from_id: "b1", to_id: "__io_output_b", from_x: 314px, from_y: 158px, to_x: 446px, to_y: 158px },
         ];
+    }
+    // #398: the block tooltip is a window-level layer, as in AppWindow.
+    BlockHoverLayer {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
     }
 }

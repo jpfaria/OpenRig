@@ -3,108 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenRig — everything you need to play, in one place.</title>
+<title>OpenRig — free amp and pedal rig for macOS</title>
+<meta name="description" content="Amps, cabs, pedals and NAM captures in one free, open-source app for your Mac.">
 <link rel="icon" href="assets/openrig-logomark.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('openrig-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/reveal.css">
 <link rel="stylesheet" href="css/type.css">
 <link rel="stylesheet" href="css/buttons.css">
 <link rel="stylesheet" href="css/nav.css">
 <link rel="stylesheet" href="css/hero.css">
-<link rel="stylesheet" href="css/layout.css">
-<link rel="stylesheet" href="css/band.css">
-<link rel="stylesheet" href="css/gear.css">
+<link rel="stylesheet" href="css/section.css">
+<link rel="stylesheet" href="css/shots.css">
+<link rel="stylesheet" href="css/modules.css">
 <link rel="stylesheet" href="css/stats.css">
 <link rel="stylesheet" href="css/captures.css">
-<link rel="stylesheet" href="css/cards.css">
-<link rel="stylesheet" href="css/features.css">
+<link rel="stylesheet" href="css/notes.css">
+<link rel="stylesheet" href="css/band.css">
+<link rel="stylesheet" href="css/claude.css">
 <link rel="stylesheet" href="css/download.css">
 <link rel="stylesheet" href="css/footer.css">
-<!-- last: the cross-section phone rules have to win over each section's own file -->
-<link rel="stylesheet" href="css/responsive.css">
 </head>
-<body>
+<body id="top">
 
-<nav id="nav">
+<header class="topbar">
   <div class="wrap">
     <a class="brand" href="#top"><img src="assets/openrig-logo.svg" alt="OpenRig"></a>
-    <div class="nav-links">
-      <a href="#tone" data-i18n="nav.tone">Tone</a>
+    <nav class="nav-links">
+      <a href="#gear" data-i18n="nav.gear">Gear</a>
       <a href="#captures" data-i18n="nav.captures">Captures</a>
-      <a href="#rig" data-i18n="nav.rig">The rig</a>
-      <a href="#band" data-i18n="nav.band">Band</a>
-      <a href="#ai" data-i18n="nav.ai">Claude</a>
-      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#rig" data-i18n="nav.rig">Rig</a>
+      <a href="#band" data-i18n="nav.band">Instruments</a>
+      <a href="#practice" data-i18n="nav.practice">Practice</a>
+      <a href="#claude" data-i18n="nav.claude">Claude</a>
       <a href="#support" data-i18n="nav.support">Support</a>
-      <a href="#docs" data-i18n="nav.docs">Docs</a>
-    </div>
-    <a class="nav-gh" href="https://github.com/jpfaria/OpenRig" aria-label="GitHub" title="GitHub">
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-    </a>
-    <div class="lang-switch" data-lang-switch>
-      <button data-lang="en">EN</button><button data-lang="pt-BR">PT</button><button data-lang="es-ES">ES</button>
-    </div>
-    <a class="btn btn-primary" href="#download" data-i18n="nav.download">Download</a>
-  </div>
-</nav>
-
-<header class="hero" id="top">
-  <div class="hero-media">
-    <img src="assets/px-7239914.jpg" alt="Guitarist playing live in front of a full stack">
-  </div>
-  <div class="hero-logo rv"><img src="assets/openrig-logomark.svg" alt="OpenRig"></div>
-  <div class="hero-product rv">
-    <img src="assets/feat-project.png" alt="OpenRig main window — amps and pedals laid out like a pedalboard">
-    <img class="hero-product-2" src="assets/feat-chain.png" alt="OpenRig chain view — the knobs you turn while playing">
-  </div>
-  <!-- Outside .hero-product so it can bottom-align with the download button, not trail the shots. -->
-  <a class="hero-support rv" href="sponsor.html">
-    <span data-i18n="hero.supportBig">Donate</span>
-    <i data-i18n="hero.supportSub">GitHub Sponsors</i>
-  </a>
-  <div class="wrap">
-    <p class="eyebrow" data-i18n="hero.eyebrow">Free · Open source</p>
-    <h1 data-i18n="hero.h1">Everything you need<br>to play,<br><em>in one place.</em></h1>
-    <p class="lede" data-i18n="hero.lede">{gear} pieces of gear included: native blocks, NAM/A2, IRs, LV2 and VST3 — all in the same chain.</p>
-    <div class="hero-cta">
-      <a class="btn btn-primary btn-lg" href="#download" data-i18n="hero.cta1">Download</a>
-      <a class="btn btn-ghost btn-lg" href="#rig" data-i18n="hero.cta2">See the rig</a>
-      <a class="btn btn-support btn-lg" href="sponsor.html" data-i18n="hero.supportBtn">♥ Donate</a>
-      <span class="hero-note" data-i18n="hero.note">Free forever. No account, no cloud, no subscription.</span>
+    </nav>
+    <div class="bar-tools">
+      <a class="icon-btn gh" href="https://github.com/jpfaria/OpenRig" aria-label="GitHub"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Light or dark theme">
+        <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+      </button>
+      <div class="seg" data-lang-switch>
+        <button type="button" data-lang="en">EN</button><button type="button" data-lang="pt-BR">PT</button><button type="button" data-lang="es-ES">ES</button>
+      </div>
+      <a class="btn btn-primary btn-sm" href="#download" data-i18n="nav.download">Download</a>
     </div>
   </div>
-  <div class="scroll-hint"><span data-i18n="hero.scroll">Scroll</span><i></i></div>
 </header>
 
-<!-- One file per section under sections/, injected by js/sections.js before the language pass. -->
-<div data-include="sections/tone.html"></div>
-<div data-include="sections/stats.html"></div>
+<section class="hero on-dark">
+  <div class="hero-bg"></div>
+  <div class="wrap">
+    <p class="chip" data-i18n="hero.chip">Free · Open source · macOS</p>
+    <h1 data-i18n="hero.h1">Amps, cabs, pedals and NAM captures in <em>one free app</em> for your Mac.</h1>
+    <p class="lede" data-i18n="hero.lede">700+ pieces of gear, from a Marshall 1959 SLP to a Tube Screamer, played through the audio interface you already own.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#download" data-i18n="hero.cta1">Download for macOS</a>
+      <a class="btn btn-ghost" href="#gear" data-i18n="hero.cta2">See the app</a>
+      <a class="btn btn-ghost btn-love" href="sponsor.html" data-i18n="hero.cta3">♥ Donate</a>
+    </div>
+    <p class="hero-note" data-i18n="hero.note">No account, no subscription, nothing locked behind a paywall.</p>
+    <figure class="shot hero-shot">
+      <picture data-themed><source srcset="assets/shots/chains-light.webp" media="(prefers-color-scheme: light)"><img src="assets/shots/chains.webp" width="2000" height="1250" alt="OpenRig showing three chains: a lead guitar split between two amps, a rhythm guitar and an acoustic"></picture>
+      <figcaption data-i18n="hero.caption">One project, three chains: lead guitar split between a Marshall and an AC30, rhythm through a Twin Reverb, acoustic on its own.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<div data-include="sections/catalog.html"></div>
 <div data-include="sections/captures.html"></div>
 <div data-include="sections/rig.html"></div>
-<div data-include="sections/app.html"></div>
 <div data-include="sections/band.html"></div>
-<div data-include="sections/instruments.html"></div>
-<div data-include="sections/gig.html"></div>
-<div data-include="sections/ai.html"></div>
-<div data-include="sections/features.html"></div>
+<div data-include="sections/practice.html"></div>
+<div data-include="sections/tools.html"></div>
+<div data-include="sections/claude.html"></div>
+<div data-include="sections/more.html"></div>
 <div data-include="sections/support.html"></div>
 <div data-include="sections/download.html"></div>
 
-<footer id="docs">
+<footer class="foot" id="docs">
   <div class="wrap">
-    <div class="foot">
-      <a class="brand" href="#top"><img src="assets/openrig-logo.svg" alt="OpenRig"></a>
-      <div class="fcol"><h4 data-i18n="footer.learn.h4">Learn</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/quick-start.md" data-i18n="footer.learn.l1">Getting started</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/screens.md" data-i18n="footer.learn.l2">Building a rig</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/presets.md" data-i18n="footer.learn.l3">Presets</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/audio-config.md" data-i18n="footer.learn.l4">Audio setup</a></div>
-      <div class="fcol"><h4 data-i18n="footer.gear.h4">Gear</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l1">Amps</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l2">Cabinets</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l3">Pedals</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l4">Full catalog</a></div>
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="#top"><img src="assets/openrig-logo.svg" alt="OpenRig"></a>
+        <p data-i18n="footer.tagline">Free and open-source guitar rig for macOS.</p>
+      </div>
+      <div class="fcol"><h4 data-i18n="footer.learn.h4">Learn</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/quick-start.md" data-i18n="footer.learn.l1">Getting started</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/screens.md" data-i18n="footer.learn.l2">The screens</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/presets.md" data-i18n="footer.learn.l3">Presets</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/audio-config.md" data-i18n="footer.learn.l4">Audio setup</a></div>
+      <div class="fcol"><h4 data-i18n="footer.gear.h4">Gear</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l1">Full catalog</a><a href="https://github.com/jpfaria/OpenRig-plugins" data-i18n="footer.gear.l2">Plugin repository</a><a href="https://github.com/jpfaria/OpenRig-claude" data-i18n="footer.gear.l3">Claude plugin</a></div>
       <div class="fcol"><h4 data-i18n="footer.project.h4">Project</h4><a href="https://github.com/jpfaria/OpenRig" data-i18n="footer.project.l1">GitHub</a><a href="https://github.com/jpfaria/OpenRig/releases" data-i18n="footer.project.l2">Releases</a><a href="https://github.com/jpfaria/OpenRig/issues" data-i18n="footer.project.l3">Report a bug</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/CONTRIBUTING.md" data-i18n="footer.project.l4">Contribute</a><a href="sponsor.html" data-i18n="footer.project.l5">Sponsor</a></div>
     </div>
     <div class="legal">
       <span data-i18n="footer.copyright">© 2026 OpenRig · GPL-3.0</span>
-      <div class="lang" data-lang-switch>
-        <button data-lang="en">English</button><button data-lang="pt-BR">Português</button><button data-lang="es-ES">Español</button>
+      <div class="seg" data-lang-switch>
+        <button type="button" data-lang="en">English</button><button type="button" data-lang="pt-BR">Português</button><button type="button" data-lang="es-ES">Español</button>
       </div>
     </div>
   </div>

@@ -1,34 +1,75 @@
 // Responsibility: renders the drum machine's building-block controls.
 // Kept out of `pages/drums_window.slint` so the page stays about layout. The
-// lamps, knob cells and power switch come from the metronome's controls, so
-// both utilities speak the same pedal vocabulary.
+// lamps and knob cells come from the metronome's controls, so both utilities
+// speak the same vocabulary.
+//
+// #398: FILL is a round metal button in a dark collar, and the pickers are
+// flat fields with a quiet caption above.
+import { Theme, Gear } from "../theme.slint";
+import { FieldCaption } from "field_caption.slint";
 
-// A captioned footswitch: FILL. Same sprite as POWER, larger, because it is
-// pressed mid-song.
+// The round metal FILL button, its caption below. It is pressed mid-song, so
+// it is the largest control on the panel.
 export component DrumFootSwitch inherits Rectangle {
     in property <string> caption;
     in property <bool> active;
     in property <bool> enabled: true;
     callback pressed();
 
-    width: max(72px, caption-text.preferred-width);
-    height: 108px;
+    width: max(76px, caption-text.preferred-width);
+    height: 98px;
 
+    // The collar: a black edge, then a dark ring around the cap.
     Rectangle {
-        x: (parent.width - 64px) / 2; y: 4px;
-        width: 64px; height: 64px;
-        clip: true;
-        opacity: root.enabled ? 1.0 : 0.35;
-        // Sprite is vertical: two square frames, top = pressed/on.
-        Image {
-            source: @image-url("../assets/sprites/footswitch.png");
-            x: 0;
-            y: root.active ? -parent.height : 0;
-            width: parent.width;
-            height: 2 * parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
+        x: (parent.width - 74px) / 2; y: 0;
+        width: 74px; height: 74px;
+        border-radius: 37px;
+        background: Gear.edge;
+        drop-shadow-blur: 8px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: Gear.jack-shadow;
+        opacity: root.enabled ? 1.0 : 0.45;
+
+        Rectangle {
+            x: 1px; y: 1px;
+            width: 72px; height: 72px;
+            border-radius: 36px;
+            background: root.active ? Theme.accent : Gear.fill-ring;
+
+            // The cap: metal lit from the upper left, built from round
+            // layers (a gradient on a round shape renders square).
+            Rectangle {
+                x: 4px; y: 4px;
+                width: 64px; height: 64px;
+                border-radius: 32px;
+                background: Gear.fill-lo;
+                clip: true;
+
+                Rectangle {
+                    x: 3px; y: 2px;
+                    width: 56px; height: 56px;
+                    border-radius: 28px;
+                    background: Gear.fill-mid;
+                }
+
+                if !ta.pressed : Rectangle {
+                    x: 9px; y: 6px;
+                    width: 38px; height: 38px;
+                    border-radius: 19px;
+                    background: Gear.key-mid;
+                    opacity: 0.9;
+                }
+
+                if !ta.pressed : Rectangle {
+                    x: 15px; y: 10px;
+                    width: 22px; height: 22px;
+                    border-radius: 11px;
+                    background: Gear.switch-hi;
+                    opacity: 0.9;
+                }
+            }
         }
+
         // Named so the headless interaction test can find and press it.
         ta := TouchArea {
             mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
@@ -41,18 +82,20 @@ export component DrumFootSwitch inherits Rectangle {
     }
 
     caption-text := Text {
-        x: 0; y: parent.height - 30px;
-        width: parent.width; height: 22px;
+        x: 0; y: 80px;
+        width: parent.width; height: 18px;
         text: root.caption;
-        color: root.active ? #d8b268 : #7c8798;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.6px;
+        color: root.active ? Theme.accent : Theme.ink-2;
+        font-size: Theme.knob-caption-font;
+        font-weight: 600;
+        letter-spacing: 0.1 * Theme.knob-caption-font;
         horizontal-alignment: center;
+        vertical-alignment: center;
     }
 
     accessible-role: button;
     accessible-label: root.caption;
+    accessible-action-default => { root.pressed(); }
 }
 
 // Captioned closed field showing the current choice; click opens its list.
@@ -63,48 +106,44 @@ export component DrumPickerField inherits Rectangle {
     in property <image> icon;
     callback open();
 
-    height: 62px;
+    height: 60px;
 
-    Text {
+    FieldCaption {
         x: 0; y: 0;
         width: parent.width; height: 22px;
-        text: root.caption;
-        color: #7c8798;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.6px;
+        text: root.caption.to-uppercase();
     }
 
     Rectangle {
-        x: 0; y: 24px;
-        width: parent.width; height: 38px;
-        border-radius: 6px;
-        background: #0a0d12;
+        x: 0; y: 28px;
+        width: parent.width; height: 32px;
+        border-radius: 3px;
+        background: Theme.field;
         border-width: 1px;
-        border-color: ta.has-hover ? #4d5868 : #2b3340;
+        border-color: ta.has-hover ? Theme.ink-3 : Theme.field-line;
 
         Image {
             x: 10px; y: (parent.height - 16px) / 2;
             width: 16px; height: 16px;
             source: root.icon;
-            colorize: #8a94a2;
+            colorize: Theme.ink-3;
         }
         Text {
             x: 34px;
-            width: parent.width - 64px;
+            width: parent.width - 60px;
             height: parent.height;
             text: root.label != "" ? root.label : root.placeholder;
-            color: root.label != "" ? #f1f4f8 : #6a6a82;
-            font-size: 18px;
-            font-weight: 600;
+            color: root.label != "" ? Theme.ink : Theme.ink-3;
+            font-size: Theme.min-font;
+            font-weight: 500;
             vertical-alignment: center;
             overflow: elide;
         }
         Image {
-            x: parent.width - 30px; y: (parent.height - 16px) / 2;
-            width: 16px; height: 16px;
-            source: @image-url("../assets/arrow-down.svg");
-            colorize: #8a94a2;
+            x: parent.width - 19px; y: (parent.height - 9px) / 2;
+            width: 9px; height: 9px;
+            source: @image-url("../assets/chevron-down.svg");
+            colorize: Theme.ink-3;
         }
         ta := TouchArea {
             mouse-cursor: pointer;
@@ -112,11 +151,12 @@ export component DrumPickerField inherits Rectangle {
         }
     }
 
-    accessible-role: button;
+    accessible-role: combobox;
     accessible-label: root.caption;
+    accessible-action-default => { root.open(); }
 }
 
-// One row of a picker list: a genre header, or a clickable choice. A plain
+// One row of a picker list: a genre band, or a clickable choice. A plain
 // Rectangle + TouchArea — rows inside a PopupWindow do not receive clicks.
 export component DrumPickRowView inherits Rectangle {
     in property <string> label;
@@ -124,42 +164,57 @@ export component DrumPickRowView inherits Rectangle {
     in property <bool> active;
     callback pick();
 
-    height: root.header ? 32px : 40px;
+    height: root.header ? 28px : 38px;
+    background: root.header ? Theme.panel-lo : transparent;
 
     if root.header : genre := Text {
-        x: 12px; y: 6px;
-        width: parent.width - 24px; height: parent.height - 6px;
-        text: root.label;
-        color: #d8b268;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 2.0px;
+        x: 10px;
+        width: parent.width - 20px; height: parent.height;
+        text: root.label.to-uppercase();
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.16 * Theme.min-font;
         vertical-alignment: center;
+        overflow: elide;
         accessible-role: text;
         accessible-label: root.label;
     }
 
     if !root.header : Rectangle {
         width: 100%; height: 100%;
-        border-radius: 5px;
-        background: root.active ? #1d4e73 : (ta.has-hover ? #1b2230 : transparent);
+        background: root.active ? Theme.accent-soft : (ta.has-hover ? Theme.panel-hi : transparent);
+
+        if root.active : Rectangle {
+            x: 0;
+            width: 3px; height: 100%;
+            background: Theme.accent;
+        }
 
         Text {
-            x: 24px;
-            width: parent.width - 36px;
+            x: 12px;
+            width: parent.width - 24px;
             height: parent.height;
             text: root.label;
-            color: #f1f4f8;
-            font-size: 18px;
+            color: Theme.ink;
+            font-size: Theme.min-font;
             font-weight: root.active ? 700 : 500;
             vertical-alignment: center;
             overflow: elide;
         }
+
         ta := TouchArea {
             mouse-cursor: pointer;
             clicked => { root.pick(); }
         }
         accessible-role: button;
         accessible-label: root.label;
+    }
+
+    // The divider between rows.
+    Rectangle {
+        y: 0;
+        width: 100%; height: 1px;
+        background: Theme.hair-2;
     }
 }

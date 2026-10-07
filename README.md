@@ -78,7 +78,7 @@ The foundation that makes the bigger vision possible already runs on every deskt
 - **Real-time visualization built in.** A chromatic tuner and a live spectrum analyzer drop into the chain like any other block — see what you hear.
 - **AI-controllable (MCP).** Any MCP client (Claude Desktop/Code, Cursor) drives the *live* rig through OpenRig's built-in MCP server — build tones, tweak the chain, switch presets by conversation, while the GUI stays open. See **[MCP server & plugin](docs/mcp.md)**.
 - **Practice with a virtual DI.** Loop a dry guitar DI through any chain to shape your tone hands-free — pick a bundled CC0 loop or load your own WAV and hit play; the whole chain (amp, cab, pedals) processes it exactly like a live signal. Per-chain and ephemeral.
-- **Looper, metronome, drum machine, backing tracks and mixer built in.** Up to 8 multi-layer loopers per chain (overdub with undo/redo, ½×/1×/2× speed, reverse, waveform trim, takes saved to a library, every loop of every chain in sync on one cycle), a metronome with its own output whose tempo also drives every tempo-synced delay and modulation (each preset can carry its own BPM), a play-along drum machine (sampled kits, grooves by genre, a fill on demand, its own output), a backing-track player (speed and pitch control, A–B loop) on its own output, and a global mixer with one fader and one mute per input and output.
+- **Looper, metronome, drum machine, backing tracks and mixer built in.** Up to 8 multi-layer loopers per chain (overdub with undo/redo, ½×/1×/2× speed, reverse, waveform trim and a Fit that cuts the take to whole passes of the riff, takes saved to a library, every loop of every chain in sync on one cycle), a metronome with its own output whose tempo also drives every tempo-synced delay and modulation (each preset can carry its own BPM), a play-along drum machine (sampled kits, grooves by genre, a fill on demand, its own output), a backing-track player (speed and pitch control, A–B loop) on its own output, and a global mixer with one fader and one mute per input and output.
 - **Footswitch control over MIDI.** MIDI Learn on any knob or switch, MIDI profiles for controllers, BLE-MIDI. An M-Vave Chocolate comes mapped.
 - **Real pedals in the chain.** An Insert block sends the signal out to external gear and back, mid-chain; an Output port placed mid-chain taps the signal at that point.
 - **Tone Doctor.** Flags fizz, mud and boom against a genre reference and names the block responsible.
@@ -110,7 +110,7 @@ Left: block library, organized by brand with hardware-faithful panel art. Right:
 ## Quick Start
 
 1. **Install** — see [Install](#install).
-2. **Configure I/O** — pick your audio interface as input and your monitors/headphones as output.
+2. **Follow the setup wizard** — on first launch it walks language, audio interface, I/O and your TONE3000 key (TONE3000 can be skipped).
 3. **Build a chain** — drop blocks between Input and Output (Tuner → EQ → Drive → Amp → Cab → Reverb is a good start).
 4. **Tweak in real time** — click any block to open its editor; turn knobs while you play.
 5. **Save a preset** — presets are plain YAML files in the folder set in **Settings → Paths**. Share by copy-paste.
@@ -215,6 +215,8 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Multiple I/O blocks per chain** with independent device and channel configuration per block
 - [x] **Block-level bypass** — every block can be enabled or disabled live without rebuilding the chain
 - [x] **User-supplied IR and NAM loaders** — drop any `.wav` impulse response or `.nam` capture into the chain at runtime
+- [x] **TONE3000 browser** — search [TONE3000](https://www.tone3000.com) from inside the app with your own Secret Key and install any NAM or IR tone as a plugin (A1 or A2, every capture, real knobs and calibrated level); TONE3000 captures are no longer bundled in the installer. See [docs/tone3000.md](docs/tone3000.md).
+- [x] **First-run setup wizard** — the first launch walks you through language, audio interface, I/O bindings and your TONE3000 key, step by step; the TONE3000 step can be skipped.
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](https://github.com/jpfaria/OpenRig-plugins/blob/main/docs/blocks-reference.md)
 - [x] **AI-assisted tone building** — the [`openrig:tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/tone-builder/SKILL.md) Claude Code skill (shipped in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds full tones on the running rig from a song or artist name, via MCP
 - [x] **Per-chain preset banks + scenes** — switch presets and scenes live per chain; scenes store only parameter diffs (Helix-Snapshot style) for instant switching without reloading blocks ([#321](https://github.com/jpfaria/OpenRig/issues/321))

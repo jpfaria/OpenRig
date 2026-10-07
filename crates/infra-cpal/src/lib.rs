@@ -25,7 +25,11 @@ mod jack_supervisor;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod device_config_cache;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_list;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod device_lookup;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_name_cache;
 
 #[cfg(target_os = "windows")]
 mod com_keepalive;
@@ -112,8 +116,10 @@ pub use live_runtime::LiveRuntimeSlot;
 mod build_request;
 pub use build_request::{build_chain_runtime, BuildRequest};
 
+mod retired_streams;
 mod slot_handover;
 mod slot_processing;
+mod stream_handover;
 pub use slot_processing::{
     build_chain_slots, process_input_buffer, process_input_buffer_patient, process_output_buffer,
 };
@@ -124,6 +130,8 @@ pub use chain_stream_registry::{ChainStreamRegistry, OwnedStreams};
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod controller_device_restart;
 mod controller_health;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod controller_jack_servers;
@@ -148,6 +156,8 @@ mod device_enum;
 mod di_playback;
 mod di_playback_timing;
 mod di_stream;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod di_stream_reopen;
 mod di_stream_worker;
 mod host_clock;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -158,8 +168,8 @@ mod output_fader;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;
 pub use device_cache::{
-    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
-    list_output_device_descriptors,
+    cached_device_descriptors, has_new_devices, invalidate_device_cache,
+    list_input_device_descriptors, list_output_device_descriptors,
 };
 pub use device_enum::list_devices;
 mod device_presence;

@@ -34,6 +34,7 @@ fn labels() -> IoLabels {
             (leaf("sp", 0), "Out A".into()),
             (leaf("sp", 1), "Out B".into()),
         ],
+        ports: Vec::new(),
     }
 }
 

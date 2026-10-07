@@ -1,0 +1,87 @@
+// Responsibility: renders the brand side of the block editor.
+// #398: a raised column left of the controls. A stripe in the block's
+// category colour runs along its top; the brand logo with the model under it
+// (or the model as a display word when the brand has no logo) sits centred,
+// with the round power button below.
+import { Theme, Gear } from "../theme.slint";
+import { BrandLogo } from "brand_logo.slint";
+import { BlockPowerButton } from "block_power_button.slint";
+import { Locale } from "../locale_globals.slint";
+
+export component BlockPanelBrandZone inherits Rectangle {
+    in property <string> selected-brand;
+    in property <string> selected-model-label;
+    in property <color> category: Theme.accent;
+    in property <bool> enabled: true;
+    callback toggle-power();
+
+    private property <bool> branded: root.selected-brand != ""
+        && root.selected-brand != "native"
+        && root.selected-brand != "generic"
+        && logo.has-logo;
+    private property <length> ident-h: root.branded ? 64px + 8px + 22px : word.preferred-height;
+    private property <length> stack-h: root.ident-h + 18px + 34px;
+    private property <length> top: (root.height - root.stack-h) / 2;
+
+    background: Theme.panel-hi;
+
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 3px;
+        background: root.enabled ? root.category : Gear.off;
+    }
+
+    Rectangle {
+        x: parent.width - 1px;
+        width: 1px;
+        background: Theme.hair;
+    }
+
+    logo := BrandLogo {
+        visible: root.branded;
+        x: (parent.width - self.width) / 2;
+        y: root.top;
+        width: Math.min(190px, parent.width - 36px);
+        height: 64px;
+        brand: root.selected-brand;
+        tint: Theme.ink;
+    }
+
+    if root.branded : Text {
+        x: 18px;
+        y: root.top + 72px;
+        width: parent.width - 36px;
+        height: 22px;
+        text: root.selected-model-label.to-uppercase();
+        color: Theme.ink-2;
+        font-size: Theme.min-font;
+        font-weight: 700;
+        letter-spacing: 0.12 * Theme.min-font;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    word := Text {
+        visible: !root.branded;
+        x: 18px;
+        y: root.top;
+        width: parent.width - 36px;
+        text: root.selected-model-label.to-uppercase();
+        color: Theme.ink;
+        font-family: Locale.display-font-family;
+        font-size: 36px;
+        letter-spacing: 0.04 * 36px;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+    }
+
+    BlockPowerButton {
+        x: (parent.width - self.width) / 2;
+        y: root.top + root.ident-h + 18px;
+        enabled: root.enabled;
+        clicked => { root.toggle-power(); }
+    }
+}

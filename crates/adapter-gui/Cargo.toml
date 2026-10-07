@@ -63,4 +63,4 @@ sentry = { version = "0.49", default-features = false, features = ["test"] }
 # dispatches real pointer events, so tests catch .slint structural bugs
 # (TouchArea placement, focus recursion, callback wiring) that pure WireCtx
 # tests cannot see. This is why "green" unit tests still shipped broken UI.
-i-slint-backend-testing = "1.16"
+i-slint-backend-testing = "1.18"

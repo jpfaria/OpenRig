@@ -5,87 +5,60 @@
 // "Save project" button. Name edits auto-dispatch UpdateProjectName,
 // but the user expects a Save affordance — the button forwards to
 // AppWindow.save-project (Command::SaveProject).
+//
+// #398: captioned fields of one width stacked on the left — the name
+// editable, the file read-only — and the save button under them.
 
-import { Button, LineEdit } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
+import { Locale } from "../../locale_globals.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
+import { FieldCaption } from "../../components/field_caption.slint";
+import { TextField } from "../../components/text_field.slint";
+import { FormButton } from "../../components/form_button.slint";
 
 export component SectionProjectMeta inherits Rectangle {
     callback save-project();
 
-    // Shared label column: at least 80px, wider when a translation needs it.
-    private property <length> label-width: max(80px, name-label.preferred-width, file-label.preferred-width);
-
     background: transparent;
 
     VerticalLayout {
-        spacing: 12px;
+        spacing: 16px;
         alignment: start;
 
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            min-height: 32px;
-            name-label := Text {
-                text: @tr("label-name");
-                color: #cfd5e0;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            // Focus-ring wrapper: provides visible 2px bright-blue border on
-            // focus per ui-ux-pro-max HIGH-severity focus ring rule.
-            Rectangle {
-                horizontal-stretch: 1;
-                // Tall enough for the LineEdit at 18px (its own min height).
-                height: max(28px, name-edit.min-height);
-                border-radius: 8px;
-                border-width: name-edit.has-focus ? 2px : 1px;
-                border-color: name-edit.has-focus ? #45a7ff : #2a2f38;
-                animate border-color, border-width { duration: 150ms; }
-
-                name-edit := LineEdit {
+        VerticalLayout {
+            spacing: 6px;
+            FieldCaption { text: @tr("label-name"); }
+            HorizontalLayout {
+                alignment: start;
+                name-edit := TextField {
+                    width: 420px;
                     text: SettingsBridge.project-name;
-                    height: parent.height;
-                    width: parent.width;
-                    font-size: 18px;
                     edited(t) => { SettingsBridge.edit-project-name(t); }
                 }
             }
         }
 
-        // Grows with the wrapped file path instead of clipping its 2nd line.
-        HorizontalLayout {
-            spacing: 8px;
-            alignment: start;
-            min-height: 28px;
-            file-label := Text {
-                text: @tr("label-file");
-                color: #cfd5e0;
-                font-size: 18px;
-                width: root.label-width;
-                vertical-alignment: center;
-            }
-            Text {
-                text: SettingsBridge.project-path-display == ""
-                    ? @tr("placeholder-project-unsaved")
-                    : SettingsBridge.project-path-display;
-                color: #8a92a3;
-                font-size: 18px;
-                horizontal-stretch: 1;
-                vertical-alignment: center;
-                wrap: word-wrap;
+        VerticalLayout {
+            spacing: 6px;
+            FieldCaption { text: @tr("label-file"); }
+            HorizontalLayout {
+                alignment: start;
+                file-field := TextField {
+                    width: name-edit.width;
+                    read-only: true;
+                    text: SettingsBridge.project-path-display;
+                    font-family: Locale.mono-font-family;
+                    placeholder: @tr("placeholder-project-unsaved");
+                }
             }
         }
 
-        // Save affordance — even though name edits auto-dispatch
-        // UpdateProjectName, users expect an explicit Save button.
         HorizontalLayout {
-            alignment: end;
-            spacing: 8px;
-            height: 36px;
-            Button {
-                text: @tr("btn-save-project");
-                height: 32px;
+            alignment: start;
+            FormButton {
+                icon-only: true;
+                icon: @image-url("../../assets/save.svg");
+                label: @tr("btn-save-project");
                 clicked => { root.save-project(); }
             }
         }

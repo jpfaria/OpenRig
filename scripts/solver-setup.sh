@@ -56,11 +56,22 @@ fi
 # carry the NAM submodule.
 git -C "$ws" submodule update --init --recursive -q
 
+# The user folder first; the folders older releases used until the app has
+# copied them over on its first start.
 case "$(uname -s)" in
-    Darwin) config="$HOME/Library/Application Support/OpenRig/config.yaml" ;;
-    *) config="${XDG_DATA_HOME:-$HOME/.local/share}/openrig/config.yaml" ;;
+    Darwin) legacy="$HOME/Library/Application Support/OpenRig/config.yaml" ;;
+    *) legacy="${XDG_CONFIG_HOME:-$HOME/.config}/OpenRig/config.yaml" ;;
 esac
-plugins_path="$(grep -m1 'plugins_path:' "$config" 2>/dev/null | sed 's/.*plugins_path:[[:space:]]*//; s/["'\'']//g')"
+config="$HOME/.openrig/config.yaml"
+plugins_path=""
+for candidate in "$HOME/.openrig/config.yaml" "$legacy"; do
+    found="$(grep -m1 'plugins_path:' "$candidate" 2>/dev/null | sed 's/.*plugins_path:[[:space:]]*//; s/["'\'']//g')"
+    if [ -n "$found" ] && [ -d "$found" ]; then
+        config="$candidate"
+        plugins_path="$found"
+        break
+    fi
+done
 if [ -z "$plugins_path" ] || [ ! -d "$plugins_path" ]; then
     echo "no usable paths.plugins_path in $config — the app would open with zero plugins" >&2
     exit 1

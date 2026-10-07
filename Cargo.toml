@@ -49,7 +49,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["João Paulo"]
 
 [workspace.dependencies]
@@ -69,8 +69,8 @@ prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
 crossbeam-queue = "0.3"
-slint = { version = "1.16", default-features = false, features = ["std", "compat-1-2"] }
-slint-build = "1.16"
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2"] }
+slint-build = "1.18"
 log = "0.4"
 env_logger = "0.11"
 rustfft = "6"

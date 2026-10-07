@@ -222,7 +222,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "Mixer"
+msgstr "Mix"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1282,3 +1282,324 @@ msgstr "Rechercher"
 
 msgid "status-drums-no-match"
 msgstr "Aucun résultat"
+
+msgid "tooltip-move-chain-up"
+msgstr "Monter la chaîne"
+
+msgid "tooltip-move-chain-down"
+msgstr "Descendre la chaîne"
+
+msgid "accessible-chain-power"
+msgstr "Activer ou désactiver la chaîne"
+
+msgid "compact-block-power"
+msgstr "Activer ou désactiver le bloc"
+
+msgid "compact-block-remove"
+msgstr "Supprimer le bloc"
+
+msgid "block-editor-power"
+msgstr "Activer ou couper le bloc"
+
+msgid "block-editor-info"
+msgstr "Informations"
+
+msgid "block-editor-remove"
+msgstr "Retirer le bloc"
+
+msgid "block-editor-save"
+msgstr "Ajouter le bloc"
+
+msgid "label-mixer-chain"
+msgstr "CHAÎNE"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} BANDES"
+
+msgid "label-count-in-on"
+msgstr "1 MESURE"
+
+msgid "label-count-in-off"
+msgstr "NON"
+
+msgid "title-settings"
+msgstr "Paramètres"
+
+msgid "label-device-channels {} {}"
+msgstr "{} entrées · {} sorties"
+
+msgid "help-buffer-latency"
+msgstr "Latence par bloc audio"
+
+msgid "btn-refresh-devices"
+msgstr "Actualiser"
+
+msgid "empty-no-midi-devices"
+msgstr "Aucun appareil MIDI trouvé"
+
+msgid "placeholder-midi-alias"
+msgstr "Alias"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · Canaux {}"
+
+msgid "btn-edit"
+msgstr "Modifier"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "CHEMINS"
+
+msgid "title-add-block"
+msgstr "Ajouter un bloc"
+
+msgid "di-source-label"
+msgstr "Source"
+
+msgid "title-section-appearance"
+msgstr "Apparence"
+
+msgid "label-theme"
+msgstr "Thème"
+
+msgid "appearance-system"
+msgstr "Système"
+
+msgid "appearance-light"
+msgstr "Clair"
+
+msgid "appearance-dark"
+msgstr "Sombre"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "Captures TONE3000"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "Parcourir"
+
+msgid "tab-tone3000-installed"
+msgstr "Installés ({})"
+
+msgid "label-tone3000-key"
+msgstr "Secret Key TONE3000"
+
+msgid "desc-tone3000-key"
+msgstr "Chaque utilisateur utilise sa propre clé. Elle reste sur cette machine."
+
+msgid "placeholder-tone3000-key"
+msgstr "Collez votre clé t3k_cs_"
+
+msgid "status-tone3000-key-set"
+msgstr "Clé définie"
+
+msgid "status-tone3000-key-unset"
+msgstr "Aucune clé"
+
+msgid "btn-tone3000-key-save"
+msgstr "Enregistrer"
+
+msgid "btn-tone3000-key-clear"
+msgstr "Retirer"
+
+msgid "btn-tone3000-search"
+msgstr "Rechercher"
+
+msgid "btn-tone3000-install"
+msgstr "Installer"
+
+msgid "btn-tone3000-update"
+msgstr "Mettre à jour"
+
+msgid "btn-tone3000-retry"
+msgstr "Réessayer"
+
+msgid "btn-tone3000-uninstall"
+msgstr "Désinstaller"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "Confirmer"
+
+msgid "btn-tone3000-previous-page"
+msgstr "Page précédente"
+
+msgid "btn-tone3000-next-page"
+msgstr "Page suivante"
+
+msgid "placeholder-tone3000-search"
+msgstr "Chercher amplis, pédales, rigs, IRs"
+
+msgid "label-tone3000-format"
+msgstr "Format"
+
+msgid "label-tone3000-gear"
+msgstr "Matériel"
+
+msgid "label-tone3000-sort"
+msgstr "Tri"
+
+msgid "label-tone3000-all"
+msgstr "Tous"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "Pertinence"
+
+msgid "label-tone3000-sort-trending"
+msgstr "Tendances"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "Plus téléchargés"
+
+msgid "label-tone3000-sort-newest"
+msgstr "Plus récents"
+
+msgid "label-tone3000-gear-amp"
+msgstr "Ampli"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "Rig complet"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "Ampli + baffle"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "Pédale"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "Outboard"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "Baffle"
+
+msgid "label-tone3000-block-amp"
+msgstr "Ampli"
+
+msgid "label-tone3000-block-preamp"
+msgstr "Préampli"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "Pédale"
+
+msgid "label-tone3000-block-cab"
+msgstr "Baffle"
+
+msgid "label-tone3000-block-body"
+msgstr "Corps"
+
+msgid "label-tone3000-author-downloads"
+msgstr "par {} · {} téléchargements"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "Installé"
+
+msgid "label-tone3000-captures"
+msgstr "{} captures"
+
+msgid "label-tone3000-page"
+msgstr "Page {} sur {} · {} sons"
+
+msgid "status-tone3000-downloading"
+msgstr "Téléchargement {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "Mesure des niveaux"
+
+msgid "status-tone3000-fetching"
+msgstr "Préparation"
+
+msgid "btn-tone3000-open-settings"
+msgstr "Ouvrir les réglages"
+
+msgid "link-tone3000-get-key"
+msgstr "Créer une Secret Key sur tone3000.com"
+
+msgid "title-tone3000-no-key"
+msgstr "Secret Key TONE3000 requise"
+
+msgid "status-tone3000-no-key"
+msgstr "La recherche et l'installation de captures utilisent votre propre Secret Key TONE3000. Ajoutez-la dans les réglages."
+
+msgid "status-tone3000-searching"
+msgstr "Recherche en cours"
+
+msgid "status-tone3000-no-results"
+msgstr "Aucun son ne correspond."
+
+msgid "status-tone3000-start"
+msgstr "Cherchez des amplis, pédales et IRs sur TONE3000."
+
+msgid "status-tone3000-none-installed"
+msgstr "Aucune capture TONE3000 installée pour l'instant."
+msgid "label-tone3000-built-in"
+msgstr "Intégré"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "Rechercher les installés par nom"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "Aucun plugin TONE3000 installé ne correspond à ce nom."
+
+msgid "title-setup-wizard"
+msgstr "Configuration initiale"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "ÉTAPE {} SUR {}"
+
+msgid "desc-wizard-language"
+msgstr "Choisissez la langue de l'application. Vous pourrez la changer plus tard dans les Réglages."
+
+msgid "desc-wizard-audio"
+msgstr "Activez l'interface audio où la guitare est branchée, puis réglez la fréquence d'échantillonnage et la taille du tampon."
+
+msgid "desc-wizard-io"
+msgstr "Nommez les entrées et sorties de l'interface : sur quel canal arrive la guitare et par où sort le son."
+
+msgid "desc-wizard-tone3000"
+msgstr "Collez votre clé TONE3000 pour chercher et installer des captures d'amplis et de pédales depuis l'application. Vous pourrez l'ajouter plus tard."
+
+msgid "btn-wizard-back"
+msgstr "Retour"
+
+msgid "btn-wizard-next"
+msgstr "Suivant"
+
+msgid "btn-wizard-skip"
+msgstr "Passer"
+
+msgid "btn-wizard-finish"
+msgstr "Terminer"

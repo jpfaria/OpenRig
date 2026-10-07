@@ -1,11 +1,15 @@
 // Responsibility: renders the compact chain view.
+import { Theme } from "../theme.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter } from "../models.slint";
-import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { BlockTypeCard, BlockTypeGrid } from "../components/block_value_widgets.slint";
 import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
 import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
 import { CompactChainSections } from "../components/compact_chain_sections.slint";
+import { OverlayPlacement } from "../components/overlay_placement.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -120,11 +124,12 @@ export component CompactChainViewPage inherits Rectangle {
     private property <float> drag-current-y: 0;
     private property <bool> drag-active: false;
 
-    background: #0a0c10;
+    background: Theme.well;
 
     // Header — preset select + scene bar + chain action cluster.
     // Extracted to `compact_chain_view_header.slint` (file-size cap).
     CompactChainViewHeader {
+        z: 10;
         x: 0; y: 0; width: parent.width;
         chain-enabled: root.chain-enabled;
         chain-index: root.chain-index;
@@ -152,7 +157,7 @@ export component CompactChainViewPage inherits Rectangle {
         height: parent.height - 66px - sections.total-height;
         // #787: rows have their own heights now — the viewport is exactly the
         // trailing insert slot (the same geometry the drop indicator uses).
-        viewport-height: root.slot-y(root.compact-blocks.length);
+        content-height: root.slot-y(root.compact-blocks.length);
         interactive: false;
 
         // Insert slot before first block (invisible until hover)
@@ -168,7 +173,7 @@ export component CompactChainViewPage inherits Rectangle {
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: #3366cc;
+                background: Theme.accent;
                 border-radius: 1px;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
             }
@@ -178,12 +183,12 @@ export component CompactChainViewPage inherits Rectangle {
                 x: (parent.width - 24px) / 2; y: 0;
                 width: 24px; height: 22px;
                 border-radius: 11px;
-                background: #3366cc;
+                background: Theme.accent;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: @tr("+"); color: #ffffff; font-size: 18px; font-weight: 800;
+                    text: @tr("+"); color: Theme.on-accent; font-size: 18px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -197,9 +202,10 @@ export component CompactChainViewPage inherits Rectangle {
             opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
 
             // #328: a row inside a split's path is indented by how deep it sits.
+            // #398: the rack keeps a 14px gutter on the left for the grip.
             CompactBlockRow {
-                x: block-item.path-depth * 16px;
-                width: parent.width - self.x;
+                x: 14px + block-item.path-depth * 16px;
+                width: parent.width - self.x - 8px;
                 height: block-item.row-height;
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
@@ -223,22 +229,22 @@ export component CompactChainViewPage inherits Rectangle {
                 select-parameter-group(ci, bi2, gi) => { root.select-block-parameter-group(ci, bi2, gi); }
             }
 
-            // Drag handle — visible grip on left edge
+            // Drag handle — a quiet grip in the rack's left gutter, beside the
+            // card (below its lane bar).
             Rectangle {
-                x: 0; y: 0;
-                width: 8px; height: parent.height;
-                background: drag-ta.has-hover ? #ffffff15 : #ffffff08;
+                x: 2px; y: block-item.lane-bar ? 30px : 0px;
+                width: 10px; height: parent.height - self.y;
                 border-radius: 2px;
+                background: drag-ta.has-hover ? Theme.hover : transparent;
 
-                // Grip dots
-                Rectangle { x: 2px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
-                Rectangle { x: 2px; y: parent.height / 2;        width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
-                Rectangle { x: 2px; y: parent.height / 2 + 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 3px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: drag-ta.has-hover ? Theme.ink-2 : Theme.ink-3; }
+                Rectangle { x: 3px; y: parent.height / 2 - 2px;  width: 4px; height: 4px; border-radius: 2px; background: drag-ta.has-hover ? Theme.ink-2 : Theme.ink-3; }
+                Rectangle { x: 3px; y: parent.height / 2 + 6px;  width: 4px; height: 4px; border-radius: 2px; background: drag-ta.has-hover ? Theme.ink-2 : Theme.ink-3; }
             }
 
             drag-ta := TouchArea {
-                x: 0; y: 0;
-                width: 8px; height: parent.height;
+                x: 0; y: block-item.lane-bar ? 30px : 0px;
+                width: 14px; height: parent.height - self.y;
                 mouse-cursor: grab;
 
                 pointer-event(ev) => {
@@ -289,7 +295,7 @@ export component CompactChainViewPage inherits Rectangle {
             width: parent.width - 16px;
             height: 3px;
             border-radius: 1.5px;
-            background: #4488ff;
+            background: Theme.accent;
         }
 
         // Insert slots after each block
@@ -306,7 +312,7 @@ export component CompactChainViewPage inherits Rectangle {
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: #3366cc;
+                background: Theme.accent;
                 border-radius: 1px;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
             }
@@ -315,12 +321,12 @@ export component CompactChainViewPage inherits Rectangle {
                 x: (parent.width - 24px) / 2; y: (parent.height - 22px) / 2;
                 width: 24px; height: 22px;
                 border-radius: 11px;
-                background: #3366cc;
+                background: Theme.accent;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: @tr("+"); color: #ffffff; font-size: 18px; font-weight: 800;
+                    text: @tr("+"); color: Theme.on-accent; font-size: 18px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -358,7 +364,7 @@ export component CompactChainViewPage inherits Rectangle {
     // ── Type picker modal overlay ──
     if root.show-type-picker : Rectangle {
         x: 0; y: 0; width: parent.width; height: parent.height;
-        background: #0405069a;
+        background: Theme.scrim;
 
         TouchArea {
             width: 100%; height: 100%;
@@ -367,28 +373,45 @@ export component CompactChainViewPage inherits Rectangle {
 
         Rectangle {
             property <int> row-count: Math.max(1, Math.floor((root.block-type-options.length - 1) / 4) + 1);
-            property <length> content-height: self.row-count * 100px;
-            x: (parent.width - 472px) / 2;
+            property <length> content-height: self.row-count * BlockTypeGrid.step - BlockTypeGrid.step + BlockTypeGrid.cell;
+            x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 472px;
-            height: Math.min(parent.height - 80px, self.content-height + 40px);
-            background: #171a20f8;
+            width: 3 * BlockTypeGrid.step + BlockTypeGrid.cell + 56px;
+            height: Math.min(parent.height - 80px, self.content-height + 46px + 36px);
+            background: Theme.panel;
             border-width: 1px;
-            border-color: #2d3340;
+            border-color: Theme.hair;
             border-radius: 6px;
+            clip: true;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: Theme.shadow;
+
+            // Swallow clicks on the card so only the scrim closes it.
+            TouchArea { }
+
+            // #398: the dialog's dark bar with its title and close cross.
+            ToolBar {
+                x: 0; y: 0;
+                width: parent.width;
+                title: @tr("title-add-block");
+                ToolBarClose {
+                    clicked => { root.show-type-picker = false; }
+                }
+            }
 
             ScrollView {
-                x: 20px; y: 20px;
-                width: parent.width - 40px;
-                height: parent.height - 40px;
-                viewport-height: parent.content-height;
+                x: 18px; y: 46px + 18px;
+                width: parent.width - 36px;
+                height: parent.height - 46px - 36px;
+                content-height: parent.content-height;
 
                 // Same BlockTypeCard the main chains screen uses (#613) —
                 // single source of truth for the tile icons, so VST3 /
                 // input / output / insert match across both pickers.
                 for type-item[index] in root.block-type-options : BlockTypeCard {
-                    x: Math.mod(index, 4) * 106px;
-                    y: Math.floor(index / 4) * 100px;
+                    x: Math.mod(index, 4) * BlockTypeGrid.step;
+                    y: Math.floor(index / 4) * BlockTypeGrid.step;
                     item: type-item;
                     selected: false;
                     clicked => {
@@ -412,10 +435,13 @@ export component CompactChainViewPage inherits Rectangle {
             clicked => { root.model-select-open = false; }
         }
 
+        // Under the field, above it when there is no room (#398).
         CompactModelSelectOverlay {
-            x: root.model-select-x - root.absolute-position.x;
-            y: root.model-select-y - root.absolute-position.y + 44px;
+            x: OverlayPlacement.left(root.model-select-x - root.absolute-position.x, self.width, parent.width);
+            y: OverlayPlacement.top(root.model-select-y - root.absolute-position.y,
+                root.model-select-y - root.absolute-position.y + 44px, self.height, parent.height);
             width: root.model-select-width;
+            popup-height: OverlayPlacement.fit(320px, parent.height);
             filtered-models: root.model-select-array-index >= 0
                 && root.model-select-array-index < root.compact-blocks.length
                 ? root.compact-blocks[root.model-select-array-index].filtered-models : [];
@@ -424,7 +450,7 @@ export component CompactChainViewPage inherits Rectangle {
                 && root.compact-blocks[root.model-select-array-index].model-selected-index >= 0
                 && root.compact-blocks[root.model-select-array-index].model-selected-index < root.compact-blocks[root.model-select-array-index].models.length
                 ? root.compact-blocks[root.model-select-array-index].models[root.compact-blocks[root.model-select-array-index].model-selected-index]
-                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: Colors.transparent, panel_text: Colors.transparent, brand_strip_bg: Colors.transparent, model_font: "" };
             select(model-id) => {
                 root.choose-block-model-by-id(root.model-select-chain-index, root.model-select-block-index, model-id);
                 root.model-select-open = false;

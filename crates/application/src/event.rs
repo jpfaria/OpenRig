@@ -10,6 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::command::{BlockId, ChainId};
+pub use crate::tone3000_event::Tone3000Event;
 
 /// Every observable change emitted by a [`crate::dispatcher::CommandDispatcher`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -273,6 +274,9 @@ pub enum Event {
     /// The backing-track player changed. It is its own stream, never a chain.
     Player(crate::player_event::PlayerEvent),
 
+    /// #879: the TONE3000 browser — key, search and install outcomes.
+    Tone3000(crate::tone3000_event::Tone3000Event),
+
     /// Tempo-synced params of this chain were rewritten for a new BPM.
     /// The dispatcher already synced the runtime; a frontend only refreshes.
     ChainTempoRetimed {
@@ -349,6 +353,11 @@ pub enum Event {
     /// [`Event::MidiEnabledChanged`].
     McpEnabledChanged {
         enabled: bool,
+    },
+
+    /// #398: the light/dark scheme was set via `SetAppearance`.
+    AppearanceChanged {
+        appearance: infra_filesystem::Appearance,
     },
 
     // ── Project-level events ──────────────────────────────────────────────────

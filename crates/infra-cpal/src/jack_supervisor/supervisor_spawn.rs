@@ -27,9 +27,9 @@ pub(super) const MAX_SPAWN_ATTEMPTS: u32 = 2;
 pub(super) const SPAWN_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 /// Upper bound on the buffer-size fallback growth. `buf=64` that trips
-/// "Broken pipe" gets bumped to 128, then 256, then 512, then 1024 — beyond
-/// that we declare defeat and fail.
-pub(super) const MAX_BUFFER_CLAMP: u32 = 1024;
+/// "Broken pipe" gets bumped to 128, then 256, up to 2048, the largest
+/// selectable buffer (#398) — beyond that we declare defeat and fail.
+pub(super) const MAX_BUFFER_CLAMP: u32 = 2048;
 
 impl<B: JackBackend> JackSupervisor<B> {
     /// Attempt up to [`MAX_SPAWN_ATTEMPTS`] spawns with exponential buffer

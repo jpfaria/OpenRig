@@ -76,8 +76,8 @@ pub(crate) fn populate_initial_window_state(
     if fullscreen {
         window.window().set_fullscreen(true);
     }
-    window.set_show_audio_settings(needs_audio_settings);
-    window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
+    window.set_show_setup_wizard(needs_audio_settings);
+    crate::setup_wizard_wiring::show_step(window, 0);
     window.set_status_message("".into());
 
     // Audio device selection is a SYSTEM concept (ADR 0003): repopulate the

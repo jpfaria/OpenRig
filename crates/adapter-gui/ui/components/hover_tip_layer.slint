@@ -1,0 +1,51 @@
+// Responsibility: draws a window's hover label above everything.
+// #398 — declared last in every window (next to `WindowBoundsProbe`), so the
+// label paints over every bar, dialog and panel and is never clipped by one.
+// Under the control, above it when there is no room (or when the control
+// prefers above), never past the window's edges.
+import { Theme } from "../theme.slint";
+import { HoverTip } from "hover_tip_globals.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+
+export component HoverTipLayer inherits Rectangle {
+    private property <length> gap: 2px;
+    private property <length> above: HoverTip.host-y - root.gap;
+    private property <length> below: HoverTip.host-y + HoverTip.host-h + root.gap;
+    private property <int> seen-beat: -1;
+
+    // Drops a label whose control went away while hovered.
+    Timer {
+        interval: 300ms;
+        running: HoverTip.show;
+        triggered => {
+            if HoverTip.beat == root.seen-beat {
+                HoverTip.show = false;
+            }
+            root.seen-beat = HoverTip.beat;
+        }
+    }
+
+    tip := Rectangle {
+        visible: HoverTip.show && HoverTip.text != "";
+        width: max(104px, label.preferred-width + 16px);
+        height: label.preferred-height + 6px;
+        x: OverlayPlacement.left(HoverTip.host-x + (HoverTip.host-w - self.width) / 2, self.width, root.width);
+        y: HoverTip.prefer-above
+            ? OverlayPlacement.top-above(root.above, root.below, self.height, root.height)
+            : OverlayPlacement.top(root.above, root.below, self.height, root.height);
+        background: Theme.panel-lo.with-alpha(0.94);
+        border-width: 1px;
+        border-color: Theme.field-line;
+        border-radius: 4px;
+
+        label := Text {
+            text: HoverTip.text;
+            color: Theme.ink;
+            font-size: Theme.min-font;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+        }
+    }
+}

@@ -26,7 +26,7 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
 /// installed app (#978); a project can still point `presets_path` elsewhere in
 /// its own `config.yaml`.
 pub(crate) fn default_presets_path() -> PathBuf {
-    infra_filesystem::user_data_root().join("presets")
+    infra_filesystem::default_presets_path()
 }
 
 /// The preset library that ships with the app, read-only, under the data

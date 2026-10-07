@@ -46,12 +46,12 @@ pub struct AssetPaths {
     /// #582: user-chosen directory where tone analyzers and other tools
     /// write evaluation artifacts (spectrograms, fingerprints, comparison
     /// reports). `None` keeps the OS default resolved by
-    /// [`default_evaluations_path`]. Machine-local concern per ADR 0003 —
+    /// [`crate::default_evaluations_path`]. Machine-local concern per ADR 0003 —
     /// lives in `config.yaml`, not the project YAML.
     #[serde(default)]
     pub evaluations_path: Option<PathBuf>,
     /// User-chosen directory holding the user's own backing tracks. `None`
-    /// keeps the OS default resolved by [`default_backing_tracks_path`]. The
+    /// keeps the OS default resolved by [`crate::default_backing_tracks_path`]. The
     /// tracks bundled with the app live apart, in
     /// [`bundled_backing_tracks_path`].
     #[serde(default)]
@@ -160,68 +160,10 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
     }
 }
 
-/// #582: OS default for the evaluations directory (tone analyzer outputs,
-/// fingerprint snapshots, A/B comparison reports). Per CLAUDE.md
-/// cross-platform rule:
-///
-/// - macOS: `~/Library/Application Support/OpenRig/evaluations/`
-/// - Windows: `%APPDATA%\OpenRig\evaluations\`
-/// - Linux: `~/.local/share/openrig/evaluations/`
-///
-/// Used when [`AssetPaths::evaluations_path`] is `None`. Returns the path
-/// without creating it — callers materialize the directory only when they
-/// actually write into it.
-pub fn default_evaluations_path() -> PathBuf {
-    user_data_root().join("evaluations")
-}
-
-/// #827: OS default for the app-wide library of saved looper takes
-/// (`<user data root>/looper-takes`). Every project sees it; the DI source
-/// picker lists it. Returned without creating it.
-pub fn default_looper_takes_path() -> PathBuf {
-    user_data_root().join("looper-takes")
-}
-
-/// OS default for the user's own backing tracks
-/// (`<user data root>/backing-tracks`). Returned without creating it.
-pub fn default_backing_tracks_path() -> PathBuf {
-    user_data_root().join("backing-tracks")
-}
-
 /// Where the backing tracks bundled with the app live
 /// (`<data root>/assets/backing-tracks`).
 pub fn bundled_backing_tracks_path() -> PathBuf {
     detect_data_root().join("assets/backing-tracks")
-}
-
-/// #582: OS-specific user data root for OpenRig
-/// (`~/Library/Application Support/OpenRig` on macOS,
-/// `%APPDATA%\OpenRig` on Windows,
-/// `~/.local/share/openrig` on Linux). Mirrors the same convention
-/// `FilesystemStorage::app_config_path` uses, kept as a shared helper so
-/// every `default_*_path` derived from it stays consistent.
-pub fn user_data_root() -> PathBuf {
-    #[cfg(target_os = "macos")]
-    {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        home.join("Library/Application Support/OpenRig")
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let appdata = std::env::var_os("APPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        appdata.join("OpenRig")
-    }
-    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
-    {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        home.join(".local/share/openrig")
-    }
 }
 
 /// Store the resolved asset paths for the lifetime of the process.

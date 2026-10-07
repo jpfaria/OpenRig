@@ -1,61 +1,63 @@
 // Responsibility: renders the chain editor.
+// #398: a dialog — the dark bar with the title, then the name, the instrument
+// tiles and the checklist of I/O bindings on the panel, and the footer with
+// Cancel and the primary save on the low panel.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { ChainBindingChoice } from "../models.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { FieldCaption } from "../components/field_caption.slint";
+import { TextField } from "../components/text_field.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { ListBox, ListRow } from "../components/list_box.slint";
+import { CheckMark } from "../components/check_mark.slint";
+import { TagPill } from "../components/tag_pill.slint";
+import { DialogFoot } from "../components/dialog_foot.slint";
 
-component FooterButton inherits Rectangle {
+// One instrument tile: the icon over its name; the picked one has the accent
+// ring and an accent icon.
+component InstrumentTile inherits Rectangle {
     in property <string> label;
-    in property <bool> primary: false;
+    in property <image> icon;
+    in property <bool> on;
     callback clicked();
 
-    // #954: the button follows its translated label.
-    width: max(primary ? 112px : 104px, lbl.preferred-width + 24px);
-    height: 38px;
-    background: primary ? #188cff : #2f3339;
-    border-width: 1px;
-    border-color: primary ? #45a7ff : #4c515b;
+    // Equal columns, like a grid; a long label only widens its own tile.
+    preferred-width: 92px;
+    min-width: max(92px, tile-lbl.preferred-width + 16px);
+    height: 76px;
     border-radius: 4px;
+    background: ta.has-hover && !root.on ? Theme.hover : Theme.field;
+    border-width: root.on ? 2px : 1px;
+    border-color: root.on ? Theme.accent : Theme.hair;
 
-    lbl := Text {
-        width: parent.width;
-        height: parent.height;
-        text: root.label;
-        color: #f4f7fb;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        font-size: 18px;
-        font-weight: 700;
+    Image {
+        x: (parent.width - self.width) / 2; y: 12px;
+        width: 26px; height: 26px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.on ? Theme.accent : Theme.ink-2;
     }
 
-    TouchArea {
-        width: parent.width;
-        height: parent.height;
+    tile-lbl := Text {
+        x: 0; y: 44px;
+        width: parent.width; height: 24px;
+        text: root.label;
+        color: root.on ? Theme.ink : Theme.ink-2;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
-}
 
-component FieldBox inherits Rectangle {
-    in-out property <string> text;
-    callback changed(string);
-
-    background: #1d2025;
-    border-width: 1px;
-    border-color: #41454e;
-    border-radius: 4px;
-
-    TextInput {
-        x: 12px;
-        width: parent.width - 24px;
-        height: parent.height;
-        text <=> root.text;
-        color: #f3f6fb;
-        single-line: true;
-        vertical-alignment: center;
-        font-size: 18px;
-        edited => {
-            root.changed(self.text);
-        }
-    }
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
 }
 
 export component ChainEditorPage inherits Rectangle {
@@ -84,245 +86,138 @@ export component ChainEditorPage inherits Rectangle {
     // #716: toggle whether the chain uses binding at `index` (selected on/off).
     callback toggle-binding(int, bool);
 
-    background: #171a1f;
+    background: Theme.panel;
 
-    Text {
-        x: 32px;
-        y: 28px;
-        width: parent.width - 64px;
-        height: 28px;
-        text: root.is-create-mode ? @tr("title-new-chain") : @tr("title-configure-chain");
-        color: #edf2f9;
-        font-size: 20px;
-        font-weight: 800;
-    }
-
-    Rectangle {
-        x: 32px;
-        y: 68px;
-        width: parent.width - 64px;
-        height: 1px;
-        background: #2a2f38;
-    }
-
-    Text {
-        x: 32px;
-        y: 80px;
-        width: parent.width - 64px;
-        height: 22px;
-        text: @tr("label-name");
-        color: #7a8694;
-        font-size: 18px;
-    }
-
-    FieldBox {
-        x: 32px;
-        y: 104px;
-        width: parent.width - 64px;
-        height: 36px;
-        text: root.chain-name;
-        changed(value) => { root.update-chain-name(value); }
-    }
-
-    Rectangle {
-        x: 32px;
-        y: 156px;
-        width: parent.width - 64px;
-        height: 1px;
-        background: #2a2f38;
-    }
-
-    Text {
-        x: 32px;
-        y: 164px;
-        width: parent.width - 64px;
-        height: 22px;
-        text: @tr("label-instrument");
-        color: #7a8694;
-        font-size: 18px;
-    }
-
-    // #954: each tile follows its translated label.
-    HorizontalLayout {
-        x: 32px;
-        y: 188px;
-        width: parent.width - 64px;
-        height: 44px;
-        alignment: start;
-        spacing: 8px;
-
-        for label[index] in root.instrument-labels : Rectangle {
-            width: max(92px, tile-lbl.preferred-width + 16px);
-            height: 44px;
-            background: index == root.selected-instrument-index ? #2a5da8 : #1d2025;
-            border-width: 1px;
-            border-color: index == root.selected-instrument-index ? #45a7ff : #41454e;
-            border-radius: 4px;
-            opacity: 1.0;
-
-            Image {
-                x: (parent.width - 16px) / 2;
-                y: 4px;
-                width: 16px;
-                height: 16px;
-                source: index == 0 ? @image-url("../../../../assets/instruments/electric_guitar.svg")
-                    : index == 1 ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
-                    : index == 2 ? @image-url("../../../../assets/instruments/bass.svg")
-                    : index == 3 ? @image-url("../../../../assets/instruments/voice.svg")
-                    : index == 4 ? @image-url("../../../../assets/instruments/keys.svg")
-                    : index == 5 ? @image-url("../../../../assets/instruments/drums.svg")
-                    : @image-url("../../../../assets/instruments/generic.svg");
-                image-fit: contain;
-                colorize: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
-            }
-
-            tile-lbl := Text {
-                x: 0;
-                y: 21px;
-                width: parent.width;
-                height: 22px;
-                text: label;
-                color: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                font-size: 18px;
-                font-weight: 600;
-            }
-
-            TouchArea {
-                width: parent.width;
-                height: parent.height;
-                mouse-cursor: pointer;
-                clicked => {
-                    root.selected-instrument-index = index;
-                    root.select-instrument(index);
-                }
-            }
+    VerticalLayout {
+        ToolBar {
+            vertical-stretch: 0;
+            title: root.is-create-mode ? @tr("title-new-chain") : @tr("title-configure-chain");
         }
-    }
 
-    Rectangle {
-        x: 32px;
-        y: 236px;
-        width: parent.width - 64px;
-        height: 1px;
-        background: #2a2f38;
-    }
+        ScrollView {
+            vertical-stretch: 1;
 
-    // --- I/O bindings checklist (#716) ---
-    // The chain SELECTS which I/O bindings it uses; input/output is discovered
-    // from those bindings. Replaces the old per-endpoint add-input/add-output.
-    Text {
-        x: 32px;
-        y: 246px;
-        width: parent.width - 64px;
-        height: 22px;
-        text: @tr("label-chain-io-bindings");
-        color: #7a8694;
-        font-size: 18px;
-    }
+            VerticalLayout {
+                alignment: start;
+                padding: 22px;
+                spacing: 18px;
 
-    if root.bindings.length == 0 : Text {
-        x: 32px;
-        y: 278px;
-        width: parent.width - 64px;
-        height: self.preferred-height;
-        text: @tr("empty-no-bindings-for-chain");
-        color: #5a6270;
-        font-size: 18px;
-        wrap: word-wrap;
-    }
+                VerticalLayout {
+                    spacing: 6px;
+                    FieldCaption { text: @tr("label-name"); }
+                    TextField {
+                        text: root.chain-name;
+                        edited(value) => { root.update-chain-name(value); }
+                    }
+                }
 
-    ScrollView {
-        x: 32px;
-        y: 272px;
-        width: parent.width - 64px;
-        height: parent.height - 272px - 72px;
-
-        VerticalLayout {
-            alignment: start;
-            spacing: 2px;
-
-            for choice[index] in root.bindings : chain-binding-cell := Rectangle {
-                height: 40px;
-                border-radius: 6px;
-                background: cell-ta.has-hover ? #1e2229 : transparent;
-
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    spacing: 12px;
-
-                    Rectangle {
-                        width: 20px;
-                        height: 20px;
-                        y: (parent.height - self.height) / 2;
-                        border-radius: 5px;
-                        background: choice.selected ? #2f80ff : #1d2025;
-                        border-width: 1px;
-                        border-color: choice.selected ? #2f80ff : #41454e;
-                        if choice.selected : Image {
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                            width: 12px;
-                            height: 12px;
-                            source: @image-url("../assets/check.svg");
-                            colorize: #ffffff;
+                VerticalLayout {
+                    spacing: 6px;
+                    FieldCaption { text: @tr("label-instrument"); }
+                    // #954: each tile follows its translated label.
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: stretch;
+                        for label[index] in root.instrument-labels : InstrumentTile {
+                            horizontal-stretch: 1;
+                            label: label;
+                            on: index == root.selected-instrument-index;
+                            icon: index == 0 ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+                                : index == 1 ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+                                : index == 2 ? @image-url("../../../../assets/instruments/bass.svg")
+                                : index == 3 ? @image-url("../../../../assets/instruments/voice.svg")
+                                : index == 4 ? @image-url("../../../../assets/instruments/keys.svg")
+                                : index == 5 ? @image-url("../../../../assets/instruments/drums.svg")
+                                : @image-url("../../../../assets/instruments/generic.svg");
+                            clicked => {
+                                root.selected-instrument-index = index;
+                                root.select-instrument(index);
+                            }
                         }
                     }
-
-                    Text {
-                        horizontal-stretch: 1;
-                        text: choice.name;
-                        color: choice.selected ? #f4f7fb : #c4ccd6;
-                        font-size: 18px;
-                        font-weight: choice.selected ? 600 : 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
                 }
 
-                cell-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.toggle-binding(index, !choice.selected); }
+                // --- I/O bindings checklist (#716) ---
+                // The chain SELECTS which I/O bindings it uses; input/output is
+                // discovered from those bindings.
+                VerticalLayout {
+                    spacing: 6px;
+                    FieldCaption { text: @tr("label-chain-io-bindings"); }
+
+                    if root.bindings.length == 0 : Text {
+                        text: @tr("empty-no-bindings-for-chain");
+                        color: Theme.ink-3;
+                        font-size: Theme.min-font;
+                        wrap: word-wrap;
+                    }
+
+                    if root.bindings.length > 0 : ListBox {
+                        for choice[index] in root.bindings : chain-binding-cell := Rectangle {
+                            min-height: 46px;
+                            background: cell-ta.has-hover ? Theme.hover : transparent;
+
+                            ListRow {
+                                width: parent.width;
+                                height: parent.height;
+                                divided: index > 0;
+
+                                VerticalLayout { alignment: center;
+                                    CheckMark { checked: choice.selected; } }
+                                Text {
+                                    horizontal-stretch: 1;
+                                    text: choice.name;
+                                    color: choice.selected ? Theme.ink : Theme.ink-2;
+                                    font-size: Theme.min-font;
+                                    font-weight: choice.selected ? 600 : 500;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                                if choice.inputs-label != "" : VerticalLayout { alignment: center;
+                                    TagPill { text: @tr("label-pill-in {}", choice.inputs-label); tone: Theme.in; } }
+                                if choice.outputs-label != "" : VerticalLayout { alignment: center;
+                                    TagPill { text: @tr("label-pill-out {}", choice.outputs-label); tone: Theme.out; } }
+                            }
+
+                            cell-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle-binding(index, !choice.selected); }
+                            }
+                            accessible-role: checkbox;
+                            accessible-label: choice.name;
+                            accessible-checked: choice.selected;
+                            accessible-action-default => { root.toggle-binding(index, !choice.selected); }
+                        }
+                    }
                 }
             }
         }
-    }
 
-    // --- Separator before footer ---
-    Rectangle {
-        x: 32px;
-        y: parent.height - 72px;
-        width: parent.width - 64px;
-        height: 1px;
-        background: #2a2f38;
-    }
+        // Footer: the status at the left, Cancel and the save at the right.
+        DialogFoot {
+            vertical-stretch: 0;
+            alignment: stretch;
 
-    Text {
-        x: 32px;
-        y: parent.height - 58px;
-        width: cancel-btn.x - 40px;
-        height: 38px;
-        text: root.status-message;
-        color: #8db9ff;
-        font-size: 18px;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-
-    cancel-btn := FooterButton {
-        x: save-btn.x - 8px - self.width;
-        y: parent.height - 58px;
-        label: @tr("btn-cancel");
-        clicked => { root.cancel-chain(); }
-    }
-
-    save-btn := FooterButton {
-        x: parent.width - 8px - self.width;
-        y: parent.height - 58px;
-        label: root.is-create-mode ? @tr("btn-create-chain") : @tr("btn-save-chain");
-        primary: true;
-        clicked => { root.save-chain(); }
+            Text {
+                horizontal-stretch: 1;
+                text: root.status-message;
+                color: Theme.accent;
+                font-size: Theme.min-font;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            cancel-btn := FormButton {
+                icon-only: true;
+                icon: @image-url("../assets/close.svg");
+                label: @tr("btn-cancel");
+                clicked => { root.cancel-chain(); }
+            }
+            save-btn := FormButton {
+                icon-only: true;
+                icon: root.is-create-mode ? @image-url("../assets/check.svg") : @image-url("../assets/save.svg");
+                kind: FormButtonKind.primary;
+                label: root.is-create-mode ? @tr("btn-create-chain") : @tr("btn-save-chain");
+                clicked => { root.save-chain(); }
+            }
+        }
     }
 }

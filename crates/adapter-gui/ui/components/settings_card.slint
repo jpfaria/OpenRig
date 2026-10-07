@@ -1,0 +1,13 @@
+// Responsibility: renders the raised card of one settings item.
+// #398: a device, a switch or a path sits on its own slightly raised card with
+// a hairline, so a section reads as a short list of separate things.
+import { Theme } from "../theme.slint";
+
+export component SettingsCard inherits Rectangle {
+    border-radius: 5px;
+    background: Theme.panel-hi;
+    border-width: 1px;
+    border-color: Theme.hair;
+
+    @children
+}

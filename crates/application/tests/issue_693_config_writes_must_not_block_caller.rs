@@ -23,7 +23,7 @@ use project::project::Project;
 #[test]
 fn issue_693_save_audio_settings_returns_immediately_with_stuck_config() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let cfg_dir = tmp.path().join("Library/Application Support/OpenRig");
+    let cfg_dir = tmp.path().join(".openrig");
     std::fs::create_dir_all(&cfg_dir).expect("create config dir");
     let cfg = cfg_dir.join("config.yaml");
     let status = std::process::Command::new("mkfifo")

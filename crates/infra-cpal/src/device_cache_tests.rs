@@ -46,3 +46,42 @@ fn an_empty_device_list_is_still_a_snapshot() {
     assert!(cache.is_fresh());
     assert!(cache.devices.is_some());
 }
+
+fn device(id: &str, name: &str) -> domain::AudioDeviceDescriptor {
+    domain::AudioDeviceDescriptor {
+        id: id.into(),
+        name: name.into(),
+        channels: 2,
+    }
+}
+
+#[test]
+fn the_snapshot_lists_both_directions_without_a_freshness_check() {
+    // The meters read device names 30 times a second: they take whatever the
+    // last enumeration left, stale or not, and never trigger one.
+    let input = TimedDeviceCache {
+        devices: Some(vec![device("coreaudio:quantum", "Quantum HD 8")]),
+        fetched_at: Instant::now().checked_sub(DEVICE_CACHE_TTL),
+    };
+    let output = TimedDeviceCache {
+        devices: Some(vec![device("coreaudio:ampero", "Ampero II")]),
+        fetched_at: Some(Instant::now()),
+    };
+    let names: Vec<String> = super::snapshot_devices(&input, &output)
+        .into_iter()
+        .map(|d| d.name)
+        .collect();
+    assert_eq!(names, vec!["Quantum HD 8", "Ampero II"]);
+}
+
+#[test]
+fn a_cache_that_never_fetched_contributes_no_device() {
+    let output = TimedDeviceCache {
+        devices: Some(vec![device("coreaudio:quantum", "Quantum HD 8")]),
+        fetched_at: Some(Instant::now()),
+    };
+    assert_eq!(
+        super::snapshot_devices(&TimedDeviceCache::new(), &output).len(),
+        1
+    );
+}

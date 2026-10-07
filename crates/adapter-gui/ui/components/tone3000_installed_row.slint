@@ -1,0 +1,81 @@
+// Responsibility: renders one installed TONE3000 package.
+// The name with the block it loads as, its architecture and capture count;
+// the trash arms on the first click and removes on the second, like a
+// backing track. Everything in the plugins folder is the user's to remove;
+// a package that ships with the app shows a Built in tag instead. #398 vocabulary: a raised settings card, tag pills, the
+// danger confirm.
+import { Theme } from "../theme.slint";
+import { Tone3000InstalledRow } from "tone3000_globals.slint";
+import { Tone3000Labels } from "tone3000_labels.slint";
+import { SettingsCard } from "settings_card.slint";
+import { TagPill } from "tag_pill.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+
+export component Tone3000InstalledItem inherits SettingsCard {
+    in property <Tone3000InstalledRow> package;
+    callback uninstall();
+    private property <bool> armed;
+
+    height: 68px;
+    border-color: root.armed ? Theme.bad : Theme.hair;
+
+    HorizontalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        spacing: 12px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 5px;
+            alignment: center;
+            Text {
+                text: root.package.name;
+                color: Theme.ink;
+                font-size: Theme.min-font;
+                font-weight: 700;
+                overflow: elide;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                TagPill {
+                    text: Tone3000Labels.block(root.package.block-type);
+                    tone: Theme.ink-2;
+                }
+                if root.package.arch != "" : TagPill {
+                    text: root.package.arch;
+                    tone: root.package.arch == "A2" ? Theme.in : Theme.ok;
+                }
+                TagPill {
+                    text: @tr("label-tone3000-captures", root.package.captures);
+                    tone: Theme.ink-3;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            if !root.package.removable : TagPill {
+                text: @tr("label-tone3000-built-in");
+                tone: Theme.ink-3;
+            }
+            if root.package.removable && !root.armed : FormButton {
+                kind: FormButtonKind.ghost;
+                icon: @image-url("../assets/trash.svg");
+                icon-only: true;
+                label: @tr("btn-tone3000-uninstall");
+                clicked => { root.armed = true; }
+            }
+            if root.package.removable && root.armed : FormButton {
+                kind: FormButtonKind.danger;
+                icon: @image-url("../assets/trash.svg");
+                label: @tr("btn-tone3000-uninstall-confirm");
+                clicked => {
+                    root.armed = false;
+                    root.uninstall();
+                }
+            }
+        }
+    }
+}

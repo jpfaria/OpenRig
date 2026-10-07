@@ -1,131 +1,81 @@
 // Responsibility: renders the MIDI devices section.
 // Master-detail content for System / MIDI devices (issue #513). The
-// SettingsPage shell renders the section title — here we just place
-// the refresh button + device list inside a VerticalLayout.
+// SettingsPage shell renders the section title.
+//
+// #398: the ports sit in one framed list — a check box to use the port, its
+// name, and the alias the rig shows for it in a field on the right.
 
-import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
+import { CheckMark } from "../../components/check_mark.slint";
+import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+import { ListBox, ListRow } from "../../components/list_box.slint";
+import { TextField } from "../../components/text_field.slint";
 
 export component SectionSystemMidiDevices inherits Rectangle {
 
     background: transparent;
 
     VerticalLayout {
-        spacing: 8px;
+        spacing: 10px;
+        alignment: start;
 
-        // Header row: refresh button aligned to the right (mirrors the
-        // audio devices section so the user sees the same affordance).
         HorizontalLayout {
             alignment: end;
 
-            Rectangle {
-                width: 28px;
-                height: 28px;
-                border-radius: 8px;
-                background: refresh-ta.has-hover ? #2a3340 : #1e2229;
-                border-width: 1px;
-                border-color: #3d4450;
-                animate background { duration: 200ms; }
-
-                Image {
-                    x: 6px;
-                    y: 6px;
-                    width: 16px;
-                    height: 16px;
-                    source: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
-                    colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
-                }
-
-                refresh-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { SettingsBridge.refresh-midi-devices(); }
-                }
+            FormButton {
+                icon-only: true;
+                kind: FormButtonKind.ghost;
+                small: true;
+                icon: @image-url("../../modules/surrealism-ui/icons/refresh.svg");
+                label: @tr("btn-refresh-devices");
+                clicked => { SettingsBridge.refresh-midi-devices(); }
             }
         }
 
-        ScrollView {
-            horizontal-stretch: 1;
-            height: Math.max(48px, SettingsBridge.midi-devices.length * 48px);
-            viewport-height: SettingsBridge.midi-devices.length * 48px;
+        if SettingsBridge.midi-devices.length == 0 : Text {
+            text: @tr("empty-no-midi-devices");
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
+            wrap: word-wrap;
+        }
 
-            for d[i] in SettingsBridge.midi-devices : Rectangle {
-            x: 0px;
-            y: i * 48px;
-            width: parent.width - 8px;
-            height: 44px;
-            background: #1d2025;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: d.enabled ? #2f4a6a : #2a2f38;
-            animate border-color { duration: 200ms; }
+        if SettingsBridge.midi-devices.length > 0 : ListBox {
+            for d[i] in SettingsBridge.midi-devices : ListRow {
+                divided: i > 0;
 
-            // Custom toggle indicator (same visual as the audio device row)
-            Rectangle {
-                x: 12px;
-                y: 12px;
-                width: 20px;
-                height: 20px;
-                background: d.enabled ? #188cff : #1e2229;
-                border-width: 1px;
-                border-color: d.enabled ? #45a7ff : #3d4450;
-                border-radius: 8px;
-
-                if d.enabled : Image {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 12px;
-                    height: 12px;
-                    source: @image-url("../../assets/check.svg");
-                    colorize: #ffffff;
+                VerticalLayout {
+                    alignment: center;
+                    toggle := Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        CheckMark { checked: d.enabled; }
+                        toggle-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { SettingsBridge.toggle-midi-device(i, !d.enabled); }
+                        }
+                    }
                 }
 
-                toggle-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { SettingsBridge.toggle-midi-device(i, !d.enabled); }
-                }
-            }
-
-            // Alias input — 2px bright border on focus (HIGH severity per skill)
-            Rectangle {
-                x: 44px;
-                y: 8px;
-                width: parent.width - 44px - 220px;
-                height: 28px;
-                background: #14171c;
-                border-width: alias-input.has-focus ? 2px : 1px;
-                border-color: alias-input.has-focus ? #45a7ff : #2a2f38;
-                border-radius: 8px;
-                animate border-color, border-width { duration: 150ms; }
-
-                alias-input := TextInput {
-                    x: 8px;
-                    width: parent.width - 16px;
-                    height: parent.height;
-                    text: d.alias;
-                    color: #f3f6fb;
-                    single-line: true;
+                Text {
+                    horizontal-stretch: 1;
+                    text: d.instance == 0 ? d.name : "\{d.name} (#\{d.instance})";
+                    color: d.enabled ? Theme.ink : Theme.ink-2;
+                    font-size: Theme.min-font;
                     vertical-alignment: center;
-                    font-size: 18px;
-                    edited => {
-                        SettingsBridge.edit-midi-device-alias(i, self.text);
+                    overflow: elide;
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    alias-input := TextField {
+                        width: 200px;
+                        text: d.alias;
+                        placeholder: @tr("placeholder-midi-alias");
+                        edited(t) => { SettingsBridge.edit-midi-device-alias(i, t); }
                     }
                 }
             }
-
-            // Raw port name + instance hint (read-only)
-            Text {
-                x: parent.width - 212px;
-                y: 0px;
-                width: 200px;
-                height: parent.height;
-                text: d.instance == 0 ? d.name : "\{d.name} (#\{d.instance})";
-                color: #8a92a3;
-                vertical-alignment: center;
-                horizontal-alignment: right;
-                font-size: 18px;
-                overflow: elide;
-            }
         }
-    }
     }
 }

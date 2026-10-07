@@ -17,7 +17,7 @@ export component DeviceRow inherits Rectangle {
     callback bit-depth-selected(string);
 
     height: root.selected ? 64px : 52px;
-    background: root.selected ? Theme.palette.card-secondary : #0b0d13;
+    background: root.selected ? Theme.palette.card-secondary : Theme.well;
     border-radius: 14px;
     border-width: 1px;
     border-color: root.selected ? Theme.palette.accent-border : Theme.palette.border;
@@ -27,6 +27,7 @@ export component DeviceRow inherits Rectangle {
             : value == "48000" ? 1
             : value == "88200" ? 2
             : value == "96000" ? 3
+            : value == "192000" ? 4
             : 1;
     }
 
@@ -37,6 +38,7 @@ export component DeviceRow inherits Rectangle {
             : value == "256" ? 3
             : value == "512" ? 4
             : value == "1024" ? 5
+            : value == "2048" ? 6
             : 3;
     }
 

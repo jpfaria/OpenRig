@@ -16,11 +16,6 @@ fn clock_never_shows_a_negative_or_broken_time() {
 }
 
 #[test]
-fn time_label_joins_position_and_duration() {
-    assert_eq!(time_label(83.0, 296.0), "1:23 / 4:56");
-}
-
-#[test]
 fn speed_label_has_two_decimals() {
     assert_eq!(speed_label(0.75), "0.75×");
     assert_eq!(speed_label(1.0), "1.00×");

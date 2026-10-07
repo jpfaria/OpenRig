@@ -5,13 +5,13 @@
 // the file that draws it: `chain_row_header`, `chain_row_blocks`,
 // `chain_row_meters`, `chain_row_mixer`.
 
+import { Theme } from "../theme.slint";
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry, ChainRigNav } from "../models.slint";
 import { ChainRowHeader } from "chain_row_header.slint";
 import { ChainRowMeters } from "chain_row_meters.slint";
 import { ChainRowBlocks } from "chain_row_blocks.slint";
 import { ChainRowMixer } from "chain_row_mixer.slint";
 import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
-import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
 import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; import { ChainLooperButton } from "../components/chain_looper_button.slint"; import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
@@ -80,6 +80,18 @@ export component ChainRow inherits Rectangle {
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
+    // #398: the graph gives each lane room for the gear and its caption;
+    // the pedal strip keeps its 108px row.
+    property <length> lane-pitch: ChainGraphBridge.graph-enabled ? 150px : 108px;
+    property <length> header-height: 52px;
+    // The meter band under the header; empty when the meters are hidden or
+    // the chain runs no stream yet.
+    property <length> meters-height: root.meters-shown
+        && (root.chain.stream_meters.length > 0 || root.chain.di_loop_playing)
+        ? meters.frame + (root.chain.stream_meters.length + (root.chain.di_loop_playing ? 1 : 0)) * meters.row-pitch
+        : 0px;
+    property <length> content-top: root.header-height + root.meters-height;
+    property <length> content-area: root.height - root.content-top - mixer.section-height;
     out property <bool> any-chip-hovered: blocks.any-chip-hovered;
     // Tracks which BlockChip in the for-loop is currently hovered. -1
     // means no block is hovered. Updated by `hover-state-changed` from
@@ -89,8 +101,8 @@ export component ChainRow inherits Rectangle {
     // BlockHoverTooltip render below the for-loop.
 
 
-    background: transparent;
-    border-radius: 6px;
+    // #398: a chain is a flat band separated by a hairline, no card.
+    background: Theme.panel;
     // #591: outline the row when this chain is the active selection AND a
     // MIDI command is recent (last 10s). The marker is MIDI-activity
     // feedback — it appears on a footswitch command and fades out after
@@ -98,32 +110,26 @@ export component ChainRow inherits Rectangle {
     // the chain is enabled, dimmer when disabled.
     property <bool> chain-selected: root.selected-block-chain-index == root.chain-index;
     border-width: (root.chain-selected && root.midi-selection-active) ? 2px : 0px;
-    border-color: root.chain.enabled ? #f0a020 : #f0a02055;
+    border-color: root.chain.enabled ? Theme.accent : Theme.accent.with-alpha(0.33);
     animate border-width { duration: 350ms; easing: ease-out; }
     animate border-color { duration: 350ms; easing: ease-out; }
-    // 74 + n*108 used to land the IN/OUT meters at y = root.height - 22,
-    // which collided with the block grid (bottom at y = 62 + n*108).
-    // Add 32px of breathing room so the meters sit clearly below the
-    // last row of blocks. Per-stream meter rows (one per stream) stack
-    // downward from the base meter `y`: every extra stream beyond the
-    // first adds one meter row pitch so the card grows and the rows don't bleed
-    // into the next chain card (user feedback: "tem que dar espaço").
-    // #1007: the meter rows show only on a running chain whose header meters
-    // icon is on; hidden, the card keeps the single meter slot as its margin.
-    height: 106px + (root.content-row-count * 108px)
-        + (root.meters-shown && root.chain.stream_meters.length > 1
-            ? (root.chain.stream_meters.length - 1) * meters.row-pitch
-            : 0px)
-        // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
+    // 106px = the 52px header + the meter band's 22px frame + 16px above and
+    // below the blocks. Every stream adds one meter row (user feedback: "tem
+    // que dar espaço"); #717 adds the DI stream's row while it plays; #1007
+    // hides the band with the header's meters icon.
+    height: 106px + root.content-row-count * root.lane-pitch
+        + (root.meters-shown ? root.chain.stream_meters.length * meters.row-pitch : 0px)
         + (root.meters-shown && root.chain.di_loop_playing ? meters.row-pitch : 0px)
         + mixer.section-height;
     property <bool> meters-shown: root.chain.enabled && root.chain.meters_expanded;
 
+    // Declared first but painted last: its hover labels hang over the body.
     ChainRowHeader {
+        z: 10;
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 58px;
+        height: root.header-height;
         chain: root.chain;
         rig-nav: root.rig-nav;
         chain-index: root.chain-index;
@@ -149,7 +155,7 @@ export component ChainRow inherits Rectangle {
     blocks := ChainRowBlocks {
         visible: !ChainGraphBridge.graph-enabled;
         x: 18px;
-        y: 62px;
+        y: root.content-top + (root.content-area - self.height) / 2;
         width: parent.width - 36px;
         height: root.block-row-count * 108px;
         chain: root.chain;
@@ -171,27 +177,37 @@ export component ChainRow inherits Rectangle {
     }
 
     if ChainGraphBridge.graph-enabled : ChainRowGraph {
-        x: 18px;
-        y: 62px;
-        width: parent.width - 36px;
-        height: root.content-row-count * 108px;
+        x: 0px;
+        y: root.content-top;
+        width: parent.width;
+        height: root.content-area;
         nodes: root.chain.graph_nodes;
         edges: root.chain.graph_edges;
         anchors: root.chain.graph_anchors;
         columns: root.chain.graph_columns;
+        lanes: root.content-row-count;
+        lane-pitch: root.lane-pitch;
         chain-index: root.chain-index;
         latency-ms: root.chain.latency_ms;
         markers-visible: root.midi-selection-active;
     }
 
-    // The meters sit above the mixer section when it is open.
+    // #398: the meter band sits right under the header.
     meters := ChainRowMeters {
         x: 0px;
-        y: 0px;
+        y: root.header-height;
         width: root.width;
-        height: root.height - mixer.section-height;
+        height: root.meters-height;
         chain: root.chain;
-        visible: root.meters-shown;
+        visible: root.meters-height > 0;
+    }
+
+    // The hairline that separates this chain from the next.
+    Rectangle {
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: Theme.hair;
     }
 
     mixer := ChainRowMixer {

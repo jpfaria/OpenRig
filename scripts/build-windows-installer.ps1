@@ -49,9 +49,21 @@ try {
     Write-Host "==> Linking the plugin tree from $PluginsRoot..."
     $pluginSource = Join-Path $PluginsRoot "plugins\source"
     if (-not (Test-Path $pluginSource)) { throw "no plugins\source under $PluginsRoot (clone OpenRig-plugins with LFS)" }
-    New-Item -ItemType Directory -Force "plugins" | Out-Null
-    if (Test-Path "plugins\source") { (Get-Item "plugins\source").Delete() }
-    New-Item -ItemType Junction -Path "plugins\source" -Target $pluginSource | Out-Null
+    # Only the LV2 and VST3 plugins ship with the app; NAM and IR come from
+    # the user's own plugins folder. plugins\source holds one junction per
+    # kept kind, so removing it never touches the checkout.
+    $staged = "plugins\source"
+    if (Test-Path $staged) {
+        $item = Get-Item $staged
+        if (-not $item.LinkType) { Get-ChildItem $staged | ForEach-Object { $_.Delete() } }
+        $item.Delete()
+    }
+    New-Item -ItemType Directory -Force $staged | Out-Null
+    foreach ($kind in @("lv2", "vst3")) {
+        $target = Join-Path $pluginSource $kind
+        if (-not (Test-Path $target)) { throw "no $kind under $pluginSource" }
+        New-Item -ItemType Junction -Path (Join-Path $staged $kind) -Target $target | Out-Null
+    }
 
     & (Join-Path $RepoRoot "scripts\package-windows.ps1") $Version
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }

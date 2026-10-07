@@ -1,0 +1,27 @@
+// Responsibility: hosts the setup wizard page for the headless UI tests.
+// Test-only: never shown in the app. Counts each footer button press so a test
+// can prove a real click reaches the callback.
+import { SetupWizardPage } from "setup_wizard.slint";
+
+export component SetupWizardHarness inherits Window {
+    in property <int> step;
+    in property <bool> step-skippable;
+    in property <bool> step-last;
+    out property <int> next-count;
+    out property <int> back-count;
+    out property <int> skip-count;
+
+    width: 1000px;
+    height: 700px;
+
+    SetupWizardPage {
+        width: parent.width;
+        height: parent.height;
+        step: root.step;
+        step-skippable: root.step-skippable;
+        step-last: root.step-last;
+        next => { root.next-count += 1; }
+        back => { root.back-count += 1; }
+        skip => { root.skip-count += 1; }
+    }
+}
