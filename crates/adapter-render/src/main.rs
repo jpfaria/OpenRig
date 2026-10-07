@@ -32,8 +32,9 @@ fn main() -> ExitCode {
         }
     };
     let user_root = plugin_loader::plugins_root_from_config(&config_path);
+    let tone3000_root = plugin_loader::tone3000_root_from_config(&config_path);
     adapter_render::bootstrap::init_plugin_catalogs(
-        &[bundled_root, user_root],
+        &[bundled_root, user_root, tone3000_root],
         args.sample_rate_hz,
     );
 

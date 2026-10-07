@@ -67,6 +67,10 @@ page for the working rule.
   (`in:<channels>@<device>` / `out:<channels>@<device>`), so it only exists
   on this machine. Strips at unity, unmuted and not soloed are not stored; a missing
   entry means 0 dB, so a config without `mixer` changes nothing.
+- `tone3000` — `api_key`, the user's own TONE3000 Secret Key (`t3k_cs_…`)
+  used by the in-app browser ([tone3000.md](tone3000.md)). Each user brings
+  their own key, so it never travels with `project.yaml`; the UI only shows
+  whether one is set.
 - `crash_reporting` — where this machine sends crash reports: `provider`
   (`sentry` by default, or `none`) and an optional `dsn` that overrides the
   one baked into release builds. See [crash-reporting.md](crash-reporting.md).

@@ -1,0 +1,57 @@
+{
+ "id": 716,
+ "title": "1989 Marshall JCM800 2203 [standard]",
+ "description": "Fixture description.",
+ "created_at": "2023-04-01T07:34:30+00:00",
+ "updated_at": "2023-04-01T07:35:57+00:00",
+ "published_at": "2023-04-01T07:34:30+00:00",
+ "images": null,
+ "is_public": true,
+ "links": null,
+ "models_count": 5,
+ "favorites_count": 46,
+ "downloads_count": 1183,
+ "license": "t3k",
+ "sizes": [
+  "standard"
+ ],
+ "a1_models_count": 5,
+ "a2_models_count": 5,
+ "irs_count": 0,
+ "custom_models_count": 0,
+ "is_favorite": false,
+ "user": {
+  "username": "northernfox",
+  "avatar_url": null,
+  "display_name": null,
+  "is_verified": false,
+  "url": "https://www.tone3000.com/northernfox"
+ },
+ "makes": [
+  {
+   "id": 169,
+   "name": "1989 Marshall JCM800 2203"
+  },
+  {
+   "id": 90,
+   "name": "Marshall JCM800"
+  }
+ ],
+ "tags": [
+  {
+   "id": 361,
+   "name": "1980s"
+  },
+  {
+   "id": 39,
+   "name": "metal"
+  },
+  {
+   "id": 103,
+   "name": "nam"
+  }
+ ],
+ "url": "https://www.tone3000.com/tones/1989-marshall-jcm800-2203-standard-716",
+ "format": "nam",
+ "gear": "amp"
+}

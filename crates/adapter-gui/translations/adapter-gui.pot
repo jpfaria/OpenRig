@@ -1284,4 +1284,175 @@ msgid "appearance-light"
 msgstr ""
 
 msgid "appearance-dark"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr ""
+
+msgid "title-window-tone3000"
+msgstr ""
+
+msgid "tab-tone3000-browse"
+msgstr ""
+
+msgid "tab-tone3000-installed"
+msgstr ""
+
+msgid "label-tone3000-key"
+msgstr ""
+
+msgid "desc-tone3000-key"
+msgstr ""
+
+msgid "placeholder-tone3000-key"
+msgstr ""
+
+msgid "status-tone3000-key-set"
+msgstr ""
+
+msgid "status-tone3000-key-unset"
+msgstr ""
+
+msgid "btn-tone3000-key-save"
+msgstr ""
+
+msgid "btn-tone3000-key-clear"
+msgstr ""
+
+msgid "btn-tone3000-search"
+msgstr ""
+
+msgid "btn-tone3000-install"
+msgstr ""
+
+msgid "btn-tone3000-retry"
+msgstr ""
+
+msgid "btn-tone3000-uninstall"
+msgstr ""
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr ""
+
+msgid "btn-tone3000-previous-page"
+msgstr ""
+
+msgid "btn-tone3000-next-page"
+msgstr ""
+
+msgid "placeholder-tone3000-search"
+msgstr ""
+
+msgid "label-tone3000-format"
+msgstr ""
+
+msgid "label-tone3000-gear"
+msgstr ""
+
+msgid "label-tone3000-sort"
+msgstr ""
+
+msgid "label-tone3000-all"
+msgstr ""
+
+msgid "label-tone3000-sort-best-match"
+msgstr ""
+
+msgid "label-tone3000-sort-trending"
+msgstr ""
+
+msgid "label-tone3000-sort-downloads"
+msgstr ""
+
+msgid "label-tone3000-sort-newest"
+msgstr ""
+
+msgid "label-tone3000-gear-amp"
+msgstr ""
+
+msgid "label-tone3000-gear-full-rig"
+msgstr ""
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr ""
+
+msgid "label-tone3000-gear-pedal"
+msgstr ""
+
+msgid "label-tone3000-gear-outboard"
+msgstr ""
+
+msgid "label-tone3000-gear-ir"
+msgstr ""
+
+msgid "label-tone3000-gear-cab"
+msgstr ""
+
+msgid "label-tone3000-block-amp"
+msgstr ""
+
+msgid "label-tone3000-block-preamp"
+msgstr ""
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr ""
+
+msgid "label-tone3000-block-cab"
+msgstr ""
+
+msgid "label-tone3000-block-body"
+msgstr ""
+
+msgid "label-tone3000-author-downloads"
+msgstr ""
+
+msgid "label-tone3000-count-a1"
+msgstr ""
+
+msgid "label-tone3000-count-a2"
+msgstr ""
+
+msgid "label-tone3000-count-ir"
+msgstr ""
+
+msgid "label-tone3000-installed"
+msgstr ""
+
+msgid "label-tone3000-captures"
+msgstr ""
+
+msgid "label-tone3000-page"
+msgstr ""
+
+msgid "status-tone3000-downloading"
+msgstr ""
+
+msgid "status-tone3000-measuring"
+msgstr ""
+
+msgid "status-tone3000-fetching"
+msgstr ""
+
+msgid "btn-tone3000-open-settings"
+msgstr ""
+
+msgid "link-tone3000-get-key"
+msgstr ""
+
+msgid "title-tone3000-no-key"
+msgstr ""
+
+msgid "status-tone3000-no-key"
+msgstr ""
+
+msgid "status-tone3000-searching"
+msgstr ""
+
+msgid "status-tone3000-no-results"
+msgstr ""
+
+msgid "status-tone3000-start"
+msgstr ""
+
+msgid "status-tone3000-none-installed"
 msgstr ""

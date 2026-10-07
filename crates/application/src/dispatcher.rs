@@ -167,6 +167,18 @@ pub trait CommandDispatcher {
         crate::drums::DrumLibrary::default()
     }
 
+    /// #879: hand the dispatcher the TONE3000 browser state it owns.
+    fn attach_tone3000_state(
+        &self,
+        _state: Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>,
+    ) {
+    }
+
+    /// #879: the TONE3000 browser state, for a frontend to render.
+    fn tone3000_snapshot(&self) -> crate::tone3000_state::Tone3000Snapshot {
+        crate::tone3000_state::Tone3000Snapshot::default()
+    }
+
     /// #127: share the frontend's per-machine I/O binding registry handle, so
     /// the binding commands mutate the same allocation the frontend renders
     /// from and re-installs on every runtime sync. A transport with no

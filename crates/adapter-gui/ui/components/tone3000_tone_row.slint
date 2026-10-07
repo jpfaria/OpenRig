@@ -1,0 +1,145 @@
+// Responsibility: renders one TONE3000 search result.
+// Name and author on the left with what the tone holds; on the right the
+// architecture the install takes (A1 / A2, NAM only) and the install action,
+// which turns into progress, INSTALLED or RETRY. A failed install shows its
+// reason under the name. #398 vocabulary: a raised settings card, tag pills,
+// the accent action.
+import { Theme } from "../theme.slint";
+import { Tone3000ToneRow } from "tone3000_globals.slint";
+import { Tone3000Labels } from "tone3000_labels.slint";
+import { Tone3000Chip } from "tone3000_controls.slint";
+import { SettingsCard } from "settings_card.slint";
+import { TagPill } from "tag_pill.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+
+export component Tone3000ToneItem inherits SettingsCard {
+    in property <Tone3000ToneRow> tone;
+    in property <bool> can-install;
+    callback pick-arch(int);
+    callback install();
+
+    height: max(80px, body.preferred-height);
+    border-color: root.tone.error != "" ? Theme.bad : Theme.hair;
+
+    body := HorizontalLayout {
+        padding: 12px;
+        padding-left: 14px;
+        spacing: 14px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 5px;
+            alignment: center;
+
+            Text {
+                text: root.tone.title;
+                color: Theme.ink;
+                font-size: Theme.min-font;
+                font-weight: 700;
+                overflow: elide;
+            }
+            Text {
+                text: root.tone.downloads == "" ? root.tone.author
+                    : @tr("label-tone3000-author-downloads", root.tone.author, root.tone.downloads);
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                overflow: elide;
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                if root.tone.gear != "" : TagPill {
+                    text: Tone3000Labels.gear(root.tone.gear);
+                    tone: Theme.ink-2;
+                }
+                if !root.tone.is-ir && root.tone.a2-count > 0 : TagPill {
+                    text: @tr("label-tone3000-count-a2", root.tone.a2-count);
+                    tone: Theme.in;
+                }
+                if !root.tone.is-ir && root.tone.a1-count > 0 : TagPill {
+                    text: @tr("label-tone3000-count-a1", root.tone.a1-count);
+                    tone: Theme.ok;
+                }
+                if root.tone.ir-count > 0 : TagPill {
+                    text: @tr("label-tone3000-count-ir", root.tone.ir-count);
+                    tone: Theme.out;
+                }
+            }
+            if root.tone.error != "" : Text {
+                text: root.tone.error;
+                color: Theme.bad;
+                font-size: Theme.min-font;
+                wrap: word-wrap;
+            }
+        }
+
+        // The architecture the install takes; an IR tone has none. The column
+        // keeps its width either way, so every row's actions line up.
+        HorizontalLayout {
+            width: 86px;
+            spacing: 6px;
+            alignment: end;
+            if !root.tone.is-ir : VerticalLayout {
+                alignment: center;
+                Tone3000Chip {
+                    text: "A1";
+                    active: root.tone.arch == 1;
+                    enabled: root.tone.a1-count > 0 && !root.tone.installing;
+                    pick => { root.pick-arch(1); }
+                }
+            }
+            if !root.tone.is-ir : VerticalLayout {
+                alignment: center;
+                Tone3000Chip {
+                    text: "A2";
+                    active: root.tone.arch == 2;
+                    enabled: root.tone.a2-count > 0 && !root.tone.installing;
+                    pick => { root.pick-arch(2); }
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            width: 150px;
+
+            if root.tone.installing : Text {
+                text: root.tone.stage == 1 ? @tr("status-tone3000-downloading", root.tone.done, root.tone.total)
+                    : root.tone.stage == 2 ? @tr("status-tone3000-measuring")
+                    : @tr("status-tone3000-fetching");
+                color: Theme.accent;
+                font-size: Theme.min-font;
+                font-weight: 700;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+            if !root.tone.installing && root.tone.installed : HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 16px;
+                        height: 16px;
+                        source: @image-url("../assets/check.svg");
+                        colorize: Theme.ok;
+                    }
+                }
+                Text {
+                    text: @tr("label-tone3000-installed");
+                    color: Theme.ok;
+                    font-size: Theme.min-font;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+            if !root.tone.installing && !root.tone.installed : FormButton {
+                kind: root.tone.error != "" ? FormButtonKind.normal : FormButtonKind.primary;
+                label: root.tone.error != "" ? @tr("btn-tone3000-retry") : @tr("btn-tone3000-install");
+                enabled: root.can-install;
+                clicked => { root.install(); }
+            }
+        }
+    }
+}

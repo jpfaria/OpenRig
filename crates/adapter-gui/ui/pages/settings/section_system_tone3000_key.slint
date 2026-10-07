@@ -1,0 +1,125 @@
+// Responsibility: renders the TONE3000 Secret Key field.
+// Each user brings their own TONE3000 key (#879), created on their TONE3000
+// account page, which the link opens. The field is masked and is emptied once
+// saved: the window only ever learns whether a key is set, never the key back,
+// so it cannot be read off the screen. #398 vocabulary: a raised settings card.
+import { Theme } from "../../theme.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
+import { SettingsCard } from "../../components/settings_card.slint";
+import { TagPill } from "../../components/tag_pill.slint";
+import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+
+export component SectionSystemTone3000Key inherits SettingsCard {
+    height: body.preferred-height;
+
+    body := VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+
+        HorizontalLayout {
+            spacing: 10px;
+            Text {
+                horizontal-stretch: 1;
+                text: @tr("label-tone3000-key");
+                color: Theme.ink;
+                font-size: Theme.min-font;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            TagPill {
+                text: SettingsBridge.tone3000-key-configured
+                    ? @tr("status-tone3000-key-set") : @tr("status-tone3000-key-unset");
+                tone: SettingsBridge.tone3000-key-configured ? Theme.ok : Theme.ink-3;
+            }
+        }
+
+        Text {
+            text: @tr("desc-tone3000-key");
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
+            wrap: word-wrap;
+        }
+
+        // Where the key comes from: the user's own TONE3000 account.
+        HorizontalLayout {
+            alignment: start;
+            spacing: 6px;
+            link := Text {
+                text: @tr("link-tone3000-get-key");
+                color: Theme.accent;
+                font-size: Theme.min-font;
+                font-weight: 600;
+                vertical-alignment: center;
+                link-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { SettingsBridge.open-tone3000-keys-page(); }
+                }
+                accessible-role: button;
+                accessible-label: self.text;
+                accessible-action-default => { SettingsBridge.open-tone3000-keys-page(); }
+            }
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    width: 14px;
+                    height: 14px;
+                    source: @image-url("../../assets/external-link.svg");
+                    colorize: Theme.accent;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            // A TextInput of its own: the shared text field has no masking.
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 36px;
+                border-radius: 3px;
+                background: Theme.field;
+                border-width: key-input.has-focus ? 2px : 1px;
+                border-color: key-input.has-focus ? Theme.accent : Theme.field-line;
+
+                if key-input.text == "" : Text {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    text: @tr("placeholder-tone3000-key");
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
+                }
+                key-input := TextInput {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    input-type: password;
+                    single-line: true;
+                    color: Theme.ink;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
+                    accepted => {
+                        if self.text != "" {
+                            SettingsBridge.set-tone3000-key(self.text);
+                            self.text = "";
+                        }
+                    }
+                }
+            }
+            FormButton {
+                kind: FormButtonKind.primary;
+                label: @tr("btn-tone3000-key-save");
+                enabled: key-input.text != "";
+                clicked => {
+                    SettingsBridge.set-tone3000-key(key-input.text);
+                    key-input.text = "";
+                }
+            }
+            if SettingsBridge.tone3000-key-configured : FormButton {
+                kind: FormButtonKind.ghost;
+                label: @tr("btn-tone3000-key-clear");
+                clicked => { SettingsBridge.set-tone3000-key(""); }
+            }
+        }
+    }
+}

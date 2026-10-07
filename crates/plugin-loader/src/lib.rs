@@ -27,7 +27,9 @@ mod registry_natives;
 mod registry_query;
 pub mod validate;
 
-pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};
+pub use config::{
+    plugins_root_from_config, tone3000_root_from_config, PluginPathsConfig, PluginPathsSection,
+};
 pub use discover::{discover, DiscoveryError, LoadedPackage};
 pub use install::{extract_bundle_if_needed, has_extracted_packages};
 pub use manifest::{

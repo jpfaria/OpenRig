@@ -24,6 +24,7 @@ use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
+#[derive(Clone)]
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,

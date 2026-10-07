@@ -26,6 +26,7 @@ pub const URI_METRONOME: &str = "openrig://metronome";
 /// library of loadable tracks. Read parity for the player commands.
 pub const URI_PLAYER: &str = "openrig://player";
 pub const URI_DRUMS: &str = "openrig://drums";
+pub const URI_TONE3000: &str = "openrig://tone3000";
 /// #923: what each output route's device stream pulled (callbacks, underruns,
 /// peak since the last read) per (chain, runtime group, route).
 pub const URI_ROUTES: &str = "openrig://routes";
@@ -141,6 +142,13 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(
                 URI_DRUMS,
                 "Drum machine state (settings, kits, grooves, live bar and beat) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_TONE3000,
+                "TONE3000 browser state (key set or not, last search, installs, installed packages) — JSON",
             ),
             None,
         ),
@@ -298,6 +306,7 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_METRONOME => QueryKind::MetronomeState,
             URI_PLAYER => QueryKind::PlayerState,
             URI_DRUMS => QueryKind::DrumsState,
+            URI_TONE3000 => QueryKind::Tone3000State,
             URI_ROUTES => QueryKind::OutputRoutes,
             URI_MIXER => QueryKind::MixerState,
             URI_PRESETS => QueryKind::ListProjectPresets,
@@ -333,6 +342,7 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::PlayerState => URI_PLAYER.to_string(),
         QueryKind::DrumsState => URI_DRUMS.to_string(),
+        QueryKind::Tone3000State => URI_TONE3000.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
         QueryKind::MixerState => URI_MIXER.to_string(),
         QueryKind::ChainMixer { chain } => format!("openrig://chains/{}/mixer", chain.0),

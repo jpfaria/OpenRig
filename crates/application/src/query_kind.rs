@@ -109,6 +109,11 @@ pub enum QueryKind {
     /// The drum machine: its settings, the installed kits and grooves, and
     /// the live bar and beat. Serialized by [`crate::query_drums`].
     DrumsState,
+    /// #879: the TONE3000 browser — whether a key is set, the last search,
+    /// installs in flight and the installed packages. Never the key.
+    /// Serialized by [`crate::query_tone3000`]; MCP serves it as
+    /// `openrig://tone3000`.
+    Tone3000State,
     /// #923: what each output ROUTE's device stream pulled — callbacks
     /// served, empty pops, and the loudest sample since the previous read,
     /// per (chain, runtime group, route). The per-chain meters say what a
