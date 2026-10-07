@@ -1434,6 +1434,9 @@ msgstr "Buscar"
 msgid "btn-tone3000-install"
 msgstr "Instalar"
 
+msgid "btn-tone3000-update"
+msgstr "Atualizar"
+
 msgid "btn-tone3000-retry"
 msgstr "Tentar de novo"
 
@@ -1565,8 +1568,8 @@ msgstr "Busque amps, pedais e IRs no TONE3000."
 
 msgid "status-tone3000-none-installed"
 msgstr "Nenhuma captura do TONE3000 instalada ainda."
-msgid "label-tone3000-plugins-folder"
-msgstr "Pasta de plugins"
+msgid "label-tone3000-built-in"
+msgstr "Embutido"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "Buscar instalados pelo nome"

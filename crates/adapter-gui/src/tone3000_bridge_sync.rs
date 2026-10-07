@@ -53,9 +53,13 @@ fn tone_row(row: &ToneRowView) -> Tone3000ToneRow {
         ir_count: row.ir_count as i32,
         downloads: row.downloads.as_str().into(),
         arch: arch_to_int(row.arch),
-        installed: matches!(row.install, RowInstall::Installed(_)),
+        installed: matches!(
+            row.install,
+            RowInstall::Installed(_) | RowInstall::Outdated(_)
+        ),
+        update_available: matches!(row.install, RowInstall::Outdated(_)),
         plugin_id: match &row.install {
-            RowInstall::Installed(Some(id)) => id.as_str().into(),
+            RowInstall::Installed(Some(id)) | RowInstall::Outdated(id) => id.as_str().into(),
             _ => SharedString::new(),
         },
         installing: matches!(row.install, RowInstall::Running(_)),

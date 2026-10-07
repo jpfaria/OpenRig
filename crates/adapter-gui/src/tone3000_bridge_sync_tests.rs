@@ -118,3 +118,15 @@ fn installed_and_failed_rows_read_as_such() {
     assert!(!rows[1].installed && !rows[1].installing);
     assert_eq!(rows[1].error, "TONE3000 rate limit reached");
 }
+
+#[test]
+fn an_outdated_row_offers_the_update_on_its_package() {
+    let a2 = Some(Tone3000Architecture::A2);
+    let (_w, rows) = drawn(vec![
+        row(RowInstall::Outdated("tone3000_4521_a2".into()), a2),
+        row(RowInstall::Installed(Some("tone3000_4521_a2".into())), a2),
+    ]);
+    assert!(rows[0].installed && rows[0].update_available);
+    assert_eq!(rows[0].plugin_id, "tone3000_4521_a2");
+    assert!(rows[1].installed && !rows[1].update_available);
+}

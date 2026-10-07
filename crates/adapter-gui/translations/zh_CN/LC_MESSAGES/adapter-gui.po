@@ -1420,6 +1420,9 @@ msgstr "搜索"
 msgid "btn-tone3000-install"
 msgstr "安装"
 
+msgid "btn-tone3000-update"
+msgstr "更新"
+
 msgid "btn-tone3000-retry"
 msgstr "重试"
 
@@ -1551,8 +1554,8 @@ msgstr "在 TONE3000 搜索音箱头、效果器和 IR。"
 
 msgid "status-tone3000-none-installed"
 msgstr "尚未安装任何 TONE3000 捕获。"
-msgid "label-tone3000-plugins-folder"
-msgstr "插件文件夹"
+msgid "label-tone3000-built-in"
+msgstr "内置"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "按名称搜索已安装"

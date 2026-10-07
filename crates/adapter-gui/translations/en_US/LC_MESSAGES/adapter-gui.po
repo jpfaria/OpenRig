@@ -1427,6 +1427,9 @@ msgstr "Search"
 msgid "btn-tone3000-install"
 msgstr "Install"
 
+msgid "btn-tone3000-update"
+msgstr "Update"
+
 msgid "btn-tone3000-retry"
 msgstr "Retry"
 
@@ -1558,8 +1561,8 @@ msgstr "Search TONE3000 for amps, pedals and IRs."
 
 msgid "status-tone3000-none-installed"
 msgstr "No TONE3000 captures installed yet."
-msgid "label-tone3000-plugins-folder"
-msgstr "Plugins folder"
+msgid "label-tone3000-built-in"
+msgstr "Built in"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "Search installed by name"

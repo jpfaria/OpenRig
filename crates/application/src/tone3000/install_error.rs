@@ -9,9 +9,9 @@ pub enum InstallError {
     NoCaptures,
     AlreadyInstalled(String),
     NotInstalled(String),
-    /// Not the id of a TONE3000 package; nothing outside the TONE3000
-    /// root can be removed through it.
-    InvalidPluginId(String),
+    /// Not a package folder inside the plugins folder; nothing outside it
+    /// is ever removed.
+    NotInPluginsFolder(String),
     /// A capture could not be measured (broken model or IR file).
     Measure(String),
     /// The generated manifest was rejected by the loader's validation.
@@ -26,7 +26,7 @@ impl std::fmt::Display for InstallError {
             Self::NoCaptures => write!(f, "this tone has no downloadable captures"),
             Self::AlreadyInstalled(id) => write!(f, "{id} is already installed"),
             Self::NotInstalled(id) => write!(f, "{id} is not installed"),
-            Self::InvalidPluginId(id) => write!(f, "`{id}` is not a TONE3000 plugin id"),
+            Self::NotInPluginsFolder(dir) => write!(f, "{dir} is not in the plugins folder"),
             Self::Measure(e) => write!(f, "cannot measure a capture: {e}"),
             Self::Manifest(e) => write!(f, "invalid plugin manifest: {e}"),
             Self::Io(e) => write!(f, "cannot write the plugin: {e}"),

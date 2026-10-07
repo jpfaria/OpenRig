@@ -40,13 +40,23 @@ pub(crate) fn wire_tone3000_intents(
             pick(id, arch);
         }
     });
+    let picked = arch_of.clone();
     let d = dispatch.clone();
     bridge.on_install(move |tone_id| {
         if let Some(id) = tone_id_of(&tone_id) {
             d(Tone3000Command::InstallTone3000 {
                 tone_id: id,
-                architecture: arch_of(id),
+                architecture: picked(id),
                 block_type: None,
+            });
+        }
+    });
+    let d = dispatch.clone();
+    bridge.on_update(move |tone_id| {
+        if let Some(id) = tone_id_of(&tone_id) {
+            d(Tone3000Command::UpdateTone3000 {
+                tone_id: id,
+                architecture: arch_of(id),
             });
         }
     });

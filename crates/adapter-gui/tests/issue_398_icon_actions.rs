@@ -86,6 +86,14 @@ const WORDED: &[&str] = &[
     "tone-doctor-diagnosing",
     "tone-doctor-rerun",
     "btn-wizard-skip",
+    "btn-tone3000-search",
+    "btn-tone3000-install",
+    "btn-tone3000-retry",
+    "btn-tone3000-update",
+    "btn-tone3000-uninstall-confirm",
+    "btn-tone3000-open-settings",
+    "btn-tone3000-key-save",
+    "btn-tone3000-key-clear",
 ];
 
 const BUTTONS: &[&str] = &["FormButton {", "EditorButton {", "PanelActionButton {"];

@@ -87,9 +87,9 @@ use application::command_schema::command_variant_names;
 /// adds its ten `DrumsCommand` leaves (play, stop, toggle, enable, kit, groove,
 /// fill, volume, output) — the drums follow the project tempo (#1050).
 /// #398 bumped to 138 with `SetAppearance` — the light/dark scheme.
-/// The in-app TONE3000 browser adds its four `Tone3000Command` leaves (key,
-/// search, install, uninstall).
-const COMMAND_VARIANT_COUNT: usize = 142;
+/// The in-app TONE3000 browser adds its five `Tone3000Command` leaves (search,
+/// install, update, uninstall, set the Secret Key).
+const COMMAND_VARIANT_COUNT: usize = 143;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

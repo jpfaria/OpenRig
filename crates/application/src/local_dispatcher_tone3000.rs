@@ -17,8 +17,8 @@ use crate::event::{Event, Tone3000Event};
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
 use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
-use crate::tone3000::install::{install_tone, InstallProgress, InstallRequest};
-use crate::tone3000::installed::{is_plugin_id, remove_installed};
+use crate::tone3000::install::{install_tone, update_tone, InstallProgress, InstallRequest};
+use crate::tone3000::installed::remove_package;
 use crate::tone3000_state::{Tone3000ControlState, Tone3000Snapshot};
 
 /// Results per search page.
@@ -79,12 +79,26 @@ impl LocalDispatcher {
                 tone_id,
                 architecture,
                 block_type,
-            } => self.install_tone3000(InstallRequest {
+            } => self.install_tone3000(
+                InstallRequest {
+                    tone_id,
+                    architecture,
+                    block_type,
+                },
+                false,
+            ),
+            Tone3000Command::UninstallTone3000 { plugin_id } => self.uninstall_tone3000(plugin_id),
+            Tone3000Command::UpdateTone3000 {
                 tone_id,
                 architecture,
-                block_type,
-            }),
-            Tone3000Command::UninstallTone3000 { plugin_id } => self.uninstall_tone3000(plugin_id),
+            } => self.install_tone3000(
+                InstallRequest {
+                    tone_id,
+                    architecture,
+                    block_type: None,
+                },
+                true,
+            ),
         }
     }
 
@@ -120,7 +134,9 @@ impl LocalDispatcher {
         Ok(vec![])
     }
 
-    fn install_tone3000(&self, request: InstallRequest) -> Result<Vec<Event>> {
+    /// Installs `request` on a worker thread; `replace` updates a package
+    /// that is already there.
+    fn install_tone3000(&self, request: InstallRequest, replace: bool) -> Result<Vec<Event>> {
         let state = self.tone3000_state();
         let (api, root) = {
             let state = state.borrow();
@@ -139,7 +155,7 @@ impl LocalDispatcher {
         std::thread::Builder::new()
             .name("tone3000-install".into())
             .spawn(move || {
-                let result = run_install(api.as_ref(), root, &request, &tx);
+                let result = run_install(api.as_ref(), root, &request, replace, &tx);
                 let _ = tx.send(AsyncDone::Tone3000(Tone3000Done::Install {
                     tone_id,
                     result,
@@ -149,18 +165,23 @@ impl LocalDispatcher {
         Ok(vec![])
     }
 
+    /// Removes a listed TONE3000 plugin that sits in the plugins folder,
+    /// whether the browser installed it or the user put it there.
     fn uninstall_tone3000(&self, plugin_id: String) -> Result<Vec<Event>> {
-        if !is_plugin_id(&plugin_id) {
-            bail!("`{plugin_id}` is not a TONE3000 plugin");
-        }
         let state = self.tone3000_state();
         let Some(root) = state.borrow().root() else {
-            bail!("no TONE3000 plugin folder is attached");
+            bail!("no plugins folder is attached");
         };
-        // Not in the catalog (never loaded, or already unloaded) is fine:
-        // the folder is what is being removed.
+        let listed = state.borrow().snapshot().installed;
+        let Some(entry) = listed.into_iter().find(|e| e.plugin_id == plugin_id) else {
+            bail!("`{plugin_id}` is not an installed TONE3000 plugin");
+        };
+        if !entry.removable {
+            bail!("`{plugin_id}` is not in the plugins folder");
+        }
+        remove_package(&root, &entry.dir)?;
+        // Not in the catalog (never loaded) is fine: the folder is gone.
         let _ = plugin_loader::registry::unload(&plugin_id);
-        remove_installed(&root, &plugin_id)?;
         state.borrow_mut().refresh_installed();
         Ok(vec![Event::Tone3000(Tone3000Event::Uninstalled {
             plugin_id,
@@ -204,11 +225,13 @@ impl LocalDispatcher {
 }
 
 /// Installs, then brings the new package into the catalog so a block can
-/// pick it right away. Runs on the worker thread.
+/// pick it right away. An update drops the old catalog entry first, since
+/// the catalog keeps a loaded id as it is. Runs on the worker thread.
 fn run_install(
     api: &dyn crate::tone3000::api_client::Tone3000Api,
     root: PathBuf,
     request: &InstallRequest,
+    replace: bool,
     tx: &Sender<AsyncDone>,
 ) -> Result<String, String> {
     let tone_id = request.tone_id;
@@ -218,8 +241,16 @@ fn run_install(
             progress,
         }));
     };
-    let installed = install_tone(api, &root, request, &mut report).map_err(|e| e.to_string())?;
-    plugin_loader::registry::load_one(&installed.plugin_id, &[root])
+    let installed = if replace {
+        update_tone(api, &root, request, &mut report)
+    } else {
+        install_tone(api, &root, request, &mut report)
+    }
+    .map_err(|e| e.to_string())?;
+    if replace {
+        let _ = plugin_loader::registry::unload(&installed.plugin_id);
+    }
+    plugin_loader::registry::load_one(&installed.plugin_id, &[installed.dir])
         .map_err(|e| format!("installed, but the catalog did not load it: {e}"))?;
     Ok(installed.plugin_id)
 }

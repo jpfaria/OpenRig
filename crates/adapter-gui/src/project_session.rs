@@ -162,14 +162,14 @@ fn attach_drums_state(dispatcher: &dyn CommandDispatcher) {
 }
 
 /// #879: the TONE3000 browser — the user's key from `config.yaml` and the
-/// packages already installed in the TONE3000 folder next to it. A test
-/// build has no config path, so it has no install folder either.
+/// plugins folder it defines, which installs go into. A test build has no
+/// config path, so it has no install folder either.
 fn attach_tone3000_state(dispatcher: &dyn CommandDispatcher) {
     let config = FilesystemStorage::load_app_config().unwrap_or_default();
     let config_path = machine_config_path();
     let root = config_path
         .as_deref()
-        .map(plugin_loader::tone3000_root_from_config);
+        .map(plugin_loader::plugins_root_from_config);
     dispatcher.attach_tone3000_state(Rc::new(RefCell::new(Tone3000ControlState::restored(
         &config.tone3000,
         config_path,

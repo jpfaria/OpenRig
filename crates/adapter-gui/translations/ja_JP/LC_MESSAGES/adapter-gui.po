@@ -1426,6 +1426,9 @@ msgstr "検索"
 msgid "btn-tone3000-install"
 msgstr "インストール"
 
+msgid "btn-tone3000-update"
+msgstr "アップデート"
+
 msgid "btn-tone3000-retry"
 msgstr "再試行"
 
@@ -1557,8 +1560,8 @@ msgstr "TONE3000 でアンプ、ペダル、IR を検索します。"
 
 msgid "status-tone3000-none-installed"
 msgstr "TONE3000 のキャプチャはまだインストールされていません。"
-msgid "label-tone3000-plugins-folder"
-msgstr "プラグインフォルダー"
+msgid "label-tone3000-built-in"
+msgstr "内蔵"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "インストール済みを名前で検索"

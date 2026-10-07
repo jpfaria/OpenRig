@@ -19,7 +19,9 @@ use application::tone3000::api_types::{Model, Page, Tone};
 use application::tone3000::api_url::SearchQuery;
 use application::tone3000::install::{install_tone, InstallRequest};
 use application::tone3000::{Tone3000Format, Tone3000Gear, Tone3000Sort};
-use application::tone3000_state::{Tone3000ApiFactory, Tone3000ControlState};
+use application::tone3000_state::{
+    Tone3000ApiFactory, Tone3000CatalogSource, Tone3000ControlState, Tone3000InstalledEntry,
+};
 use infra_filesystem::{AppConfig, Tone3000Config};
 use plugin_loader::manifest::BlockType;
 use project::project::Project;
@@ -104,7 +106,8 @@ fn model(id: u64, name: &str, url: &str) -> Model {
 /// Every test uses its own tone id: the plugin registry is process-wide.
 fn ir_api(assets: &Path, tone_id: u64) -> FakeApi {
     let tone: Tone = serde_json::from_value(serde_json::json!({
-        "id": tone_id, "title": "Fake Cab", "format": "ir", "gear": "cab", "irs_count": 2
+        "id": tone_id, "title": "Fake Cab", "format": "ir", "gear": "cab", "irs_count": 2,
+        "updated_at": "2026-05-01T10:00:00Z"
     }))
     .unwrap();
     let loud = assets.join("loud.wav");
@@ -156,6 +159,50 @@ fn rig_with(
         keys,
         api,
     }
+}
+
+/// A keyed rig whose catalog is `catalog` instead of the global registry.
+fn cataloged_rig(api: FakeApi, root: &Path, catalog: Tone3000CatalogSource) -> Rig {
+    let api = Arc::new(api);
+    let keys = Arc::new(Mutex::new(Vec::new()));
+    let config = Tone3000Config {
+        api_key: Some(KEY.into()),
+    };
+    let state = Tone3000ControlState::restored(&config, None, Some(root.to_path_buf()))
+        .with_api_factory(factory(Arc::clone(&api), Arc::clone(&keys)))
+        .with_catalog(catalog);
+    let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project::default())));
+    dispatcher.attach_tone3000_state(Rc::new(RefCell::new(state)));
+    Rig {
+        dispatcher,
+        keys,
+        api,
+    }
+}
+
+/// A hand-made pack of TONE3000 tone 52557 at `dir`, listed while it exists.
+fn hand_pack(dir: &Path, removable: bool) -> Tone3000CatalogSource {
+    std::fs::create_dir_all(dir.join("captures")).unwrap();
+    std::fs::write(dir.join("manifest.yaml"), "id: hand_pack\n").unwrap();
+    let entry = Tone3000InstalledEntry {
+        plugin_id: "hand_pack".into(),
+        tone_ids: vec![52557],
+        display_name: "Hand Pack".into(),
+        block_type: BlockType::Preamp,
+        architecture: None,
+        captures: 1,
+        removable,
+        updated_at: None,
+        dir: dir.to_path_buf(),
+    };
+    let dir = dir.to_path_buf();
+    Arc::new(move || {
+        if dir.exists() {
+            vec![entry.clone()]
+        } else {
+            Vec::new()
+        }
+    })
 }
 
 fn keyed_rig(api: FakeApi, root: &Path) -> Rig {
@@ -381,7 +428,7 @@ fn an_install_reports_progress_then_lists_the_plugin() {
     assert_eq!(entry.display_name, "Fake Cab");
     assert_eq!(entry.block_type, BlockType::Cab);
     assert_eq!(entry.captures, 2);
-    assert!(root.path().join("tone3000_107/manifest.yaml").is_file());
+    assert!(root.path().join("ir/tone3000_107/manifest.yaml").is_file());
     assert!(plugin_loader::registry::find("tone3000_107").is_some());
 }
 
@@ -445,7 +492,7 @@ fn uninstall_removes_the_package_and_the_catalog_entry() {
         }]
     );
     assert!(rig.dispatcher.tone3000_snapshot().installed.is_empty());
-    assert!(!root.path().join("tone3000_110").exists());
+    assert!(!root.path().join("ir/tone3000_110").exists());
     assert!(plugin_loader::registry::find("tone3000_110").is_none());
 }
 
@@ -504,4 +551,124 @@ fn the_read_serves_the_browser_state() {
     assert_eq!(json["can_install"], true);
     assert!(json["installed"].as_array().unwrap().is_empty());
     assert_eq!(json["search"]["in_flight"], false);
+}
+
+#[test]
+fn update_reinstalls_the_package_and_keeps_it_in_the_catalog() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let rig = keyed_rig(ir_api(assets.path(), 114), root.path());
+    run(&rig.dispatcher, install(114)).unwrap();
+    wait_for(&rig.dispatcher, |e| {
+        matches!(e, Tone3000Event::Installed { .. })
+    });
+
+    run(
+        &rig.dispatcher,
+        Tone3000Command::UpdateTone3000 {
+            tone_id: 114,
+            architecture: None,
+        },
+    )
+    .unwrap();
+    let events = wait_for(&rig.dispatcher, |e| {
+        matches!(
+            e,
+            Tone3000Event::Installed { .. } | Tone3000Event::InstallFailed { .. }
+        )
+    });
+
+    assert!(events.contains(&Tone3000Event::Installed {
+        tone_id: 114,
+        plugin_id: "tone3000_114".into()
+    }));
+    let installed = rig.dispatcher.tone3000_snapshot().installed;
+    assert_eq!(installed.len(), 1);
+    assert_eq!(
+        installed[0].updated_at.as_deref(),
+        Some("2026-05-01T10:00:00Z")
+    );
+    assert!(plugin_loader::registry::find("tone3000_114").is_some());
+    let mut left: Vec<String> = std::fs::read_dir(root.path().join("ir"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    left.sort();
+    assert_eq!(left, ["tone3000_114"]);
+}
+
+#[test]
+fn updating_a_tone_that_is_not_installed_fails() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let rig = keyed_rig(ir_api(assets.path(), 115), root.path());
+    run(
+        &rig.dispatcher,
+        Tone3000Command::UpdateTone3000 {
+            tone_id: 115,
+            architecture: None,
+        },
+    )
+    .unwrap();
+    let events = wait_for(&rig.dispatcher, |e| {
+        matches!(e, Tone3000Event::InstallFailed { .. })
+    });
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, Tone3000Event::InstallFailed { tone_id: 115, .. })));
+    assert!(rig.dispatcher.tone3000_snapshot().installed.is_empty());
+}
+
+#[test]
+fn a_tone3000_pack_in_the_plugins_folder_can_be_uninstalled() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let pack = root.path().join("nam").join("hand_pack");
+    let rig = cataloged_rig(
+        ir_api(assets.path(), 120),
+        root.path(),
+        hand_pack(&pack, true),
+    );
+    assert_eq!(rig.dispatcher.tone3000_snapshot().installed.len(), 1);
+
+    let events = run(
+        &rig.dispatcher,
+        Tone3000Command::UninstallTone3000 {
+            plugin_id: "hand_pack".into(),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        tone3000_events(events),
+        [Tone3000Event::Uninstalled {
+            plugin_id: "hand_pack".into()
+        }]
+    );
+    assert!(!pack.exists());
+    assert!(root.path().join("nam").is_dir(), "only the pack goes");
+    assert!(rig.dispatcher.tone3000_snapshot().installed.is_empty());
+}
+
+#[test]
+fn a_pack_outside_the_plugins_folder_is_never_uninstalled() {
+    let assets = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    for removable in [false, true] {
+        let pack = elsewhere.path().join("nam").join("hand_pack");
+        let rig = cataloged_rig(
+            ir_api(assets.path(), 121),
+            root.path(),
+            hand_pack(&pack, removable),
+        );
+        let refused = run(
+            &rig.dispatcher,
+            Tone3000Command::UninstallTone3000 {
+                plugin_id: "hand_pack".into(),
+            },
+        );
+        assert!(refused.is_err(), "removable: {removable}");
+        assert!(pack.join("manifest.yaml").is_file());
+    }
 }

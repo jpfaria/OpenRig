@@ -35,8 +35,15 @@ pub enum Tone3000Command {
     /// The user's TONE3000 Secret Key (`t3k_cs_…`). Blank clears it.
     SetTone3000ApiKey { key: String },
 
-    /// Remove an installed TONE3000 plugin (`tone3000_*`).
+    /// Remove a TONE3000 plugin from the plugins folder.
     UninstallTone3000 { plugin_id: String },
+
+    /// Download an installed tone again, replacing its package in place.
+    /// `None` takes A2 when the tone has A2 captures.
+    UpdateTone3000 {
+        tone_id: u64,
+        architecture: Option<Tone3000Architecture>,
+    },
 }
 
 impl std::fmt::Debug for Tone3000Command {
@@ -73,6 +80,14 @@ impl std::fmt::Debug for Tone3000Command {
             Self::UninstallTone3000 { plugin_id } => f
                 .debug_struct("UninstallTone3000")
                 .field("plugin_id", plugin_id)
+                .finish(),
+            Self::UpdateTone3000 {
+                tone_id,
+                architecture,
+            } => f
+                .debug_struct("UpdateTone3000")
+                .field("tone_id", tone_id)
+                .field("architecture", architecture)
                 .finish(),
         }
     }
