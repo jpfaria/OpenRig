@@ -118,6 +118,9 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
             &ctx.dispatcher.drums_library(),
             ctx.live.drums(),
         )),
+        QueryKind::Tone3000State => Ok(crate::query_tone3000::tone3000_state_json(
+            &ctx.dispatcher.tone3000_snapshot(),
+        )),
         QueryKind::MixerState => Ok(crate::query_mixer::mixer_state_json(
             &ctx.dispatcher.mixer_strips(),
         )),

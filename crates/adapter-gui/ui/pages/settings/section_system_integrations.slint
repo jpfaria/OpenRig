@@ -14,6 +14,7 @@ import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 import { SettingsCard } from "../../components/settings_card.slint";
 import { ToggleSwitch } from "../../components/toggle_switch.slint";
+import { SectionSystemTone3000Key } from "section_system_tone3000_key.slint";
 
 component OptionCard inherits SettingsCard {
     in property <string> title;
@@ -92,5 +93,8 @@ export component SectionSystemIntegrations inherits Rectangle {
             font-size: Theme.min-font;
             wrap: word-wrap;
         }
+
+        // #879: the TONE3000 key applies at once, so it sits after the hint.
+        SectionSystemTone3000Key { }
     }
 }

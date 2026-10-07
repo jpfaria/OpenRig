@@ -82,6 +82,7 @@ mod local_dispatcher_selection;
 mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tempo;
+mod local_dispatcher_tone3000;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
@@ -124,6 +125,7 @@ pub mod query_paths;
 pub mod query_player;
 pub mod query_plugins;
 pub mod query_presets;
+pub mod query_tone3000;
 /// #831: the single `QueryKind` resolver every transport answers through —
 /// one match, one payload shape, one error string.
 pub mod read;
@@ -138,6 +140,10 @@ pub mod snapshot;
 mod split_path_commands;
 mod split_path_references;
 mod split_rules;
+/// #879: the in-app TONE3000 browser — API client, axes, levels, installs.
+pub mod tone3000;
+pub mod tone3000_event;
+pub mod tone3000_state;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;

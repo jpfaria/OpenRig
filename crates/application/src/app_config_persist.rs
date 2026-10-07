@@ -15,6 +15,7 @@ use std::path::PathBuf;
 
 use infra_filesystem::{
     AppConfig, DrumsConfig, FilesystemStorage, MetronomeConfig, MixerStripConfig, PlayerConfig,
+    Tone3000Config,
 };
 
 use crate::mixer_persist_coalesce::{pending_strips, Settle};
@@ -95,6 +96,21 @@ pub fn persist_drums(config_path: PathBuf, mutate: impl FnOnce(&mut DrumsConfig)
             mutate(&mut config.drums)
         }) {
             log::error!("persist drums failed: {e}");
+        }
+    });
+}
+
+/// #879: read-modify-write the TONE3000 section of `config.yaml` on the
+/// persist worker. Only callers holding an attached config path reach this.
+pub fn persist_tone3000(
+    config_path: PathBuf,
+    mutate: impl FnOnce(&mut Tone3000Config) + Send + 'static,
+) {
+    crate::persist_worker::run(move || {
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.tone3000)
+        }) {
+            log::error!("persist tone3000 failed: {e}");
         }
     });
 }

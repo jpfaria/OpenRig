@@ -236,6 +236,7 @@ impl CommandDispatcher for LocalDispatcher {
             Command::Metronome(_) => self.handle_metronome(cmd),
             Command::Player(_) => self.handle_player(cmd),
             Command::Drums(_) => self.handle_drums(cmd),
+            Command::Tone3000(_) => self.handle_tone3000(cmd),
 
             // #1007: a chain's own faders live in the project, not the
             // system mixer state.
@@ -395,6 +396,7 @@ impl CommandDispatcher for LocalDispatcher {
                     }
                 },
                 AsyncDone::Events(completed) => events.extend(completed),
+                AsyncDone::Tone3000(done) => events.extend(self.finish_tone3000(done)),
             }
         }
         events
@@ -494,6 +496,17 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn drums_library(&self) -> crate::drums::DrumLibrary {
         LocalDispatcher::drums_library(self)
+    }
+
+    fn attach_tone3000_state(
+        &self,
+        state: Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>,
+    ) {
+        LocalDispatcher::attach_tone3000_state(self, state)
+    }
+
+    fn tone3000_snapshot(&self) -> crate::tone3000_state::Tone3000Snapshot {
+        LocalDispatcher::tone3000_snapshot(self)
     }
 
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {
