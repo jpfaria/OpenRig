@@ -87,10 +87,17 @@ audio for about a second.
   `audio IO: TUSBAudio:Fender:Quantum HD 8` thread. launchd respawned it 40 ms
   later, the kernel aborted the HD 8's USB pipes and every app's audio dropped
   for about 1 s.
-- The stepped-input restart cures it: **OPEN** — its new streams come up while
-  the old ones still run, so the HD 8 never stops. Whether a fresh OpenRig IO
-  context escapes the holes when OpenRig's own context is the broken one was
-  not measured: the test was cut by the coreaudiod crash.
+- The stepped-input restart cures it: **REFUTED** — coreaudiod keeps one IO
+  context per process per device, alive while any of the process's IOProcs on
+  that device runs (2026-10-07: two IOProcs in one process on the HD 8 gave one
+  `IOWorkLoopInit` and one `IOWorkLoopDeinit`, only at the last stop). The
+  restart opens the new streams before closing the old ones, so OpenRig's
+  context, the one that broke at 15:07, is never torn down. The owner's
+  restarts on 2026-10-06 18:10–18:12 UTC left the input stepped.
+- Stopping every OpenRig stream on the HD 8 and starting them again (a fresh
+  context, a fresh `Register_IOThread`) clears it when OpenRig's context is
+  the broken one: **OPEN** — not measured; the test was cut by the coreaudiod
+  crash.
 
 ## Shipped
 
