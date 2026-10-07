@@ -540,14 +540,18 @@ pub trait RuntimeControl {
         Ok(false)
     }
 
-    /// #979: restart one chain's streams the way switching it off and on
-    /// does, after [`LiveSource::stepped_input_chains`] reported its input
-    /// stepped. Only that chain is touched.
+    /// #979: restart the streams of a chain whose input arrives stepped,
+    /// after [`LiveSource::stepped_input_chains`] reported it. On cpal (#1081)
+    /// every OpenRig stream on the device that input reads is closed and
+    /// opened again, the other chains on that device included; a chain on
+    /// another device is not touched. On JACK only that chain is switched off
+    /// and on.
     ///
     /// [`LiveSource::stepped_input_chains`]: crate::live_source::LiveSource::stepped_input_chains
     ///
     /// `Ok(true)` ⇒ restarted; `Ok(false)` ⇒ nothing to restart (no runtime,
-    /// or the chain is off). It changes no project state.
+    /// the chain is off, or no input of it is stepped any more). It changes no
+    /// project state.
     fn restart_chain_streams(&self, chain_id: &str) -> Result<bool> {
         let _ = chain_id;
         Ok(false)

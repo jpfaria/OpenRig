@@ -110,6 +110,7 @@ fn the_built_runtime_records_the_chain_structure_against_the_binding_registry() 
         &registry,
         &[],
         1,
+        Default::default(),
     )
     .expect("a chain with no resolved device builds without opening a stream");
 

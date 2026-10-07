@@ -59,8 +59,8 @@ impl ProjectRuntimeController {
         // #881 (owner's rule): every STRUCTURAL change to a chain gets brand-new
         // streams — "tem que matar a antiga e criar uma nova stream do zero" —
         // and the old ones die only when the new ones are already playing:
-        // `build_active_chain_runtime` starts the streams and the install swaps
-        // them in, dropping the previous set at that moment. A live chain whose
+        // `build_active_chain_runtime` starts the streams and the install
+        // crossfades the previous set into them (#1081). A live chain whose
         // structure and I/O are unchanged (a knob turn) keeps its streams: the
         // param edit rides the off-thread DSP rebuild instead.
         if self.active_chains.contains_key(&chain.id)
@@ -69,7 +69,19 @@ impl ProjectRuntimeController {
         {
             return Ok(false);
         }
+        self.submit_chain_activation(project, chain)?;
+        Ok(true)
+    }
 
+    /// Build a new stream set for `chain` off-thread, whatever is live now.
+    /// The poll tick installs it; a set already playing keeps playing until
+    /// the new one has faded in over it (#1081).
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub(crate) fn submit_chain_activation(
+        &mut self,
+        project: &Project,
+        chain: &Chain,
+    ) -> Result<()> {
         // #693: validation + device resolution are CoreAudio property
         // queries costing hundreds of ms — they run on the control worker
         // together with the heavy build, never on the calling thread.
@@ -116,7 +128,7 @@ impl ProjectRuntimeController {
         // #808: re-render the monitored DI from the edited config now (no-op when
         // nothing is armed), decoupled from the guitar build landing.
         self.rearm_di_stream_after_rebuild(chain);
-        Ok(true)
+        Ok(())
     }
 
     /// JACK build keeps cold activation synchronous (issue #672 wires cpal first).
