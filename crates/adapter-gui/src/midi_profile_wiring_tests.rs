@@ -19,17 +19,10 @@ fn the_factory_profiles_live_under_the_install_data_root() {
 }
 
 #[test]
-fn the_user_profiles_live_under_this_platforms_data_dir() {
-    let dir = user_profiles_dir();
-    assert!(
-        dir.ends_with("openrig/midi-profiles"),
-        "unexpected user dir: {}",
-        dir.display()
-    );
-    assert!(
-        dir.is_absolute() || dir.starts_with("."),
-        "the fallback is a relative '.', anything else must be absolute: {}",
-        dir.display()
+fn the_user_profiles_live_in_the_user_folder() {
+    assert_eq!(
+        user_profiles_dir(),
+        infra_filesystem::user_data_root().join("midi-profiles")
     );
 }
 

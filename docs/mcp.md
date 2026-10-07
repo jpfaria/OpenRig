@@ -259,7 +259,7 @@ follow-up.
     has not set an override in `config.yaml`, the resource returns the
     OS default a consumer would compute itself. Skills (e.g.
     `openrig-tone-analyzer`) read this instead of hard-coding
-    `~/Library/Application Support/OpenRig/…`.
+    `~/.openrig/…`.
     `backing_tracks_path` is the user's backing-track folder: a file
     dropped there appears in `openrig://player`'s `library`.
     `looper_takes_path` is the app-wide looper take library: a

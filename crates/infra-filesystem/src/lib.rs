@@ -34,17 +34,22 @@ pub mod app_config;
 pub mod asset_paths;
 pub mod config_paths;
 pub mod gui_settings;
+pub mod legacy_user_data;
 pub mod storage;
+pub mod user_data_paths;
 
 pub use app_config::{AppConfig, RecentProjectEntry};
 pub use asset_paths::{
-    asset_paths, bundled_backing_tracks_path, default_backing_tracks_path,
-    default_evaluations_path, default_looper_takes_path, detect_data_root, init_asset_paths,
-    resolve_asset_paths, user_data_root, AssetPaths,
+    asset_paths, bundled_backing_tracks_path, detect_data_root, init_asset_paths,
+    resolve_asset_paths, AssetPaths,
 };
 pub(crate) use gui_settings::LegacyGuiAudioSettings;
 pub use gui_settings::{GuiAudioDeviceSettings, GuiSystemSettings};
 pub use storage::FilesystemStorage;
+pub use user_data_paths::{
+    default_backing_tracks_path, default_evaluations_path, default_looper_takes_path,
+    default_presets_path, default_projects_path, user_data_root,
+};
 
 #[path = "app_config_io.rs"]
 mod app_config_io;
@@ -64,3 +69,11 @@ mod appearance_tests;
 #[cfg(test)]
 #[path = "tone3000_config_tests.rs"]
 mod tone3000_config_tests;
+
+#[cfg(test)]
+#[path = "user_data_paths_tests.rs"]
+mod user_data_paths_tests;
+
+#[cfg(test)]
+#[path = "legacy_user_data_tests.rs"]
+mod legacy_user_data_tests;
