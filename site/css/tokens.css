@@ -1,10 +1,45 @@
+/* Responsibility: the design tokens (colour, type, shape) for light and dark themes. */
 :root{
-  --ink:#05070b; --ink2:#0a0d12; --panel:#0f131b; --panel2:#141a24;
-  --line:#222b39; --line2:#37455a;
-  --white:#ffffff; --soft:#e6ecf5; --mute:#94a2b8;
-  --amber:#ff9e3d; --amber-deep:#e2761a; --amber-glow:#ffc98a;
-  --blue:#22a7ff;
+  --page:#dde2e8; --page-fg:#2a323d; --page-fg-2:#5d6876; --page-h:#121820;
+  --chrome:#1a2029; --chrome-2:#232b36; --chrome-line:#10151b; --chrome-fg:#e2e7ee; --chrome-fg-2:#8b96a5;
+  --panel:#e4e8ee; --panel-hi:#eef1f5; --panel-lo:#d6dce4; --well:#cdd4dd;
+  --hair:#cdd3db; --hair-2:#dbe0e6; --dot:rgb(0 0 0/.09);
+  --ink:#18202b; --ink-2:#465262; --ink-3:#75808f;
+  --field:#fbfcfd; --field-line:#c0c7d0; --ktrack:#c3cad3; --groove:#c3cad3;
+  --shadow:0 18px 48px -22px rgb(20 30 45/.32),0 0 0 1px rgb(20 30 45/.12);
+  --accent:#f28c1e; --accent-ink:#1a1206;
+  --ok:#2f9a55; --warn:#d9b43a; --bad:#c8443e; --in:#2b8fd6; --out:#8a4fe0;
+  --c-filter:#c9a100; --c-dyn:#2f6fe0; --c-gain:#e8671b; --c-amp:#d23b2d; --c-pre:#b8862a;
+  --c-cab:#7c6d5a; --c-mod:#8a4fe0; --c-dly:#0f9c8e; --c-rvb:#2b8fd6; --c-vol:#69717f;
+  --c-pitch:#c2489a; --c-body:#9a7b4f; --c-wah:#b5651d;
+  --b-nam:#2b8fd6; --b-native:#2f9a55; --b-ir:#e8671b; --b-lv2:#8a4fe0; --b-vst3:#d0457f;
+  --lcd:#121a14; --lcd-fg:#ffb648; --lcd-dim:#b98738;
   --display:'Bebas Neue',Impact,sans-serif;
-  --body:'Archivo',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --body:'Barlow',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --r:6px; --wrap:1200px; --gut:clamp(16px,4vw,40px);
   --ease:cubic-bezier(.16,.84,.44,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#0b0e12; --page-fg:#d9dde3; --page-fg-2:#8d96a3; --page-h:#f1f3f6;
+    --chrome:#12161c; --chrome-2:#1a2029; --chrome-line:#07090c;
+    --panel:#232a33; --panel-hi:#2a323c; --panel-lo:#1d232b; --well:#161b21;
+    --hair:#2d343e; --hair-2:#262c35; --dot:rgb(255 255 255/.06);
+    --ink:#e8ecf1; --ink-2:#aab3bf; --ink-3:#7a8592;
+    --field:#11151a; --field-line:#353e49; --ktrack:#3a434f; --groove:#0f1318;
+    --shadow:0 18px 48px -22px rgb(0 0 0/.7),0 0 0 1px rgb(0 0 0/.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0b0e12; --page-fg:#d9dde3; --page-fg-2:#8d96a3; --page-h:#f1f3f6;
+  --chrome:#12161c; --chrome-2:#1a2029; --chrome-line:#07090c;
+  --panel:#232a33; --panel-hi:#2a323c; --panel-lo:#1d232b; --well:#161b21;
+  --hair:#2d343e; --hair-2:#262c35; --dot:rgb(255 255 255/.06);
+  --ink:#e8ecf1; --ink-2:#aab3bf; --ink-3:#7a8592;
+  --field:#11151a; --field-line:#353e49; --ktrack:#3a434f; --groove:#0f1318;
+  --shadow:0 18px 48px -22px rgb(0 0 0/.7),0 0 0 1px rgb(0 0 0/.6);
+  color-scheme:dark;
 }
