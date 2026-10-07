@@ -31,6 +31,8 @@
   "captures.c2.p": "Apunta un bloque a un .nam o un IR de pantalla de tu disco y suena como cualquier ampli del catálogo.",
   "captures.c3.h3": "Formatos mezclados en la misma cadena",
   "captures.c3.p": "Un ampli NAM, un drive nativo y un reverb VST3 conviven en la misma cadena, en el orden que quieras.",
+  "captures.c4.h3": "Tus capturas se convierten en un plugin con perillas",
+  "captures.c4.p": "Añade tus .nam, indica qué cambia cada uno (gain, canal, bright) y OpenRig arma el ampli con esos controles.",
   "captures.shotCap": "El plugin Marshall 1959 SLP: la pestaña CAPTURE elige el .nam, la pestaña AMP ajusta el sonido.",
   "rig.tag": "Cadena de señal",
   "rig.h2": "Divide la señal entre un Marshall y un AC30 y vuelve a juntarlos en uno.",
