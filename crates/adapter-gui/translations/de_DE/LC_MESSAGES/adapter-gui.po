@@ -1566,8 +1566,8 @@ msgstr "Suche auf TONE3000 nach Amps, Pedalen und IRs."
 
 msgid "status-tone3000-none-installed"
 msgstr "Noch keine TONE3000-Captures installiert."
-msgid "label-tone3000-plugins-folder"
-msgstr "Plugin-Ordner"
+msgid "label-tone3000-built-in"
+msgstr "Integriert"
 
 msgid "placeholder-tone3000-installed-search"
 msgstr "Installierte nach Namen suchen"

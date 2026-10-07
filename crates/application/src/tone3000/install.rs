@@ -17,7 +17,7 @@ use super::api_enums::{Tone3000Architecture, Tone3000BlockType};
 use super::api_types::{Model, Tone};
 use super::block_type::block_type_for;
 pub use super::install_error::InstallError;
-use super::installed::{InstalledPlugin, MANIFEST_FILE};
+use super::installed::{InstalledPlugin, IR_FOLDER, MANIFEST_FILE, NAM_FOLDER};
 use super::ir_wav::load_ir_mono_48k;
 use super::level_nam::nam_output_gain_db;
 use super::level_policy::{ir_level_peak_dbfs, target_gain_db, IrRole};
@@ -76,7 +76,11 @@ fn build_package(
     let tone = api.tone(request.tone_id)?;
     let kind = package_kind(&tone, request.architecture);
     let id = plugin_id(tone.id, kind);
-    let dir = root.join(&id);
+    let folder = root.join(match kind {
+        PackageKind::Nam(_) => NAM_FOLDER,
+        PackageKind::Ir => IR_FOLDER,
+    });
+    let dir = folder.join(&id);
     match (replace, dir.exists()) {
         (false, true) => return Err(InstallError::AlreadyInstalled(id)),
         (true, false) => return Err(InstallError::NotInstalled(id)),
@@ -92,9 +96,9 @@ fn build_package(
     }
     let block_type = request.block_type.unwrap_or_else(|| block_type_for(&tone));
 
-    std::fs::create_dir_all(root)?;
-    let staging = root.join(format!(".partial-{id}"));
-    let previous = root.join(format!(".previous-{id}"));
+    std::fs::create_dir_all(&folder)?;
+    let staging = folder.join(format!(".partial-{id}"));
+    let previous = folder.join(format!(".previous-{id}"));
     let result = (|| {
         let _ = std::fs::remove_dir_all(&staging);
         let files = download_all(api, &staging, &models, kind, progress)?;

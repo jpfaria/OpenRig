@@ -4,7 +4,10 @@
 //! (`https://www.tone3000.com/tones/<id>`). The browser uses this to show a
 //! tone the user already has, wherever its package lives (#879).
 
+use std::path::Path;
+
 use plugin_loader::manifest::{Backend, PluginManifest};
+use plugin_loader::LoadedPackage;
 
 use super::installed::is_plugin_id;
 use crate::tone3000_state::Tone3000InstalledEntry;
@@ -34,8 +37,13 @@ pub fn manifest_tone_ids(manifest: &PluginManifest) -> Vec<u64> {
     ids
 }
 
-/// One listed package for `manifest`; `removable` when the browser owns it.
-pub fn installed_entry(manifest: &PluginManifest, removable: bool) -> Tone3000InstalledEntry {
+/// One listed package for `manifest`, found at `dir`; `removable` when it
+/// sits in the plugins folder.
+pub fn installed_entry(
+    manifest: &PluginManifest,
+    dir: &Path,
+    removable: bool,
+) -> Tone3000InstalledEntry {
     let captures = match &manifest.backend {
         Backend::Nam { captures, .. } | Backend::Ir { captures, .. } => captures.len(),
         _ => 0,
@@ -49,30 +57,31 @@ pub fn installed_entry(manifest: &PluginManifest, removable: bool) -> Tone3000In
         captures,
         removable,
         updated_at: None,
+        dir: dir.to_path_buf(),
     }
 }
 
-/// The catalog plugins that came from TONE3000, sorted by name. The
-/// browser's own `tone3000_*` packages are left out: they are listed from
-/// their folder.
+/// The catalog plugins that came from TONE3000, sorted by name. Those in
+/// `plugins_root` are the user's, so they can be removed. The browser's own
+/// `tone3000_*` packages are left out: they are listed from their folder.
 pub fn catalog_entries<'a>(
-    manifests: impl IntoIterator<Item = &'a PluginManifest>,
+    packages: impl IntoIterator<Item = &'a LoadedPackage>,
+    plugins_root: Option<&Path>,
 ) -> Vec<Tone3000InstalledEntry> {
-    let mut found: Vec<Tone3000InstalledEntry> = manifests
+    let mut found: Vec<Tone3000InstalledEntry> = packages
         .into_iter()
-        .filter(|m| !is_plugin_id(&m.id))
-        .filter(|m| !manifest_tone_ids(m).is_empty())
-        .map(|m| installed_entry(m, false))
+        .filter(|p| !is_plugin_id(&p.manifest.id))
+        .filter(|p| !manifest_tone_ids(&p.manifest).is_empty())
+        .map(|p| {
+            let removable = plugins_root.is_some_and(|root| p.root.starts_with(root));
+            installed_entry(&p.manifest, &p.root, removable)
+        })
         .collect();
     found.sort_by(|a, b| a.display_name.cmp(&b.display_name));
     found
 }
 
 /// [`catalog_entries`] over the loaded plugin catalog.
-pub fn loaded_catalog_entries() -> Vec<Tone3000InstalledEntry> {
-    catalog_entries(
-        plugin_loader::registry::packages()
-            .iter()
-            .map(|p| &p.manifest),
-    )
+pub fn loaded_catalog_entries(plugins_root: Option<&Path>) -> Vec<Tone3000InstalledEntry> {
+    catalog_entries(plugin_loader::registry::packages(), plugins_root)
 }

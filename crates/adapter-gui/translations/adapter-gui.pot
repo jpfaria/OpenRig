@@ -1459,7 +1459,7 @@ msgstr ""
 
 msgid "status-tone3000-none-installed"
 msgstr ""
-msgid "label-tone3000-plugins-folder"
+msgid "label-tone3000-built-in"
 msgstr ""
 
 msgid "placeholder-tone3000-installed-search"
