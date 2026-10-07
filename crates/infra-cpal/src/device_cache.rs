@@ -161,10 +161,10 @@ fn count_devices_cheap() -> usize {
     }
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
+        // #1081: every device the host has, unfiltered — cpal's direction
+        // filters build an AudioUnit per device (see `device_list`).
         let host = select_host_for_enumeration();
-        let input = host.input_devices().map(|it| it.count()).unwrap_or(0);
-        let output = host.output_devices().map(|it| it.count()).unwrap_or(0);
-        input + output
+        host.devices().map(|it| it.count()).unwrap_or(0)
     }
 }
 

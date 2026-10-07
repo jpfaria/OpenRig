@@ -142,7 +142,16 @@ audio for about a second.
 - Device names are read once per device list (`infra-cpal/src/device_name_cache.rs`):
   the 10 s scan no longer calls cpal's `description()`, so it no longer
   starts and stops IOProcs on the HD 8. A hot-plug or a settings save still
-  re-reads them once.
+  re-reads them once. Measured on the owner's app after it (13:36 -03:00): a
+  scan still built one AUHAL per output device, 7 IOProc starts and stops on
+  the HD 8 — cpal's `output_devices()` / `input_devices()` filter each
+  device through `supported_*_configs()`, which builds an AudioUnit, and the
+  hot-plug counter called both.
+- The device lists come from `infra-cpal/src/device_list.rs`: the host's
+  whole list, kept by direction from the cached configs, so a scan of an
+  unchanged device list builds no AudioUnit. The hot-plug counter counts the
+  unfiltered list. `device_list_tests` fails if any other file of the crate
+  calls cpal's filtered lists or `description()`.
 
 ## Open
 
