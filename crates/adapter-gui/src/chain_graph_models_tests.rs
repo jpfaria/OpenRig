@@ -19,6 +19,7 @@ fn labels() -> IoLabels {
         input: "In".into(),
         output: "Out".into(),
         leaves: Vec::new(),
+        ports: Vec::new(),
     }
 }
 
@@ -95,6 +96,45 @@ fn every_wire_joins_its_two_node_centres() {
     }
 }
 
+/// #398: every wire names the lane it runs in, so the canvas colours lane A
+/// and lane B apart; the trunk before and after the split is -1.
+#[test]
+fn every_wire_names_its_lane() {
+    let c = mix_chain();
+    let models = models_of(&c);
+    let lane = |from: &str, to: &str| {
+        models
+            .edges
+            .iter()
+            .find(|e| e.from_id.as_str() == from && e.to_id.as_str() == to)
+            .unwrap_or_else(|| panic!("no wire {from} → {to}"))
+            .path
+    };
+    assert_eq!(lane(INPUT_NODE_ID, "pre"), -1);
+    assert_eq!(lane("pre", FIRST_SPLIT_NODE_ID), -1);
+    assert_eq!(lane(FIRST_SPLIT_NODE_ID, "a1"), 0);
+    assert_eq!(lane("a1", "a2"), 0);
+    assert_eq!(lane("a2", FIRST_MIXER_NODE_ID), 0);
+    assert_eq!(lane(FIRST_SPLIT_NODE_ID, "b1"), 1);
+    assert_eq!(lane("b1", FIRST_MIXER_NODE_ID), 1);
+    assert_eq!(lane(FIRST_MIXER_NODE_ID, "post"), -1);
+
+    let empty = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a1")], vec![]],
+    )]);
+    let models = models_of(&empty);
+    assert!(
+        models
+            .edges
+            .iter()
+            .filter(|e| e.from_id.as_str() == "" || e.to_id.as_str() == "")
+            .all(|e| e.path == 1),
+        "the empty lane's bent wire is lane 1"
+    );
+}
+
 /// An empty path draws its own lane: its "+" sits on its own row, below the
 /// lanes before it, and its wire bends through that "+" instead of running
 /// straight over another lane.
@@ -155,4 +195,187 @@ fn a_rebuilt_row_carries_its_chain_graph() {
     assert_eq!(split.graph_lanes, 2);
     // mix_chain: 9 wires, one "+" each.
     assert_eq!(split.graph_anchors.row_count(), 9);
+}
+
+fn wire_between(models: &RowGraphModels, from: &str, to: &str) -> GraphEdgeGeometry {
+    models
+        .edges
+        .iter()
+        .find(|e| e.from_id.as_str() == from && e.to_id.as_str() == to)
+        .unwrap_or_else(|| panic!("no wire {from} → {to}"))
+}
+
+fn node_of(models: &RowGraphModels, id: &str) -> GraphNode {
+    models
+        .nodes
+        .iter()
+        .find(|n| n.id.as_str() == id)
+        .unwrap_or_else(|| panic!("no node {id}"))
+}
+
+fn lanes_of(models: &RowGraphModels, id: &str) -> Vec<String> {
+    node_of(models, id)
+        .lanes
+        .iter()
+        .map(|lane| lane.to_string())
+        .collect()
+}
+
+/// #398: a wire into or out of a split or a mixer plugs into that hub's
+/// port for its path; every other end is the node's own centre line (-1).
+#[test]
+fn every_wire_plugs_into_its_hubs_port() {
+    let c = mix_chain();
+    let models = models_of(&c);
+    let ports = |from: &str, to: &str| {
+        let e = wire_between(&models, from, to);
+        (e.from_port, e.to_port)
+    };
+    assert_eq!(ports(INPUT_NODE_ID, "pre"), (-1, -1));
+    assert_eq!(ports("pre", FIRST_SPLIT_NODE_ID), (-1, -1));
+    assert_eq!(ports(FIRST_SPLIT_NODE_ID, "a1"), (0, -1));
+    assert_eq!(ports(FIRST_SPLIT_NODE_ID, "b1"), (1, -1));
+    assert_eq!(ports("a1", "a2"), (-1, -1));
+    assert_eq!(ports("a2", FIRST_MIXER_NODE_ID), (-1, 0));
+    assert_eq!(ports("b1", FIRST_MIXER_NODE_ID), (-1, 1));
+    assert_eq!(ports(FIRST_MIXER_NODE_ID, "post"), (-1, -1));
+}
+
+/// #398: the wire bent through an empty path's "+" leaves the split and
+/// enters the mixer at that path's port.
+#[test]
+fn a_wire_through_an_empty_path_plugs_into_that_paths_ports() {
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a1")], vec![]],
+    )]);
+    let models = models_of(&c);
+    let out_of_split = models
+        .edges
+        .iter()
+        .find(|e| e.to_id.as_str() == "")
+        .expect("a wire into the empty path's bend");
+    let into_mixer = models
+        .edges
+        .iter()
+        .find(|e| e.from_id.as_str() == "")
+        .expect("a wire out of the empty path's bend");
+    assert_eq!(
+        (out_of_split.from_id.as_str(), out_of_split.from_port),
+        (FIRST_SPLIT_NODE_ID, 1)
+    );
+    assert_eq!(
+        (into_mixer.to_id.as_str(), into_mixer.to_port),
+        (FIRST_MIXER_NODE_ID, 1)
+    );
+}
+
+/// #398: a split nested in a path plugs into its parent's port for that
+/// path, on both ends.
+#[test]
+fn a_nested_split_plugs_into_its_parents_path_port() {
+    let inner = split_paths("in", SplitEnd::Mix, vec![vec![core("x")], vec![core("y")]]);
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("b0")], vec![inner]],
+    )]);
+    let models = models_of(&c);
+    let ports = |from: &str, to: &str| {
+        let e = wire_between(&models, from, to);
+        (e.from_port, e.to_port)
+    };
+    assert_eq!(ports(FIRST_SPLIT_NODE_ID, "__split_in"), (1, -1));
+    assert_eq!(ports("__split_in", "y"), (1, -1));
+    assert_eq!(ports("__merge_in", FIRST_MIXER_NODE_ID), (-1, 1));
+}
+
+/// #398: a wire names the nodes it joins by their index in the node list, so
+/// the canvas can end it on that node's edge; a bend point is -1.
+#[test]
+fn every_wire_names_its_end_nodes_by_index() {
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a1")], vec![]],
+    )]);
+    let models = models_of(&c);
+    let nodes: Vec<GraphNode> = models.nodes.iter().collect();
+    for edge in models.edges.iter() {
+        for (id, index) in [
+            (edge.from_id.clone(), edge.from_index),
+            (edge.to_id.clone(), edge.to_index),
+        ] {
+            if id.is_empty() {
+                assert_eq!(index, -1, "a bend point is no node");
+            } else {
+                assert_eq!(nodes[index as usize].id, id);
+            }
+        }
+    }
+}
+
+/// #398: a split or mixer hub carries one letter per path, however many
+/// paths it has, and its wires plug into one port each.
+#[test]
+fn a_hub_carries_one_letter_per_path() {
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![
+            vec![core("a")],
+            vec![core("b")],
+            vec![core("c")],
+            vec![core("d")],
+        ],
+    )]);
+    let models = models_of(&c);
+    assert_eq!(lanes_of(&models, FIRST_SPLIT_NODE_ID), ["A", "B", "C", "D"]);
+    assert_eq!(lanes_of(&models, FIRST_MIXER_NODE_ID), ["A", "B", "C", "D"]);
+    assert!(lanes_of(&models, "a").is_empty());
+    for (port, id) in ["a", "b", "c", "d"].into_iter().enumerate() {
+        assert_eq!(
+            wire_between(&models, FIRST_SPLIT_NODE_ID, id).from_port,
+            port as i32
+        );
+        assert_eq!(
+            wire_between(&models, id, FIRST_MIXER_NODE_ID).to_port,
+            port as i32
+        );
+    }
+}
+
+/// #398: the first node of each path carries that path's tag (PATH A over
+/// lane A, PATH B under lane B); every other node carries none.
+#[test]
+fn the_first_node_of_each_path_carries_its_path_tag() {
+    let c = mix_chain();
+    let models = models_of(&c);
+    let tag = |id: &str| {
+        let n = node_of(&models, id);
+        (n.path_tag.to_string(), n.path_index)
+    };
+    assert_eq!(tag("a1"), ("A".to_string(), 0));
+    assert_eq!(tag("b1"), ("B".to_string(), 1));
+    assert_eq!(tag("a2").0, "");
+    assert_eq!(tag("pre").0, "");
+    assert_eq!(tag(FIRST_SPLIT_NODE_ID).0, "");
+}
+
+/// #398: only the outer paths are tagged (PATH A above the top lane, the
+/// last path under the bottom lane). A middle lane has a lane on either side
+/// and no room for a tag; its hub letter and wire colour name it.
+#[test]
+fn a_middle_path_goes_untagged() {
+    let c = chain(vec![split_paths(
+        "sp",
+        SplitEnd::Mix,
+        vec![vec![core("a")], vec![core("b")], vec![core("c")]],
+    )]);
+    let models = models_of(&c);
+    let tag = |id: &str| node_of(&models, id).path_tag.to_string();
+    assert_eq!(tag("a"), "A");
+    assert_eq!(tag("b"), "");
+    assert_eq!(tag("c"), "C");
 }

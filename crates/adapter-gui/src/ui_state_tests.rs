@@ -198,9 +198,9 @@ fn accent_color_returns_fallback_for_unknown_kind() {
 }
 
 #[test]
-fn accent_color_preamp_is_orange() {
+fn accent_color_preamp_is_the_398_preamp_gold() {
     let c = accent_color_for_icon_kind("preamp");
-    assert_eq!(c, slint::Color::from_argb_u8(255, 0xf2, 0x9f, 0x38));
+    assert_eq!(c, slint::Color::from_argb_u8(255, 0xb8, 0x86, 0x2a));
 }
 
 #[test]

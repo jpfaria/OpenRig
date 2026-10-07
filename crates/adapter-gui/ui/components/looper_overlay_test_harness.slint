@@ -8,15 +8,23 @@
 import { LooperOverlay } from "looper_overlay.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { LooperItem } from "../models.slint";
+import { WindowBoundsProbe } from "window_bounds.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
 
 export component LooperOverlayHarness inherits Window {
+    in property <length> win-h: 640px;
     width: 900px;
-    height: 640px;
+    height: root.win-h;
     in property <[LooperItem]> loopers;
     in property <[string]> input-options;
     in property <[string]> output-options;
     in property <[string]> preset-options;
     in property <int> expanded-uid: 7;
+    // Where the panel is asked to open: the loop button's left edge minus the
+    // panel width, and the button's top and bottom edges.
+    in property <length> anchor-x;
+    in property <length> anchor-top;
+    in property <length> anchor-bottom;
 
     callback preset-picked(int, int, int);
     callback input-picked(int, int, int);
@@ -33,6 +41,14 @@ export component LooperOverlayHarness inherits Window {
         LooperPanel.endpoint-picker-uid = -1;
     }
 
+    // Opens the panel from a loop button at the anchor, as the chain header does.
+    public function open-at() {
+        LooperPanel.x = root.anchor-x;
+        LooperPanel.y = root.anchor-bottom; LooperPanel.anchor-top = root.anchor-top;
+        LooperPanel.expanded-uid = root.expanded-uid;
+        LooperPanel.open = true;
+    }
+
     LooperOverlay {
         width: root.width;
         height: root.height;
@@ -44,4 +60,7 @@ export component LooperOverlayHarness inherits Window {
         input-picked(ci, uid, v) => { root.input-picked(ci, uid, v); }
         output-picked(ci, uid, v) => { root.output-picked(ci, uid, v); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

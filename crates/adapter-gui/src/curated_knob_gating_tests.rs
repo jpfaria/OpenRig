@@ -79,3 +79,21 @@ fn every_native_amp_parameter_reaches_its_own_tab() {
         "every parameter is reachable from exactly one tab"
     );
 }
+
+#[test]
+fn a_curated_knob_caption_keeps_the_case_the_model_names_it_with() {
+    // #398: the compact row prints "Volume", as the mockup does, not "VOLUME".
+    let param_items = items("gain", "volume");
+    let overlays = build_knob_overlays(
+        project::catalog::model_knob_layout("gain", "volume"),
+        &param_items,
+    );
+    assert!(!overlays.is_empty());
+    for overlay in &overlays {
+        assert!(
+            overlay.label.chars().any(char::is_lowercase),
+            "{} is shouted in capitals",
+            overlay.label
+        );
+    }
+}

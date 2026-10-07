@@ -208,7 +208,7 @@ pub(crate) fn block_parameter_item(
     };
     BlockParameterItem {
         path: spec.path.clone().into(),
-        label: spec.label.to_uppercase().into(),
+        label: spec.label.clone().into(),
         group: spec.group.clone().unwrap_or_default().into(),
         widget_kind: match &spec.widget {
             ParameterWidget::MultiSlider | ParameterWidget::CurveEditor { .. } => "",

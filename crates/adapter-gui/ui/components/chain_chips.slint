@@ -1,4 +1,7 @@
 // Responsibility: renders the chips that decorate a chain row.
+import { Theme } from "../theme.slint";
+import { HeaderIconStyle } from "header_icon_style.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 // Small, reusable chips that decorate a ChainRow header and inline action
 // surfaces — endpoint summary chips, the chain power toggle, header icons.
 // Pure visual primitives.
@@ -6,20 +9,23 @@
 export component ChainActionIcon inherits Rectangle {
     in property <image> icon;
     in property <string> tooltip;
+    // #398: sits on the dark chrome bar.
+    in property <bool> on-chrome: false;
     callback clicked();
 
-    width: 24px;
-    height: 24px;
-    background: hover-area.has-hover ? #ffffff10 : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: root.on-chrome ? HeaderIconStyle.chrome-fill(hover-area.has-hover) : HeaderIconStyle.fill(hover-area.has-hover);
 
     Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: root.icon;
         image-fit: contain;
-        colorize: hover-area.has-hover ? #ffffff : #8a94a2;
+        colorize: root.on-chrome ? HeaderIconStyle.chrome-tint(false, hover-area.has-hover) : HeaderIconStyle.tint(false, hover-area.has-hover);
     }
 
     hover-area := TouchArea {
@@ -31,33 +37,8 @@ export component ChainActionIcon inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below the icon — anything above is covered by the project
-    // header, which paints last over the chain content. Issue #329.
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        // Sized from the translated tooltip, centred under the icon (#954).
-        width: action-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: 28px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        action-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: hover-area.has-hover; }
 }
 
 
@@ -95,7 +76,7 @@ export component ChainEndpointChip inherits Rectangle {
         width: parent.width - 8px;
         height: 22px;
         text: root.label;
-        color: hover-area.has-hover ? #d0e4f8 : #8aaac8;
+        color: hover-area.has-hover ? Theme.ink : Theme.ink-2;
         font-size: 18px;
         font-weight: 700;
         horizontal-alignment: center;
@@ -122,7 +103,7 @@ export component ChainPowerToggle inherits Rectangle {
 
     width: 28px;
     height: 28px;
-    background: hover-area.has-hover ? #ffffff08 : transparent;
+    background: hover-area.has-hover ? Theme.hover : transparent;
 
     Rectangle {
         x: 4px;
@@ -131,7 +112,7 @@ export component ChainPowerToggle inherits Rectangle {
         height: 20px;
         background: transparent;
         border-width: 2px;
-        border-color: root.enabled ? #29df85 : #6a7483;
+        border-color: root.enabled ? Theme.ok : Theme.ink-3;
         border-radius: 10px;
     }
 
@@ -140,7 +121,7 @@ export component ChainPowerToggle inherits Rectangle {
         y: 3px;
         width: 2px;
         height: 10px;
-        background: root.enabled ? #29df85 : #6a7483;
+        background: root.enabled ? Theme.ok : Theme.ink-3;
         border-radius: 1px;
     }
 
@@ -153,50 +134,36 @@ export component ChainPowerToggle inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below — anything above is covered by the project header (#329).
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        width: power-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: 32px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        power-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: hover-area.has-hover; }
 }
 
 
 export component HeaderIconAction inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
-    in property <color> tint: root.active ? #188cff : #eef2f8;
+    // #398: on the dark top bar the icon is chrome-fg-2 and hovers on chrome-2.
+    in property <bool> on-chrome: false;
+    // Unsaved work: the icon turns to the warning colour.
+    in property <bool> warn: false;
+    in property <color> tint: root.warn ? Theme.warn
+        : root.active ? Theme.accent
+        : root.on-chrome ? (action-area.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2)
+        : HeaderIconStyle.tint(false, action-area.has-hover);
     in property <string> tooltip;
     callback clicked();
 
-    width: 24px;
-    height: 24px;
-    background: action-area.has-hover ? #ffffff10 : transparent;
+    width: HeaderIconStyle.size;
+    height: HeaderIconStyle.size;
+    border-radius: HeaderIconStyle.radius;
+    background: !action-area.has-hover ? transparent
+        : root.on-chrome ? Theme.chrome-2 : HeaderIconStyle.fill(true);
 
     Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: HeaderIconStyle.icon;
+        height: HeaderIconStyle.icon;
         source: root.icon;
         image-fit: contain;
         colorize: root.tint;
@@ -220,32 +187,8 @@ export component HeaderIconAction inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    // Tooltip below — header icons sit at the top of the page, tooltip
-    // above would be clipped by the window edge (#329).
-    if action-area.has-hover && root.tooltip != "" : Rectangle {
-        width: header-tip.preferred-width + 12px;
-        x: (root.width - self.width) / 2;
-        y: 28px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        header-tip := Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 18px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+    // The hover label, inside the window (IconTooltip, #398).
+    IconTooltip { text: root.tooltip; show: action-area.has-hover; }
 }
 
 
@@ -269,7 +212,7 @@ export component ChainVolumeControl inherits Rectangle {
         height: 16px;
         source: @image-url("../assets/volume.svg");
         image-fit: contain;
-        colorize: #8a94a2;
+        colorize: Theme.ink-2;
     }
 
     track := Rectangle {
@@ -278,7 +221,7 @@ export component ChainVolumeControl inherits Rectangle {
         // Leaves room for a "200%" readout at 18px (#954).
         width: 86px;
         height: 4px;
-        background: #2a3140;
+        background: Theme.ktrack;
         border-radius: 2px;
 
         Rectangle {
@@ -286,7 +229,7 @@ export component ChainVolumeControl inherits Rectangle {
             y: 0px;
             width: parent.width * Math.min(1.0, root.volume / 200);
             height: parent.height;
-            background: root.volume > 100 ? #d97757 : #6e8aff;
+            background: root.volume > 100 ? Theme.warn : Theme.accent;
             border-radius: 2px;
         }
 
@@ -295,7 +238,7 @@ export component ChainVolumeControl inherits Rectangle {
             y: -4px;
             width: 12px;
             height: 12px;
-            background: drag-area.has-hover || drag-area.pressed ? #ffffff : #c5cad4;
+            background: drag-area.has-hover || drag-area.pressed ? Theme.ink : Theme.ink-2;
             border-radius: 6px;
         }
 
@@ -304,7 +247,7 @@ export component ChainVolumeControl inherits Rectangle {
             y: -2px;
             width: 1px;
             height: parent.height + 4px;
-            background: #ffffff40;
+            background: Theme.ink.with-alpha(0.25);
         }
 
         drag-area := TouchArea {
@@ -347,7 +290,7 @@ export component ChainVolumeControl inherits Rectangle {
         width: 54px;
         height: 24px;
         text: root.volume + "%";
-        color: drag-area.has-hover ? #ffffff : #8a94a2;
+        color: drag-area.has-hover ? Theme.ink : Theme.ink-2;
         font-size: 18px;
         font-weight: 600;
         horizontal-alignment: left;

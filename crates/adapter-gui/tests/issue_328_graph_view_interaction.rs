@@ -8,8 +8,8 @@
 
 use adapter_gui::graph_view_model as model;
 use adapter_gui::{
-    ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode, GraphViewHarness,
-    GraphViewScrollHarness,
+    BlockParamSummaryEntry, ChainBlockItem, GraphAnchor, GraphEdgeGeometry, GraphNode,
+    GraphViewHarness, GraphViewScrollHarness,
 };
 use i_slint_backend_testing::ElementHandle;
 use slint::platform::{Key, PointerEventButton, WindowEvent};
@@ -419,8 +419,8 @@ fn a_block_cards_led_and_remove_hit_zones_scale_with_the_zoom() {
     );
     assert_eq!(
         size("GraphNodeCard::bypass-ta"),
-        Some((14.0, 10.0)),
-        "at half zoom the LED switch is half size"
+        Some((10.0, 10.0)),
+        "at half zoom the power button is half size"
     );
 }
 
@@ -500,6 +500,17 @@ fn canvas_for(
                 from_y,
                 to_x,
                 to_y,
+                path: -1,
+                from_index: nodes
+                    .iter()
+                    .position(|n| n.id == e.from_id)
+                    .map_or(-1, |i| i as i32),
+                to_index: nodes
+                    .iter()
+                    .position(|n| n.id == e.to_id)
+                    .map_or(-1, |i| i as i32),
+                from_port: -1,
+                to_port: -1,
             }
         })
         .collect();
@@ -581,4 +592,48 @@ fn dropping_a_block_on_its_own_wire_fires_no_node_dropped() {
         dropped.borrow()
     );
     assert_eq!(*ended.borrow(), ["a1"], "the drag itself still ends");
+}
+
+/// #398: a split hub grows one port per path — four paths, four output
+/// ports, four lane letters — instead of a fixed two-way drawing.
+#[test]
+fn a_split_hub_has_one_port_per_path() {
+    let mut split = typed("__split_sp", "split", "", 240.0, 200.0);
+    split.lanes = ModelRc::new(VecModel::from(
+        ["A", "B", "C", "D"]
+            .into_iter()
+            .map(SharedString::from)
+            .collect::<Vec<_>>(),
+    ));
+    let w = harness(vec![split]);
+    assert_eq!(handles(&w, "GraphHub::lane-port").len(), 4);
+    assert_eq!(handles(&w, "GraphHub::lane-letter").len(), 4);
+}
+
+/// #398: the hover card is a window-level layer, so the chain header above
+/// the canvas never paints over it and the canvas edge never cuts it: a tall
+/// card on a block near the top of the canvas stays inside the window.
+#[test]
+fn a_tall_tooltip_near_the_top_of_the_canvas_stays_inside_the_window() {
+    let mut amp = block_node("amp", "Amp", 400.0, 60.0);
+    let entries: Vec<BlockParamSummaryEntry> = (0..8)
+        .map(|i| BlockParamSummaryEntry {
+            label: format!("Param {i}").into(),
+            value: "5.00".into(),
+            unit: SharedString::new(),
+        })
+        .collect();
+    amp.block.param_entries = ModelRc::new(VecModel::from(entries));
+    let w = harness(vec![amp]);
+
+    hover(&w, at(400.0, 60.0));
+
+    let tip = ElementHandle::find_by_element_type_name(&w, "BlockHoverTooltip")
+        .next()
+        .expect("hovering the block shows its card");
+    assert!(
+        tip.absolute_position().y >= 0.0,
+        "the card is clamped inside the window, not pushed above it (y = {})",
+        tip.absolute_position().y
+    );
 }

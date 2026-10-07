@@ -11,6 +11,7 @@ import { LooperTakeSaveDialog } from "looper_take_save_dialog.slint";
 import { LooperItem } from "../models.slint";
 import { LooperPresetPicker } from "looper_preset_picker.slint";
 import { LooperEndpointPicker } from "looper_endpoint_picker.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
 
 export component LooperOverlay inherits Rectangle {
     // Fed from the host's live chain model, so the panel keeps updating while
@@ -48,9 +49,12 @@ export component LooperOverlay inherits Rectangle {
     visible: LooperPanel.open;
     TouchArea { clicked => { LooperPanel.open = false; } }
 
-    if LooperPanel.open : LooperPanelView {
-        x: LooperPanel.x;
-        y: LooperPanel.y;
+    // Below the button, above it when there is no room, never past the
+    // window's edges; taller than the window, it scrolls (#398).
+    if LooperPanel.open : panel := LooperPanelView {
+        x: OverlayPlacement.left(LooperPanel.x, self.width, root.width);
+        y: OverlayPlacement.top(LooperPanel.anchor-top, LooperPanel.y, self.height, root.height);
+        height-cap: OverlayPlacement.fit(100000px, root.height);
         loopers: root.loopers;
         expanded-uid: LooperPanel.expanded-uid;
         input-options: root.input-options;

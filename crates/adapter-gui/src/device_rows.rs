@@ -48,9 +48,20 @@ pub(crate) fn build_project_device_rows(
             sample_rate_text: config.sample_rate.to_string().into(),
             buffer_size_text: config.buffer_size_frames.to_string().into(),
             bit_depth_text: config.bit_depth.to_string().into(),
+            input_channels: channels_of(input_devices, device),
+            output_channels: channels_of(output_devices, device),
         });
     }
     rows
+}
+
+/// The channel count `devices` reports for `device` (matched by id, then by
+/// name, the same way the rows are de-duplicated); 0 when it is absent.
+fn channels_of(devices: &[AudioDeviceDescriptor], device: &AudioDeviceDescriptor) -> i32 {
+    devices
+        .iter()
+        .find(|d| d.id == device.id || d.name == device.name)
+        .map_or(0, |d| d.channels as i32)
 }
 
 pub(crate) fn toggle_device_row(

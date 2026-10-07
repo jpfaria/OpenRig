@@ -1,0 +1,61 @@
+// Responsibility: renders a segmented choice between a few options.
+// #398: when the choices fit on one line (sample rate, buffer, mono/stereo),
+// they are all shown and the current one is lit, instead of hiding them in a
+// drop-down.
+import { Theme } from "../theme.slint";
+
+export component SegControl inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current: -1;
+    in property <bool> enabled: true;
+    in property <string> label;
+    // Options are sample rates in Hz, shown in kHz ("44100" reads "44.1k").
+    in property <bool> kilohertz: false;
+    callback picked(int);
+
+    height: 32px;
+    min-width: row.preferred-width;
+    border-radius: 4px;
+    clip: true;
+    opacity: root.enabled ? 1.0 : 0.45;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: Theme.field-line;
+
+    row := HorizontalLayout {
+        padding: 1px;
+
+        for option[i] in root.options : Rectangle {
+            min-width: max(40px, seg-text.preferred-width + 22px);
+            background: i == root.current ? Theme.accent
+                : seg-ta.has-hover && root.enabled ? Theme.panel-hi
+                : transparent;
+
+            if i > 0 && i != root.current && i - 1 != root.current : Rectangle {
+                x: 0; y: 0;
+                width: 1px; height: parent.height;
+                background: Theme.hair-2;
+            }
+
+            seg-text := Text {
+                text: root.kilohertz ? (Math.round(option.to-float() / 100) / 10) + "k" : option;
+                color: i == root.current ? Theme.on-accent : Theme.ink-2;
+                font-size: Theme.min-font;
+                font-weight: 600;
+                letter-spacing: 0.04 * Theme.min-font;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            seg-ta := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+                clicked => { root.picked(i); }
+            }
+
+            accessible-role: button;
+            accessible-label: root.label + " " + option;
+            accessible-action-default => { root.picked(i); }
+        }
+    }
+}

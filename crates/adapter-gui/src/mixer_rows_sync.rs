@@ -7,6 +7,7 @@
 
 use slint::{Model, ModelRc, VecModel};
 
+use crate::mixer_fader_law::position_from_db;
 use crate::{MixerBridge, MixerStripRow};
 
 /// Show `inputs` and `outputs` on `bridge`.
@@ -15,6 +16,7 @@ pub fn set_mixer_rows(
     inputs: Vec<MixerStripRow>,
     outputs: Vec<MixerStripRow>,
 ) {
+    bridge.set_unity_position(position_from_db(0.0));
     if let Some(model) = updated_in_place(bridge.get_inputs(), inputs) {
         bridge.set_inputs(model);
     }
@@ -41,3 +43,7 @@ pub(crate) fn updated_in_place(
     }
     None
 }
+
+#[cfg(test)]
+#[path = "mixer_rows_sync_tests.rs"]
+mod tests;

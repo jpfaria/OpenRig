@@ -1,4 +1,5 @@
 // Responsibility: renders the slot where a block can be inserted.
+import { Theme } from "../theme.slint";
 // A drop/insert slot rendered between blocks in a ChainRow's strip. Click
 // triggers the block-type picker for inserting at this position.
 
@@ -21,7 +22,7 @@ export component BlockInsertSlot inherits Rectangle {
         y: 11px;
         width: parent.width;
         height: 2px;
-        background: #3b4250;
+        background: Theme.ktrack;
         border-radius: 1px;
     }
 
@@ -32,9 +33,9 @@ export component BlockInsertSlot inherits Rectangle {
         y: (24px - 18px) / 2;
         width: 18px;
         height: 18px;
-        background: root.active-drop-target ? #2c3340 : #1c2029;
+        background: root.active-drop-target ? Theme.ktrack : Theme.panel;
         border-width: 1px;
-        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #6f7a8b;
+        border-color: root.active-drop-target ? Theme.ink-3 : root.empty-slot ? Theme.field-line : Theme.ink-3;
         border-radius: 9px;
 
         if root.active-drop-target : Image {
@@ -43,6 +44,7 @@ export component BlockInsertSlot inherits Rectangle {
             width: 14px;
             height: 14px;
             source: @image-url("../assets/block-drop-target.svg");
+            colorize: Theme.ink;
             image-fit: contain;
         }
 
@@ -54,7 +56,7 @@ export component BlockInsertSlot inherits Rectangle {
             y: (parent.height - 2px) / 2;
             width: 10px;
             height: 2px;
-            background: #eef2f8;
+            background: Theme.ink;
             border-radius: 1px;
         }
         if !root.active-drop-target : Rectangle {
@@ -62,7 +64,7 @@ export component BlockInsertSlot inherits Rectangle {
             y: (parent.height - 10px) / 2;
             width: 2px;
             height: 10px;
-            background: #eef2f8;
+            background: Theme.ink;
             border-radius: 1px;
         }
     }

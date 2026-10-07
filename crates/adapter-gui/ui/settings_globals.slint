@@ -96,6 +96,11 @@ export global SettingsBridge {
     callback change-language(int);
     callback language-selected(int);
 
+    // ── System / Appearance (#398) ───────────────────────────────────────
+    // 0 system, 1 light, 2 dark.
+    in-out property <int> appearance-index;
+    callback appearance-selected(int);
+
     // ── Project / Metadata (#513) ────────────────────────────────────────
     // Name is editable (dispatches UpdateProjectName on each change); the
     // path is read-only display.

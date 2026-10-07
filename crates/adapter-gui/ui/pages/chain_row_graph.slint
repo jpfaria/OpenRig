@@ -10,12 +10,16 @@
 import { GraphView, GraphNode, GraphEdgeGeometry, GraphAnchor } from "../components/graph_view.slint";
 import { ChainLatencyBadge } from "../components/chain_latency_badge.slint";
 import { ChainGraphBridge } from "../chain_graph_globals.slint";
+import { Theme } from "../theme.slint";
 
 export component ChainRowGraph inherits Rectangle {
     in property <[GraphNode]> nodes;
     in property <[GraphEdgeGeometry]> edges;
     in property <[GraphAnchor]> anchors;
     in property <int> columns: 1;
+    // Lanes of the grid; the graph sits centred in the row's height.
+    in property <int> lanes: 1;
+    in property <length> lane-pitch: 150px;
     in property <int> chain-index;
     in property <float> latency-ms: 0;
     in property <bool> markers-visible: false;
@@ -35,13 +39,15 @@ export component ChainRowGraph inherits Rectangle {
             ? ChainGraphBridge.selected-block-id : "";
         neighbor-node-id: ChainGraphBridge.selected-chain-index == root.chain-index
             ? ChainGraphBridge.neighbor-block-id : "";
-        node_width: 100px;
-        node_height: 100px;
-        show_grid: false;
-        background_color: transparent;
+        node_width: 120px;
+        node_height: 84px;
+        show_grid: true;
+        background_color: Theme.well;
         // First paint fits the whole chain (never above 1:1, never below the
         // GraphView floor); Cmd/Ctrl + wheel takes over from there.
         zoom: Math.max(0.3, Math.min(1.0, root.width / (Math.max(1, root.columns) * 132px)));
+        pan_y: (root.height - Math.max(1, root.lanes) * root.lane-pitch * self.zoom) / 2;
+        pan_x: 16px;
         node-clicked(id) => { ChainGraphBridge.node-clicked(root.chain-index, id); }
         add-requested(anchor) => { ChainGraphBridge.add-requested(root.chain-index, anchor); }
         remove-requested(id) => { ChainGraphBridge.remove-requested(root.chain-index, id); }

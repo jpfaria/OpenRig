@@ -1107,7 +1107,7 @@ This is intentional: routing is binding-only, the registry (`config.yaml`) is
 the single source of truth for I/O, and a project remains portable without
 inventing device routing the user never confirmed on this machine.
 
-Sample rates: 44.1/48/88.2/96 kHz. Buffer sizes: 32/64/128/256/512/1024. Bit depths: 16/24/32.
+Sample rates: 44.1/48/88.2/96/192 kHz. Buffer sizes: 32/64/128/256/512/1024/2048. Bit depths: 16/24/32.
 
 ## Per-machine device settings (config.yaml)
 

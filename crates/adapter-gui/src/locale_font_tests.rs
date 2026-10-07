@@ -2,8 +2,8 @@
 //!
 //! A script whose face lacks its codepoints renders .notdef boxes, which on the
 //! Orange Pi is what the user actually sees. Each non-Latin locale must map to
-//! the macOS face that covers its script, and every Latin locale must keep the
-//! project's display font rather than silently falling through.
+//! the macOS face that covers its script, and every Latin locale must get the
+//! project's UI face (Barlow, #398) rather than silently falling through.
 
 use super::{font_family_for_locale, font_for_persisted_runtime};
 
@@ -21,16 +21,16 @@ fn each_non_latin_script_gets_the_face_that_covers_it() {
 }
 
 #[test]
-fn every_latin_locale_keeps_the_projects_display_font() {
+fn every_latin_locale_gets_the_projects_ui_face() {
     for locale in ["pt-BR", "en-US", "es-ES", "fr-FR", "de-DE"] {
-        assert_eq!(font_family_for_locale(locale), "Bebas Neue", "{locale}");
+        assert_eq!(font_family_for_locale(locale), "Barlow", "{locale}");
     }
 }
 
 #[test]
-fn an_unknown_locale_falls_back_to_the_display_font_rather_than_nothing() {
-    assert_eq!(font_family_for_locale("xx-YY"), "Bebas Neue");
-    assert_eq!(font_family_for_locale(""), "Bebas Neue");
+fn an_unknown_locale_falls_back_to_the_ui_face_rather_than_nothing() {
+    assert_eq!(font_family_for_locale("xx-YY"), "Barlow");
+    assert_eq!(font_family_for_locale(""), "Barlow");
 }
 
 #[test]

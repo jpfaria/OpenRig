@@ -1,0 +1,32 @@
+// Responsibility: renders the appearance section.
+// #398: the light/dark scheme. System follows the operating system; Light and
+// Dark hold whatever it says. Three short fixed choices, so all three show.
+
+import { SettingsBridge } from "../../settings_globals.slint";
+import { FieldCaption } from "../../components/field_caption.slint";
+import { SegControl } from "../../components/seg_control.slint";
+
+export component SectionSystemAppearance inherits Rectangle {
+
+    background: transparent;
+
+    VerticalLayout {
+        spacing: 6px;
+        alignment: start;
+
+        FieldCaption {
+            text: @tr("label-theme");
+        }
+
+        HorizontalLayout {
+            alignment: start;
+
+            SegControl {
+                options: [@tr("appearance-system"), @tr("appearance-light"), @tr("appearance-dark")];
+                current: SettingsBridge.appearance-index;
+                label: @tr("label-theme");
+                picked(i) => { SettingsBridge.appearance-selected(i); }
+            }
+        }
+    }
+}

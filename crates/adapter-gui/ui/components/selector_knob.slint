@@ -1,41 +1,32 @@
 // Responsibility: renders a rotary selector knob.
-// Rotary selector knob — chicken-head pointer sprite, snapped to discrete positions.
-// Knob-only: sprite + click cycling. Labels are rendered by the parent.
-// Knob rotation: frame 0 = 7 o'clock, frame 64 = 5 o'clock.
+// #398: the same drawn knob as PanelKnob, its pointer snapped to one of
+// `num-options` positions from seven to five o'clock; a click cycles to the
+// next one. Knob-only: the option labels are rendered by the parent.
+import { KnobArc } from "knob_arc.slint";
+
 export component SelectorKnob inherits Rectangle {
     in property <int> num-options;
     in property <int> selected-index;
     callback select(int);
 
-    private property <int> frame-count: 65;
-    private property <int> frame-index:
-        root.num-options <= 1 ? 0
-        : Math.min(Math.max(Math.round(root.selected-index * (root.frame-count - 1) / (root.num-options - 1)), 0), root.frame-count - 1);
     private property <length> ks: root.width;
 
     background: transparent;
 
-    // ── Knob sprite ──
-    Rectangle {
-        x: 0; y: 0;
+    KnobArc {
+        x: 0;
+        y: 0;
         width: root.ks;
         height: root.ks;
-        clip: true;
-
-        Image {
-            source: @image-url("../assets/sprites/selector-knob-strip.png");
-            x: -root.frame-index * root.ks;
-            y: 0;
-            width: root.frame-count * root.ks;
-            height: root.ks;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
+        angle: root.num-options <= 1 ? -135
+            : -135 + 270 * Math.max(0, Math.min(root.selected-index, root.num-options - 1)) / (root.num-options - 1);
+        show-value: false;
     }
 
     // Click on knob cycles. Named so headless interaction tests can press it.
     ta := TouchArea {
-        x: 0; y: 0;
+        x: 0;
+        y: 0;
         width: root.ks;
         height: root.ks;
         mouse-cursor: pointer;

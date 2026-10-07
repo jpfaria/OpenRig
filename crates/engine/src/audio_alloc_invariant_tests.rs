@@ -515,3 +515,10 @@ fn an_oversized_callback_through_a_split_does_not_allocate() {
          processed in capacity-sized chunks."
     );
 }
+
+// #398: 2048 frames is a selectable buffer; a callback that size must fit the
+// preallocated segment buffer instead of growing it on the audio thread.
+#[test]
+fn segment_buffer_holds_the_largest_selectable_buffer() {
+    assert!(crate::runtime_state::SEGMENT_FRAME_CAPACITY >= 2048);
+}

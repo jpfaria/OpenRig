@@ -1,0 +1,34 @@
+// Responsibility: renders the round power button of a block.
+// #398: a 34px field-coloured disc with a thin ring; the power glyph is the
+// accent when the block runs and grey when it is bypassed.
+import { Theme, Gear } from "../theme.slint";
+
+export component BlockPowerButton inherits Rectangle {
+    in property <bool> enabled: true;
+    callback clicked();
+
+    width: 34px;
+    height: 34px;
+    border-radius: self.width / 2;
+    background: ta.has-hover ? Theme.hover : Theme.field;
+    border-width: 1px;
+    border-color: Theme.field-line;
+
+    Image {
+        x: (parent.width - 16px) / 2;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/power-line.svg");
+        colorize: root.enabled ? Theme.accent : Gear.off;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: @tr("block-editor-power");
+    accessible-action-default => { root.clicked(); }
+}

@@ -6,17 +6,26 @@
 // 0) also carries the Mix / Y switch (orchestrator decision 9) and the paths
 // row: one chip per path, with "+ path" (spec §11). State lives in
 // ChainGraphOverlayState; a click outside the card closes it.
+//
+// #398: a dialog card — the dark bar with the split's icon, its name and
+// Close; then the Mix / Y segments, the paths as round coloured chips and the
+// knobs on the panel.
 
+import { Theme, Gear } from "../theme.slint";
 import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
 import { BlockParamGrid } from "block_param_grid.slint";
+import { ToolBar } from "tool_bar.slint";
+import { BarButton } from "bar_button.slint";
+import { FieldCaption } from "field_caption.slint";
+import { FormButton } from "form_button.slint";
 
-// One half of the Mix / Y switch.
+// One half of the Mix / Y segmented switch.
 component EndSegment inherits Rectangle {
     in property <string> label;
     in property <bool> lit;
     callback clicked();
-    border-radius: 6px;
-    background: root.lit ? #2f6fed : (ta.has-hover ? #2b3340 : #1b2230);
+    min-width: seg-text.preferred-width + 26px;
+    background: root.lit ? Theme.accent : (ta.has-hover ? Theme.panel-hi : transparent);
     accessible-role: button;
     accessible-label: root.label;
     accessible-checked: root.lit;
@@ -25,39 +34,50 @@ component EndSegment inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
-    Text {
+    seg-text := Text {
         text: root.label;
-        color: root.lit ? #ffffff : #d8e0ff;
-        font-size: 18px;
+        color: root.lit ? Theme.on-accent : Theme.ink-2;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        letter-spacing: 0.06 * Theme.min-font;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 }
 
-// One path of the split: its letter, and a remove button when one may go.
+// One path of the split: a round chip in the path's colour with its letter,
+// and a remove cross when one may go.
 component PathChip inherits Rectangle {
     in property <string> letter;
+    in property <int> index;
     in property <bool> removable;
     callback remove();
-    width: root.removable ? 64px : 40px;
-    border-radius: 6px;
-    background: #1b2230;
+    width: root.removable ? 56px : 34px;
+    height: 28px;
+    border-radius: 14px;
+    background: root.index == 0 ? Theme.accent
+        : root.index == 1 ? Theme.c-rvb
+        : root.index == 2 ? Theme.c-dly
+        : root.index == 3 ? Theme.c-mod
+        : root.index == 4 ? Theme.c-amp
+        : Theme.c-dyn;
     Text {
-        x: 12px;
-        width: 16px;
+        x: 10px;
+        width: 14px;
         text: root.letter;
-        color: #d8e0ff;
-        font-size: 18px;
+        color: Gear.white;
+        font-size: Theme.min-font;
+        font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
     if root.removable : Rectangle {
-        x: parent.width - 32px;
-        y: (parent.height - 28px) / 2;
-        width: 28px;
-        height: 28px;
-        border-radius: 4px;
-        background: remove-ta.has-hover ? #3a2430 : transparent;
+        x: parent.width - 26px;
+        y: (parent.height - 20px) / 2;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: remove-ta.has-hover ? Theme.bad : Gear.switch-shadow;
         accessible-role: button;
         accessible-label: @tr("label-remove-path", root.letter);
         accessible-action-default => { root.remove(); }
@@ -66,12 +86,12 @@ component PathChip inherits Rectangle {
             clicked => { root.remove(); }
         }
         Image {
-            x: (parent.width - 12px) / 2;
-            y: (parent.height - 12px) / 2;
-            width: 12px;
-            height: 12px;
-            source: @image-url("../modules/surrealism-ui/icons/close.svg");
-            colorize: remove-ta.has-hover ? #ff8a8a : #8a8aa2;
+            x: (parent.width - 10px) / 2;
+            y: (parent.height - 10px) / 2;
+            width: 10px;
+            height: 10px;
+            source: @image-url("../assets/close.svg");
+            colorize: Gear.white;
         }
     }
 }
@@ -81,20 +101,23 @@ export component SplitEditorOverlay inherits Rectangle {
     // than the window scrolls instead of leaving the screen.
     private property <int> cols: Math.max(1, ChainGraphOverlayState.split-editor-cols);
     private property <length> cell: 96px;
+    private property <length> pad: 18px;
+    private property <length> gap: 14px;
     private property <length> content-height: ChainGraphOverlayState.split-editor-rows * root.cell;
-    private property <length> chrome-height: 16px + 44px + 12px + root.end-switch-height + root.paths-height + 16px;
+    private property <length> chrome-height: 46px + root.pad + root.end-switch-height + root.paths-height + root.pad;
     private property <length> grid-height: Math.max(root.cell, Math.min(root.content-height, root.height - 48px - root.chrome-height));
     private property <bool> has-end-switch: ChainGraphOverlayState.split-editor-kind == 0;
-    private property <length> end-switch-height: root.has-end-switch ? 44px + 12px : 0px;
+    private property <length> end-switch-height: root.has-end-switch ? 32px + root.gap : 0px;
     // The paths row: one chip per path plus "+ path" (split editor only).
     private property <int> path-count: ChainGraphOverlayState.split-editor-paths.length;
-    private property <length> chip-width: ChainGraphOverlayState.split-editor-can-remove-path ? 64px : 40px;
-    private property <length> paths-width: root.path-count * (root.chip-width + 8px) + 104px;
-    private property <length> paths-height: root.has-end-switch ? 36px + 12px : 0px;
+    private property <length> chip-width: ChainGraphOverlayState.split-editor-can-remove-path ? 56px : 34px;
+    private property <length> paths-width: root.path-count * (root.chip-width + 8px) + 130px;
+    private property <length> paths-height: root.has-end-switch ? 22px + 6px + 28px + root.gap : 0px;
 
     x: 0;
     y: 0;
     visible: ChainGraphOverlayState.split-editor-open;
+    background: Theme.scrim;
 
     backdrop := TouchArea {
         clicked => { ChainGraphOverlayState.split-editor-open = false; }
@@ -103,147 +126,125 @@ export component SplitEditorOverlay inherits Rectangle {
     if ChainGraphOverlayState.split-editor-open : Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: Math.max(root.cols * root.cell, 280px, root.has-end-switch ? root.paths-width : 0px) + 32px;
+        width: Math.min(root.width - 32px, Math.max(root.cols * root.cell, 320px, root.has-end-switch ? root.paths-width : 0px) + 2 * root.pad);
         height: root.chrome-height + root.grid-height;
-        background: #111114;
-        border-radius: 10px;
+        background: Theme.panel;
+        border-radius: 6px;
+        clip: true;
         border-width: 1px;
-        border-color: #27272a;
-        drop-shadow-blur: 20px;
-        drop-shadow-color: #000000c0;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
 
         // Swallow clicks on the card so only the backdrop closes it.
         TouchArea { }
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
+            ToolBar {
+                icon: root.has-end-switch ? @image-url("../assets/graph-split.svg") : @image-url("../assets/graph-mix.svg");
+                icon-tint: Theme.chrome-fg-2;
+                title: ChainGraphOverlayState.split-editor-title;
 
-            HorizontalLayout {
-                height: 44px;
-                spacing: 8px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: ChainGraphOverlayState.split-editor-title;
-                    color: #f1f4f8;
-                    font-size: 22px;
-                    font-weight: 800;
-                    vertical-alignment: center;
-                }
-                Rectangle {
-                    width: 88px;
-                    border-radius: 6px;
-                    background: close-ta.has-hover ? #2b3340 : #1b2230;
-                    accessible-role: button;
-                    accessible-label: @tr("btn-close");
-                    close-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { ChainGraphOverlayState.split-editor-open = false; }
-                    }
-                    Text {
-                        text: @tr("btn-close");
-                        color: #d8e0ff;
-                        font-size: 18px;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
+                close-ta := BarButton {
+                    label: @tr("btn-close");
+                    clicked => { ChainGraphOverlayState.split-editor-open = false; }
                 }
             }
 
-            if root.has-end-switch : HorizontalLayout {
-                height: 44px;
-                spacing: 8px;
-                EndSegment {
-                    horizontal-stretch: 1;
-                    label: ChainGraphOverlayState.split-editor-end-mix-label;
-                    lit: !ChainGraphOverlayState.split-editor-end-y;
-                    clicked => {
-                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, false);
-                    }
-                }
-                end-y-ta := EndSegment {
-                    horizontal-stretch: 1;
-                    label: ChainGraphOverlayState.split-editor-end-y-label;
-                    lit: ChainGraphOverlayState.split-editor-end-y;
-                    clicked => {
-                        ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, true);
-                    }
-                }
-            }
+            VerticalLayout {
+                padding: root.pad;
+                spacing: root.gap;
 
-            if root.has-end-switch : HorizontalLayout {
-                height: 36px;
-                spacing: 8px;
-                alignment: start;
-                for letter[index] in ChainGraphOverlayState.split-editor-paths : PathChip {
-                    letter: letter;
-                    removable: ChainGraphOverlayState.split-editor-can-remove-path;
-                    remove => {
-                        ChainGraphOverlayState.split-editor-remove-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, index);
-                    }
-                }
-                Rectangle {
-                    width: 96px;
-                    border-radius: 6px;
-                    background: add-path-ta.has-hover ? #2b3340 : #1b2230;
-                    accessible-role: button;
-                    accessible-label: @tr("btn-add-path");
-                    accessible-action-default => {
-                        ChainGraphOverlayState.split-editor-add-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id);
-                    }
-                    add-path-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            ChainGraphOverlayState.split-editor-add-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id);
+                if root.has-end-switch : HorizontalLayout {
+                    alignment: start;
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 4px;
+                        clip: true;
+                        background: Theme.field;
+                        border-width: 1px;
+                        border-color: Theme.field-line;
+                        HorizontalLayout {
+                            padding: 1px;
+                            EndSegment {
+                                label: ChainGraphOverlayState.split-editor-end-mix-label;
+                                lit: !ChainGraphOverlayState.split-editor-end-y;
+                                clicked => {
+                                    ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, false);
+                                }
+                            }
+                            Rectangle {
+                                width: 1px;
+                                background: Theme.hair-2;
+                            }
+                            end-y-ta := EndSegment {
+                                label: ChainGraphOverlayState.split-editor-end-y-label;
+                                lit: ChainGraphOverlayState.split-editor-end-y;
+                                clicked => {
+                                    ChainGraphOverlayState.split-editor-set-end(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, true);
+                                }
+                            }
                         }
+                    }
+                }
+
+                if root.has-end-switch : VerticalLayout {
+                    spacing: 6px;
+                    FieldCaption {
+                        height: 22px;
+                        text: @tr("label-split-paths");
                     }
                     HorizontalLayout {
-                        padding-left: 10px;
-                        padding-right: 10px;
-                        spacing: 6px;
-                        alignment: center;
-                        Image {
-                            width: 14px;
-                            y: (parent.height - 14px) / 2;
-                            height: 14px;
-                            source: @image-url("../modules/surrealism-ui/icons/plus.svg");
-                            colorize: #d8e0ff;
+                        height: 28px;
+                        spacing: 8px;
+                        alignment: start;
+                        for letter[index] in ChainGraphOverlayState.split-editor-paths : PathChip {
+                            letter: letter;
+                            index: index;
+                            removable: ChainGraphOverlayState.split-editor-can-remove-path;
+                            remove => {
+                                ChainGraphOverlayState.split-editor-remove-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, index);
+                            }
                         }
-                        Text {
-                            text: @tr("btn-add-path");
-                            color: #d8e0ff;
-                            font-size: 18px;
-                            vertical-alignment: center;
+                        FormButton {
+                            icon-only: true;
+                            small: true;
+                            icon: @image-url("../assets/plus.svg");
+                            label: @tr("btn-add-path");
+                            clicked => {
+                                ChainGraphOverlayState.split-editor-add-path(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id);
+                            }
                         }
                     }
                 }
-            }
 
-            BlockParamGrid {
-                height: root.grid-height;
-                param-items: ChainGraphOverlayState.split-editor-items;
-                show-params: true;
-                show-overlays: false;
-                has-param-tabs: true;
-                has-eq-widget: false;
-                // Centred: the paths row can make the card wider than the grid.
-                grid-area-x: Math.max(0px, (self.width - root.cols * root.cell) / 2);
-                grid-cell-w: root.cell;
-                grid-cols: root.cols;
-                grid-base-y: 0px;
-                grid-row-stride: root.cell;
-                content-height: root.content-height;
-                panel-text: #f1f4f8;
-                update-number(path, value) => {
-                    ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                BlockParamGrid {
+                    height: root.grid-height;
+                    param-items: ChainGraphOverlayState.split-editor-items;
+                    show-params: true;
+                    show-overlays: false;
+                    has-param-tabs: true;
+                    has-eq-widget: false;
+                    // Centred: the paths row can make the card wider than the grid.
+                    grid-area-x: Math.max(0px, (self.width - root.cols * root.cell) / 2);
+                    grid-cell-w: root.cell;
+                    grid-cols: root.cols;
+                    grid-base-y: 0px;
+                    grid-row-stride: root.cell;
+                    content-height: root.content-height;
+                    panel-text: Theme.ink;
+                    update-number(path, value) => {
+                        ChainGraphOverlayState.split-editor-number(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                    }
+                    select-option(path, index) => {
+                        ChainGraphOverlayState.split-editor-option(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, index);
+                    }
+                    update-bool(path, value) => {
+                        ChainGraphOverlayState.split-editor-bool(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
+                    }
+                    pick-file(path) => { }
                 }
-                select-option(path, index) => {
-                    ChainGraphOverlayState.split-editor-option(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, index);
-                }
-                update-bool(path, value) => {
-                    ChainGraphOverlayState.split-editor-bool(ChainGraphOverlayState.split-editor-chain-index, ChainGraphOverlayState.split-editor-split-id, path, value);
-                }
-                pick-file(path) => { }
             }
         }
     }

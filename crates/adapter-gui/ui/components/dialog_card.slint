@@ -1,0 +1,68 @@
+// Responsibility: renders a modal dialog's card over a scrim.
+// #398: the page dims behind a scrim that swallows clicks; the card sits in the
+// middle on the panel, radius 6, its height set by what the dialog stacks in it.
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+
+export component DialogCard inherits Rectangle {
+    in property <length> card-width: 420px;
+    // A dialog with a list fixes its height; the rest follow their content.
+    in property <length> card-height: 0;
+
+    background: Theme.scrim;
+    TouchArea { }
+
+    card := Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(root.width - 32px, root.card-width);
+        height: min(root.height - 32px, root.card-height > 0 ? root.card-height : stack.preferred-height);
+        border-radius: 6px;
+        clip: true;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+
+        // Never cut by the window: a dialog taller than it scrolls (#398).
+        scroll := Flickable {
+            content-width: self.width;
+            content-height: max(self.height, root.card-height > 0 ? stack.min-height : stack.preferred-height);
+            interactive: self.content-height > self.height;
+
+            stack := VerticalLayout {
+                width: parent.width;
+                height: parent.height;
+                @children
+            }
+        }
+    }
+}
+
+// The body of a confirmation: its title in the display face, the question
+// under it.
+export component ConfirmBody inherits VerticalLayout {
+    in property <string> title;
+    in property <string> message;
+
+    padding: 18px;
+    padding-top: 20px;
+    spacing: 12px;
+
+    Text {
+        text: root.title;
+        color: Theme.ink;
+        font-family: Locale.display-font-family;
+        font-size: 24px;
+        letter-spacing: 0.05 * 24px;
+        wrap: word-wrap;
+    }
+    Text {
+        text: root.message;
+        color: Theme.ink-2;
+        font-size: Theme.min-font;
+        wrap: word-wrap;
+    }
+}

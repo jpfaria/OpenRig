@@ -20,8 +20,9 @@ use crate::graph_view_model::{
 
 /// Centre-to-centre: a 100 px card plus the strip's 32 px gap (`chain_row_blocks.slint:47`).
 pub(crate) const COLUMN_SPACING: f32 = 132.0;
-/// One strip row per lane (`chain_row.slint:100`: 108 px per row).
-pub(crate) const LANE_SPACING: f32 = 108.0;
+/// One lane holds the gear and its two-line caption (`chain_row.slint`
+/// `lane-pitch`: 150 px per lane, #398).
+pub(crate) const LANE_SPACING: f32 = 150.0;
 /// The first card's centre sits half a card in from the corner.
 pub(crate) const CARD_HALF: f32 = 50.0;
 
@@ -102,7 +103,7 @@ fn list_stages(blocks: &[AudioBlock], labels: &IoLabels) -> Vec<ChainStage> {
                     end,
                 }
             }
-            _ => ChainStage::Single(blueprint(block)),
+            _ => ChainStage::Single(blueprint(block, labels)),
         })
         .collect()
 }
@@ -127,8 +128,11 @@ pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
     }
 }
 
-fn blueprint(block: &AudioBlock) -> BlockBlueprint {
+/// A port block (insert, mid-chain input/output) is named after its binding.
+fn blueprint(block: &AudioBlock, labels: &IoLabels) -> BlockBlueprint {
+    let port = labels.port(&block.id.0);
     let label = match block.model_ref() {
+        _ if !port.is_empty() => port.to_string(),
         Some(model) => project::catalog::model_display_name(model.effect_type, model.model),
         None => block.kind.label().to_uppercase(),
     };

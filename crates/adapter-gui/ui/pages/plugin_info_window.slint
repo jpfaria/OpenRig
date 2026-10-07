@@ -2,6 +2,19 @@
 // Plugin info — both a standalone Window (windowed mode) and a Rectangle panel
 // used as inline overlay in fullscreen, where secondary windows do not surface
 // reliably (e.g. Orange Pi / kiosk).
+//
+// #398: a tool window: the dark bar with the plugin's name (and the close
+// cross when inline), then the screenshot on the well at the left and the
+// text at the right — the name large, the maker and the backend badge, the
+// description, the license and the homepage button. Narrow, the screenshot
+// sits on top.
+import { Theme, Gear } from "../theme.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
+import { FieldCaption } from "../components/field_caption.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 
 export component PluginInfoPanel inherits Rectangle {
     in property <image> screenshot;
@@ -14,19 +27,73 @@ export component PluginInfoPanel inherits Rectangle {
     in property <string> homepage: "";
     in property <bool> has-homepage: false;
     in property <bool> show-close-button: false;
+    // The height the content wants at the current width.
+    out property <length> content-height: root.bar-h + root.body-h;
 
     callback open-homepage();
     callback close-window();
 
-    background: #111118;
+    private property <length> bar-h: 46px;
+    private property <bool> two-col: root.width >= 560px;
+    private property <length> shot-w: root.two-col ? 220px : root.width;
+    private property <length> shot-h: root.two-col ? root.body-h : 200px;
+    private property <length> body-h: root.two-col
+        ? max(txt.preferred-height, (root.shot-w - 32px) * 3 / 4 + 32px)
+        : 200px + txt.preferred-height;
+    private property <color> backend: root.type-label == "NATIVE" ? Theme.b-native
+        : root.type-label == "NAM/A2" ? Theme.warn
+        : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? Theme.b-nam
+        : root.type-label == "IR" ? Theme.b-ir
+        : root.type-label == "LV2" ? Theme.b-lv2
+        : Theme.b-vst3;
 
-    VerticalLayout {
-        alignment: start;
+    background: Theme.panel;
+    // Inline it is a card over the scrim; in its own window it is the window.
+    border-radius: root.show-close-button ? 6px : 0px;
+    border-width: root.show-close-button ? 1px : 0px;
+    border-color: Theme.hair;
+    drop-shadow-blur: root.show-close-button ? 24px : 0px;
+    drop-shadow-offset-y: root.show-close-button ? 8px : 0px;
+    drop-shadow-color: Theme.shadow;
+    clip: true;
 
-        // ── Screenshot area (fixed 200px) ────────────────────────────────────
+    // Clicks on the card never reach the overlay's close-on-outside scrim.
+    TouchArea { }
+
+    ToolBar {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        title: root.plugin-name;
+
+        if root.show-close-button : ToolBarClose {
+            clicked => { root.close-window(); }
+        }
+    }
+
+    // ── The screenshot on the well ───────────────────────────────────────
+    Rectangle {
+        x: 0;
+        y: root.bar-h;
+        width: root.shot-w;
+        height: root.shot-h;
+        background: Theme.well;
+
         Rectangle {
-            height: 200px;
-            background: #0a0a14;
+            x: parent.width - 1px;
+            width: root.two-col ? 1px : 0px;
+            background: Theme.hair;
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: root.two-col ? 16px : (parent.height - self.height) / 2;
+            width: root.two-col ? parent.width - 32px : min(parent.width - 32px, (parent.height - 32px) * 4 / 3);
+            height: self.width * 3 / 4;
+            border-radius: 4px;
+            background: @linear-gradient(180deg, Theme.chrome-2 0%, Theme.chrome 100%);
+            border-width: 1px;
+            border-color: Theme.chrome-line;
             clip: true;
 
             if root.has-screenshot : Image {
@@ -36,150 +103,140 @@ export component PluginInfoPanel inherits Rectangle {
                 image-fit: cover;
             }
 
-            if !root.has-screenshot : Rectangle {
-                width: parent.width; height: parent.height;
-                background: #0d0d1a;
-                Image {
-                    x: (parent.width - 72px) / 2;
-                    y: (parent.height - 72px) / 2;
-                    width: 72px; height: 72px;
-                    source: @image-url("../assets/openrig-logomark.svg");
-                    image-fit: contain;
-                    opacity: 0.4;
-                }
+            if !root.has-screenshot : Image {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 56px;
+                height: 56px;
+                source: @image-url("../assets/openrig-logomark.svg");
+                image-fit: contain;
+                colorize: Theme.chrome-fg;
+                opacity: 0.4;
+            }
+        }
+    }
+
+    // ── The text ─────────────────────────────────────────────────────────
+    txt := VerticalLayout {
+        x: root.two-col ? root.shot-w : 0px;
+        y: root.two-col ? root.bar-h : root.bar-h + 200px;
+        width: parent.width - self.x;
+        padding: 18px;
+        spacing: 12px;
+        alignment: start;
+
+        Text {
+            text: root.plugin-name;
+            color: Theme.ink;
+            font-family: Locale.display-font-family;
+            font-size: 32px;
+            letter-spacing: 0.04 * 32px;
+            wrap: word-wrap;
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            if root.brand != "" : Text {
+                text: root.brand;
+                color: Theme.ink-2;
+                font-size: Theme.min-font;
+                font-weight: 600;
+                vertical-alignment: center;
             }
 
-            // Gradient overlay at bottom of screenshot
-            Rectangle {
-                y: parent.height - 60px;
-                width: parent.width; height: 60px;
-                background: @linear-gradient(180deg, transparent 0%, #111118 100%);
+            if root.type-label != "" : VerticalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: badge-text.preferred-width + 10px;
+                    height: 20px;
+                    border-radius: 2px;
+                    background: root.backend;
+
+                    badge-text := Text {
+                        width: parent.width;
+                        height: parent.height;
+                        text: root.type-label;
+                        color: Gear.white;
+                        font-size: Theme.min-font;
+                        font-weight: 700;
+                        letter-spacing: 0.06 * Theme.min-font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
 
-        // ── Content ───────────────────────────────────────────────────────────
-        VerticalLayout {
-            padding: 20px;
-            spacing: 12px;
-            alignment: start;
+        if root.description != "" : VerticalLayout {
+            spacing: 6px;
 
-            // Plugin name
+            FieldCaption {
+                text: @tr("label-description");
+                color: Theme.ink-3;
+            }
+
             Text {
-                text: root.plugin-name;
-                font-size: 20px;
-                font-weight: 700;
-                color: #f0f0f8;
+                text: root.description;
+                color: Theme.ink-2;
+                font-size: Theme.min-font;
                 wrap: word-wrap;
             }
+        }
 
-            // Brand + type badge row
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
+        if root.license != "" : HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
 
-                if root.brand != "" : Text {
-                    text: root.brand;
-                    font-size: 18px;
-                    color: #8888aa;
-                    vertical-alignment: center;
-                }
-
-                if root.brand != "" && root.type-label != "" : Text {
-                    text: @tr("·");
-                    font-size: 18px;
-                    color: #555566;
-                    vertical-alignment: center;
-                }
-
-                if root.type-label != "" : Rectangle {
-                    height: max(22px, type-badge-text.preferred-height + 4px);
-                    width: type-badge-text.preferred-width + 12px;
-                    border-radius: 4px;
-                    background: root.type-label == "LV2" ? #1a2a1a
-                        : root.type-label == "NAM/A2" ? #2e260d
-                        : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a1a2a
-                        : root.type-label == "IR" ? #2a1a1a
-                        : #1e1e2a;
-
-                    type-badge-text := Text {
-                        x: 6px;
-                        height: parent.height;
-                        text: root.type-label;
-                        font-size: 18px;
-                        font-weight: 600;
-                        color: root.type-label == "LV2" ? #44cc44
-                            : root.type-label == "NAM/A2" ? #ffcc44
-                            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4488ff
-                            : root.type-label == "IR" ? #ff8844
-                            : #aaaacc;
-                        vertical-alignment: center;
-                    }
-                }
+            FieldCaption {
+                text: @tr("label-license");
+                color: Theme.ink-3;
             }
 
-            // Divider
-            Rectangle { height: 1px; background: #222230; }
-
-            // Description
-            if root.description != "" : VerticalLayout {
-                spacing: 4px;
-                Text {
-                    text: @tr("label-description");
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #555566;
-                    letter-spacing: 1px;
-                }
-                Text {
-                    text: root.description;
-                    font-size: 18px;
-                    color: #a0a0b8;
-                    wrap: word-wrap;
-                }
+            Text {
+                text: root.license;
+                color: Theme.ink-3;
+                font-size: Theme.min-font;
+                vertical-alignment: center;
             }
+        }
 
-            // License
-            if root.license != "" : HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-                Text {
-                    text: @tr("label-license");
-                    font-size: 18px;
-                    color: #555566;
-                    vertical-alignment: center;
-                }
-                Text {
-                    text: root.license;
-                    font-size: 18px;
-                    color: #7a7a9a;
-                    vertical-alignment: center;
-                }
-            }
+        if root.has-homepage : HorizontalLayout {
+            alignment: start;
 
-            // Homepage button
-            if root.has-homepage : Rectangle {
-                height: 36px;
-                border-radius: 6px;
-                background: hp-ta.has-hover ? #1a3a20 : #162a1a;
+            Rectangle {
+                height: 30px;
+                width: hp-row.preferred-width;
+                border-radius: 4px;
+                background: hp-ta.has-hover ? Theme.panel-hi : Theme.field;
                 border-width: 1px;
-                border-color: hp-ta.has-hover ? #22C55E : #1e401e;
+                border-color: Theme.hair;
 
-                HorizontalLayout {
-                    alignment: center;
-                    spacing: 8px;
-                    padding: 0px;
+                hp-row := HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 7px;
 
-                    Text {
-                        text: @tr("↗");
-                        font-size: 18px;
-                        color: #22C55E;
-                        vertical-alignment: center;
-                    }
                     Text {
                         text: @tr("btn-open-homepage");
-                        font-size: 18px;
-                        color: #22C55E;
+                        color: Theme.ink;
+                        font-size: Theme.min-font;
+                        font-weight: 600;
+                        letter-spacing: 0.06 * Theme.min-font;
                         vertical-alignment: center;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+
+                        Image {
+                            width: 14px;
+                            height: 14px;
+                            source: @image-url("../assets/external-link.svg");
+                            colorize: Theme.ink-2;
+                        }
                     }
                 }
 
@@ -188,44 +245,21 @@ export component PluginInfoPanel inherits Rectangle {
                     clicked => { root.open-homepage(); }
                 }
 
-                animate background { duration: 150ms; }
-                animate border-color { duration: 150ms; }
+                accessible-role: button;
+                accessible-label: @tr("btn-open-homepage");
+                accessible-action-default => { root.open-homepage(); }
             }
         }
-    }
-
-    // Floating close button — drawn last so it overlays the screenshot.
-    if root.show-close-button : Rectangle {
-        x: parent.width - 44px;
-        y: 12px;
-        width: 32px;
-        height: 32px;
-        border-radius: 16px;
-        background: close-ta.has-hover ? #ff6a5740 : #00000080;
-
-        Image {
-            x: (parent.width - 14px) / 2;
-            y: (parent.height - 14px) / 2;
-            width: 14px;
-            height: 14px;
-            source: @image-url("../assets/close.svg");
-            colorize: close-ta.has-hover ? #ffffff : #d0d4dc;
-        }
-
-        close-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.close-window(); }
-        }
-
-        animate background { duration: 120ms; }
     }
 }
 
 export component PluginInfoWindow inherits Window {
     title: "Plugin Info";
-    width: 480px;
-    min-height: 400px;
-    background: #111118;
+    preferred-width: 720px;
+    min-width: 420px;
+    min-height: 320px;
+    preferred-height: 440px;
+    background: Theme.panel;
 
     in property <image> screenshot;
     in property <bool> has-screenshot: false;
@@ -256,4 +290,7 @@ export component PluginInfoWindow inherits Window {
         open-homepage => { root.open-homepage(); }
         close-window => { root.close-window(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

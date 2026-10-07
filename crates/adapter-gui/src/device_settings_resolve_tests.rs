@@ -21,6 +21,7 @@ fn row(selected: bool, rate: &str, buffer: &str, depth: &str) -> DeviceSelection
         sample_rate_text: rate.into(),
         buffer_size_text: buffer.into(),
         bit_depth_text: depth.into(),
+        ..Default::default()
     }
 }
 
@@ -39,6 +40,14 @@ fn a_supported_setting_survives_normalization() {
     assert_eq!(kept.sample_rate, 48_000);
     assert_eq!(kept.buffer_size_frames, 128);
     assert_eq!(kept.bit_depth, 32);
+}
+
+#[test]
+fn the_highest_rate_and_largest_buffer_survive_normalization() {
+    let kept = normalize_device_settings(saved(192_000, 2048, 24));
+
+    assert_eq!(kept.sample_rate, 192_000);
+    assert_eq!(kept.buffer_size_frames, 2048);
 }
 
 #[test]

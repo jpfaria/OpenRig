@@ -14,7 +14,10 @@
 // the whole gesture and a nested list never sees the wheel: it could only be
 // moved by dragging its own scrollbar by hand.
 
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { ChannelOptionItem } from "../models.slint";
+import { CheckMark } from "check_mark.slint";
 
 component ChannelPickerRow inherits Rectangle {
     in property <ChannelOptionItem> channel;
@@ -22,8 +25,7 @@ component ChannelPickerRow inherits Rectangle {
     in property <bool> radio: false;
     callback toggled();
 
-    background: ta.has-hover ? #1f1f23 : transparent;
-    border-radius: 6px;
+    background: ta.has-hover ? Theme.hover : transparent;
     accessible-role: checkbox;
     accessible-label: root.channel.label;
     accessible-checked: root.channel.selected;
@@ -39,29 +41,16 @@ component ChannelPickerRow inherits Rectangle {
             Rectangle {
                 width: 18px;
                 height: 18px;
-                border-radius: root.radio ? 9px : 4px;
-                background: root.channel.selected && !root.radio ? #2f80ff : #18181b;
-                border-width: 1px;
-                border-color: root.channel.selected
-                    ? #2f80ff
-                    : (root.channel.available ? #3f3f46 : #2a2a2e);
                 opacity: root.channel.available ? 1 : 0.4;
 
-                if root.channel.selected && root.radio : Rectangle {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 4px;
-                    background: #2f80ff;
+                if root.radio : Rectangle {
+                    border-radius: 9px;
+                    background: Theme.field;
+                    border-width: root.channel.selected ? 5px : 1.5px;
+                    border-color: root.channel.selected ? Theme.accent : Theme.field-line;
                 }
-                if root.channel.selected && !root.radio : Image {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 10px;
-                    height: 10px;
-                    source: @image-url("../assets/check.svg");
-                    colorize: #ffffff;
+                if !root.radio : CheckMark {
+                    checked: root.channel.selected;
                 }
             }
         }
@@ -69,10 +58,11 @@ component ChannelPickerRow inherits Rectangle {
         Text {
             horizontal-stretch: 1;
             text: root.channel.label;
+            font-family: Locale.mono-font-family;
             color: root.channel.available
-                ? (root.channel.selected ? #fafafa : #a1a1aa)
-                : #52525b;
-            font-size: 18px;
+                ? (root.channel.selected ? Theme.ink : Theme.ink-2)
+                : Theme.ink-3;
+            font-size: Theme.min-font;
             font-weight: root.channel.selected ? 600 : 400;
             vertical-alignment: center;
             overflow: elide;
@@ -112,34 +102,43 @@ export component ChannelPicker inherits Rectangle {
     // without it the picker stretches to fill its parent.
     height: root.box-height;
 
-    background: #111114;
-    border-radius: 8px;
+    // #398: one field-coloured box with the field outline; the count heads
+    // it above a faint rule.
+    background: Theme.field;
+    border-radius: 3px;
     border-width: 1px;
-    border-color: #27272a;
+    border-color: Theme.field-line;
 
     VerticalLayout {
         padding: 8px;
         spacing: 4px;
 
         // How many channels the device has; the checkboxes already show the pick.
-        if root.show-total : HorizontalLayout {
+        if root.show-total : Rectangle {
             height: root.header-height;
-            padding-left: 4px;
-            spacing: 0px;
-            Rectangle { horizontal-stretch: 1; }
+
             Text {
+                x: parent.width - self.width - 4px;
+                width: self.preferred-width;
+                height: parent.height;
                 text: root.total-caption;
-                color: #52525b;
-                font-size: 18px;
+                color: Theme.ink-2;
+                font-size: Theme.min-font;
+                font-weight: 600;
                 vertical-alignment: center;
+            }
+            Rectangle {
+                x: -8px; y: parent.height + 1px;
+                width: parent.width + 16px; height: 1px;
+                background: Theme.hair-2;
             }
         }
 
         if root.channels.length == 0 : Text {
             height: root.list-height;
             text: root.empty-hint;
-            color: #52525b;
-            font-size: 18px;
+            color: Theme.ink-3;
+            font-size: Theme.min-font;
             vertical-alignment: center;
         }
 

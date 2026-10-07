@@ -11,6 +11,9 @@ export struct TunerRow {
     cents: float,
     frequency: float,
     active: bool,
+    // Decided in Rust (`tuner_tolerance`): the reading sits inside the
+    // in-tune tolerance.
+    in-tune: bool,
 }
 
 export struct SpectrumRow {

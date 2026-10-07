@@ -131,8 +131,8 @@ component MockChannelPicker inherits Rectangle {
         }
         ScrollView {
             height: 204px;
-            viewport-width: self.width;
-            viewport-height: 30 * 34px;
+            content-width: self.width;
+            content-height: 30 * 34px;
             for n[i] in root.labels : MockChannelRow {
                 x: 0px; y: i * 34px; width: parent.width; n: n; on: n == root.selected;
             }

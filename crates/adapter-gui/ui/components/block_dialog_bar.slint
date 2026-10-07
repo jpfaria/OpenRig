@@ -1,0 +1,88 @@
+// Responsibility: renders the title bar of a block's dialog.
+// #398: the dark bar of the insert and port dialogs — the block's power lamp
+// (green while the block runs; a click switches it), the title, and the trash
+// that deletes the block at the right.
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+
+export component BlockDialogBar inherits Rectangle {
+    in property <string> title;
+    in property <bool> block-enabled: true;
+    callback toggle-enabled();
+    callback delete-block();
+
+    height: 46px;
+    background: Theme.chrome;
+
+    Rectangle {
+        x: 0; y: parent.height - 1px;
+        width: parent.width; height: 1px;
+        background: Theme.chrome-line;
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+
+        power := Rectangle {
+            width: 28px;
+            border-radius: 4px;
+            background: power-ta.has-hover ? Theme.chrome-2 : transparent;
+
+            Rectangle {
+                x: (parent.width - 12px) / 2; y: (parent.height - 12px) / 2;
+                width: 12px; height: 12px;
+                border-radius: 6px;
+                background: root.block-enabled ? Theme.ok : Theme.chrome-fg-2;
+                opacity: root.block-enabled ? 1.0 : 0.45;
+                drop-shadow-blur: root.block-enabled ? 8px : 0;
+                drop-shadow-color: Theme.ok;
+            }
+
+            power-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle-enabled(); }
+            }
+            accessible-role: switch;
+            accessible-checked: root.block-enabled;
+            accessible-label: @tr("label-power");
+            accessible-action-default => { root.toggle-enabled(); }
+        }
+
+        Text {
+            horizontal-stretch: 1;
+            text: root.title;
+            color: Theme.chrome-fg;
+            font-family: Locale.display-font-family;
+            font-size: 24px;
+            letter-spacing: 0.06 * 24px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        delete-btn := Rectangle {
+            width: 32px;
+            height: 32px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 4px;
+            background: delete-ta.has-hover ? Theme.chrome-2 : transparent;
+
+            Image {
+                x: (parent.width - 18px) / 2; y: (parent.height - 18px) / 2;
+                width: 18px; height: 18px;
+                source: @image-url("../assets/trash.svg");
+                colorize: delete-ta.has-hover ? Theme.bad : Theme.chrome-fg-2;
+                image-fit: contain;
+            }
+
+            delete-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.delete-block(); }
+            }
+            accessible-role: button;
+            accessible-label: @tr("action-delete-block");
+            accessible-action-default => { root.delete-block(); }
+        }
+    }
+}

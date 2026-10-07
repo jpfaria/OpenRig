@@ -72,3 +72,7 @@ cd .solvers/issue-N && cargo clean && ./scripts/build-deb-local.sh
 ```
 
 Mandatory after: a `git merge`, editing a struct/enum in 2+ crates, changing a `#[cfg(...)]`, the first `build-*local.sh` of the session.
+
+## Build scripts and a shared target directory
+
+Clones can share one cargo target directory (`target-dir` in `~/.cargo/config.toml`), and cargo gives a workspace member the same build-script hash in every clone, so a build script compiled in one clone runs in another. A build script therefore reads its package directory with `std::env::var_os("CARGO_MANIFEST_DIR")` when it runs, never `env!("CARGO_MANIFEST_DIR")`: `env!` freezes the clone that compiled it, and the GUI shipped another clone's translations that way (every key added on the branch showed raw). Guarded by `crates/adapter-gui/tests/build_script_reads_its_own_clone.rs`.

@@ -38,6 +38,7 @@ pub mod json_fmt;
 pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
+mod local_dispatcher_appearance;
 mod local_dispatcher_attach;
 mod local_dispatcher_block_draft;
 mod local_dispatcher_block_edit;
@@ -150,6 +151,10 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_appearance_tests.rs"]
+mod local_dispatcher_appearance_tests;
 
 #[cfg(test)]
 #[path = "local_dispatcher_mixer_tests.rs"]

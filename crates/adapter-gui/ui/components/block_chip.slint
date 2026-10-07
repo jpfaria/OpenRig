@@ -6,8 +6,8 @@
 import { ProjectChainItem, ChainBlockItem, BlockParamSummaryEntry } from "../models.slint";
 import { EffectTypeIcon } from "./effect_type_icon.slint";
 import { BrandLogo } from "./brand_logo.slint";
-import { PowerSwitch } from "./power_switch.slint";
 import { BlockTileStyle } from "./block_tile_style.slint";
+import { Gear } from "../theme.slint";
 
 export component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
@@ -112,23 +112,16 @@ export component BlockChip inherits Rectangle {
         animate height { duration: 120ms; easing: ease-out; }
     }
 
-    // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
+    // The status LED: lit red while the block runs, dark when bypassed.
     Rectangle {
-        x: (parent.width - 12px) / 2;
-        y: parent.height - 10px;
-        width: 12px;
-        height: 12px;
-        clip: true;
-
-        Image {
-            source: @image-url("../assets/sprites/led-red.png");
-            x: root.block.enabled ? 0px : -12px;
-            y: 0;
-            width: 24px;
-            height: 12px;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
+        x: (parent.width - 8px) / 2;
+        y: parent.height - 9px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: root.block.enabled ? Gear.led : Gear.led-off;
+        drop-shadow-blur: root.block.enabled ? 6px : 0px;
+        drop-shadow-color: Gear.led;
     }
 
     hover-area := TouchArea {

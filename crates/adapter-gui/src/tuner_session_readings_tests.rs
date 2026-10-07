@@ -13,6 +13,7 @@ fn row(label: &str, note: &str, octave: i32, cents: f32, frequency: f32, active:
         cents,
         frequency,
         active,
+        in_tune: active && cents.abs() < 3.0,
     }
 }
 
@@ -45,6 +46,7 @@ fn readings_pair_each_row_with_its_chain_input_and_channel() {
     assert_eq!(readings[0].cents, -4.5);
     assert_eq!(readings[0].frequency, 82.1);
     assert!(readings[0].active);
+    assert!(!readings[0].in_tune, "-4.5 ct is out of tune");
     assert_eq!(readings[1].chain, "rig:input-2");
     assert_eq!(readings[1].input, 1);
     assert_eq!(readings[1].channel, 3);
@@ -55,4 +57,15 @@ fn readings_pair_each_row_with_its_chain_input_and_channel() {
 fn readings_are_empty_when_no_rows_exist() {
     let rows = VecModel::from(Vec::<TunerRow>::new());
     assert!(readings_from(&[], &rows).is_empty());
+}
+
+#[test]
+fn readings_carry_whether_the_string_is_in_tune() {
+    let identities = vec![RowIdentity {
+        chain: "rig:input-1".to_string(),
+        input: 0,
+        channel: 0,
+    }];
+    let rows = VecModel::from(vec![row("GUITARRA 1 · IN 1", "E", 2, -1.0, 82.36, true)]);
+    assert!(readings_from(&identities, &rows)[0].in_tune);
 }
