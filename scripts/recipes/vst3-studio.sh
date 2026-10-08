@@ -86,8 +86,11 @@ build_ninestrip() {
 build_kissofshame() {
     # The Kiss of Shame (hollance fork, GPL-3): tape deck emulation. JUCE 7.0.11
     # is fetched at configure time (FetchContent). The bundle name has spaces.
+    # On MinGW the C++ runtime is linked statically: libstdc++/libgcc/
+    # winpthread DLLs do not ship with the bundle.
     _skip_windows_arm && return 0
     local src="$DEPS_DIR/TheKissOfShame"
+    [ -n "${MINGW_TARGET:-}" ] && export LDFLAGS="${LDFLAGS:-} -static -static-libgcc -static-libstdc++"
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" TheKissOfShame_VST3
     collect_bundle "$LAST_BUILD_DIR" "The Kiss Of Shame.vst3"
@@ -181,41 +184,35 @@ build_mimomusic() {
 # the catalog lists each class without loading the binary. plugins.mk is cut to
 # the studio modules, and only the `vst3` feature is built: no `ui` means no
 # cairo/X11 runtime dependency on the user's machine (the editor is generic).
-# `make fetch` pulls the LSP module repos pinned by dependencies.mk. macOS needs
-# GNU make >= 4.4 (`gmake`) and LSP's x86 AVX2 inline assembly does not
-# assemble under Apple clang ("expected relocatable expression"), so the macOS
-# bundle is arm64 only, ad-hoc re-signed.
+# `make fetch` pulls the LSP module repos pinned by dependencies.mk.
+# Linux only: on macOS and Windows LSP's VST3 is a thin shim that links a
+# separate lsp-plugins-vst3 library by its build-time path, plus Homebrew's
+# cairo/jack/fontconfig (macOS) or MinGW's winpthread (Windows), none of which
+# ship with the bundle, so those slots would not load on a user's machine.
 LSP_STUDIO_MODULES="CLIPPER COMPRESSOR CROSSOVER EXPANDER GATE GRAPH_EQUALIZER IMPULSE_REVERB LIMITER MB_COMPRESSOR PARA_EQUALIZER"
 
-_lsp_build() { # $1=source copy, $2=install root, rest=extra make config args
-    local src="$1" dest="$2" mk=make
+_lsp_build() { # $1=source copy, $2=install root
+    local src="$1" dest="$2"
     shift 2
-    [ "$(uname -s)" = "Darwin" ] && mk=gmake
     local deps="" m
     for m in $LSP_STUDIO_MODULES; do deps="$deps  LSP_PLUGINS_$m \\\\\n"; done
     deps="${deps% \\\\\\n}"
     perl -0777 -i -pe "s/PLUGIN_DEPENDENCIES\s*=\s*\\\\\n(?:[ \t]+LSP_PLUGINS_\w+[ \t]*\\\\?\n)+/PLUGIN_DEPENDENCIES     = \\\\\n$deps\n/" "$src/plugins.mk"
-    "$mk" -C "$src" config FEATURES='vst3' PREFIX=/usr "$@"
-    "$mk" -C "$src" fetch
-    "$mk" -C "$src" -j "$JOBS"
-    "$mk" -C "$src" install DESTDIR="$dest"
+    make -C "$src" config FEATURES='vst3' PREFIX=/usr
+    make -C "$src" fetch
+    make -C "$src" -j "$JOBS"
+    make -C "$src" install DESTDIR="$dest"
 }
 
 build_lsp() {
-    _skip_windows_arm && return 0
+    if [ "$(uname -s)" = "Darwin" ] || [ -n "${MINGW_TARGET:-}" ] || [ -n "${CROSS_COMPILE:-}" ]; then
+        echo "  skip: LSP VST3 is built on Linux only"
+        return 0
+    fi
     local src="$DEPS_DIR/lsp-plugins" work="$BUILD_WORK_DIR/lsp"
     rm -rf "$work" && mkdir -p "$work"
     cp -R "$src" "$work/src"
-    if [ "$(uname -s)" = "Darwin" ]; then
-        CC="clang -arch arm64" CXX="clang++ -arch arm64" \
-            _lsp_build "$work/src" "$work/install" ARCHITECTURE=arm64
-        local bundle
-        bundle=$(find "$work/install" -type d -name "lsp-plugins.vst3" | head -1)
-        codesign --remove-signature "$bundle" 2>/dev/null || true
-        codesign --force --deep --sign - "$bundle"
-    else
-        _lsp_build "$work/src" "$work/install"
-    fi
+    _lsp_build "$work/src" "$work/install"
     collect_vst3 "$work/install" "lsp-plugins.vst3"
 }
 

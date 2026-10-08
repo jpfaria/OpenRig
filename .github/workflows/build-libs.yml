@@ -211,7 +211,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake meson ninja pkg-config autoconf automake libtool make \
+          brew install cmake meson ninja pkg-config autoconf automake libtool \
             lv2 libsndfile libsamplerate fftw cairo jack fluidsynth
 
       - name: Build ${{ matrix.recipe }}

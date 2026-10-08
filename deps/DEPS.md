@@ -65,7 +65,7 @@ Use `./scripts/add-dep.sh` to add new ones.
 | nine-strip | https://github.com/blablack/nine-strip | `111dee6` | CMake/JUCE | NineStrip channel strip (AGPL-3) — VST3 bundle, recipe `ninestrip` |
 | TheKissOfShame | https://github.com/hollance/TheKissOfShame | `2d43f68` | CMake/JUCE | The Kiss of Shame tape emulation (GPL-3) — VST3 bundle, recipe `kissofshame` |
 | airwin2rack | https://github.com/baconpaul/airwin2rack | `9b87116` | CMake/JUCE | Airwindows Consolidated (MIT) — VST3 bundle, recipe `airwindows` |
-| lsp-plugins | https://github.com/lsp-plugins/lsp-plugins | `2df6eea` (1.2.35) | GNU Make | LSP studio subset: EQ, compressor, multiband compressor, limiter, gate, expander, clipper, crossover, impulse reverb (LGPL-3) — one VST3 bundle, recipe `lsp` |
+| lsp-plugins | https://github.com/lsp-plugins/lsp-plugins | `2df6eea` (1.2.35) | GNU Make | LSP studio subset: EQ, compressor, multiband compressor, limiter, gate, expander, clipper, crossover, impulse reverb (LGPL-3) — one VST3 bundle, Linux only, recipe `lsp` |
 | mimomusic-plugins | https://github.com/mimo-music/mimomusic-plugins | `3c202e8` | DPF/CMake | Compressor, Limiter, Contour, Parametric/Dynamic EQ, Multiband Compressor, Reverb Dense/Plate (GPL-3) — VST3 bundles, recipe `mimomusic` |
 | nih-plug | https://github.com/robbert-vdh/nih-plug | `de42101` | Rust (cargo xtask) | Soft Vacuum, Spectral Compressor, Safety Limiter, Crossover (GPL-3 as VST3) — VST3 bundles, recipe `nihplug` |
 | bus_channel_strip | https://github.com/fsecada01/bus_channel_strip | `d663fe4` | Rust (cargo xtask) | Bus Channel Strip (GPL-3) — VST3 bundle, recipe `buschannelstrip` |
