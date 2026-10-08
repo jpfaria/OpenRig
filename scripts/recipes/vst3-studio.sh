@@ -7,6 +7,26 @@
 # Each recipe builds ONLY VST3 targets; the CI merge job unions each platform's
 # Contents/<arch>/ subfolder into the shipped bundle.
 
+# Windows coverage: the windows-aarch64 runner has no C++ cross compiler
+# (aarch64-w64-mingw32-g++ is missing from CLANG64), so no recipe here builds
+# there; JUCE 7/8 refuses MinGW ("MinGW is not supported") and the Rust
+# recipes need MSVC, so those skip windows-x86_64 too.
+_skip_windows() { # skip every Windows runner
+    if [ -n "${MINGW_TARGET:-}" ] || [ "${CROSS_COMPILE:-}" = "aarch64-w64-mingw32" ]; then
+        echo "  skip: recipe is not built on Windows runners"
+        return 0
+    fi
+    return 1
+}
+
+_skip_windows_arm() { # skip only the windows-aarch64 cross runner
+    if [ "${CROSS_COMPILE:-}" = "aarch64-w64-mingw32" ]; then
+        echo "  skip: windows-aarch64 runner has no C++ cross compiler"
+        return 0
+    fi
+    return 1
+}
+
 # OpenRig routes no MIDI: switch JUCE MIDI I/O off so the VST3 wrapper stops
 # exporting 2048 phantom MIDI-CC parameters (128 CC x 16 ch) into the editor.
 _juce_no_midi() {
@@ -22,6 +42,7 @@ _juce_no_midi() {
 SLPLUGINS_STUDIO=(Compressor Limiter Gate Expander GraphicEQ StereoProcessor)
 
 build_slplugins() {
+    _skip_windows && return 0
     local src="$DEPS_DIR/slPlugins" p
     for p in "${SLPLUGINS_STUDIO[@]}"; do
         _juce_no_midi "$src/plugins/$p/CMakeLists.txt"
@@ -41,6 +62,7 @@ build_slplugins() {
 
 build_valentine() {
     # Valentine (Tote Bag Labs, GPL-3): compressor/saturator. JUCE vendored in libs/.
+    _skip_windows && return 0
     local src="$DEPS_DIR/valentine"
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" Valentine_VST3
@@ -49,9 +71,13 @@ build_valentine() {
 
 build_ninestrip() {
     # NineStrip (blablack, AGPL-3): Airwindows-based channel strip. JUCE and
-    # clap-juce-extensions are submodules under lib/.
+    # clap-juce-extensions are submodules under lib/. Its NineStripUI library
+    # compiles juce_core without the plugin's JUCE_USE_CURL=0, so curl and the
+    # web browser are switched off globally (no libcurl headers on the runner).
+    _skip_windows && return 0
     local src="$DEPS_DIR/nine-strip"
     _juce_no_midi "$src/src/CMakeLists.txt"
+    CXXFLAGS="${CXXFLAGS:-} -DJUCE_USE_CURL=0 -DJUCE_WEB_BROWSER=0" \
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" NineStrip_VST3
     collect_bundle "$LAST_BUILD_DIR" "NineStrip.vst3"
@@ -60,6 +86,7 @@ build_ninestrip() {
 build_kissofshame() {
     # The Kiss of Shame (hollance fork, GPL-3): tape deck emulation. JUCE 7.0.11
     # is fetched at configure time (FetchContent). The bundle name has spaces.
+    _skip_windows_arm && return 0
     local src="$DEPS_DIR/TheKissOfShame"
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" TheKissOfShame_VST3
@@ -70,6 +97,7 @@ build_airwindows() {
     # Airwindows Consolidated (baconpaul/airwin2rack, MIT): every Airwindows
     # effect behind one selector. JUCE + clap-juce-extensions come via CPM at
     # configure time. The bundle name has a space.
+    _skip_windows && return 0
     local src="$DEPS_DIR/airwin2rack"
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DBUILD_JUCE_PLUGIN=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" airwin-consolidated_VST3
@@ -80,6 +108,8 @@ build_airwindows() {
 # Five sibling CMake projects, each vendoring DPF as a submodule. Only the
 # stereo studio plugins are built (mono twins, scopes and meters skipped); DPF
 # emits <target>.vst3 under each project's bin/ with a matching binary stem.
+# The DSP uses floating-point std::to_chars/from_chars, which libc++ ships
+# from macOS 13.3, so on macOS these bundles target 13.3 instead of 11.0.
 MIMO_STUDIO=(
     "compressor:compressor_stereo limiter contour"
     "statespace:parametric_eq multiband_compressor dynamic_eq dynamic_eq2"
@@ -87,12 +117,13 @@ MIMO_STUDIO=(
 )
 
 build_mimomusic() {
-    local entry proj plugins p
+    _skip_windows_arm && return 0
+    local entry proj plugins p extra=" -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+    [ "$(uname -s)" = "Darwin" ] && extra="$extra -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3"
     for entry in "${MIMO_STUDIO[@]}"; do
         proj="${entry%%:*}"
         plugins="${entry#*:}"
-        CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
-            do_cmake "$DEPS_DIR/mimomusic-plugins/$proj"
+        CMAKE_EXTRA="${CMAKE_EXTRA:-}$extra" do_cmake "$DEPS_DIR/mimomusic-plugins/$proj"
         for p in $plugins; do
             collect_bundle "$LAST_BUILD_DIR" "$p.vst3"
         done
@@ -125,6 +156,7 @@ _lsp_build() { # $1=source copy, $2=install root, rest=extra make config args
 }
 
 build_lsp() {
+    _skip_windows_arm && return 0
     local src="$DEPS_DIR/lsp-plugins" work="$BUILD_WORK_DIR/lsp"
     rm -rf "$work" && mkdir -p "$work"
     if [ "$(uname -s)" = "Darwin" ]; then
@@ -152,29 +184,22 @@ build_lsp() {
 }
 
 # --- Rust / nih-plug bundles (`cargo xtask bundle`) ---
+# Both workspaces ship an `xtask` package (nih_plug_xtask / nice_plug_xtask);
+# it is run by package name since bus_channel_strip has no `cargo xtask` alias.
 # nih-plug's xtask writes target/bundled/<Name>.vst3 with the binary stem equal
-# to the bundle name; on macOS `bundle-universal` lipo-merges both arches. No
-# shipped VST3 bundle carries a Windows slot yet, so these recipes build Linux
-# and macOS only and skip the Windows runners (rustc there is MSVC, outside the
-# MSYS2 toolchain the other recipes use).
-_rust_skip_windows() {
-    if [ -n "${MINGW_TARGET:-}" ] || [ "${CROSS_COMPILE:-}" = "aarch64-w64-mingw32" ]; then
-        echo "  skip: Rust VST3 recipe is not built on Windows runners"
-        return 0
-    fi
-    return 1
-}
+# to the bundle name; on macOS `bundle-universal` lipo-merges both arches.
 
 _xtask_bundle() { # $1=workspace dir, $2=toolchain ("" = workspace default), rest=packages
     local dir="$1" tc="$2"
     shift 2
-    local cargo=(cargo)
+    local cargo=(cargo) pkgs=() p
     [ -n "$tc" ] && { rustup toolchain install "$tc" --profile minimal; cargo=(cargo "+$tc"); }
+    for p in "$@"; do pkgs+=(-p "$p"); done
     if [ "$(uname -s)" = "Darwin" ]; then
         (cd "$dir" && rustup target add ${tc:+--toolchain "$tc"} x86_64-apple-darwin aarch64-apple-darwin)
-        (cd "$dir" && MACOSX_DEPLOYMENT_TARGET=11.0 "${cargo[@]}" xtask bundle-universal "$@" --release)
+        (cd "$dir" && MACOSX_DEPLOYMENT_TARGET=11.0 "${cargo[@]}" run --package xtask --release -- bundle-universal "${pkgs[@]}" --release)
     else
-        (cd "$dir" && "${cargo[@]}" xtask bundle "$@" --release)
+        (cd "$dir" && "${cargo[@]}" run --package xtask --release -- bundle "${pkgs[@]}" --release)
     fi
 }
 
@@ -182,7 +207,7 @@ build_nihplug() {
     # nih-plug example plugins (GPL-3 as VST3): Soft Vacuum, Spectral Compressor,
     # Safety Limiter, Crossover. Crossover's default `simd` feature needs nightly,
     # so the whole set is built with nightly.
-    _rust_skip_windows && return 0
+    _skip_windows && return 0
     local src="$DEPS_DIR/nih-plug" n
     _xtask_bundle "$src" nightly soft_vacuum spectral_compressor safety_limiter crossover
     for n in "Soft Vacuum" "Spectral Compressor" "Safety Limiter" "Crossover"; do
@@ -194,7 +219,7 @@ build_buschannelstrip() {
     # Bus Channel Strip (fsecada01, GPL-3 per Cargo.toml): API5500 EQ,
     # ButterComp2, Pultec, dynamic EQ, transformer, punch — built without its
     # `gui` feature (generic editor). Its rust-toolchain.toml pins nightly.
-    _rust_skip_windows && return 0
+    _skip_windows && return 0
     local src="$DEPS_DIR/bus_channel_strip"
     _xtask_bundle "$src" "" bus_channel_strip
     collect_bundle "$src/target/bundled" "Bus-Channel-Strip.vst3"
