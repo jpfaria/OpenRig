@@ -189,6 +189,8 @@ mod mixer_window_size;
 mod mixer_wiring;
 mod sample_rate;
 pub mod spectrum_close;
+mod spectrum_filter;
+mod spectrum_filter_view;
 mod spectrum_row_label;
 mod spectrum_session;
 mod spectrum_wiring;

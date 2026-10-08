@@ -272,6 +272,7 @@ impl SpectrumSession {
                         });
                         rows_model.push(SpectrumRow {
                             label: spectrum_row_label(&output_label, side).into(),
+                            output: output_label.as_str().into(),
                             levels: ModelRc::from(levels),
                             peaks: ModelRc::from(peaks),
                             active: false,

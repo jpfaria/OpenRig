@@ -1749,3 +1749,15 @@ msgstr "跳过"
 
 msgid "btn-wizard-finish"
 msgstr "完成"
+
+msgid "title-spectrum-outputs"
+msgstr "输出"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} 已显示"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "输出 {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "所有输出已隐藏"

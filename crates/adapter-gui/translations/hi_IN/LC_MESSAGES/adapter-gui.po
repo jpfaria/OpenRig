@@ -1750,3 +1750,15 @@ msgstr "छोड़ें"
 
 msgid "btn-wizard-finish"
 msgstr "समाप्त"
+
+msgid "title-spectrum-outputs"
+msgstr "आउटपुट"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} दिख रहे"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "आउटपुट {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "सभी आउटपुट छिपे हैं"

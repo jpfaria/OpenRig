@@ -1756,3 +1756,15 @@ msgstr "Omitir"
 
 msgid "btn-wizard-finish"
 msgstr "Terminar"
+
+msgid "title-spectrum-outputs"
+msgstr "SALIDAS"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} VISIBLES"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "SALIDAS {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "TODAS LAS SALIDAS OCULTAS"

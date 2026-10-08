@@ -17,6 +17,9 @@ import { Locale } from "../locale_globals.slint";
 import { WindowBoundsProbe } from "../components/window_bounds.slint";
 import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 import { ElidedText } from "../components/elided_text.slint";
+import { BarButton } from "../components/bar_button.slint";
+import { SpectrumFilterOverlay } from "../components/spectrum_filter_overlay.slint";
+import { ChannelOptionItem } from "../models.slint";
 export { SpectrumRow }
 
 // One decade label under the bars, centred on its band and kept inside.
@@ -131,8 +134,12 @@ export component SpectrumPanel inherits Rectangle {
     in property <[SpectrumRow]> spectrum-rows;
     in property <bool> spectrum-enabled: false;
     in property <bool> show-close-button: false;
+    // The output filter: one checkbox per output, and how many are checked.
+    in property <[ChannelOptionItem]> filter-items;
+    in property <int> filter-shown;
     callback close-spectrum();
     callback toggle-enabled(bool);
+    callback filter-toggled(int /* output */, bool /* shown */);
 
     property <length> bar-h: 46px;
 
@@ -143,6 +150,11 @@ export component SpectrumPanel inherits Rectangle {
         width: parent.width;
         icon: @image-url("../assets/spectrum.svg");
         title: @tr("label-spectrum");
+
+        if root.filter-items.length > 0 : filter-button := BarButton {
+            label: @tr("label-spectrum-outputs-shown-button {} {}", root.filter-shown, root.filter-items.length);
+            clicked => { filter.open = !filter.open; }
+        }
 
         PillSwitch {
             text: @tr("label-power");
@@ -156,7 +168,23 @@ export component SpectrumPanel inherits Rectangle {
     }
 
     // ── Empty state: the scope says why it is blank ──────────────────────
-    if root.spectrum-rows.length == 0 : LcdGlass {
+    if root.spectrum-rows.length == 0 && root.filter-shown == 0 && root.filter-items.length > 0 : LcdGlass {
+        x: 14px; y: root.bar-h + 14px;
+        width: parent.width - 28px;
+        height: 84px;
+        glass: Theme.scope;
+
+        Text {
+            text: @tr("status-spectrum-outputs-hidden");
+            color: Theme.scope-mid;
+            font-size: 26px;
+            letter-spacing: 0.08 * 26px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    if root.spectrum-rows.length == 0 && root.filter-items.length == 0 : LcdGlass {
         x: 14px; y: root.bar-h + 14px;
         width: parent.width - 28px;
         height: empty-col.preferred-height;
@@ -201,6 +229,15 @@ export component SpectrumPanel inherits Rectangle {
             data: row;
         }
     }
+
+    filter := SpectrumFilterOverlay {
+        width: parent.width;
+        height: parent.height;
+        top: root.bar-h + 6px;
+        items: root.filter-items;
+        shown: root.filter-shown;
+        toggled(output, on) => { root.filter-toggled(output, on); }
+    }
 }
 
 export component SpectrumWindow inherits Window {
@@ -225,9 +262,12 @@ export component SpectrumWindow inherits Window {
         height: 100%;
         spectrum-rows: AnalyzerBridge.spectrum-rows;
         spectrum-enabled: AnalyzerBridge.spectrum-enabled;
+        filter-items: AnalyzerBridge.spectrum-filter;
+        filter-shown: AnalyzerBridge.spectrum-filter-shown;
         show-close-button: false;
         close-spectrum => { root.close-spectrum-window(); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
+        filter-toggled(output, on) => { AnalyzerBridge.toggle-spectrum-filter(output, on); }
     }
 
     WindowBoundsProbe { }

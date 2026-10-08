@@ -1763,3 +1763,15 @@ msgstr "Pular"
 
 msgid "btn-wizard-finish"
 msgstr "Concluir"
+
+msgid "title-spectrum-outputs"
+msgstr "SAÍDAS"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} VISÍVEIS"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "SAÍDAS {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "TODAS AS SAÍDAS OCULTAS"

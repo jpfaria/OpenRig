@@ -215,9 +215,12 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         spectrum-rows: AnalyzerBridge.spectrum-rows;
         spectrum-enabled: AnalyzerBridge.spectrum-enabled;
+        filter-items: AnalyzerBridge.spectrum-filter;
+        filter-shown: AnalyzerBridge.spectrum-filter-shown;
         show-close-button: true;
         close-spectrum => { AnalyzerBridge.close-spectrum(); }
         toggle-enabled(e) => { AnalyzerBridge.toggle-spectrum-enabled(e); }
+        filter-toggled(output, on) => { AnalyzerBridge.toggle-spectrum-filter(output, on); }
     }
 
     if MetronomeBridge.show : MetronomePanel {

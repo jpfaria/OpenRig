@@ -8,6 +8,7 @@
 // button does; the surfaces only render what Rust publishes here.
 
 import { SpectrumRow, TunerRow } from "analyzer_rows.slint";
+import { ChannelOptionItem } from "models.slint";
 
 export global AnalyzerBridge {
     // ── Tuner ────────────────────────────────────────────────────────────
@@ -27,6 +28,11 @@ export global AnalyzerBridge {
     in-out property <bool> show-spectrum;
     in-out property <[SpectrumRow]> spectrum-rows;
     in-out property <bool> spectrum-enabled: false;
+    // The output filter: one checkbox per output the rows read, and how many
+    // are checked. Rust applies it to `spectrum-rows`.
+    in-out property <[ChannelOptionItem]> spectrum-filter;
+    in-out property <int> spectrum-filter-shown;
+    callback toggle-spectrum-filter(int /* output */, bool /* shown */);
     callback open-spectrum-window();
     callback close-spectrum();
     callback toggle-spectrum-enabled(bool);

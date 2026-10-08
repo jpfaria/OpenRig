@@ -12,6 +12,7 @@ fn row(label: &str, levels: Vec<f32>, peaks: Vec<f32>, active: bool) -> Spectrum
         levels: ModelRc::from(Rc::new(VecModel::from(levels))),
         peaks: ModelRc::from(Rc::new(VecModel::from(peaks))),
         active,
+        ..Default::default()
     }
 }
 

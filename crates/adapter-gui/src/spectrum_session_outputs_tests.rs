@@ -117,6 +117,21 @@ fn every_output_of_a_stream_gets_its_own_pair_of_rows() {
             "DIGITAL  ·  IN 1  →  OUT 25,26  ·  R",
         ]
     );
+    let outputs: Vec<String> = session
+        .rows_model
+        .iter()
+        .map(|row| row.output.to_string())
+        .collect();
+    assert_eq!(
+        outputs,
+        vec![
+            "DIGITAL  ·  IN 1  →  OUT 1,2",
+            "DIGITAL  ·  IN 1  →  OUT 1,2",
+            "DIGITAL  ·  IN 1  →  OUT 25,26",
+            "DIGITAL  ·  IN 1  →  OUT 25,26",
+        ],
+        "the L and R rows of an output share the output the filter lists"
+    );
 
     session.tick();
     let levels = |idx: usize| -> Vec<f32> {

@@ -1757,3 +1757,15 @@ msgstr "Passer"
 
 msgid "btn-wizard-finish"
 msgstr "Terminer"
+
+msgid "title-spectrum-outputs"
+msgstr "SORTIES"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} VISIBLES"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "SORTIES {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "TOUTES LES SORTIES MASQUÉES"

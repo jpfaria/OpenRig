@@ -1,0 +1,77 @@
+// Responsibility: renders the spectrum's output checklist.
+//
+// One checkbox per output the spectrum reads; an unchecked output takes its
+// L and R scopes off the window. It opens under the tool bar's OUTPUTS button,
+// at the panel's top level so no scroll view clips it (a PopupWindow's content
+// does not receive clicks); a click outside the card closes it. The rows are
+// the app's one checklist, ChannelPicker.
+
+import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
+import { ChannelOptionItem } from "../models.slint";
+import { ChannelPicker } from "channel_picker.slint";
+import { ToolBar } from "tool_bar.slint";
+import { ToolBarClose } from "tool_bar_close.slint";
+
+export component SpectrumFilterOverlay inherits Rectangle {
+    in property <[ChannelOptionItem]> items;
+    in property <int> shown;
+    // Where the card's top edge sits: just under the window's tool bar.
+    in property <length> top;
+    in-out property <bool> open;
+    callback toggled(int /* output */, bool /* shown */);
+
+    visible: root.open;
+
+    backdrop := TouchArea {
+        clicked => { root.open = false; }
+    }
+
+    if root.open : Rectangle {
+        x: root.width - self.width - 14px;
+        y: root.top;
+        // Wide enough for a whole `CHAIN · IN → OUT` label: the OUT channels
+        // at its end are what tells two rows apart.
+        width: min(root.width - 28px, 900px);
+        height: min(root.height - root.top - 14px, card.preferred-height);
+        background: Theme.panel;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+        clip: true;
+
+        // Swallow clicks on the card so only the backdrop closes it.
+        TouchArea { }
+
+        card := VerticalLayout {
+            ToolBar {
+                title: @tr("title-spectrum-outputs");
+                sub: @tr("label-spectrum-outputs-shown {} {}", root.shown, root.items.length);
+
+                ToolBarClose {
+                    clicked => { root.open = false; }
+                }
+            }
+
+            VerticalLayout {
+                padding: 18px;
+
+                // A rig can feed many outputs: past the cap the list scrolls
+                // inside the card instead of growing it off the window.
+                ScrollView {
+                    height: min(picker.height, 360px);
+                    content-height: picker.height;
+                    picker := ChannelPicker {
+                        width: parent.width;
+                        channels: root.items;
+                        show-total: false;
+                        toggled(row, on) => { root.toggled(row, on); }
+                    }
+                }
+            }
+        }
+    }
+}
