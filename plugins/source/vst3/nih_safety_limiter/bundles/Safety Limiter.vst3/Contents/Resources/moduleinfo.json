@@ -1,0 +1,17 @@
+{
+  "Name": "Safety Limiter",
+  "Factory Info": {
+    "Vendor": "Robbert van der Helm"
+  },
+  "Classes": [
+    {
+      "CID": "5361666574794C696D7472527664482E",
+      "Category": "Audio Module Class",
+      "Name": "Safety Limiter",
+      "Vendor": "Robbert van der Helm",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

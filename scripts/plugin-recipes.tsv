@@ -152,7 +152,6 @@ socalabs_limiter	slplugins
 socalabs_gate	slplugins
 socalabs_expander	slplugins
 socalabs_graphic_eq	slplugins
-socalabs_stereo_processor	slplugins
 valentine	valentine
 nine_strip	ninestrip
 kiss_of_shame	kissofshame
@@ -170,5 +169,4 @@ lsp_plugins	lsp
 nih_soft_vacuum	nihplug
 nih_spectral_compressor	nihplug
 nih_safety_limiter	nihplug
-nih_crossover	nihplug
 bus_channel_strip	buschannelstrip

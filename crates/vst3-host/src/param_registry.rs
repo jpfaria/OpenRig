@@ -114,15 +114,15 @@ pub(crate) fn read_controller_params(controller: &ComPtr<IEditController>) -> Ve
         if unsafe { controller.getParameterInfo(i, &mut info) } != kResultOk {
             continue;
         }
-        // Read the step labels for every discrete param (>= 1). The schema uses
+        // Read the step labels for every selector param. The schema uses
         // them both for selects and for the on/off-vs-selector heuristic (#780).
-        let enum_options = if info.stepCount >= 1 {
+        let enum_options = if crate::param_steps::is_selector(info.stepCount) {
             read_enum_options(controller, info.id, info.stepCount)
         } else {
             Vec::new()
         };
         let units = char16_array_to_string(&info.units);
-        let value_texts = if info.stepCount == 0 {
+        let value_texts = if !crate::param_steps::is_selector(info.stepCount) {
             continuous_value_texts(&units, |normalized| {
                 param_string(controller, info.id, normalized)
             })

@@ -10,7 +10,8 @@
 //! * `1`  → on/off toggle when it reads like a switch (name/labels), otherwise a
 //!   2-position selector,
 //! * `>=2`→ selector, with one option per step (labels read from the plugin;
-//!   the UI renders <=4 options as a rotary switch, more as a dropdown).
+//!   the UI renders <=4 options as a rotary switch, more as a dropdown), up to
+//!   `vst3_host::param_steps::MAX_SELECTOR_STEPS`; more steps → knob.
 //!
 //! Every parameter is stored under `p{id}`; the engine converts each value back
 //! to a VST3 normalized 0..1 (`stereo::try_in_place_update` /
@@ -64,7 +65,7 @@ fn specs_from_params(
             let is_toggle = p.step_count == 1 && looks_like_on_off(&p.title, &p.enum_options);
             if is_toggle {
                 bool_parameter(&path, label, group, Some(p.default_normalized >= 0.5))
-            } else if p.step_count >= 1 {
+            } else if vst3_host::param_steps::is_selector(p.step_count) {
                 let options: Vec<(&str, &str)> = p
                     .enum_options
                     .iter()

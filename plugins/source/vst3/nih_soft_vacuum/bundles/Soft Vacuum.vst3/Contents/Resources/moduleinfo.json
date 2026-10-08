@@ -1,0 +1,17 @@
+{
+  "Name": "Soft Vacuum",
+  "Factory Info": {
+    "Vendor": "Robbert van der Helm"
+  },
+  "Classes": [
+    {
+      "CID": "536F667456616375756D2E527664482E",
+      "Category": "Audio Module Class",
+      "Name": "Soft Vacuum",
+      "Vendor": "Robbert van der Helm",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

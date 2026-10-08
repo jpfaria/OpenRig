@@ -158,3 +158,15 @@ fn manifest_group_prefix_is_dropped_from_the_label() {
     assert_eq!(specs[0].label, "Gain");
     assert_eq!(specs[0].group.as_deref(), Some("Node 2"));
 }
+
+#[test]
+fn stepped_parameter_with_too_many_steps_is_a_knob() {
+    // #1104: an integer parameter with a huge range is a knob, not a selector.
+    let mut wide = info(1, "Lookahead", CAN_AUTOMATE);
+    wide.step_count = 20_000;
+    let specs = specs_from_params(&[wide], &Default::default());
+    assert!(matches!(
+        specs[0].domain,
+        block_core::param::ParameterDomain::FloatRange { .. }
+    ));
+}

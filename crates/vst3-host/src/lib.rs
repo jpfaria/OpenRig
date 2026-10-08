@@ -35,6 +35,7 @@ mod param_changes;
 pub mod param_channel;
 pub mod param_flags;
 pub mod param_registry;
+pub mod param_steps;
 mod plugin_uid_cache;
 mod processor;
 mod stereo;

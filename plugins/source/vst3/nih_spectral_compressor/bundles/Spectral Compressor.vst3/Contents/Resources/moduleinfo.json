@@ -1,0 +1,17 @@
+{
+  "Name": "Spectral Compressor",
+  "Factory Info": {
+    "Vendor": "Robbert van der Helm"
+  },
+  "Classes": [
+    {
+      "CID": "5370656374726C436F6D707252766448",
+      "Category": "Audio Module Class",
+      "Name": "Spectral Compressor",
+      "Vendor": "Robbert van der Helm",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

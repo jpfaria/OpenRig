@@ -39,7 +39,10 @@ _juce_no_midi() {
 # so they are prefixed with "Socalabs" before configuring: the bundle folder and
 # the binary inside it keep the same stem (the Windows host requires that), and
 # the names cannot collide with another package's bundle in the merge job.
-SLPLUGINS_STUDIO=(Compressor Limiter Gate Expander GraphicEQ StereoProcessor)
+# Their channel configs are written `{2,2},{1,1}`: the Makefile build passes the
+# define through /bin/sh, which on macOS brace-expands it into `2,1` (a mono
+# output). The braces are dropped (`2,2,1,1` is the same C array initializer).
+SLPLUGINS_STUDIO=(Compressor Limiter Gate Expander GraphicEQ)
 
 build_slplugins() {
     _skip_windows && return 0
@@ -47,6 +50,7 @@ build_slplugins() {
     for p in "${SLPLUGINS_STUDIO[@]}"; do
         _juce_no_midi "$src/plugins/$p/CMakeLists.txt"
         sed -i.bak -E "s/PRODUCT_NAME \"$p\"/PRODUCT_NAME \"Socalabs$p\"/" "$src/plugins/$p/CMakeLists.txt"
+        sed -i.bak -E '/PreferredChannelConfigurations=/s/[{}]//g' "$src/plugins/$p/CMakeLists.txt"
     done
     CMAKE_EXTRA="${CMAKE_EXTRA:-} -DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
         do_cmake "$src" "${SLPLUGINS_STUDIO[0]}_VST3"
@@ -245,16 +249,17 @@ _xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), 
 
 build_nihplug() {
     # nih-plug example plugins (GPL-3 as VST3): Soft Vacuum, Spectral Compressor,
-    # Safety Limiter, Crossover. Crossover's default `simd` feature needs nightly,
-    # so the whole set is built with nightly. Spectral Compressor turns on
-    # nih_plug's `standalone` feature, which feature unification spreads to all
-    # four and which links Homebrew's libjack on macOS (the plugins then fail to
-    # load on a Mac without JACK): it is dropped, the VST3 never uses it.
+    # Safety Limiter, built with nightly. Crossover is left out: it renders its
+    # bands to auxiliary output buses, which the host does not feed. Spectral
+    # Compressor turns on nih_plug's `standalone` feature, which feature
+    # unification spreads to all three and which links Homebrew's libjack on
+    # macOS (the plugins then fail to load on a Mac without JACK): it is
+    # dropped, the VST3 never uses it.
     _skip_windows && return 0
     local n
     XTASK_PREP="perl -pi -e 's/, \"standalone\"\\]/]/' plugins/spectral_compressor/Cargo.toml" \
-    _xtask_bundle "$DEPS_DIR/nih-plug" nightly soft_vacuum spectral_compressor safety_limiter crossover
-    for n in "Soft Vacuum" "Spectral Compressor" "Safety Limiter" "Crossover"; do
+    _xtask_bundle "$DEPS_DIR/nih-plug" nightly soft_vacuum spectral_compressor safety_limiter
+    for n in "Soft Vacuum" "Spectral Compressor" "Safety Limiter"; do
         collect_bundle "$XTASK_BUNDLED" "$n.vst3"
     done
 }
