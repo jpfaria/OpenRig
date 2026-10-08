@@ -11,6 +11,7 @@ import { ChainRigNav } from "../models.slint";
 import { PresetSelect } from "preset_select.slint";
 import { HeaderIconStyle } from "header_icon_style.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 // Small square icon button (press to fire), drawn like every chain
 // header icon (HeaderIconStyle).
@@ -170,7 +171,7 @@ export component ChainTitlePreset inherits Rectangle {
             preferred-width: title-text.preferred-width + 8px;
             max-width: 320px;
             horizontal-stretch: 1;
-            title-text := Text {
+            title-text := ElidedText {
                 width: parent.width;
                 height: parent.height;
                 text: root.title;
@@ -181,7 +182,8 @@ export component ChainTitlePreset inherits Rectangle {
                 font-size: 28px;
                 letter-spacing: 1px;
                 vertical-alignment: center;
-                overflow: elide;
+                own-hover: false;
+                hovered: title-ta.has-hover;
             }
             title-ta := TouchArea {
                 mouse-cursor: root.fullscreen ? default : pointer;

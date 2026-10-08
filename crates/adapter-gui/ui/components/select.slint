@@ -18,6 +18,8 @@ import { Theme } from "../theme.slint";
 import { SelectOption } from "../models.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 import { WindowBounds } from "window_bounds.slint";
+import { ElidedText } from "elided_text.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
 
 export component Select inherits Rectangle {
     // ── data ──────────────────────────────────────────────────────────
@@ -67,7 +69,7 @@ export component Select inherits Rectangle {
         colorize: root.field-icon-active ? Theme.accent : Theme.ink-2;
     }
 
-    Text {
+    ElidedText {
         x: root.has-icon ? 32px : 10px;
         width: parent.width - (root.has-icon ? 32px : 10px) - 28px;
         height: parent.height;
@@ -76,7 +78,9 @@ export component Select inherits Rectangle {
         font-size: root.field-font-size;
         font-weight: root.field-font-weight;
         vertical-alignment: center;
-        overflow: elide;
+        // The field's TouchArea keeps the click.
+        own-hover: false;
+        hovered: ta.has-hover;
     }
     Image {
         x: parent.width - 21px;
@@ -219,7 +223,7 @@ export component Select inherits Rectangle {
                     background: opt.key == root.active-key
                         ? Theme.accent-soft
                         : (row-ta.has-hover ? Theme.hover : transparent);
-                    Text {
+                    ElidedText {
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
@@ -228,7 +232,9 @@ export component Select inherits Rectangle {
                         font-size: Theme.min-font;
                         font-weight: opt.key == root.active-key ? 600 : 500;
                         vertical-alignment: center;
-                        overflow: elide;
+                        own-hover: false;
+                        hovered: row-ta.has-hover;
+                        in-popup: true;
                     }
                     row-ta := TouchArea {
                         mouse-cursor: pointer;
@@ -244,6 +250,10 @@ export component Select inherits Rectangle {
                     accessible-label: opt.label;
                 }
             }
+        }
+
+        HoverTipLayer {
+            for-popup: true;
         }
     }
 }

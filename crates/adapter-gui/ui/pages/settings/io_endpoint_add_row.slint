@@ -10,6 +10,7 @@
 import { Theme } from "../../theme.slint";
 import { ChannelOptionItem } from "../../models.slint";
 import { ComboBox } from "std-widgets.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 // One channel checkbox (mirrors the chain insert editor's ChannelRow).
 component ChannelCheck inherits Rectangle {
@@ -41,7 +42,7 @@ component ChannelCheck inherits Rectangle {
         }
     }
 
-    channel-label := Text {
+    channel-label := ElidedText {
         x: 28px;
         y: 0px;
         width: parent.width - 28px;
@@ -51,10 +52,11 @@ component ChannelCheck inherits Rectangle {
         font-size: 18px;
         font-weight: root.channel.selected ? 600 : 400;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: channel-ta.has-hover;
     }
 
-    TouchArea {
+    channel-ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.toggled(!root.channel.selected); }
     }

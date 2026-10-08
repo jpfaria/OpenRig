@@ -11,7 +11,9 @@
 //
 // Input: the canvas's node TouchArea is declared UNDER this card and owns
 // click and drag. The card's only TouchAreas are the power button (bypass)
-// and the × (remove) of a block or a split, which win there.
+// and the × (remove) of a block or a split, which win there. A cut name shows
+// its whole text while the card is hovered (`hovered`), so no label takes a
+// TouchArea of its own.
 
 import { GraphNode } from "graph_view_types.slint";
 import { BlockTileStyle } from "block_tile_style.slint";
@@ -19,6 +21,7 @@ import { GearArt } from "gear_art.slint";
 import { GraphHub } from "graph_hub.slint";
 import { GraphPorts } from "graph_ports.slint";
 import { Theme, Gear } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component GraphNodeCard inherits Rectangle {
     in property <GraphNode> node;
@@ -88,6 +91,9 @@ export component GraphNodeCard inherits Rectangle {
             knob-count: Math.max(1, root.node.block.param-entries.length);
             bypassed: root.node.bypass;
             s: root.zoom;
+            // The name under the gear already shows the whole name when it
+            // is cut; the gear's own text only speaks when the name fits.
+            hovered: root.hovered && !name-text.elided;
         }
 
         // The caption below the gear: the power button and the category in
@@ -132,7 +138,7 @@ export component GraphNodeCard inherits Rectangle {
                         }
                     }
                 }
-                Text {
+                ElidedText {
                     text: root.node.block.type-label.to-uppercase();
                     color: root.node.block.accent-color;
                     opacity: root.node.bypass ? 0.5 : 1.0;
@@ -140,17 +146,19 @@ export component GraphNodeCard inherits Rectangle {
                     font-weight: 700;
                     letter-spacing: 1.5px;
                     vertical-alignment: center;
-                    overflow: elide;
+                    own-hover: false;
+                    hovered: root.hovered;
                 }
             }
-            Text {
+            name-text := ElidedText {
                 text: root.node.block.display-name != "" ? root.node.block.display-name : root.node.label;
                 color: Theme.ink;
                 opacity: root.node.bypass ? 0.5 : 1.0;
                 font-size: Theme.min-font;
                 font-weight: 600;
                 horizontal-alignment: center;
-                overflow: elide;
+                own-hover: false;
+                hovered: root.hovered;
             }
         }
     }
@@ -225,7 +233,7 @@ export component GraphNodeCard inherits Rectangle {
     }
 
     // The name under a jack (IN / OUT) or a hub (SPLIT / MIX).
-    if root.is-io || root.is-routing : Text {
+    if root.is-io || root.is-routing : ElidedText {
         x: 0px;
         y: (parent.height + (root.is-io ? root.jack : root.hub)) / 2 + 4px * root.zoom;
         width: parent.width;
@@ -235,7 +243,8 @@ export component GraphNodeCard inherits Rectangle {
         font-weight: 700;
         letter-spacing: 2px;
         horizontal-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: root.hovered;
     }
 
     accessible-role: button;

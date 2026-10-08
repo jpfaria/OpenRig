@@ -13,6 +13,7 @@ import { ListBox, ListRow } from "../components/list_box.slint";
 import { CheckMark } from "../components/check_mark.slint";
 import { TagPill } from "../components/tag_pill.slint";
 import { DialogFoot } from "../components/dialog_foot.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // One instrument tile: the icon over its name; the picked one has the accent
 // ring and an accent icon.
@@ -163,14 +164,15 @@ export component ChainEditorPage inherits Rectangle {
 
                                 VerticalLayout { alignment: center;
                                     CheckMark { checked: choice.selected; } }
-                                Text {
+                                ElidedText {
                                     horizontal-stretch: 1;
                                     text: choice.name;
                                     color: choice.selected ? Theme.ink : Theme.ink-2;
                                     font-size: Theme.min-font;
                                     font-weight: choice.selected ? 600 : 500;
                                     vertical-alignment: center;
-                                    overflow: elide;
+                                    own-hover: false;
+                                    hovered: cell-ta.has-hover;
                                 }
                                 if choice.inputs-label != "" : VerticalLayout { alignment: center;
                                     TagPill { text: @tr("label-pill-in {}", choice.inputs-label); tone: Theme.in; } }
@@ -197,13 +199,12 @@ export component ChainEditorPage inherits Rectangle {
             vertical-stretch: 0;
             alignment: stretch;
 
-            Text {
+            ElidedText {
                 horizontal-stretch: 1;
                 text: root.status-message;
                 color: Theme.accent;
                 font-size: Theme.min-font;
                 vertical-alignment: center;
-                overflow: elide;
             }
             cancel-btn := FormButton {
                 icon-only: true;

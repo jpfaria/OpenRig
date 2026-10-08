@@ -3,6 +3,7 @@
 // the current one its number on the accent with an accent edge, a step still
 // ahead its number on a quiet badge.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component WizardStepRow inherits Rectangle {
     in property <int> number;
@@ -47,7 +48,7 @@ export component WizardStepRow inherits Rectangle {
         }
     }
 
-    step-label := Text {
+    step-label := ElidedText {
         x: 56px; y: 0;
         width: parent.width - 64px; height: parent.height;
         text: root.label;
@@ -56,7 +57,6 @@ export component WizardStepRow inherits Rectangle {
         font-weight: root.current ? 600 : 400;
         letter-spacing: 0.04 * Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     accessible-role: list-item;

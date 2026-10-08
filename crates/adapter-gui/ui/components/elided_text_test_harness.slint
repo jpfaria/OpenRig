@@ -1,0 +1,42 @@
+// Responsibility: hosts the elided labels the hover-expansion tests point at.
+// TEST-ONLY harness: a select and a block parameter whose labels may not
+// fit, plus the window's hover label, so the headless test can hover each one
+// and read what the label says. Never shown in the app.
+
+import { Select } from "select.slint";
+import { BlockPanelParameterItem } from "block_panel_parameter_item.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
+import { HoverTip } from "hover_tip_globals.slint";
+import { BlockParameterItem, SelectOption } from "../models.slint";
+
+export component ElidedTextHarness inherits Window {
+    width: 400px;
+    height: 300px;
+    in property <string> field-label;
+    in property <[SelectOption]> options;
+    in property <BlockParameterItem> param;
+    out property <bool> tip-shown: HoverTip.show;
+    out property <string> tip-text: HoverTip.text;
+    out property <int> opened-count;
+
+    Select {
+        x: 10px;
+        y: 10px;
+        width: 120px;
+        field-label: root.field-label;
+        options: root.options;
+        popup-width: 120px;
+        opened => {
+            root.opened-count += 1;
+        }
+    }
+
+    BlockPanelParameterItem {
+        x: 260px;
+        y: 10px;
+        width: 60px;
+        param: root.param;
+    }
+
+    HoverTipLayer { }
+}

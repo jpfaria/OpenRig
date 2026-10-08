@@ -5,6 +5,8 @@ import { TextField } from "text_field.slint";
 import { ModelPickRow } from "model_pick_row.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 import { WindowBounds } from "window_bounds.slint";
+import { ElidedText } from "elided_text.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
 
 // Reusable model picker with embedded search field.
 //
@@ -68,7 +70,7 @@ export component ModelSelectWithSearch inherits Rectangle {
     private property <length> badge-reserve:
         root.selected-model.type_label == "" || !root.show-badge ? 0px : badge.width + 14px;
 
-    Text {
+    ElidedText {
         x: 10px;
         y: 0;
         width: parent.width - 30px - root.badge-reserve;
@@ -79,7 +81,8 @@ export component ModelSelectWithSearch inherits Rectangle {
         font-weight: 600;
         letter-spacing: root.on-chrome ? 0.06 * Theme.min-font : 0px;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: main-ta.has-hover;
     }
 
     // Always present (hidden when empty) so the label can reserve its width;
@@ -209,6 +212,8 @@ export component ModelSelectWithSearch inherits Rectangle {
                                     divided: i > 0;
                                     header: i == 0 || model.effect_type != root.filtered-models[i - 1].effect_type
                                         ? model.effect_type.to-uppercase() : "";
+                                    hovered: row-ta.has-hover;
+                                    in-popup: true;
                                 }
 
                                 row-ta := TouchArea {
@@ -232,6 +237,10 @@ export component ModelSelectWithSearch inherits Rectangle {
                     }
                 }
             }
+        }
+
+        HoverTipLayer {
+            for-popup: true;
         }
     }
 }

@@ -16,6 +16,7 @@ import { PillSwitch } from "../components/pill_switch.slint";
 import { Locale } from "../locale_globals.slint";
 import { WindowBoundsProbe } from "../components/window_bounds.slint";
 import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { ElidedText } from "../components/elided_text.slint";
 export { SpectrumRow }
 
 // One decade label under the bars, centred on its band and kept inside.
@@ -56,7 +57,7 @@ component SpectrumCard inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Text {
+        ElidedText {
             x: 14px; y: 10px;
             width: parent.width - 38px - bands.width; height: 22px;
             text: root.data.label;
@@ -65,7 +66,6 @@ component SpectrumCard inherits Rectangle {
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
             vertical-alignment: center;
-            overflow: elide;
         }
 
         if !root.data.active : Text {

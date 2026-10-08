@@ -7,6 +7,7 @@ import { Theme } from "../theme.slint";
 import { ComboBox } from "std-widgets.slint";
 import { BlockParameterItem } from "../models.slint";
 import { ToolbarButton, ParamFieldBox, BlockValueStepper, BlockValueSlider, BlockFootswitch } from "./block_value_widgets.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component BlockParameterRow inherits Rectangle {
     in property <BlockParameterItem> item;
@@ -27,13 +28,12 @@ export component BlockParameterRow inherits Rectangle {
 
     if root.item.widget_kind != "bool"
         && root.item.widget_kind != "stepper"
-        && root.item.widget_kind != "slider" : Text {
+        && root.item.widget_kind != "slider" : ElidedText {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: 22px;
         text: root.item.label;
-        overflow: elide;
         color: Theme.ink;
         font-size: 18px;
         font-weight: 650;

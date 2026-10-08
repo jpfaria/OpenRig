@@ -4,6 +4,7 @@ import { Locale } from "../locale_globals.slint";
 import { IconTooltip } from "icon_tooltip.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 import { WindowBounds } from "window_bounds.slint";
+import { ElidedText } from "elided_text.slint";
 // Language selector with two visual modes:
 //  - compact (24x24, flat) — matches HeaderIconAction (chain editor headers).
 //  - default (40x40, bordered) — matches IconLauncherButton (project launcher).
@@ -132,14 +133,15 @@ export component LanguageSelector inherits Rectangle {
                         }
                     }
 
-                    Text {
+                    ElidedText {
                         text: option;
                         color: Theme.ink;
                         font-size: 18px;
                         font-weight: 600;
                         vertical-alignment: center;
                         horizontal-alignment: left;
-                        overflow: elide;
+                        own-hover: false;
+                        hovered: option-touch.has-hover;
                         // Same reason as the tick above — Bebas Neue lacks
                         // CJK and Devanagari glyphs.
                         font-family: Locale.font-family;

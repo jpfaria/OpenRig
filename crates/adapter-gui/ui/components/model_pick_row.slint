@@ -4,6 +4,7 @@
 // tinted with an accent edge, an unavailable one is dimmed.
 import { Theme, Gear } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component ModelPickRow inherits Rectangle {
     in property <BlockModelPickerItem> model;
@@ -13,6 +14,10 @@ export component ModelPickRow inherits Rectangle {
     // False on the first row: it has no divider above it.
     in property <bool> divided: true;
     out property <length> header-height: root.header != "" ? 26px : 0px;
+    // The host's TouchArea over the model line is hovered (it keeps the click).
+    in property <bool> hovered;
+    // The row is drawn inside a PopupWindow.
+    in property <bool> in-popup;
 
     private property <bool> has-brand: root.model.brand != ""
         && root.model.brand != "native"
@@ -30,7 +35,7 @@ export component ModelPickRow inherits Rectangle {
         x: 0; y: 0;
         width: parent.width; height: root.header-height;
         background: Theme.panel-lo;
-        Text {
+        ElidedText {
             x: 12px;
             width: parent.width - 24px;
             height: parent.height;
@@ -40,7 +45,7 @@ export component ModelPickRow inherits Rectangle {
             font-weight: 700;
             letter-spacing: 0.16 * Theme.min-font;
             vertical-alignment: center;
-            overflow: elide;
+            in-popup: root.in-popup;
         }
     }
 
@@ -62,7 +67,7 @@ export component ModelPickRow inherits Rectangle {
             background: Theme.accent;
         }
 
-        Text {
+        ElidedText {
             x: 12px;
             width: badge.x - 20px;
             height: parent.height;
@@ -71,7 +76,9 @@ export component ModelPickRow inherits Rectangle {
             font-size: Theme.min-font;
             font-weight: 600;
             vertical-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: root.hovered;
+            in-popup: root.in-popup;
         }
 
         // Always present so the name can stop short of it.

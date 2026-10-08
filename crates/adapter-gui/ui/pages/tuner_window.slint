@@ -17,6 +17,7 @@ import { PillSwitch } from "../components/pill_switch.slint";
 import { Locale } from "../locale_globals.slint";
 import { WindowBoundsProbe } from "../components/window_bounds.slint";
 import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { ElidedText } from "../components/elided_text.slint";
 export { TunerRow }
 
 // ── One input's LCD ──────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ component TunerCard inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Text {
+        ElidedText {
             x: 16px; y: 10px;
             width: parent.width - 42px - hz.width; height: 22px;
             text: root.data.label;
@@ -67,7 +68,6 @@ component TunerCard inherits Rectangle {
             font-size: Theme.min-font;
             letter-spacing: 0.08 * Theme.min-font;
             vertical-alignment: center;
-            overflow: elide;
         }
 
         // The cents scale: 21 ticks from -50 to +50, every fifth one taller,

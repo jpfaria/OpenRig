@@ -4,6 +4,7 @@ import { PanelKnob } from "panel_knob.slint";
 import { BlockPanelParameterItem } from "block_panel_parameter_item.slint";
 import { BlockKnobOverlay, BlockParameterItem } from "../models.slint";
 import { ScrollView } from "std-widgets.slint";
+import { ElidedText } from "elided_text.slint";
 
 // Scrollable wrapped knob/param grid for the block panel editor.
 //
@@ -64,7 +65,7 @@ export component BlockParamGrid inherits ScrollView {
         width: root.grid-cell-w;
         height: 90px;
 
-        Text {
+        ElidedText {
             x: 0; y: 0; width: parent.width; height: 18px;
             text: knob.label;
             color: root.panel-text;
@@ -72,7 +73,6 @@ export component BlockParamGrid inherits ScrollView {
             font-weight: 600;
             horizontal-alignment: center;
             vertical-alignment: center;
-            overflow: elide;
         }
         PanelKnob {
             x: (parent.width - 48px) / 2; y: 20px;

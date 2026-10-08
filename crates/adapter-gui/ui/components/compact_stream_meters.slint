@@ -1,6 +1,7 @@
 // Responsibility: renders the stream meters of the compact view.
 import { Theme } from "../theme.slint";
 import { StreamMeter } from "../models.slint";
+import { ElidedText } from "elided_text.slint";
 
 // Compact chain view footer — per-stream IN / OUT peak meter rows
 // (#496 / #559). Extracted out of `compact_chain_view.slint` to keep that
@@ -122,12 +123,11 @@ export component CompactStreamMeters inherits Rectangle {
                 width: 280px; height: parent.height;
                 spacing: 6px;
                 alignment: end;
-                in-name := Text {
+                in-name := ElidedText {
                     text: stream.in_label;
                     font-size: 18px;
                     font-weight: 700;
                     color: Theme.ink-3;
-                    overflow: elide;
                     horizontal-stretch: 1;
                     horizontal-alignment: right;
                     vertical-alignment: center;
@@ -191,12 +191,11 @@ export component CompactStreamMeters inherits Rectangle {
                 width: 310px; height: parent.height;
                 spacing: 6px;
                 alignment: end;
-                out-name := Text {
+                out-name := ElidedText {
                     text: stream.out_label;
                     font-size: 18px;
                     font-weight: 700;
                     color: Theme.ink-3;
-                    overflow: elide;
                     horizontal-stretch: 1;
                     horizontal-alignment: right;
                     vertical-alignment: center;

@@ -9,6 +9,7 @@
 
 import { Theme } from "../theme.slint";
 import { IconTooltip } from "icon_tooltip.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component EditorButton inherits Rectangle {
     in property <string> label;
@@ -61,14 +62,15 @@ export component EditorButton inherits Rectangle {
             }
         }
 
-        if !root.icon-only : Text {
+        if !root.icon-only : ElidedText {
             text: root.label;
             color: root.ink;
             font-size: Theme.min-font;
             font-weight: 600;
             letter-spacing: 0.04 * Theme.min-font;
             vertical-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: area.has-hover;
         }
     }
 
