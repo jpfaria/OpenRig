@@ -1,0 +1,58 @@
+{
+  "Name": "Airwindows Consolidated",
+  "Version": "1.2026.282",
+  "Factory Info": {
+    "Vendor": "Airwindows",
+    "URL": "https://airwindows.com/",
+    "E-Mail": "",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB44746872616C4658",
+      "Category": "Audio Module Class",
+      "Name": "Airwindows Consolidated",
+      "Vendor": "Airwindows",
+      "Version": "1.2026.282",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD44746872616C4658",
+      "Category": "Component Controller Class",
+      "Name": "Airwindows Consolidated",
+      "Vendor": "Airwindows",
+      "Version": "1.2026.282",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF01C0DEF00D44746872616C4658",
+      "Category": "Plugin Compatibility Class",
+      "Name": "Airwindows Consolidated",
+      "Vendor": "Airwindows",
+      "Version": "1.2026.282",
+      "SDKVersion": "VST 3.7.12",
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

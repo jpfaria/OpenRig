@@ -1,0 +1,46 @@
+{
+  "Name": "SocalabsLimiter",
+  "Version": "1.1.10",
+  "Factory Info": {
+    "Vendor": "SocaLabs",
+    "URL": "https://socalabs.com/",
+    "E-Mail": "info@socalabs.com",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB536F6361534C6C6D",
+      "Category": "Audio Module Class",
+      "Name": "SocalabsLimiter",
+      "Vendor": "SocaLabs",
+      "Version": "1.1.10",
+      "SDKVersion": "VST 3.8.0",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD536F6361534C6C6D",
+      "Category": "Component Controller Class",
+      "Name": "SocalabsLimiter",
+      "Vendor": "SocaLabs",
+      "Version": "1.1.10",
+      "SDKVersion": "VST 3.8.0",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 0,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

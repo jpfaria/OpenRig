@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist>
+  <dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>AirwindowsEffects would like to use your microphone for Audio Input</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Airwindows Effects would like to use BlueTooth</string>
+    <key>CFBundleExecutable</key>
+    <string>Airwindows Consolidated</string>
+    <key>CFBundleIconFile</key>
+    <string></string>
+    <key>CFBundleIdentifier</key>
+    <string>com.airwindows.all-windows</string>
+    <key>CFBundleName</key>
+    <string>Airwindows Consolidated</string>
+    <key>CFBundleDisplayName</key>
+    <string>Airwindows Consolidated</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.2026.282</string>
+    <key>CFBundleVersion</key>
+    <string>1.2026.282</string>
+    <key>NSHumanReadableCopyright</key>
+    <string></string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+  </dict>
+</plist>
