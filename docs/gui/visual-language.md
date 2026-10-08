@@ -202,6 +202,25 @@ and `BlockHoverLayer`, declared last in the window, draws the card clamped
 inside the window. Drawn inside the canvas, the chain header above it
 painted over the card.
 
+## App icon
+
+The app icon (#1098) is a dark squircle tile with a silver knob and a
+glowing blue value arc. `crates/adapter-gui/ui/assets/openrig-logomark.svg`
+is the single source: the window icon, the launcher, the READMEs, the
+Linux `.deb`/AppImage icon, the Orange Pi boot logo and the site favicon all
+use it (`site/assets/openrig-logomark.svg` is a copy, and
+`site/assets/openrig-logo.svg` embeds the same mark next to the wordmark).
+The SVG is drawn on Apple's icon grid: a 1024px canvas with an 824px tile, so
+it keeps its margin and shadow at every size.
+
+`sips` (macOS packaging) and ImageMagick's built-in SVG renderer (Windows
+packaging) cannot rasterize its gradients and filters, so both scripts start
+from `assets/brands/openrig/icon.png`, a 1024px render of the SVG.
+`assets/brands/openrig/icon.icns` and `crates/adapter-gui/ui/assets/OpenRig.icns`
+are built from that PNG. When the SVG changes, render it again with a real
+browser engine (headless Chrome with a transparent background) and rebuild
+both `.icns` files with `iconutil`.
+
 ## Checking a screen
 
 1. Render the component with `tools/slint-render` (standalone mock, both
