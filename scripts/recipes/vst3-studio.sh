@@ -108,6 +108,8 @@ build_airwindows() {
 # Five sibling CMake projects, each vendoring DPF as a submodule. Only the
 # stereo studio plugins are built (mono twins, scopes and meters skipped); DPF
 # emits <target>.vst3 under each project's bin/ with a matching binary stem.
+# Only the <name>-vst3 targets are built: the projects' test executables pin
+# their own (older) macOS deployment target.
 # The compressor's curve (de)serialiser uses floating-point std::to_chars,
 # which libc++ ships from macOS 13.3 (so these bundles target 13.3 there), and
 # floating-point std::from_chars, which Apple's libc++ does not ship at all: on
@@ -162,7 +164,11 @@ build_mimomusic() {
     for entry in "${MIMO_STUDIO[@]}"; do
         proj="${entry%%:*}"
         plugins="${entry#*:}"
-        CMAKE_EXTRA="${CMAKE_EXTRA:-}$extra" do_cmake "$DEPS_DIR/mimomusic-plugins/$proj"
+        set -- $plugins
+        CMAKE_EXTRA="${CMAKE_EXTRA:-}$extra" do_cmake "$DEPS_DIR/mimomusic-plugins/$proj" "$1-vst3"
+        for p in "${@:2}"; do
+            cmake --build "$LAST_BUILD_DIR" --config Release --target "$p-vst3" -j "$JOBS"
+        done
         for p in $plugins; do
             collect_bundle "$LAST_BUILD_DIR" "$p.vst3"
         done
