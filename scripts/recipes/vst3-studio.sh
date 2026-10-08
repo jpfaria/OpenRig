@@ -112,10 +112,37 @@ build_airwindows() {
 # which libc++ ships from macOS 13.3 (so these bundles target 13.3 there), and
 # floating-point std::from_chars, which Apple's libc++ does not ship at all: on
 # macOS it is swapped for a locale-independent strtod_l shim.
-_mimo_from_chars_shim() {
-    local f="$1"
-    grep -q mimo_from_chars "$f" && return 0
-    perl -0777 -i -pe 's/std::from_chars\(/mimo_from_chars(/g; s/(#include <string>\n)/$1#include <xlocale.h>\nstatic inline std::from_chars_result mimo_from_chars(const char* first, const char* last, double\& value)\n{\n    static const locale_t cLocale = newlocale(LC_ALL_MASK, "C", nullptr);\n    const std::string text(first, last);\n    char* end = nullptr;\n    const double parsed = strtod_l(text.c_str(), \&end, cLocale);\n    if (end == text.c_str()) return {first, std::errc::invalid_argument};\n    value = parsed;\n    return {first + (end - text.c_str()), std::errc()};\n}\n/' "$f"
+_mimo_from_chars_shim() { # rewrites every std::from_chars call; prints the -include flag
+    local hdr="$BUILD_WORK_DIR/mimo_from_chars.hpp" f
+    mkdir -p "$BUILD_WORK_DIR"
+    cat > "$hdr" <<'HDR'
+#pragma once
+#include <charconv>
+#include <string>
+#include <type_traits>
+#include <xlocale.h>
+template <typename T, typename... Rest>
+static inline std::from_chars_result mimo_from_chars(const char* first, const char* last, T& value, Rest... rest)
+{
+    if constexpr (std::is_floating_point_v<T>)
+    {
+        static const locale_t cLocale = newlocale(LC_ALL_MASK, "C", nullptr);
+        const std::string text(first, last);
+        char* end = nullptr;
+        const double parsed = strtod_l(text.c_str(), &end, cLocale);
+        if (end == text.c_str()) return {first, std::errc::invalid_argument};
+        value = static_cast<T>(parsed);
+        return {first + (end - text.c_str()), std::errc()};
+    }
+    else
+    {
+        return std::from_chars(first, last, value, rest...);
+    }
+}
+HDR
+    grep -rl --include='*.hpp' --include='*.cpp' --include='*.h' 'std::from_chars(' "$1" | grep -v '/dpf/' |
+        while read -r f; do sed -i.bak 's/std::from_chars(/mimo_from_chars(/g' "$f"; done
+    echo "-include $hdr"
 }
 MIMO_STUDIO=(
     "compressor:compressor_stereo limiter contour"
@@ -128,7 +155,7 @@ build_mimomusic() {
     local entry proj plugins p extra=" -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
     if [ "$(uname -s)" = "Darwin" ]; then
         extra="$extra -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3"
-        _mimo_from_chars_shim "$DEPS_DIR/mimomusic-plugins/compressor/plugin/dsp/CurveDsp.hpp"
+        export CXXFLAGS="${CXXFLAGS:-} $(_mimo_from_chars_shim "$DEPS_DIR/mimomusic-plugins")"
     fi
     for entry in "${MIMO_STUDIO[@]}"; do
         proj="${entry%%:*}"
@@ -194,9 +221,9 @@ build_lsp() {
 # to the bundle name; on macOS `bundle-universal` lipo-merges both arches.
 
 _xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), rest=packages; sets XTASK_BUNDLED
-    local dir="$BUILD_WORK_DIR/rust-$(basename "$1")" tc="$2"
+    local src="$1" dir="$BUILD_WORK_DIR/rust-$(basename "$1")" tc="$2"
     shift 2
-    rm -rf "$dir" && mkdir -p "$BUILD_WORK_DIR" && cp -R "$1" "$dir"
+    rm -rf "$dir" && mkdir -p "$BUILD_WORK_DIR" && cp -R "$src" "$dir"
     XTASK_BUNDLED="$dir/target/bundled"
     local cargo=(cargo) pkgs=() p
     [ -n "$tc" ] && { rustup toolchain install "$tc" --profile minimal; cargo=(cargo "+$tc"); }
