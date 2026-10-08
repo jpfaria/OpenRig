@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_limiter
+display_name: Limiter Mimo Limiter
+description: MimoMusic Limiter — lookahead brickwall limiter.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/limiter.vst3
+parameters: []

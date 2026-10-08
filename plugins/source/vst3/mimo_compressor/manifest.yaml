@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_compressor
+display_name: Compressor Mimo Compressor
+description: MimoMusic Compressor Stereo — feed-forward compressor with sidechain filter and lookahead.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/compressor_stereo.vst3
+parameters: []

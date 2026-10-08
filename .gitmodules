@@ -191,3 +191,15 @@
 [submodule "deps/airwin2rack"]
 	path = deps/airwin2rack
 	url = https://github.com/baconpaul/airwin2rack.git
+[submodule "deps/lsp-plugins"]
+	path = deps/lsp-plugins
+	url = https://github.com/lsp-plugins/lsp-plugins.git
+[submodule "deps/mimomusic-plugins"]
+	path = deps/mimomusic-plugins
+	url = https://github.com/mimo-music/mimomusic-plugins.git
+[submodule "deps/nih-plug"]
+	path = deps/nih-plug
+	url = https://github.com/robbert-vdh/nih-plug.git
+[submodule "deps/bus_channel_strip"]
+	path = deps/bus_channel_strip
+	url = https://github.com/fsecada01/bus_channel_strip.git

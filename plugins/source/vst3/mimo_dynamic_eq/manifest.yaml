@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_dynamic_eq
+display_name: EQ Mimo Dynamic EQ
+description: MimoMusic Dynamic EQ — equalizer bands driven by signal level.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/dynamic_eq.vst3
+parameters: []

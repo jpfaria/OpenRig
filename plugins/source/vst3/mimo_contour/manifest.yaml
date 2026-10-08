@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_contour
+display_name: Dynamics Mimo Contour
+description: MimoMusic Contour — transient and envelope shaper.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/contour.vst3
+parameters: []

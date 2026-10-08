@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_reverb_dense
+display_name: Reverb Mimo Reverb Dense
+description: MimoMusic Reverb Dense — dense algorithmic reverb.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/reverb_dense.vst3
+parameters: []

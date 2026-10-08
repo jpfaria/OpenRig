@@ -262,6 +262,10 @@ PLUGINS=(
     ninestrip
     kissofshame
     airwindows
+    mimomusic
+    lsp
+    nihplug
+    buschannelstrip
 )
 
 # Map plugin name to build function
@@ -327,6 +331,10 @@ dispatch() {
         ninestrip)        build_ninestrip ;;
         kissofshame)      build_kissofshame ;;
         airwindows)       build_airwindows ;;
+        mimomusic)        build_mimomusic ;;
+        lsp)              build_lsp ;;
+        nihplug)          build_nihplug ;;
+        buschannelstrip)  build_buschannelstrip ;;
         *) echo "Unknown plugin: $1"; exit 1 ;;
     esac
 }

@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_parametric_eq
+display_name: EQ Mimo Parametric EQ
+description: MimoMusic Parametric EQ — state-space parametric equalizer.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/parametric_eq.vst3
+parameters: []

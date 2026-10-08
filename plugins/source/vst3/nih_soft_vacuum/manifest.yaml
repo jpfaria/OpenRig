@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_nih_soft_vacuum
+display_name: Saturation Soft Vacuum
+description: Soft Vacuum (nih-plug) — oversampled tube-style soft saturation.
+brand: robbert-vdh
+license: GPL-3.0-or-later
+homepage: https://github.com/robbert-vdh/nih-plug
+type: vst3
+backend: vst3
+bundle: bundles/Soft Vacuum.vst3
+parameters: []

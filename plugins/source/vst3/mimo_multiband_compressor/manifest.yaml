@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_mimo_multiband_compressor
+display_name: Multiband Mimo Multiband Compressor
+description: MimoMusic Multiband Compressor — state-space crossover with per-band compression.
+brand: mimomusic
+license: GPL-3.0-or-later
+homepage: https://github.com/mimo-music/mimomusic-plugins
+type: vst3
+backend: vst3
+bundle: bundles/multiband_compressor.vst3
+parameters: []

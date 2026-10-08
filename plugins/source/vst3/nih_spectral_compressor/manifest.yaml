@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_nih_spectral_compressor
+display_name: Compressor Spectral Compressor
+description: Spectral Compressor (nih-plug) — per-FFT-bin upward/downward compression.
+brand: robbert-vdh
+license: GPL-3.0-or-later
+homepage: https://github.com/robbert-vdh/nih-plug
+type: vst3
+backend: vst3
+bundle: bundles/Spectral Compressor.vst3
+parameters: []

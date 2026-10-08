@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_bus_channel_strip
+display_name: Channel Strip Bus Channel Strip
+description: Bus Channel Strip — API5500 EQ, ButterComp2, Pultec EQ, dynamic EQ, transformer and punch modules.
+brand: fsecada01
+license: GPL-3.0-or-later
+homepage: https://github.com/fsecada01/bus_channel_strip
+type: vst3
+backend: vst3
+bundle: bundles/Bus-Channel-Strip.vst3
+parameters: []

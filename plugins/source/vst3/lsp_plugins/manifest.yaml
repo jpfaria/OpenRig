@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_lsp_plugins
+display_name: Studio LSP Plugins
+description: Linux Studio Plugins (studio subset) — parametric and graphic EQ, compressor, multiband compressor, limiter, gate, expander, clipper, crossover, impulse reverb; each plugin and channel variant is its own entry.
+brand: lsp-plugins
+license: LGPL-3.0-or-later
+homepage: https://lsp-plug.in
+type: vst3
+backend: vst3
+bundle: bundles/lsp-plugins.vst3
+parameters: []
