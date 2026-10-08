@@ -176,3 +176,32 @@ fn toggling_republishes_the_chain_rows() {
     use slint::Model;
     assert_eq!(rows.row_count(), 1);
 }
+
+#[test]
+fn the_republished_rows_name_a_mid_port_after_its_device() {
+    // #1103: the rows rebuilt after a toggle must resolve a mid port against
+    // the session's binding registry — an empty registry left the card
+    // showing the raw io id instead of "device · In n/m".
+    let mut port = input();
+    if let AudioBlockKind::Input(block) = &mut port.kind {
+        block.io = "main".into();
+    }
+    let session = session(vec![chain("chain:0", vec![effect("gain"), port])]);
+    *session.borrow().as_ref().unwrap().io_bindings.borrow_mut() =
+        crate::chain_graph_fixtures_tests::registry();
+    let rows = rows();
+    let devices = crate::chain_graph_fixtures_tests::devices();
+    toggle_block_at_row(&session, 0, 0, &rows, &devices, &devices).expect("toggle");
+    use slint::Model;
+    let labels: Vec<String> = rows
+        .row_data(0)
+        .expect("row")
+        .graph_nodes
+        .iter()
+        .map(|node| node.label.to_string())
+        .collect();
+    assert!(
+        labels.iter().any(|l| l == "Quantum HD 8 · In 1/2"),
+        "{labels:?}"
+    );
+}

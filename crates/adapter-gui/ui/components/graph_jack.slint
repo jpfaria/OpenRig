@@ -1,0 +1,24 @@
+// Responsibility: draws the jack an input or output node of the graph shows.
+// The chain's own IN / OUT nodes and a mid-chain input/output block (#1103)
+// draw the same jack, so they never disagree.
+
+import { Gear } from "../theme.slint";
+
+export component GraphJack inherits Rectangle {
+    in property <float> zoom: 1.0;
+
+    border-radius: self.width / 2;
+    background: @radial-gradient(circle, Gear.jack-hi 0%, Gear.jack-mid 60%, Gear.jack-rim 100%);
+    drop-shadow-offset-y: 2px * root.zoom;
+    drop-shadow-blur: 3px * root.zoom;
+    drop-shadow-color: Gear.jack-shadow;
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: parent.width * 0.36;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Gear.jack-hole;
+    }
+}

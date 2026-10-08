@@ -132,7 +132,7 @@ fn wire_block_toggle_and_model(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             // Refresh compact blocks
             let blocks = build_compact_blocks(
@@ -248,7 +248,7 @@ fn wire_block_toggle_and_model(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             let blocks = build_compact_blocks(
                 &session.project.borrow(),
@@ -428,7 +428,7 @@ fn wire_chain_toggle(
                                         &*session.project.borrow(),
                                         &*input_chain_devices_t.borrow(),
                                         &*output_chain_devices_t.borrow(),
-                                        &[],
+                                        &session.io_bindings.borrow(),
                                     );
                                     cw.set_chain_enabled(true);
                                     set_status_info(&win, &toast_timer_t, "");
@@ -458,7 +458,7 @@ fn wire_chain_toggle(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             cw.set_chain_enabled(will_enable);
         });

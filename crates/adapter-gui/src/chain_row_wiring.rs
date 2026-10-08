@@ -281,7 +281,7 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
@@ -372,7 +372,7 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
@@ -432,7 +432,7 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });

@@ -115,7 +115,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &ctx.input_chain_devices.borrow(),
                 &ctx.output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             crate::project_ops::sync_project_dirty(
                 &main_win,

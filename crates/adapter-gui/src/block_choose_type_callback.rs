@@ -239,7 +239,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
@@ -305,7 +305,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);

@@ -65,7 +65,7 @@ pub(crate) fn load_cli_project(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     // #808: populate the DI output select from the real bindings now, or it
     // stays empty until the chain is first enabled.
