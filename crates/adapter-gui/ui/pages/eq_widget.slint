@@ -1,14 +1,16 @@
 // Responsibility: renders the graphic EQ.
+import { Theme, Gear } from "../theme.slint";
 import { MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 
 import "../fonts/BebasNeue.ttf";
+import { Locale } from "../locale_globals.slint";
 
 // Vertical band slider built from primitives — track + fader cap + value
 // readout. No sprite, so it scales to any height the parent gives it.
 //
-// Cap is drawn as a gray plastic-style pill with a centre slot mark; the
-// track passes behind the cap (recessed track look). Range below the
-// 0 dB centerline is filled in cyan to indicate a boost or cut.
+// #398: a thin groove, a short zero tick, the boost or cut drawn in the
+// filter colour from zero to the cap, and a white fader cap with a dark
+// centre line. The readout sits above in dB, the frequency below.
 component EqBandSlider inherits Rectangle {
     in property <string> path;
     in property <string> freq-label;
@@ -30,17 +32,22 @@ component EqBandSlider inherits Rectangle {
         ? Math.max(0.0, Math.min(1.0,
             (root.shown-val - root.min-val) / (root.max-val - root.min-val)))
         : 0.5;
+    private property <bool> crosses-zero: root.min-val < 0 && root.max-val > 0;
 
     // Layout slots
     // #954: 22px slots — the 18px readout / frequency label need them.
     private property <length> top-h: root.tight ? 0px : 22px;
     private property <length> bottom-h: root.tight ? 0px : 22px;
-    private property <length> track-pad: 6px;
-    private property <length> track-y: root.top-h + root.track-pad;
-    private property <length> track-h: root.height - root.top-h - root.bottom-h - 2 * root.track-pad;
-    private property <length> handle-y: root.track-y + (1.0 - root.norm) * root.track-h;
+    private property <length> gap: root.tight ? 0px : 8px;
     private property <length> cap-w: Math.min(Math.max(root.width - 4px, 14px), 26px);
-    private property <length> cap-h: 10px;
+    private property <length> cap-h: 14px;
+    // The cap's centre travels the whole track; half a cap of room at each end.
+    private property <length> track-y: root.top-h + root.gap;
+    private property <length> track-h: root.height - root.top-h - root.bottom-h - 2 * root.gap;
+    private property <length> travel-y: root.track-y + root.cap-h / 2;
+    private property <length> travel-h: root.track-h - root.cap-h;
+    private property <length> handle-y: root.travel-y + (1.0 - root.norm) * root.travel-h;
+    private property <length> zero-y: root.travel-y + root.travel-h / 2;
 
     background: transparent;
 
@@ -49,73 +56,69 @@ component EqBandSlider inherits Rectangle {
         x: 0; y: 0;
         width: parent.width;
         height: root.top-h;
-        text: Math.abs(root.shown-val) < 0.05
-            ? "0.0"
-            : root.shown-val >= 0
-                ? "+" + Math.round(root.shown-val * 10) / 10
-                : Math.round(root.shown-val * 10) / 10;
-        color: Math.abs(root.shown-val) < 0.05 ? #6a7185 : #e8edf5;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        font-weight: 700;
+        text: (root.shown-val > 0.05 ? "+" : "")
+            + (Math.abs(root.shown-val) < 0.05 ? "0.0" : root.shown-val.to-fixed(1))
+            + (root.width >= 64px ? " dB" : "");
+        color: Theme.ink-2;
+        font-family: Locale.mono-font-family;
+        font-size: Theme.min-font;
+        font-weight: 500;
         horizontal-alignment: center;
         vertical-alignment: center;
         overflow: elide;
     }
 
-    // ── Track (recessed look: dark base + 1px highlight at top) ──
+    // ── Track: a thin groove ──
     Rectangle {
-        x: (parent.width - 4px) / 2;
+        x: (parent.width - 3px) / 2;
         y: root.track-y;
-        width: 4px;
+        width: 3px;
         height: root.track-h;
-        background: #07090e;
-        border-width: 1px;
-        border-color: #1a1d27;
         border-radius: 2px;
+        background: Theme.groove;
     }
 
     // ── 0 dB tick (only when range crosses zero) ──
-    if root.min-val < 0 && root.max-val > 0 : Rectangle {
+    if root.crosses-zero : Rectangle {
         x: (parent.width - 14px) / 2;
-        y: root.track-y + root.track-h / 2 - 0.5px;
+        y: root.zero-y - 0.5px;
         width: 14px;
         height: 1px;
-        background: #5a6175;
+        background: Theme.ink-3;
     }
 
-    // ── Filled segment (centerline → cap) ──
+    // ── Boost or cut: zero to the cap ──
     Rectangle {
-        property <length> center-y: root.track-y + root.track-h / 2;
+        property <length> from-y: root.crosses-zero ? root.zero-y : root.travel-y + root.travel-h;
         x: (parent.width - 2px) / 2;
-        y: Math.min(root.handle-y, self.center-y);
+        y: Math.min(root.handle-y, self.from-y);
         width: 2px;
-        height: Math.max(1px, Math.abs(root.handle-y - self.center-y));
-        background: #5cb8ff;
-        opacity: 0.8;
+        height: Math.max(1px, Math.abs(root.handle-y - self.from-y));
+        background: Theme.c-filter;
     }
 
-    // ── Cap (plastic gradient, centre slot mark) ──
+    // ── Cap: white key plastic with a dark centre line ──
     Rectangle {
         x: (parent.width - root.cap-w) / 2;
         y: root.handle-y - root.cap-h / 2;
         width: root.cap-w;
         height: root.cap-h;
-        border-radius: 2px;
+        border-radius: 3px;
         background: ta.pressed
-            ? @linear-gradient(180deg, #f4f5f8 0%, #c0c2c8 50%, #898b92 100%)
-            : ta.has-hover
-                ? @linear-gradient(180deg, #ebedf2 0%, #b6b8be 50%, #7e8087 100%)
-                : @linear-gradient(180deg, #d8dae0 0%, #a4a6ac 50%, #6f7178 100%);
+            ? @linear-gradient(180deg, Gear.key-mid 0%, Gear.key-lo 100%)
+            : @linear-gradient(180deg, Gear.white 0%, Gear.key-lo 100%);
         border-width: 1px;
-        border-color: #1c1e24;
-        // Centre slot
+        border-color: Gear.edge-soft;
+        drop-shadow-blur: ta.pressed ? 1px : 3px;
+        drop-shadow-offset-y: ta.pressed ? 1px : 2px;
+        drop-shadow-color: Gear.shadow;
+
         Rectangle {
-            x: 3px;
-            y: parent.height / 2 - 0.5px;
-            width: parent.width - 6px;
-            height: 1px;
-            background: #00000060;
+            x: 4px;
+            y: (parent.height - 2px) / 2;
+            width: parent.width - 8px;
+            height: 2px;
+            background: Gear.key-ink;
         }
     }
 
@@ -126,11 +129,10 @@ component EqBandSlider inherits Rectangle {
         width: parent.width;
         height: root.bottom-h;
         text: root.freq-label;
-        color: #828a99;
-        font-family: "Bebas Neue";
+        color: Theme.ink-2;
+        font-family: Locale.display-font-family;
         font-size: 18px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.06 * 18px;
         horizontal-alignment: center;
         vertical-alignment: center;
         overflow: elide;
@@ -189,19 +191,22 @@ export component MultiSliderControl inherits Rectangle {
     in property <[MultiSliderPoint]> points;
     callback update-parameter(string, float);
 
-    background: transparent;
+    background: Theme.well;
+    border-radius: 4px;
 
-    private property <length> available-w: root.width;
+    private property <length> pad-x: root.width >= 400px ? 18px : 8px;
+    private property <length> pad-y: root.height >= 200px ? 16px : 8px;
+    private property <length> available-w: root.width - 2 * root.pad-x;
     private property <length> slot-w: root.points.length > 0
         ? Math.max(18px, root.available-w / root.points.length)
         : 64px;
     private property <bool> tight-slot: root.slot-w < 32px;
 
     for point[i] in root.points : EqBandSlider {
-        x: i * root.slot-w;
-        y: 0;
+        x: root.pad-x + i * root.slot-w;
+        y: root.pad-y;
         width: root.slot-w;
-        height: parent.height;
+        height: parent.height - 2 * root.pad-y;
         path: point.path;
         freq-label: point.label;
         value: point.value;
@@ -220,19 +225,22 @@ export component CurveEditorControl inherits Rectangle {
     in property <[string]> band-curves;   // unused — kept for prop compatibility
     callback update-parameter(string, float);
 
-    background: transparent;
+    background: Theme.well;
+    border-radius: 4px;
 
-    private property <length> available-w: root.width;
+    private property <length> pad-x: root.width >= 400px ? 18px : 8px;
+    private property <length> pad-y: root.height >= 200px ? 16px : 8px;
+    private property <length> available-w: root.width - 2 * root.pad-x;
     private property <length> slot-w: root.points.length > 0
         ? Math.max(18px, root.available-w / root.points.length)
         : 64px;
     private property <bool> tight-slot: root.slot-w < 32px;
 
     for point[i] in root.points : EqBandSlider {
-        x: i * root.slot-w;
-        y: 0;
+        x: root.pad-x + i * root.slot-w;
+        y: root.pad-y;
         width: root.slot-w;
-        height: parent.height;
+        height: parent.height - 2 * root.pad-y;
         path: point.y-path;
         freq-label: point.x-label;
         value: point.y-value;

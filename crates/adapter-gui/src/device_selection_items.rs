@@ -38,6 +38,8 @@ pub(crate) fn build_device_selection_items(
                 sample_rate_text: config.sample_rate.to_string().into(),
                 buffer_size_text: config.buffer_size_frames.to_string().into(),
                 bit_depth_text: config.bit_depth.to_string().into(),
+                input_channels: 0,
+                output_channels: 0,
             }
         })
         .collect()

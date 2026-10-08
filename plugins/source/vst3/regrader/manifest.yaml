@@ -1,0 +1,91 @@
+manifest_version: 1
+id: vst3_regrader
+display_name: Delay regrader
+description: regrader — degrading, tempo-synced multi-tap delay by igorski.
+brand: igorski
+license: MIT
+homepage: https://github.com/igorski/regrader
+type: vst3
+backend: vst3
+bundle: bundles/regrader.vst3
+parameters:
+  - vst3_id: 0
+    name: delay_time
+    display_name: "Delay time"
+    group: "Delay"
+  - vst3_id: 1
+    name: delay_host_sync
+    display_name: "Delay host sync"
+    group: "Delay"
+  - vst3_id: 2
+    name: delay_feedback
+    display_name: "Delay feedback"
+    group: "Delay"
+  - vst3_id: 3
+    name: delay_mix
+    display_name: "Delay mix"
+    group: "Delay"
+  - vst3_id: 4
+    name: bit_resolution
+    display_name: "Bit resolution"
+    group: "Bit"
+  - vst3_id: 5
+    name: bitcrusher_chain
+    display_name: "BitCrusher chain"
+    group: "Bit"
+  - vst3_id: 6
+    name: bit_lfo_rate
+    display_name: "Bit LFO rate"
+    group: "Bit"
+  - vst3_id: 7
+    name: bit_lfo_depth
+    display_name: "Bit LFO depth"
+    group: "Bit"
+  - vst3_id: 8
+    name: decimator_resolution
+    display_name: "Decimator resolution"
+    group: "Decimator"
+  - vst3_id: 9
+    name: decimator_chain
+    display_name: "Decimator chain"
+    group: "Decimator"
+  - vst3_id: 10
+    name: decimator_rate
+    display_name: "Decimator rate"
+    group: "Decimator"
+  - vst3_id: 11
+    name: filter_chain
+    display_name: "Filter chain"
+    group: "Filter"
+  - vst3_id: 12
+    name: filter_cutoff
+    display_name: "Filter cutoff"
+    group: "Filter"
+  - vst3_id: 13
+    name: filter_resonance
+    display_name: "Filter resonance"
+    group: "Filter"
+  - vst3_id: 14
+    name: filter_lfo_rate
+    display_name: "Filter LFO rate"
+    group: "Filter"
+  - vst3_id: 15
+    name: filter_lfo_depth
+    display_name: "Filter LFO depth"
+    group: "Filter"
+  - vst3_id: 17
+    name: flanger_lfo_rate
+    display_name: "Flanger LFO rate"
+    group: "Flanger"
+  - vst3_id: 18
+    name: flanger_width
+    display_name: "Flanger width"
+    group: "Flanger"
+  - vst3_id: 19
+    name: flanger_feedback
+    display_name: "Flanger feedback"
+    group: "Flanger"
+  - vst3_id: 20
+    name: flanger_delay
+    display_name: "Flanger delay"
+    group: "Flanger"

@@ -1,0 +1,108 @@
+# Plugin parameter editor
+
+Status: built. The backend commands, the TONE3000 ask-before-install and the
+GUI (Plugins window, editor window, edit button on the info windows) ship.
+
+## Problem
+
+The TONE3000 install derives a plugin's parameters from the capture names.
+When it cannot read a token, the leftovers become a `preset` choice with raw
+names (for example `dist0 … dist10` before `dist` was added to the knob
+dictionary). The user knows what the token means and the app does not.
+
+## What the owner asked for
+
+1. **Ask before installing.** When the inference leaves tokens it could not
+   classify, the install stops and shows the capture grid. The user names
+   each unknown axis (for example "Distortion", a numeric knob) before the
+   package is written.
+2. **Edit after installing.** Any plugin's parameters can be edited later:
+   rename an axis, change it from choice to knob, rename values. This covers
+   every plugin, not only TONE3000 ones.
+3. **Create plugins.** Later, the user builds a plugin from scratch in the
+   app: pick the captures, define the parameters, write the package.
+
+## How the TONE3000 browser uses it
+
+The browser only installs and updates. When an install cannot read
+the capture names, it opens this editor so the user says what each token is;
+the package is written after that.
+
+## The editor
+
+One screen serves all three uses (ask before installing, edit, create):
+a grid with one row per capture (its original name and its file) and one
+column per parameter (its name, and whether it is a knob or a choice). Every
+cell is editable, and parameters can be added or removed.
+
+## Creating a plugin
+
+A plugin built from scratch is written to the plugins folder, at
+`<paths.plugins_path>/<backend>/<id>/`, with the chosen captures copied into
+the package.
+
+## Editing in place, with a way back
+
+- An edit rewrites the plugin's own `manifest.yaml`, wherever it lives
+  (plugins folder included).
+- **Versions:** every save is a new version of the manifest, and every
+  version is kept in the package (`versions/<n>.yaml`; version 1 is the
+  manifest before the first edit). Restoring an older version writes it
+  back as a new version, so the history never loses anything.
+- **Blocks keep their capture:** a block or preset saved against an older
+  version still plays the same capture. The capture file never changes, so
+  old values map to the file through the version they match, and from the
+  file to the current values. Saving an edit moves the open project's
+  blocks at once; projects and presets loaded later are moved on load.
+- **Redo:** the user can ask the app to build the parameters again. Redo
+  reads the capture names again. For a plugin from TONE3000 it first checks
+  the tone's `updated_at` and downloads the captures again when TONE3000 has
+  a newer version (the install stores `updated_at` for this).
+
+## Which plugins can be edited
+
+Only plugins that are not bundled with the app: the plugins folder
+(`paths.plugins_path`), user plugins and TONE3000 installs. Bundled plugins
+live inside the app (`.app/Contents/Resources`, `/usr/share/openrig`) and are
+read-only; the editor never offers to change them.
+
+## Where the editor opens
+
+- From the plugin's info window (the one the block opens).
+- From the **Plugins** window: a new top-bar button beside the TONE3000 one.
+  It lists every plugin that is not bundled (bundled plugins are not shown).
+  Each row offers: info, edit parameters, redo the parameters and uninstall
+  (two steps: arm, then confirm). A plugin from TONE3000 is marked as such
+  and its redo reads **Update**: it downloads the captures again when
+  TONE3000 has a newer version. **Create plugin** opens the editor empty.
+- The list filters by origin (all, plugins folder, TONE3000), by block type
+  (a searchable list) and by name.
+- Uninstall works for every listed plugin and deletes its package folder,
+  wherever it lives.
+- The TONE3000 window keeps its **Installed** tab.
+
+## Rules it must follow
+
+- Every edit is a `Command` (GUI, MCP and gRPC parity).
+- The edit only rewrites `parameters` and each capture's `values`; capture
+  files never move.
+- The catalog reloads after a save, like an install.
+
+## The editor window
+
+- **Edit:** the grid of an installed plugin, a **Versions** search that
+  restores any kept version, and redo/update in the header. Save writes a
+  new version; closing without saving changes nothing.
+- **Create:** name, brand (optional), block type (amp, preamp, gain, cab,
+  body) and what it plays (NAM or IR) above the grid. **Add captures** picks
+  `.nam` or `.wav` files; the first files open a choice column named after
+  each file. Save copies the captures into a new package in the plugins
+  folder.
+- **Name the parameters:** when a TONE3000 install cannot read the capture
+  names, the editor opens by itself with the inferred grid. Save finishes the
+  install; closing cancels it and deletes the half-written package.
+- Each column has a name and a kind: **List** (a choice), **Knob** (numeric
+  values) or **Switch**.
+
+Code: `adapter-gui/src/plugins_*.rs`, `plugin_editor_*.rs`,
+`ui/pages/plugins_window.slint`, `ui/pages/plugin_editor_window.slint`.

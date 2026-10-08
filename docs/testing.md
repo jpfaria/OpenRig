@@ -127,7 +127,7 @@ shrinks.** Adding to it means writing the reason here first.
 | Layer | Why no test reaches it | The way off the list |
 |---|---|---|
 | `stream_builder_input.rs`, `stream_builder_output.rs` | Building a cpal stream needs a real `cpal::Device`; `ResolvedInputDevice`/`ResolvedOutputDevice` carry the device itself, so there is nothing to fake. | They ARE exercised — by the real-hardware battery below (`OPENRIG_HW_TESTS=1`), which does not run in CI and emits no coverage. A fake-host seam would move them back in scope. |
-| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_seed.rs` | What is left in them is callback registration and window setters, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
+| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_seed.rs`, `settings/appearance_wiring.rs` | What is left in them is callback registration and window setters, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
 
 Everything else stays in the target. A new file that "cannot be tested" is a
 design answer, not a coverage exemption — split the logic out of the wiring.
@@ -428,7 +428,7 @@ cargo test -p adapter-gui --lib no_infra_cpal
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on
 `OPENRIG_TEST_VST3_DIR` — the plugins `vst3/` dir (e.g.
-`<OpenRig-plugins>/plugins/source/vst3`) — and skip cleanly when it is unset,
+`plugins/source/vst3` in this repo) — and skip cleanly when it is unset,
 so CI and the parallel suite stay green. They must run single-threaded
 (`--test-threads=1`): JUCE plugins refuse *concurrent* instantiation.
 
@@ -448,7 +448,7 @@ so CI and the parallel suite stay green. They must run single-threaded
   addressed by its package id builds and renders.
 
 ```sh
-OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
+OPENRIG_TEST_VST3_DIR=$PWD/plugins/source/vst3 \
     cargo test -p vst3-host -p project -- --test-threads=1
 ```
 

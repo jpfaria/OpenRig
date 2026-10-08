@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_tal_filter_2
+display_name: TAL Filter-2
+description: TAL-Filter-2 — tempo-syncable modulating/envelope filter (TAL, GPL port).
+brand: tal
+license: GPL-3.0
+homepage: https://github.com/DISTRHO/DISTRHO-Ports
+type: mod
+backend: lv2
+plugin_uri: urn:juce:TalFilter2
+binaries:
+  macos-universal: platform/macos-universal/TAL-Filter-2-lv2.dylib
+  linux-x86_64: platform/linux-x86_64/TAL-Filter-2-lv2.so
+  linux-aarch64: platform/linux-aarch64/TAL-Filter-2-lv2.so

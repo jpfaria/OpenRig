@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_dfzitarev1
+display_name: Reverb dfzitarev1
+description: dfZitaRev1 — Zita-Rev1 FDN reverb (Faust/DPF port) by SpotlightKid.
+brand: spotlightkid
+license: MIT
+homepage: https://github.com/SpotlightKid/dfzitarev1
+type: vst3
+backend: vst3
+bundle: bundles/dfzitarev1.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

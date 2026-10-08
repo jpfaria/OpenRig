@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MDA Ambience — simple reverb/ambience plugin.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2
+  pt-BR:
+    description: MDA Ambience — plugin de reverb/ambiente simples.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

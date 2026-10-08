@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: x42 Autotune — chromatic pitch correction plugin.
+    license: GPL-2.0
+    homepage: https://github.com/x42/fat1.lv2
+  pt-BR:
+    description: x42 Autotune — correção de pitch cromática.
+    license: GPL-2.0
+    homepage: https://github.com/x42/fat1.lv2

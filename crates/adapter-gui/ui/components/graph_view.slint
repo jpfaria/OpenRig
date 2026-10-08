@@ -10,10 +10,13 @@
 //
 // All callbacks emit ids and coords in *layout* space.
 
+import { Theme } from "../theme.slint";
 import { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor } from "graph_view_types.slint";
 import { GraphNodeCard } from "graph_node_card.slint";
 import { GraphWire } from "graph_wire.slint";
-import { BlockHoverTooltip } from "block_hover_tooltip.slint";
+import { GraphLanes } from "graph_lanes.slint";
+import { GraphPorts } from "graph_ports.slint";
+import { BlockHoverState } from "block_hover_globals.slint";
 import { BlockInsertSlot } from "block_insert_slot.slint";
 
 export { GraphNode, GraphEdge, GraphEdgeGeometry, CategoryColor, GraphAnchor }
@@ -36,8 +39,7 @@ export component GraphView inherits Rectangle {
     // row's BlockChip, the tile a block card keeps parity with (#328).
     in property <length> node_width: 100px;
     in property <length> node_height: 100px;
-    in property <color> background_color: #11141a;
-    in property <color> grid_color: #1a1f2a;
+    in property <color> background_color: Theme.well;
     in property <bool> show_grid: true;
     // #591 parity with BlockChip: MIDI markers show only while a MIDI
     // command is recent.
@@ -88,6 +90,22 @@ export component GraphView inherits Rectangle {
     private property <string> drag_id: "";
     // Index of the hovered node, for the block tooltip (-1 = none).
     private property <int> hover_index: -1;
+    // #398: the block tooltip (#328 parity with BlockChip) is drawn by the
+    // window's BlockHoverLayer, so the chain header and the rows below never
+    // paint over it. Only for a block with a model (display_name), never
+    // while a drag is in flight. The card follows pan, zoom and the list's
+    // scroll through its window position.
+    private property <bool> tip-open: root.hover_index >= 0
+        && root.hover_index < root.nodes.length
+        && root.nodes[root.hover_index].kind == "block"
+        && root.nodes[root.hover_index].block.display_name != ""
+        && root.drag_id == "";
+    private property <length> tip-x: root.absolute-position.x + root.pan_x
+        + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
+    private property <length> tip-y: root.absolute-position.y + root.pan_y
+        + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
+    // The node whose card this canvas published ("" = none).
+    private property <string> tip-owner: "";
     // #328: the anchor the current drag would land on ("" = none).
     private property <string> drop_anchor: "";
     // Local mouse position (TouchArea space) captured at press. The drag
@@ -114,6 +132,30 @@ export component GraphView inherits Rectangle {
 
     background: root.background_color;
     clip: true;
+
+    changed tip-open => { root.publish-tip(); }
+    changed tip-x => { root.publish-tip(); }
+    changed tip-y => { root.publish-tip(); }
+
+    function publish-tip() {
+        if (root.tip-open) {
+            BlockHoverState.block = root.nodes[root.hover_index].block;
+            BlockHoverState.x = root.tip-x;
+            BlockHoverState.y = root.tip-y;
+            BlockHoverState.card-width = root.node_width * root.zoom;
+            BlockHoverState.card-height = root.node_height * root.zoom;
+            BlockHoverState.owner = root.hover_id;
+            BlockHoverState.open = true;
+            root.tip-owner = root.hover_id;
+        } else if (root.tip-owner != "") {
+            // Another canvas may already own the card; only ours is closed.
+            if (BlockHoverState.owner == root.tip-owner) {
+                BlockHoverState.open = false;
+                BlockHoverState.owner = "";
+            }
+            root.tip-owner = "";
+        }
+    }
 
     accessible-role: list;
     accessible-label: @tr("accessible-graph-view");
@@ -176,32 +218,17 @@ export component GraphView inherits Rectangle {
         }
     }
 
-    // ── Optional grid backdrop ──────────────────────────────────────
-    if root.show_grid : Rectangle {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        background: transparent;
-
-        // Two crossing strips that hint at the grid origin. A real grid
-        // (every N px) would need a custom Path with many MoveTo/LineTo
-        // which costs more than its visual value at this stage — keep
-        // the hint cheap until we know we need more.
-        Rectangle {
-            x: root.pan_x;
-            y: 0px;
-            width: 1px;
-            height: parent.height;
-            background: root.grid_color;
-        }
-        Rectangle {
-            x: 0px;
-            y: root.pan_y;
-            width: parent.width;
-            height: 1px;
-            background: root.grid_color;
-        }
+    // ── Dot grid (#398) ────────────────────────────────────────────
+    // The well's 16px dot grid, tiled from one dot and moving with the pan.
+    if root.show_grid : Image {
+        x: Math.mod(root.pan_x / 1px, 16) * 1px - 16px;
+        y: Math.mod(root.pan_y / 1px, 16) * 1px - 16px;
+        width: parent.width + 32px;
+        height: parent.height + 32px;
+        source: @image-url("../assets/graph-dot.svg");
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+        colorize: Theme.dot;
     }
 
     // ── Edges (drawn under nodes) ──────────────────────────────────
@@ -209,14 +236,22 @@ export component GraphView inherits Rectangle {
     // Each GraphWire fills the canvas with viewbox in pixel coords so
     // the absolute MoveTo/CubicTo lands at the right place. See the
     // note on GraphWire for why this matters.
+    //
+    // #398: a wire ends on the edge of what each node draws, on the port
+    // it plugs into (graph_ports.slint), never under a see-through bypassed
+    // piece; a bend point (index -1) is a plain point.
     for edge in root.edges : GraphWire {
+        property <GraphNode> from-node: edge.from_index < 0 ? root.nodes[0] : root.nodes[edge.from_index];
+        property <GraphNode> to-node: edge.to_index < 0 ? root.nodes[0] : root.nodes[edge.to_index];
         canvas_width: root.width;
         canvas_height: root.height;
-        from_x: root.pan_x + edge.from_x * root.zoom;
-        from_y: root.pan_y + edge.from_y * root.zoom;
-        to_x: root.pan_x + edge.to_x * root.zoom;
-        to_y: root.pan_y + edge.to_y * root.zoom;
-        stroke_thickness: 2px * root.zoom;
+        from_x: root.pan_x + (edge.from_x + (edge.from_index < 0 ? 0px : GraphPorts.half(self.from-node))) * root.zoom;
+        from_y: root.pan_y + (edge.from_y + (edge.from_index < 0 ? 0px : GraphPorts.dy(edge.from_port, self.from-node.lanes.length))) * root.zoom;
+        to_x: root.pan_x + (edge.to_x - (edge.to_index < 0 ? 0px : GraphPorts.half(self.to-node))) * root.zoom;
+        to_y: root.pan_y + (edge.to_y + (edge.to_index < 0 ? 0px : GraphPorts.dy(edge.to_port, self.to-node.lanes.length))) * root.zoom;
+        // Hairline wires, coloured by lane (graph_lanes.slint).
+        stroke_thickness: max(1px, Theme.wire-width * root.zoom);
+        stroke_color: GraphLanes.color(edge.path);
     }
 
     // ── Nodes ──────────────────────────────────────────────────────
@@ -249,6 +284,7 @@ export component GraphView inherits Rectangle {
                     root.press_y = self.mouse-y;
                     root.did_drag = false;
                     root.drop_anchor = "";
+                    root.publish-tip();
                 } else if (event.kind == PointerEventKind.up) {
                     if (root.drag_id == node.id) {
                         if (root.did_drag) {
@@ -264,6 +300,7 @@ export component GraphView inherits Rectangle {
                     }
                     root.drag_id = "";
                     root.drop_anchor = "";
+                    root.publish-tip();
                 }
             }
             moved => {
@@ -296,6 +333,7 @@ export component GraphView inherits Rectangle {
                     root.hover_id = "";
                     root.hover_index = -1;
                 }
+                root.publish-tip();
             }
             double-clicked => {
                 root.node_double_clicked(node.id);
@@ -307,7 +345,6 @@ export component GraphView inherits Rectangle {
             y: 0px;
             node: node;
             zoom: root.zoom;
-            backdrop: root.background_color;
             markers-visible: root.markers_visible;
             selected-node-id: root.selected-node-id;
             neighbor-node-id: root.neighbor-node-id;
@@ -328,7 +365,7 @@ export component GraphView inherits Rectangle {
     // (node_dragged), and that card would otherwise hide the lit "+" it is
     // about to land on. At zoom 1 an anchor sits inside the 60px gap
     // between two cards; it reaches a card's edge only below zoom ~0.53.
-    // The tooltip, declared after, still paints on top.
+    // The block tooltip is a window-level layer (BlockHoverLayer).
     for anchor in root.anchors : BlockInsertSlot {
         x: root.pan_x + anchor.layout_x * root.zoom - self.width / 2;
         y: root.pan_y + anchor.layout_y * root.zoom - self.height / 2;
@@ -337,24 +374,6 @@ export component GraphView inherits Rectangle {
         move-target: root.drag_id != "";
         active-drop-target: root.drop_anchor != "" && root.drop_anchor == anchor.id;
         clicked => { root.add-requested(anchor.id); }
-    }
-
-    // ── Block tooltip (#328 parity with BlockChip) ─────────────────
-    // The chain row's hover card, declared after every node so it paints
-    // on top. Only for a block with a model (display_name), never while a
-    // drag is in flight.
-    if root.hover_index >= 0
-        && root.hover_index < root.nodes.length
-        && root.nodes[root.hover_index].kind == "block"
-        && root.nodes[root.hover_index].block.display_name != ""
-        && root.drag_id == ""
-        : BlockHoverTooltip {
-        block: root.nodes[root.hover_index].block;
-        anchor-x: root.pan_x + root.nodes[root.hover_index].layout_x * root.zoom - root.node_width * root.zoom / 2;
-        anchor-y: root.pan_y + root.nodes[root.hover_index].layout_y * root.zoom - root.node_height * root.zoom / 2;
-        chip-width: root.node_width * root.zoom;
-        chip-height: root.node_height * root.zoom;
-        container-width: root.width;
     }
 
 }

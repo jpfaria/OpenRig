@@ -1,34 +1,45 @@
-// Responsibility: renders the looper transport controls.
-// #323 — the small reusable pieces of the looper panel: an icon button with a
-// ≥40 px touch target, and a horizontal 0..100 slider. Kept apart from
-// `looper_row.slint` so both stay well under the 500-line cap.
+// Responsibility: renders the looper's controls.
+// #323 — the small reusable pieces of the looper panel: a round icon button
+// with a 40 px touch target, a quiet row action, a 0..100 slider and a
+// segmented choice. Kept apart from `looper_row.slint` so both stay well under
+// the 500-line cap.
+//
+// #398: every drawer control is a captioned field — the caption above, the
+// control below on a 32 px line — so the drawer lays out as a grid.
 
-import { Theme } from "../theme.slint";
+import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+import { FieldCaption } from "field_caption.slint";
 
 export component LooperIconButton inherits Rectangle {
     in property <image> icon;
     in property <string> label;          // accessible name, already translated
-    in property <color> tint: #e6ebf5;
+    in property <color> tint: Theme.ink-2;
     in property <color> active-background: transparent;
+    // A lit button drops the ring unless the caller draws its own.
+    in property <color> ring: root.active-background != transparent ? transparent : Theme.field-line;
     in property <bool> is-enabled: true;
 
     callback clicked();
 
-    // Fixed 40 px touch target, positioned by the caller (the transport is
-    // an absolute cluster, like every other icon cluster in the app).
+    // #398: a round 40 px transport button on a field, ringed by the field
+    // line, the icon quiet until the button is lit. Positioned by the caller
+    // (the transport is an absolute cluster).
     width: 40px;
     height: 40px;
-    border-radius: 8px;
-    opacity: root.is-enabled ? 1.0 : 0.45;
-    background: !root.is-enabled ? #ffffff05
-        : root.active-background != transparent ? root.active-background
-        : ta.has-hover ? #ffffff1c
-        : #ffffff0e;
+    border-radius: 20px;
+    opacity: root.is-enabled ? 1.0 : 0.35;
+    background: root.active-background != transparent ? root.active-background
+        : ta.has-hover && root.is-enabled ? Theme.panel-hi
+        : Theme.field;
+    border-width: 1px;
+    border-color: root.ring;
+
     Image {
-        x: 10px;
-        y: 10px;
-        width: 20px;
-        height: 20px;
+        x: 11px;
+        y: 11px;
+        width: 18px;
+        height: 18px;
         source: root.icon;
         image-fit: contain;
         colorize: root.tint;
@@ -46,64 +57,106 @@ export component LooperIconButton inherits Rectangle {
     accessible-action-default => { root.clicked(); }
 }
 
-/// 0..100 slider. Dragging only previews; the value is reported on release,
-/// so a drag does not flood the command bus.
+// A quiet row action (edit, save, parameters, remove): the icon alone, ink-3
+// until hovered, accent while its drawer is open. 40 px tall so the touch
+// target matches the transport beside it.
+export component LooperRowAction inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;          // accessible name, already translated
+    in property <bool> active;
+    in property <bool> is-enabled: true;
+    callback clicked();
+
+    width: 30px;
+    height: 40px;
+    opacity: root.is-enabled ? 1.0 : 0.35;
+
+    Rectangle {
+        y: 5px;
+        width: 30px;
+        height: 30px;
+        border-radius: 4px;
+        background: ta.has-hover && root.is-enabled ? Theme.panel-lo : transparent;
+
+        Image {
+            x: 7px;
+            y: 7px;
+            width: 16px;
+            height: 16px;
+            source: root.icon;
+            image-fit: contain;
+            colorize: root.active ? Theme.accent
+                : ta.has-hover && root.is-enabled ? Theme.ink
+                : Theme.ink-3;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.is-enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.is-enabled;
+    accessible-action-default => { root.clicked(); }
+}
+
+/// 0..100 slider under its caption. Dragging only previews; the value is
+/// reported on release, so a drag does not flood the command bus.
 export component LooperSlider inherits Rectangle {
     in property <string> label;
     in-out property <int> value;
+    // What the readout says; empty shows the value as a percentage.
+    in property <string> value-label;
     callback value-changed(int);
-    // The label column width shared with sibling rows (so tracks line up);
-    // the column still grows to fit this row's own (translated) label.
-    in property <length> label-width: 74px;
-    out property <length> label-natural: label-text.preferred-width;
 
-    // The label and value columns follow their (translated) text.
-    private property <length> label-w: max(root.label-width, root.label-natural);
-    private property <length> value-w: max(38px, value-text.preferred-width);
+    private property <length> value-w: max(44px, value-text.preferred-width);
 
-    height: max(28px, label-text.preferred-height);
+    height: 60px;
 
-    label-text := Text {
+    FieldCaption {
         x: 0;
         y: 0;
-        width: root.label-w;
-        height: parent.height;
-        vertical-alignment: center;
+        width: parent.width;
+        height: 22px;
         text: root.label;
-        color: Theme.palette.text-muted;
-        font-size: Theme.min-font;
     }
 
+    // The groove, its accent fill and a metal knob riding on the value.
     track := Rectangle {
-        x: root.label-w + 6px;
-        y: parent.height / 2 - 2px;
-        width: parent.width - root.label-w - 6px - root.value-w - 6px;
-        height: 4px;
-        border-radius: 2px;
-        background: #2a3140;
+        x: 8px;
+        y: 28px + 16px - 1.5px;
+        width: parent.width - 16px - root.value-w - 8px;
+        height: 3px;
+        border-radius: 1.5px;
+        background: Theme.groove;
 
         Rectangle {
             x: 0;
             width: parent.width * root.value / 100;
             height: parent.height;
-            border-radius: 2px;
-            background: #6e8aff;
+            border-radius: 1.5px;
+            background: Theme.accent;
         }
 
         Rectangle {
-            x: parent.width * root.value / 100 - 7px;
-            y: -5px;
-            width: 14px;
-            height: 14px;
-            border-radius: 7px;
-            background: drag.has-hover || drag.pressed ? #ffffff : #c5cad4;
+            x: parent.width * root.value / 100 - 8px;
+            y: -6.5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: @linear-gradient(180deg, Gear.white 0%, Gear.key-lo 100%);
+            border-width: 1px;
+            border-color: drag.has-hover || drag.pressed ? Theme.accent : Gear.edge-soft;
         }
 
         drag := TouchArea {
             x: -8px;
-            y: -10px;
+            y: -14px;
             width: parent.width + 16px;
-            height: parent.height + 20px;
+            height: parent.height + 28px;
             mouse-cursor: pointer;
 
             moved => {
@@ -126,14 +179,16 @@ export component LooperSlider inherits Rectangle {
 
     value-text := Text {
         x: parent.width - root.value-w;
-        y: 0;
+        y: 28px;
         width: root.value-w;
-        height: parent.height;
+        height: 32px;
         vertical-alignment: center;
         horizontal-alignment: right;
-        text: root.value + "%";
-        color: Theme.palette.text-secondary;
+        text: root.value-label != "" ? root.value-label : root.value + "%";
+        font-family: Locale.mono-font-family;
+        color: Theme.ink;
         font-size: Theme.min-font;
+        font-weight: 500;
     }
 
     accessible-role: slider;
@@ -143,61 +198,70 @@ export component LooperSlider inherits Rectangle {
     accessible-value-maximum: 100;
 }
 
-/// A small segmented control — used for the playback speed.
+/// A few choices under their caption, all shown, the current one lit — used
+/// for the playback speed.
 export component LooperSegmented inherits Rectangle {
     in property <[string]> options;
     in property <int> selected-index;
     in property <string> label;
     callback picked(int);
-    // The label column width shared with sibling rows (so columns line up);
-    // the column still grows to fit this row's own (translated) label.
-    in property <length> label-width: 74px;
-    out property <length> label-natural: label-text.preferred-width;
 
-    // The label column follows its (translated) text.
-    private property <length> label-w: max(root.label-width, root.label-natural);
+    height: 60px;
 
-    height: max(28px, label-text.preferred-height);
-
-    label-text := Text {
+    FieldCaption {
         x: 0;
         y: 0;
-        width: root.label-w;
-        height: parent.height;
-        vertical-alignment: center;
+        width: parent.width;
+        height: 22px;
         text: root.label;
-        color: Theme.palette.text-muted;
-        font-size: Theme.min-font;
     }
 
-    HorizontalLayout {
-        x: root.label-w + 6px;
-        width: parent.width - root.label-w - 6px;
-        spacing: 6px;
+    Rectangle {
+        x: 0;
+        y: 28px;
+        width: min(parent.width, row.preferred-width);
+        height: 32px;
+        border-radius: 4px;
+        clip: true;
+        background: Theme.field;
+        border-width: 1px;
+        border-color: Theme.field-line;
 
-        for option[index] in root.options: Rectangle {
-            border-radius: 6px;
-            border-width: 1px;
-            border-color: index == root.selected-index ? #6e8aff : Theme.palette.border;
-            background: index == root.selected-index ? #6e8aff28 : transparent;
+        row := HorizontalLayout {
+            padding: 1px;
 
-            Text {
-                text: option;
-                color: index == root.selected-index
-                    ? Theme.palette.text-primary
-                    : Theme.palette.text-muted;
-                font-size: Theme.min-font;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            for option[index] in root.options : Rectangle {
+                min-width: max(44px, opt-text.preferred-width + 24px);
+                background: index == root.selected-index ? Theme.accent
+                    : opt-ta.has-hover ? Theme.panel-hi
+                    : transparent;
+
+                if index > 0 && index != root.selected-index && index - 1 != root.selected-index : Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: 1px;
+                    height: parent.height;
+                    background: Theme.hair-2;
+                }
+
+                opt-text := Text {
+                    text: option;
+                    color: index == root.selected-index ? Theme.on-accent : Theme.ink-2;
+                    font-size: Theme.min-font;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                opt-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.picked(index); }
+                }
+
+                accessible-role: button;
+                accessible-label: option;
+                accessible-action-default => { root.picked(index); }
             }
-
-            opt-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.picked(index); }
-            }
-
-            accessible-role: button;
-            accessible-label: option;
         }
     }
 }

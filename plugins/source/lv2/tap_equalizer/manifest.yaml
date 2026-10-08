@@ -1,0 +1,53 @@
+manifest_version: 1
+id: lv2_tap_equalizer
+display_name: TAP Equalizer
+description: TAP Equalizer — parametric equalizer with 8 fully configurable bands.
+brand: tap
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: http://tap-plugins.sourceforge.net
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/tap/eq
+binaries:
+  macos-universal: platform/macos-universal/tap_eq.dylib
+  linux-x86_64: platform/linux-x86_64/tap_eq.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+# Each band carries only gain + freq, so bands are tabbed in halves (a tab per
+# band would be 8 tabs of 2 knobs) — unlike tap_equalizer_bw (3 knobs/band).
+parameters:
+  - symbol: Band1GainDb
+    group: Bands 1-4
+  - symbol: Band1FreqHz
+    group: Bands 1-4
+  - symbol: Band2GainDb
+    group: Bands 1-4
+  - symbol: Band2FreqHz
+    group: Bands 1-4
+  - symbol: Band3GainDb
+    group: Bands 1-4
+  - symbol: Band3FreqHz
+    group: Bands 1-4
+  - symbol: Band4GainDb
+    group: Bands 1-4
+  - symbol: Band4FreqHz
+    group: Bands 1-4
+  - symbol: Band5GainDb
+    group: Bands 5-8
+  - symbol: Band5FreqHz
+    group: Bands 5-8
+  - symbol: Band6GainDb
+    group: Bands 5-8
+  - symbol: Band6FreqHz
+    group: Bands 5-8
+  - symbol: Band7GainDb
+    group: Bands 5-8
+  - symbol: Band7FreqHz
+    group: Bands 5-8
+  - symbol: Band8GainDb
+    group: Bands 5-8
+  - symbol: Band8FreqHz
+    group: Bands 5-8

@@ -1,0 +1,22 @@
+// Responsibility: draws the hovered block's card above the window.
+// #398: a full-window layer with no TouchArea, so it never takes a pointer
+// event; it only paints the card `BlockHoverState` describes, clamped
+// inside the window.
+import { BlockHoverState } from "block_hover_globals.slint";
+import { BlockHoverTooltip } from "block_hover_tooltip.slint";
+
+export component BlockHoverLayer inherits Rectangle {
+    // Off while the page that owns the canvases is not shown, so a card
+    // left open by a canvas that went away never lingers over another page.
+    in property <bool> active: true;
+
+    if root.active && BlockHoverState.open : BlockHoverTooltip {
+        block: BlockHoverState.block;
+        anchor-x: BlockHoverState.x - root.absolute-position.x;
+        anchor-y: BlockHoverState.y - root.absolute-position.y;
+        chip-width: BlockHoverState.card-width;
+        chip-height: BlockHoverState.card-height;
+        container-width: root.width;
+        container-height: root.height;
+    }
+}

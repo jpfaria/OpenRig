@@ -7,7 +7,8 @@ use crate::locale_resolve::locale_for_runtime;
 /// at boot and on every change-language so each script renders against
 /// a face that actually contains its codepoints (no .notdef / tofu).
 ///
-/// Latin locales keep "Bebas Neue" (the project's display font). CJK and
+/// Latin locales get "Barlow" (the project's UI face, #398; Bebas Neue is
+/// derived from it for display text by `Locale.display-font-family`). CJK and
 /// Devanagari locales pick the macOS-native face for their script. Empty
 /// string at the end means "fall through to the system default" — a
 /// safe last resort that activates the macOS font cascade.
@@ -21,7 +22,7 @@ pub fn font_family_for_locale(locale: &str) -> &'static str {
         "ko-KR" => "Apple SD Gothic Neo",
         "hi-IN" => "Kohinoor Devanagari",
         // pt-BR, en-US, es-ES, fr-FR, de-DE — all Latin
-        _ => "Bebas Neue",
+        _ => "Barlow",
     }
 }
 

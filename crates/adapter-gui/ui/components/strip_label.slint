@@ -3,27 +3,35 @@
 // (the box clips, so a long name can never climb over the buttons) and the
 // interface channels below it. Hovering shows the full name just above the
 // box, over whatever sits there (same look as IconTooltip).
+// #398: a hairline above, the name in the UI face, the channels spaced out.
 
 import { Theme } from "../theme.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 export component StripLabel inherits Rectangle {
     in property <string> name;
     in property <string> detail;
     in property <bool> is-input;
 
-    label-box := Rectangle {
-        border-radius: 4px;
-        background: #121720;
+    clip: false;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 1px;
+        background: Theme.hair-2;
+    }
+
+    Rectangle {
         clip: true;
 
         Text {
-            x: 4px; y: 6px;
-            width: parent.width - 8px; height: 30px;
+            x: 2px; y: 8px;
+            width: parent.width - 4px; height: 22px;
             text: root.name;
-            color: #e5ebf2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 0.5px;
+            color: Theme.ink;
+            font-size: Theme.min-font;
+            font-weight: 600;
             wrap: no-wrap;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -33,33 +41,41 @@ export component StripLabel inherits Rectangle {
         name-ta := TouchArea {}
 
         Text {
-            x: 4px; y: 38px;
-            width: parent.width - 8px; height: 22px;
+            x: 2px; y: 31px;
+            width: parent.width - 4px; height: 22px;
             text: root.detail;
-            color: root.is-input ? #7fc4ff : #ffb86b;
-            font-family: "Bebas Neue";
+            color: root.is-input ? Theme.in : Theme.out;
             font-size: Theme.min-font;
-            letter-spacing: 1.0px;
+            font-weight: 700;
+            letter-spacing: 0.04 * Theme.min-font;
+            wrap: no-wrap;
             horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
         }
     }
 
+    // Above the box, or below it when there is no room (#398).
     if name-ta.has-hover : Rectangle {
-        x: -2px;
-        y: -self.height - 2px;
+        x: OverlayPlacement.left(root.absolute-position.x - 2px, self.width, WindowBounds.width)
+            - root.absolute-position.x;
+        y: OverlayPlacement.top-above(root.absolute-position.y - 2px,
+            root.absolute-position.y + root.height + 2px, self.height, WindowBounds.height)
+            - root.absolute-position.y;
+        z: 60;
         width: parent.width + 4px;
         height: full-name.preferred-height + 8px;
-        background: #11141aef;
+        background: Theme.panel-lo.with-alpha(0.94);
         border-width: 1px;
-        border-color: #3b4250;
+        border-color: Theme.field-line;
         border-radius: 4px;
 
         full-name := Text {
             x: 4px; y: 4px;
             width: parent.width - 8px;
             text: root.name;
-            color: #dde4ef;
-            font-size: 18px;
+            color: Theme.ink;
+            font-size: Theme.min-font;
             wrap: word-wrap;
             horizontal-alignment: center;
         }

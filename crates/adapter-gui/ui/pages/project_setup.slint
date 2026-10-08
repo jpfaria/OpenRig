@@ -1,4 +1,5 @@
 // Responsibility: renders the project setup page.
+import { Theme } from "../theme.slint";
 component SetupButton inherits Rectangle {
     in property <string> label;
     in property <bool> primary: false;
@@ -9,12 +10,12 @@ component SetupButton inherits Rectangle {
     width: max(120px, lbl.preferred-width + 24px);
     height: 36px;
     background: root.enabled
-        ? (primary ? #188cff : #2f3339)
-        : #1e2329;
+        ? (primary ? Theme.accent : Theme.panel-hi)
+        : Theme.panel-lo;
     border-width: 1px;
     border-color: root.enabled
-        ? (primary ? #45a7ff : #4c515b)
-        : #353a42;
+        ? (primary ? Theme.accent : Theme.field-line)
+        : Theme.hair;
     border-radius: 6px;
     opacity: root.enabled ? 1.0 : 0.5;
 
@@ -22,7 +23,7 @@ component SetupButton inherits Rectangle {
         width: parent.width;
         height: parent.height;
         text: root.label;
-        color: #f4f7fb;
+        color: root.primary ? Theme.on-accent : Theme.ink;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 18px;
@@ -44,9 +45,9 @@ component NameInput inherits Rectangle {
     public function focus-input() { input.focus(); }
 
     height: 40px;
-    background: #1d2025;
+    background: Theme.field;
     border-width: 1px;
-    border-color: #41454e;
+    border-color: Theme.field-line;
     border-radius: 4px;
 
     if root.text == "" : Text {
@@ -55,7 +56,7 @@ component NameInput inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text: @tr("placeholder-project-name-example");
-        color: #555d6a;
+        color: Theme.ink-3;
         vertical-alignment: center;
         font-size: 18px;
     }
@@ -66,7 +67,7 @@ component NameInput inherits Rectangle {
         width: parent.width - 24px;
         height: parent.height;
         text: root.text;
-        color: #f3f6fb;
+        color: Theme.ink;
         single-line: true;
         vertical-alignment: center;
         font-size: 18px;
@@ -88,7 +89,7 @@ export component ProjectSetupPage inherits Rectangle {
 
     init => { name-input.focus-input(); }
 
-    background: #1b1d22;
+    background: Theme.hero-bg;
 
     Image {
         x: 0px;
@@ -104,7 +105,7 @@ export component ProjectSetupPage inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+        background: @linear-gradient(180deg, Theme.hero-shade-top 0%, Theme.hero-shade-mid 38%, Theme.hero-shade-bottom 100%);
     }
 
     // Logo header
@@ -140,9 +141,9 @@ export component ProjectSetupPage inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 420px;
         height: 220px;
-        background: #22242988;
+        background: Theme.panel.with-alpha(0.92);
         border-width: 1px;
-        border-color: #32363daa;
+        border-color: Theme.hair;
         border-radius: 8px;
 
         Text {
@@ -151,7 +152,7 @@ export component ProjectSetupPage inherits Rectangle {
             width: parent.width;
             height: 28px;
             text: @tr("title-new-project");
-            color: #f1f4f8;
+            color: Theme.ink;
             horizontal-alignment: center;
             vertical-alignment: center;
             font-size: 18px;
@@ -164,7 +165,7 @@ export component ProjectSetupPage inherits Rectangle {
             width: parent.width - 56px;
             height: 22px;
             text: @tr("label-project-name");
-            color: #8d95a2;
+            color: Theme.ink-3;
             vertical-alignment: center;
             font-size: 18px;
             font-weight: 600;
@@ -194,7 +195,7 @@ export component ProjectSetupPage inherits Rectangle {
             width: parent.width - 56px;
             height: 22px;
             text: root.status-message;
-            color: #ff6b6b;
+            color: Theme.bad;
             vertical-alignment: center;
             font-size: 18px;
             overflow: elide;

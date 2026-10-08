@@ -26,6 +26,7 @@ pub const URI_METRONOME: &str = "openrig://metronome";
 /// library of loadable tracks. Read parity for the player commands.
 pub const URI_PLAYER: &str = "openrig://player";
 pub const URI_DRUMS: &str = "openrig://drums";
+pub const URI_TONE3000: &str = "openrig://tone3000";
 /// #923: what each output route's device stream pulled (callbacks, underruns,
 /// peak since the last read) per (chain, runtime group, route).
 pub const URI_ROUTES: &str = "openrig://routes";
@@ -48,6 +49,10 @@ pub const URI_PATHS: &str = "openrig://paths";
 pub const URI_CHAIN_PRESETS_TEMPLATE: &str = "openrig://chains/{chain}/presets";
 /// #561 (expanded scope): full plugin catalog as JSON.
 pub const URI_PLUGINS: &str = "openrig://plugins";
+/// The plugins the user owns, with origin and saved versions.
+pub const URI_PLUGIN_LIBRARY: &str = "openrig://plugin-library";
+/// One owned plugin's capture grid: `openrig://plugin-library/{id}`.
+pub const URI_PLUGIN_LIBRARY_PREFIX: &str = "openrig://plugin-library/";
 /// #561 (expanded scope): URI template for text search.
 /// Concrete URIs look like `openrig://plugins/search/<query>`.
 /// Matched BEFORE [`URI_PLUGIN_PREFIX`] so `search` is never read
@@ -146,6 +151,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_TONE3000,
+                "TONE3000 browser state (key set or not, last search, installs, installed packages) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_ROUTES,
                 "Per-output-route stream accounting (callbacks, underruns, peak since last read) — JSON",
             ),
@@ -181,6 +193,20 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(URI_PLUGINS, "Plugin catalog (id, kind, backend)"),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_PLUGIN_LIBRARY,
+                "Plugins the user owns (plugins folder, TONE3000): origin, captures, saved versions — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                "openrig://plugin-library/{id}",
+                "One owned plugin's capture grid (replace {id} with a plugin id) — JSON",
+            ),
             None,
         ),
         Annotated::new(
@@ -298,11 +324,16 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_METRONOME => QueryKind::MetronomeState,
             URI_PLAYER => QueryKind::PlayerState,
             URI_DRUMS => QueryKind::DrumsState,
+            URI_TONE3000 => QueryKind::Tone3000State,
             URI_ROUTES => QueryKind::OutputRoutes,
             URI_MIXER => QueryKind::MixerState,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
+            URI_PLUGIN_LIBRARY => QueryKind::PluginLibrary,
+            other if other.starts_with(URI_PLUGIN_LIBRARY_PREFIX) => QueryKind::PluginLibraryGrid {
+                plugin_id: other[URI_PLUGIN_LIBRARY_PREFIX.len()..].to_string(),
+            },
             other if other.starts_with(URI_PLUGIN_SEARCH_PREFIX) => QueryKind::FindPlugins {
                 query: other[URI_PLUGIN_SEARCH_PREFIX.len()..].to_string(),
             },
@@ -333,6 +364,7 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::PlayerState => URI_PLAYER.to_string(),
         QueryKind::DrumsState => URI_DRUMS.to_string(),
+        QueryKind::Tone3000State => URI_TONE3000.to_string(),
         QueryKind::OutputRoutes => URI_ROUTES.to_string(),
         QueryKind::MixerState => URI_MIXER.to_string(),
         QueryKind::ChainMixer { chain } => format!("openrig://chains/{}/mixer", chain.0),
@@ -341,6 +373,10 @@ pub fn uri_for(kind: &QueryKind) -> String {
         }
         QueryKind::ListProjectPresets => URI_PRESETS.to_string(),
         QueryKind::ListPluginCatalog => URI_PLUGINS.to_string(),
+        QueryKind::PluginLibrary => URI_PLUGIN_LIBRARY.to_string(),
+        QueryKind::PluginLibraryGrid { plugin_id } => {
+            format!("{URI_PLUGIN_LIBRARY_PREFIX}{plugin_id}")
+        }
         QueryKind::Paths => URI_PATHS.to_string(),
         QueryKind::ListChainPresets { chain } => {
             format!("openrig://chains/{}/presets", chain.0)

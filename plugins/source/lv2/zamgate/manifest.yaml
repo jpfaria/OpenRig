@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_zamgate
+display_name: ZamGate
+description: ZamGate — gate with sidechain input.
+brand: zam
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: dyn
+backend: lv2
+plugin_uri: urn:zamaudio:ZamGate
+binaries:
+  macos-universal: platform/macos-universal/ZamGate_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamGate_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamGate_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamGate_dsp.so

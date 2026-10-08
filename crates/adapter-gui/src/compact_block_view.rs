@@ -18,7 +18,8 @@ use crate::block_editor::{
 };
 use crate::block_editor_param_tabs::retag_for_group;
 use crate::compact_block_layout::{
-    assign_overlay_lines, assign_strip_lines, row_height_px, row_y_offsets,
+    assign_overlay_lines, assign_strip_lines, lane_bars, row_height_px, row_y_offsets,
+    with_lane_bar,
 };
 use crate::compact_block_tabs::active_group_index;
 use crate::compact_row_address::{compact_row_depths, compact_rows};
@@ -217,6 +218,7 @@ fn routing_compact_item(
         row_y: 0.0,
         path_label: SharedString::new(),
         path_depth: 0,
+        lane_bar: false,
     }
 }
 
@@ -251,6 +253,18 @@ pub(crate) fn build_compact_blocks(
             })
         })
         .collect();
+
+    // #398: the first row of each split lane carries its lane bar.
+    let lanes = lane_bars(
+        &items
+            .iter()
+            .map(|it| (it.path_label.as_str(), it.path_depth))
+            .collect::<Vec<_>>(),
+    );
+    for (it, lane_bar) in items.iter_mut().zip(lanes) {
+        it.lane_bar = lane_bar;
+        it.row_height = with_lane_bar(it.row_height, lane_bar);
+    }
 
     let heights: Vec<f32> = items.iter().map(|it| it.row_height).collect();
     for (it, y) in items.iter_mut().zip(row_y_offsets(&heights)) {
@@ -414,5 +428,6 @@ fn compact_row_item(
         row_y: 0.0,
         path_label: SharedString::new(),
         path_depth: 0,
+        lane_bar: false,
     })
 }

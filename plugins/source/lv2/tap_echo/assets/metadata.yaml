@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: TAP Stereo Echo — stereo echo with independent L/R times.
+    license: GPL-2.0
+    homepage: http://tap-plugins.sourceforge.net

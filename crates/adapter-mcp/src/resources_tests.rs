@@ -21,6 +21,7 @@ fn every_query_kind() -> Vec<QueryKind> {
         QueryKind::MetronomeState,
         QueryKind::PlayerState,
         QueryKind::DrumsState,
+        QueryKind::Tone3000State,
         QueryKind::MixerState,
         QueryKind::ChainMixer {
             chain: ChainId("rig:input-1".into()),
@@ -52,6 +53,10 @@ fn every_query_kind() -> Vec<QueryKind> {
         },
         QueryKind::FindPlugins {
             query: "reverb".into(),
+        },
+        QueryKind::PluginLibrary,
+        QueryKind::PluginLibraryGrid {
+            plugin_id: "my_amp".into(),
         },
     ]
 }

@@ -3,14 +3,24 @@
 // (VST3 plugins with many params, grouped from the manifest or dynamically).
 // A horizontal Flickable so a plugin with many groups scrolls sideways; plain
 // TouchAreas (no PopupWindow) so the taps always land.
+// #398: quiet text tabs; the active one is ink with an accent underline.
+// `boxed` (the block editor) sets them in a low row with a hairline under it,
+// the active tab lifted to the panel tone. `display` (the mixers) sets the
+// labels in the display face and leaves the active tab on the row.
 import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ParamTabBar inherits Rectangle {
     in property <[string]> groups;
     in property <int> active: 0;
+    in property <bool> boxed: false;
+    in property <bool> display: false;
+    // The tone the bar sits on; the right edge fades into it while more tabs
+    // wait past it (#398).
+    in property <color> fade-into: root.boxed ? Theme.panel-lo : Theme.panel;
     callback select(int);
 
-    background: #0a0a0e;
+    background: root.boxed ? Theme.panel-lo : transparent;
     clip: true;
     // #787: inside a layout (the compact row's strip) the bar would collapse to
     // zero width — it scrolls its own content, so nothing pushes it open. Its
@@ -18,36 +28,53 @@ export component ParamTabBar inherits Rectangle {
     // (the block editor) still overrides this with an explicit width.
     min-width: min(tabs.preferred-width, 420px);
 
-    Flickable {
+    // The boxed row's hairline.
+    Rectangle {
+        visible: root.boxed;
+        y: root.height - 1px;
+        height: 1px;
+        background: Theme.hair;
+    }
+
+    flick := Flickable {
         width: 100%;
         height: 100%;
-        viewport-width: max(self.width, tabs.preferred-width);
-        viewport-height: self.height;
+        content-width: max(self.width, tabs.preferred-width);
+        content-height: self.height;
 
         tabs := HorizontalLayout {
             x: 0; y: 0;
             height: root.height;
-            padding-left: 8px;
-            padding-right: 8px;
-            spacing: 4px;
+            padding-left: root.boxed ? 8px : 0px;
+            padding-right: 0px;
+            spacing: root.boxed ? 0px : 12px;
             alignment: start;
 
             for group[i] in root.groups : Rectangle {
                 vertical-stretch: 0;
-                min-width: label.preferred-width + 24px;
-                background: i == root.active
-                    ? Theme.palette.accent-end
-                    : (tab-ta.has-hover ? #1b2230 : transparent);
-                border-radius: 5px;
-                animate background { duration: 120ms; }
+                min-width: label.preferred-width + (root.boxed ? 28px : 4px);
+                background: root.boxed && !root.display && i == root.active ? Theme.panel : transparent;
 
                 label := Text {
                     text: group;
-                    color: i == root.active ? #ffffff : #9aa4b2;
-                    font-size: Theme.min-font;
-                    font-weight: i == root.active ? 800 : 600;
+                    color: i == root.active ? Theme.ink
+                        : (tab-ta.has-hover || root.boxed ? Theme.ink-2 : Theme.ink-3);
+                    font-family: root.display ? Locale.display-font-family : "";
+                    font-size: root.display ? 20px : Theme.min-font;
+                    font-weight: root.display ? 400 : 600;
+                    letter-spacing: (root.display ? 0.08 : 0.06) * self.font-size;
                     vertical-alignment: center;
                     horizontal-alignment: center;
+                }
+
+                // The active tab's underline.
+                Rectangle {
+                    visible: i == root.active;
+                    x: 0;
+                    y: parent.height - 2px;
+                    width: parent.width;
+                    height: 1.5px;
+                    background: Theme.accent;
                 }
 
                 tab-ta := TouchArea {
@@ -58,5 +85,14 @@ export component ParamTabBar inherits Rectangle {
                 accessible-label: group;
             }
         }
+    }
+
+    // A row wider than the bar scrolls; while tabs wait past the right edge,
+    // that edge fades so the cut tab reads as "more this way" (#398).
+    if flick.content-x + flick.content-width > flick.width + 0.5px : more := Rectangle {
+        x: root.width - self.width;
+        width: 40px;
+        height: root.height;
+        background: @linear-gradient(90deg, root.fade-into.with-alpha(0) 0%, root.fade-into 85%);
     }
 }

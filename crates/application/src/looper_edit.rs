@@ -23,9 +23,11 @@ pub enum LoopEdit {
     Crop { start: usize, end: usize },
     /// Drop `[start, end)` and join the two halves.
     Cut { start: usize, end: usize },
-    /// Find where the playing actually starts and ends and keep THAT — no
-    /// region to give, because the point is that the user does not have to
-    /// measure it: the count-in and the late release go, the take stays.
+    /// Listen to the take and keep whole passes of the pattern it repeats,
+    /// from the first attack — no region to give, because the point is that
+    /// the user does not have to measure it: the count-in and an unfinished
+    /// last pass go, so the loop's end runs into its start. A take that does
+    /// not repeat keeps where the playing starts and ends.
     Fit,
 }
 

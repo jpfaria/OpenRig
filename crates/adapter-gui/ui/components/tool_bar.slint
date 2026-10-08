@@ -1,0 +1,64 @@
+// Responsibility: renders the dark title bar of a tool window.
+// #398: the window's icon (when it has one) in `icon-tint`, its name in the display face, and
+// whatever the window puts in (its switches, a close button) on the right.
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+
+export component ToolBar inherits Rectangle {
+    in property <image> icon;
+    in property <string> title;
+    in property <color> icon-tint: Theme.accent;
+    // A quiet note right after the title ("2 ENDPOINTS").
+    in property <string> sub;
+
+    height: 46px;
+    background: Theme.chrome;
+
+    Rectangle {
+        x: 0; y: parent.height - 1px;
+        width: parent.width; height: 1px;
+        background: Theme.chrome-line;
+    }
+
+    // A window without an icon (settings) starts its title at the edge.
+    if root.icon.width > 0 : Image {
+        x: 12px; y: (parent.height - 20px) / 2;
+        width: 20px; height: 20px;
+        source: root.icon;
+        colorize: root.icon-tint;
+    }
+
+    title-text := Text {
+        x: root.icon.width > 0 ? 42px : 14px; y: 0;
+        width: self.preferred-width;
+        height: parent.height;
+        text: root.title;
+        color: Theme.chrome-fg;
+        font-family: Locale.display-font-family;
+        font-size: 24px;
+        letter-spacing: 0.06 * 24px;
+        vertical-alignment: center;
+    }
+
+    if root.sub != "" : Text {
+        x: title-text.x + title-text.width + 12px; y: 0;
+        height: parent.height;
+        text: root.sub;
+        color: Theme.chrome-fg-2;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        letter-spacing: 0.12 * Theme.min-font;
+        vertical-alignment: center;
+    }
+
+    HorizontalLayout {
+        x: 0; y: 0;
+        width: parent.width - 12px; height: parent.height;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 10px;
+        alignment: end;
+
+        @children
+    }
+}

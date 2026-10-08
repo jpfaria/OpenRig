@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_retuner
+display_name: Pitch reTuner
+description: reTuner — Rubber Band pitch shifting and tuning.
+brand: kushview
+license: GPL-3.0-or-later
+homepage: https://github.com/kushview/retuner
+type: vst3
+backend: vst3
+bundle: bundles/reTuner.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

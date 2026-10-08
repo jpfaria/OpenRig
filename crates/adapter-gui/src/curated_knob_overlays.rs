@@ -29,7 +29,7 @@ pub(crate) fn build_knob_overlays(
                 .find(|p| p.path.as_str() == info.param_key);
             let value = found.map(|p| p.numeric_value).unwrap_or(info.min);
             let label = found
-                .map(|p| p.label.to_string().to_uppercase())
+                .map(|p| p.label.to_string())
                 .unwrap_or_else(|| info.param_key.to_uppercase());
             BlockKnobOverlay {
                 strip_line: -1,

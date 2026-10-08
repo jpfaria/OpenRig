@@ -24,6 +24,7 @@ use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
+#[derive(Clone)]
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -180,6 +181,8 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // #791: a Tone Doctor verdict finished off-thread — paint it on whichever
     // window has the panel open.
     crate::tone_doctor_events::apply(events);
+    crate::appearance_events::apply(events);
+    crate::plugin_library_events::apply(events);
 
     // #591: a footswitch `toggle_compact_view` → SetCompactViewEnabled emits
     // this. The compact view is a per-chain window opened via the same

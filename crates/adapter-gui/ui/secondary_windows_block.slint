@@ -1,4 +1,5 @@
 // Responsibility: declares the detached block windows.
+import { Theme } from "theme.slint";
 import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
@@ -13,6 +14,8 @@ import { LooperEditorOverlay } from "components/looper_editor_overlay.slint";
 import { LooperPresetPicker } from "components/looper_preset_picker.slint";
 import { LooperEndpointPicker } from "components/looper_endpoint_picker.slint";
 import { LooperTakeSaveDialog } from "components/looper_take_save_dialog.slint";
+import { WindowBoundsProbe } from "components/window_bounds.slint";
+import { HoverTipLayer } from "components/hover_tip_layer.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -73,7 +76,7 @@ export component BlockEditorWindow inherits Window {
     max-height: panel-height;
     preferred-width: panel-width;
     preferred-height: panel-height;
-    background: #040708;
+    background: Theme.page;
 
     // Amp head: visual panel editor
     if root.use-panel-editor : BlockPanelEditor {
@@ -111,6 +114,9 @@ export component BlockEditorWindow inherits Window {
         confirm => { OverlayBridge.confirm-delete-block(); }
         cancel => { OverlayBridge.cancel-delete-block(); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }
 
 export component CompactChainViewWindow inherits Window {
@@ -125,7 +131,7 @@ export component CompactChainViewWindow inherits Window {
     min-height: 480px;
     preferred-width: 1305px;
     preferred-height: 840px;
-    background: #0a0c10;
+    background: Theme.well;
 
     in property <string> chain-title;
     in property <int> chain-index;
@@ -311,4 +317,7 @@ export component CompactChainViewWindow inherits Window {
         undo(ci, uid) => { CompactLooper.edit-undo(ci, uid); }
         redo(ci, uid) => { CompactLooper.edit-redo(ci, uid); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_mud
+display_name: Mud
+description: Mud — low-frequency filter/muddiness control by Remaincalm.
+brand: remaincalm
+thumbnail: assets/thumbnail.png
+license: MIT
+homepage: https://github.com/remaincalm/mud
+type: filter
+backend: lv2
+plugin_uri: http://remaincalm.org/plugins/mud
+binaries:
+  macos-universal: platform/macos-universal/mud_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/mud_dsp.so

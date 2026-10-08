@@ -59,7 +59,9 @@ pub(crate) fn load_model_params(
     raw_params: Value,
 ) -> Result<ParameterSet> {
     let flattened = flatten_parameter_set(raw_params)?;
-    normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
+    let followed =
+        project::block::grid_version_follow::follow_saved_grid_versions(model, flattened);
+    normalize_block_params(effect_type, model, followed).map_err(anyhow::Error::msg)
 }
 
 /// Migrate legacy model identifiers to their current names.
@@ -195,3 +197,7 @@ pub(crate) fn extract_core_block_fields(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "block_yaml_load_tests.rs"]
+mod tests;

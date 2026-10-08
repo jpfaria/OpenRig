@@ -195,6 +195,12 @@ follow-up.
     `set_mixer_fader` / `set_mixer_mute` / `toggle_mixer_mute` /
     `set_mixer_solo` / `toggle_mixer_solo`. A solo silences the
     non-soloed strips of the same side; `gain_db` stays the stored fader.
+  - `openrig://tone3000` — the TONE3000 browser: `key_configured`,
+    `can_install`, the last `search` (query, `in_flight`, the result
+    page, `error`), the running `installs` (progress or error per tone) and
+    the `installed` packages (JSON). Never contains the key. Read parity for
+    `search_tone3000` / `install_tone3000` / `uninstall_tone3000` /
+    `set_tone3000_api_key`. See `docs/tone3000.md`.
   - `openrig://chains/{chain}/mixer` — one chain's own faders:
     `chain`, `di_gain_db` (its DI-loop fader) and `strips`, one per
     endpoint the chain plays through, inputs first, each with `id` (the
@@ -253,7 +259,7 @@ follow-up.
     has not set an override in `config.yaml`, the resource returns the
     OS default a consumer would compute itself. Skills (e.g.
     `openrig-tone-analyzer`) read this instead of hard-coding
-    `~/Library/Application Support/OpenRig/…`.
+    `~/.openrig/…`.
     `backing_tracks_path` is the user's backing-track folder: a file
     dropped there appears in `openrig://player`'s `library`.
     `looper_takes_path` is the app-wide looper take library: a

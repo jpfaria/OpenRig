@@ -2,7 +2,8 @@
 //!
 //! Two roots are scanned: the bundled one (read-only, ships with the
 //! installer, and wins when the same package id exists in both) and the
-//! user-installed one next to the GUI config file. Native (compiled-in)
+//! user's plugins folder, which the TONE3000 browser also installs into
+//! (#879). Native (compiled-in)
 //! plugins register first and disk-package discovery pushes its results into
 //! the same catalog, so by the time `packages()` is read everything lives in
 //! one place. VST3 system paths are scanned on a background thread — startup

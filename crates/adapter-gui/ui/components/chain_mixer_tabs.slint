@@ -7,7 +7,9 @@
 // faders of this chain only; the DI tab shows while the DI loop plays and the
 // LOOPER tab while the chain has a looper. Hosted by the compact view's mixer
 // section and by a chain card's mixer section.
+// #398: display tabs on a low row, the strips on the well below.
 
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { MixerStripRow } from "mixer_globals.slint";
 import { ChainMixerBridge } from "chain_mixer_globals.slint";
@@ -41,41 +43,65 @@ export component ChainMixerTabs inherits Rectangle {
         : (root.tab == 2 ? ChainMixerBridge.di
         : (root.tab == 3 ? ChainMixerBridge.loopers : root.no-rows));
     private property <int> count: root.dual-rows.length + root.single-rows.length;
-    private property <length> dual-pitch: 188px;
-    private property <length> single-pitch: 120px;
+    private property <length> dual-pitch: 224px;
+    private property <length> single-pitch: 122px;
     // The dual strips start after the single ones (OUT: after MASTER).
     private property <length> dual-offset: root.single-rows.length * root.single-pitch;
     private property <length> content-width:
         root.dual-offset + root.dual-rows.length * root.dual-pitch;
-    private property <length> tabs-height: 34px;
-    private property <length> body-top: root.tabs-height + 8px;
+    private property <length> tabs-height: 44px;
+    private property <length> body-top: root.tabs-height;
     private property <string> empty-text:
         root.tab == 0 ? @tr("label-mixer-no-inputs")
         : (root.tab == 1 ? @tr("label-mixer-no-outputs") : @tr("label-mixer-no-loopers"));
 
-    background: transparent;
+    // #1099: the tab labels are set, never bound. A bound array literal is a
+    // new model each time it re-evaluates, and the host rewrites the chain's
+    // row on every meter tick of a running chain: the bar's tabs were rebuilt
+    // between a press and its release, and the click was lost.
+    private property <[string]> groups;
 
-    ParamTabBar {
-        x: 0; y: 0;
-        width: parent.width; height: root.tabs-height;
-        groups: root.di-playing && root.has-looper
+    function refresh-groups() {
+        root.groups = root.di-playing && root.has-looper
             ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di"), @tr("tab-mixer-looper")]
             : root.di-playing
             ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di")]
             : root.has-looper
             ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-looper")]
             : [@tr("tab-mixer-in"), @tr("tab-mixer-out")];
+    }
+
+    init => { root.refresh-groups(); }
+    changed di-playing => { root.refresh-groups(); }
+    changed has-looper => { root.refresh-groups(); }
+
+    background: transparent;
+    border-radius: 6px;
+    clip: true;
+
+    ParamTabBar {
+        x: 0; y: 0;
+        width: parent.width; height: root.tabs-height;
+        groups: root.groups;
         // Bar position 2 is DI while it plays, LOOPER otherwise.
         active: root.tab == 3 && !root.di-playing ? 2 : root.tab;
+        boxed: true;
+        display: true;
         select(i) => { root.picked = i == 2 && !root.di-playing ? 3 : i; }
     }
 
-    ScrollView {
+    Rectangle {
         x: 0; y: root.body-top;
-        width: parent.width;
-        height: parent.height - self.y;
-        viewport-width: max(self.width, root.content-width);
-        viewport-height: self.height;
+        width: parent.width; height: parent.height - root.body-top;
+        background: Theme.well;
+    }
+
+    ScrollView {
+        x: 14px; y: root.body-top + 14px;
+        width: parent.width - 28px;
+        height: parent.height - self.y - 2px;
+        content-width: max(self.width, root.content-width);
+        content-height: self.height;
 
         for strip[i] in root.dual-rows : DualMixerStripView {
             x: root.dual-offset + i * root.dual-pitch; y: 0;
@@ -88,6 +114,7 @@ export component ChainMixerTabs inherits Rectangle {
             x: i * root.single-pitch; y: 0;
             height: parent.height - 12px;
             strip: strip;
+            master: root.tab == 1;
             has-solo: false;
             has-mute: false;
             fader-moved(id, position) => { ChainMixerBridge.single-fader-moved(id, position); }
@@ -96,13 +123,11 @@ export component ChainMixerTabs inherits Rectangle {
     }
 
     if root.count == 0 : Text {
-        x: 0; y: root.body-top;
-        width: parent.width; height: 60px;
+        x: 20px; y: root.body-top;
+        width: parent.width - 40px; height: 60px;
         text: root.empty-text;
-        color: #6f7a8a;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.0px;
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
         vertical-alignment: center;
     }
 }

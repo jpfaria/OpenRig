@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_mda_degrade
+display_name: MDA Degrade
+description: MDA Degrade — lo-fi bit crusher and sample rate reducer.
+brand: mda
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/rncbc/mda-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/Degrade
+binaries:
+  macos-universal: platform/macos-universal/Degrade.dylib
+  windows-x86_64: platform/windows-x86_64/Degrade.dll
+  linux-x86_64: platform/linux-x86_64/Degrade.so
+  linux-aarch64: platform/linux-aarch64/Degrade.so

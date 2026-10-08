@@ -1,0 +1,23 @@
+// Responsibility: colours each split path of the graph.
+// #398: lane A in the accent, B in the reverb blue, C in the modulation
+// violet, D in the delay teal, then round again for more paths; the trunk
+// (-1) keeps the wire grey. Wires, hub curves, hub letters and path tags
+// all read it here.
+
+import { Theme, Gear } from "../theme.slint";
+
+export global GraphLanes {
+    public pure function color(path: int) -> color {
+        return path < 0 ? Theme.wire
+            : Math.mod(path, 4) == 0 ? Theme.accent
+            : Math.mod(path, 4) == 1 ? Theme.c-rvb
+            : Math.mod(path, 4) == 2 ? Theme.c-mod
+            : Theme.c-dly;
+    }
+
+    // A letter printed on the hub: its lane colour, lightened on the dark
+    // tile and as it is on the light one.
+    public pure function ink(path: int) -> color {
+        return Theme.dark ? self.color(path).mix(Gear.white, 0.6) : self.color(path);
+    }
+}

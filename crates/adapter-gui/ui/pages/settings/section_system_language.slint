@@ -1,38 +1,33 @@
 // Responsibility: renders the language section.
-// Language section — inline ComboBox mirroring the Audio Interface
-// section's pattern (Hz/Buffer/Bits dropdowns). The previous
-// LanguageSelector popover hid the current value behind a globe icon
-// and felt out of place next to the rest of the settings rows.
-// Property forwarding through ProjectSettingsWindow → SettingsPage was
-// fixed in 371857e2, so std-widgets ComboBox now renders the model
-// correctly inside the secondary window.
+// #398: one captioned field, the language picker, kept narrow — a language
+// name never needs the whole pane.
 
-import { ComboBox } from "std-widgets.slint";
+import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
+import { FieldCaption } from "../../components/field_caption.slint";
+import { DropSelect } from "../../components/drop_select.slint";
 
 export component SectionSystemLanguage inherits Rectangle {
 
     background: transparent;
 
-    HorizontalLayout {
-        spacing: 12px;
+    VerticalLayout {
+        spacing: 6px;
         alignment: start;
-        height: 32px;
 
-        Text {
+        FieldCaption {
             text: @tr("label-language");
-            color: #cfd5e0;
-            font-size: 18px;
-            min-width: 120px;
-            vertical-alignment: center;
         }
 
-        combo := ComboBox {
-            model: SettingsBridge.language-options;
-            current-index: SettingsBridge.selected-language-index;
-            height: 28px;
-            width: 280px;
-            selected(_) => { SettingsBridge.language-selected(combo.current-index); }
+        HorizontalLayout {
+            alignment: start;
+
+            combo := DropSelect {
+                width: 320px;
+                model: SettingsBridge.language-options;
+                current: SettingsBridge.selected-language-index;
+                picked(i) => { SettingsBridge.language-selected(i); }
+            }
         }
     }
 }

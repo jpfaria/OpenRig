@@ -1,19 +1,21 @@
-nav{position:fixed;inset:0 0 auto 0;z-index:60;padding:18px 0;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
-nav.solid{background:rgba(5,7,11,.86);backdrop-filter:blur(20px) saturate(1.4);border-bottom-color:var(--line)}
-nav .wrap{display:flex;align-items:center;gap:clamp(14px,2.4vw,34px)}
-/* One lockup file, cropped tight and drawn to the proportions the app's launcher uses,
-   so the mark and the wordmark can never drift apart at any size. */
-.brand{display:block;margin-right:auto}
-.brand img{display:block;height:36px;width:auto}
-.nav-links{display:flex;gap:clamp(16px,1.7vw,28px);font-size:13.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
-.nav-links a{transition:color .2s}
-.nav-links a:hover{color:var(--white)}
-.nav-gh{color:var(--mute);transition:color .2s;display:flex}
-.nav-gh:hover{color:#fff}
-nav .lang-switch{display:flex;gap:10px}
-nav .lang-switch button{font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--mute);background:none;border:none;cursor:pointer;padding:0}
-nav .lang-switch button:hover,nav .lang-switch button.on{color:#fff}
-/* Between 900 and 1100 the eight links, the language switch and the CTA stop fitting
-   on one row — the longer Spanish labels ran the Download button off the screen. */
-@media(max-width:1100px){.nav-links{font-size:12px;gap:clamp(10px,1.3vw,18px)}}
-@media(max-width:900px){.nav-gh,nav .lang-switch{display:none}}
+/* Responsibility: the sticky top chrome bar with links, theme and language controls. */
+.topbar{position:sticky;top:0;z-index:50;background:var(--chrome);border-bottom:1px solid var(--chrome-line);color:var(--chrome-fg)}
+.topbar .wrap{display:flex;align-items:center;gap:20px;height:56px}
+.brand img{height:26px;width:auto}
+.nav-links{display:flex;gap:2px;margin-right:auto;margin-left:12px}
+.nav-links a{padding:8px 10px;border-radius:4px;font:600 12px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;color:var(--chrome-fg-2);transition:color .2s,background .2s}
+.nav-links a:hover{color:var(--chrome-fg);background:var(--chrome-2)}
+.bar-tools{display:flex;align-items:center;gap:8px;margin-left:auto}
+.icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:4px;border:1px solid var(--chrome-2);background:none;color:var(--chrome-fg-2);cursor:pointer;text-decoration:none}
+.icon-btn:hover{color:var(--chrome-fg);border-color:var(--chrome-fg-2)}
+.icon-btn svg{width:17px;height:17px}
+.seg{display:flex;border:1px solid var(--chrome-2);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:none;color:var(--chrome-fg-2);font:600 11px/1 var(--body);letter-spacing:.1em;padding:0 9px;height:32px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--chrome-2)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.theme-moon{display:none}
+:root[data-theme="dark"] .theme-sun{display:none}
+:root[data-theme="dark"] .theme-moon{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .theme-sun{display:none}:root:not([data-theme="light"]) .theme-moon{display:block}}
+@media (max-width:980px){.nav-links{display:none}}
+@media (max-width:560px){.topbar .wrap{gap:10px}.brand img{height:22px}.bar-tools .gh,.bar-tools .btn{display:none}}

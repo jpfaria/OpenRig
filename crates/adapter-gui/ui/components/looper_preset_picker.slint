@@ -3,9 +3,15 @@
 // a reachable in-tree TouchArea, the #749/#761 lesson). Lists the chain's
 // preset options; index 0 is "follow the chain" (clears the fixed link).
 // #1022: shared by the main window's looper overlay and the compact view.
+//
+// #398: a dialog card — the title in the display face over one framed list:
+// "follow the chain" first, then the numbered presets; the linked one is
+// tinted with an accent edge.
 
 import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
+import { ListBox, ListRow } from "list_box.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component LooperPresetPicker inherits Rectangle {
     // The chain's bank presets; option 0 ("follow the chain") is injected here.
@@ -13,7 +19,7 @@ export component LooperPresetPicker inherits Rectangle {
     // (chain-index, uid, option-index) — the picked preset.
     callback preset-picked(int, int, int);
 
-    background: #000000a8;
+    background: Theme.scrim;
 
     // Click-outside closes without changing the link.
     TouchArea { clicked => { LooperPanel.preset-picker-uid = -1; } }
@@ -21,63 +27,43 @@ export component LooperPresetPicker inherits Rectangle {
     Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: 360px;
+        width: min(root.width - 32px, 420px);
         // +1 row for the "follow the chain" option the picker injects at 0.
-        height: min(root.height - 80px, 96px + (root.preset-options.length + 1) * 48px);
-        background: #1e1f22;
-        border-radius: 12px;
+        height: min(root.height - 80px, 18px + 24px + 10px + (root.preset-options.length + 1) * 44px + 2px + 18px);
+        background: Theme.panel;
+        border-radius: 6px;
+        clip: true;
         border-width: 1px;
-        border-color: Theme.palette.border-strong;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+
+        // Swallow clicks on the card so only the scrim closes it.
+        TouchArea { }
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 8px;
+            padding: 18px;
+            spacing: 10px;
 
             Text {
+                height: 24px;
                 text: @tr("looper-preset-picker-title");
-                color: Theme.palette.text-primary;
-                font-size: Theme.min-font;
-                font-weight: 700;
+                color: Theme.ink;
+                font-family: Locale.display-font-family;
+                font-size: 24px;
+                letter-spacing: 0.05 * 24px;
+                vertical-alignment: center;
             }
 
             Flickable {
-                viewport-height: options-col.preferred-height;
-                options-col := VerticalLayout {
-                    spacing: 4px;
-
+                content-height: options-box.preferred-height;
+                options-box := ListBox {
+                    width: parent.width;
                     // Option 0 — "follow the chain" (clears the fixed link).
-                    follow-row := Rectangle {
-                        height: 44px;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: LooperPanel.preset-picker-selected == 0
-                            ? #6e8aff : transparent;
-                        background: follow-ta.has-hover
-                            ? #6e8aff28
-                            : (LooperPanel.preset-picker-selected == 0 ? #6e8aff14 : #2a2c31);
-
-                        Text {
-                            x: 12px;
-                            width: parent.width - 44px;
-                            height: parent.height;
-                            vertical-alignment: center;
-                            text: @tr("looper-preset-follow");
-                            color: Theme.palette.text-secondary;
-                            font-size: Theme.min-font;
-                            overflow: elide;
-                        }
-
-                        Text {
-                            x: parent.width - 30px;
-                            width: 20px;
-                            height: parent.height;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                            text: LooperPanel.preset-picker-selected == 0 ? "✓" : "";
-                            color: #6e8aff;
-                            font-size: Theme.min-font;
-                            font-weight: 700;
-                        }
+                    Rectangle {
+                        min-height: 44px;
+                        background: follow-ta.has-hover ? Theme.hover : transparent;
 
                         follow-ta := TouchArea {
                             mouse-cursor: pointer;
@@ -87,43 +73,31 @@ export component LooperPresetPicker inherits Rectangle {
                             }
                         }
 
+                        ListRow {
+                            width: parent.width;
+                            height: parent.height;
+                            divided: false;
+                            on: LooperPanel.preset-picker-selected == 0;
+                            Text {
+                                horizontal-stretch: 1;
+                                text: @tr("looper-preset-follow");
+                                color: Theme.ink;
+                                font-size: Theme.min-font;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
                         accessible-role: button;
                         accessible-label: @tr("looper-preset-follow");
+                        accessible-checked: LooperPanel.preset-picker-selected == 0;
                     }
 
                     // Options 1..N — the chain's bank presets.
                     for option[i] in root.preset-options : Rectangle {
-                        height: 44px;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: (i + 1) == LooperPanel.preset-picker-selected
-                            ? #6e8aff : transparent;
-                        background: opt-ta.has-hover
-                            ? #6e8aff28
-                            : ((i + 1) == LooperPanel.preset-picker-selected ? #6e8aff14 : #2a2c31);
-
-                        Text {
-                            x: 12px;
-                            width: parent.width - 44px;
-                            height: parent.height;
-                            vertical-alignment: center;
-                            text: option;
-                            color: Theme.palette.text-primary;
-                            font-size: Theme.min-font;
-                            overflow: elide;
-                        }
-
-                        Text {
-                            x: parent.width - 30px;
-                            width: 20px;
-                            height: parent.height;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                            text: (i + 1) == LooperPanel.preset-picker-selected ? "✓" : "";
-                            color: #6e8aff;
-                            font-size: Theme.min-font;
-                            font-weight: 700;
-                        }
+                        min-height: 44px;
+                        background: opt-ta.has-hover ? Theme.hover : transparent;
 
                         opt-ta := TouchArea {
                             mouse-cursor: pointer;
@@ -133,8 +107,31 @@ export component LooperPresetPicker inherits Rectangle {
                             }
                         }
 
+                        ListRow {
+                            width: parent.width;
+                            height: parent.height;
+                            on: (i + 1) == LooperPanel.preset-picker-selected;
+                            Text {
+                                width: 26px;
+                                text: (i < 9 ? "0" : "") + (i + 1);
+                                font-family: Locale.mono-font-family;
+                                color: Theme.ink-3;
+                                font-size: Theme.min-font;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                horizontal-stretch: 1;
+                                text: option;
+                                color: Theme.ink;
+                                font-size: Theme.min-font;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
                         accessible-role: button;
                         accessible-label: option;
+                        accessible-checked: (i + 1) == LooperPanel.preset-picker-selected;
                     }
                 }
             }

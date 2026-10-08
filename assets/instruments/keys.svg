@@ -1,11 +1,14 @@
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
-  <rect x="2" y="6" width="20" height="12" rx="1"/>
-  <line x1="6" y1="6" x2="6" y2="18" stroke-linecap="round"/>
-  <line x1="10" y1="6" x2="10" y2="18" stroke-linecap="round"/>
-  <line x1="14" y1="6" x2="14" y2="18" stroke-linecap="round"/>
-  <line x1="18" y1="6" x2="18" y2="18" stroke-linecap="round"/>
-  <rect x="4.5" y="6" width="2.5" height="7" rx="0.5"/>
-  <rect x="8" y="6" width="2.5" height="7" rx="0.5"/>
-  <rect x="12.5" y="6" width="2.5" height="7" rx="0.5"/>
-  <rect x="16" y="6" width="2.5" height="7" rx="0.5"/>
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      <rect x="0" y="0" width="24" height="24" fill="#ffffff"/>
+      <g fill="none" stroke="#000000" stroke-width=".9">
+        <rect x="4.6" y="5" width="2.8" height="8" rx=".5"/>
+        <rect x="8.6" y="5" width="2.8" height="8" rx=".5"/>
+        <rect x="16.6" y="5" width="2.8" height="8" rx=".5"/>
+        <path d="M6 13v6M10 13v6M14 5v14M18 13v6"/>
+      </g>
+    </mask>
+  </defs>
+  <rect mask="url(#cut)" x="2" y="5.5" width="20" height="13" rx="1.6" fill="#ffffff"/>
 </svg>

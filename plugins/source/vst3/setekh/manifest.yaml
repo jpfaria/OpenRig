@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_setekh
+display_name: Distortion setekh
+description: Setekh — multi-stage saturation / distortion by Full FX Media.
+brand: fullfxmedia
+license: GPL-3.0-or-later
+homepage: https://github.com/fullfxmedia/setekh
+type: vst3
+backend: vst3
+bundle: bundles/Setekh.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

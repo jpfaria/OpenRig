@@ -12,8 +12,8 @@ name = "slint-render"
 path = "src/main.rs"
 
 [dependencies]
-slint = { version = "=1.16.1", default-features = false, features = ["compat-1-2", "std", "software-renderer-systemfonts"] }
-slint-interpreter = { version = "=1.16.1", default-features = false, features = ["compat-1-2", "std", "display-diagnostics"] }
+slint = { version = "=1.18.1", default-features = false, features = ["compat-1-2", "std", "software-renderer-systemfonts"] }
+slint-interpreter = { version = "=1.18.1", default-features = false, features = ["compat-1-2", "std", "display-diagnostics"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 spin_on = "0.1"
 

@@ -245,7 +245,7 @@ pub fn resolve_effect_type_for_model(model_id: &str) -> Result<String> {
 /// because it's only consulted from the catalog). Lives here so this
 /// crate can resolve disk-package types without growing `catalog.rs`
 /// (already past the 600-line cap).
-fn block_type_to_effect_type(block_type: plugin_loader::manifest::BlockType) -> &'static str {
+pub fn block_type_to_effect_type(block_type: plugin_loader::manifest::BlockType) -> &'static str {
     use block_core::*;
     use plugin_loader::manifest::BlockType;
     match block_type {

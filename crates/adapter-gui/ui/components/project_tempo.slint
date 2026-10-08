@@ -1,58 +1,65 @@
 // Responsibility: renders the project tempo control of the top bar.
+// #398: it sits on the dark chrome — the BPM in the display face between the
+// slower / faster buttons, then a TAP ringed in the chrome's own line.
+import { Theme } from "../theme.slint";
 import { HeaderIconAction } from "chain_chips.slint";
 import { MetronomeBridge } from "metronome_globals.slint";
+import { Locale } from "../locale_globals.slint";
 
 export component ProjectTempo inherits Rectangle {
-    width: 160px;
-    height: 24px;
+    width: 184px;
+    height: 30px;
 
     minus := HeaderIconAction {
         x: 0px;
         y: 0px;
+        on-chrome: true;
         icon: @image-url("../assets/minus.svg");
         tooltip: @tr("Slower");
         clicked => { MetronomeBridge.set-bpm(Math.round(MetronomeBridge.bpm) - 1); }
     }
 
     bpm-text := Text {
-        x: 28px;
+        x: 32px;
         y: 0px;
-        width: 48px;
+        width: 52px;
         height: parent.height;
         text: Math.round(MetronomeBridge.bpm);
-        color: #f1f4f8;
-        font-size: 22px;
-        font-weight: 700;
+        color: Theme.chrome-fg;
+        font-family: Locale.display-font-family;
+        font-size: 30px;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
     plus := HeaderIconAction {
-        x: 80px;
+        x: 86px;
         y: 0px;
+        on-chrome: true;
         icon: @image-url("../assets/plus.svg");
         tooltip: @tr("Faster");
         clicked => { MetronomeBridge.set-bpm(Math.round(MetronomeBridge.bpm) + 1); }
     }
 
     tap := Rectangle {
-        x: 112px;
+        x: 124px;
         y: 0px;
-        width: 48px;
+        width: 60px;
         height: parent.height;
         border-radius: 4px;
         border-width: 1px;
-        border-color: #3b4250;
-        background: tap-area.pressed ? #188cff40 : tap-area.has-hover ? #ffffff10 : transparent;
+        border-color: Theme.chrome-ring;
+        background: tap-area.pressed ? Theme.accent.with-alpha(0.25) : tap-area.has-hover ? Theme.chrome-2 : transparent;
         accessible-role: button;
         accessible-label: @tr("action-tap-tempo");
         accessible-action-default => { MetronomeBridge.tap(); }
 
         Text {
             text: @tr("action-tap-tempo");
-            color: #eef2f8;
-            font-size: 18px;
-            font-weight: 700;
+            color: Theme.chrome-fg;
+            font-family: Locale.display-font-family;
+            font-size: 22px;
+            letter-spacing: 2px;
             horizontal-alignment: center;
             vertical-alignment: center;
         }

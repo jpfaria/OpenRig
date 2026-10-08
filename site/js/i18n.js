@@ -7,7 +7,8 @@ const STORAGE_KEY = 'openrig-lang';
 let currentLang = null;
 
 export function detectLang() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  let saved = null;
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* storage blocked: fall back to the browser language */ }
   if (saved && SUPPORTED_LANGS.includes(saved)) return saved;
   const nl = navigator.language || 'en';
   if (nl.startsWith('pt')) return 'pt-BR';
@@ -21,9 +22,13 @@ function interpolate(val) {
     if (gear.total === null) return null;
     val = val.replace('{gear}', fmtNum(gear.total));
   }
-  if (release.version) val = val.replace('{version}', release.version);
-  if (release.betaVersion) val = val.replace('{betaVersion}', release.betaVersion);
-  if (release.totalDownloads) val = val.replace('{downloads}', fmtNum(release.totalDownloads));
+  // Same for the release fields: an unknown value keeps the markup line instead of a raw {placeholder}.
+  const fields = { version: release.version, betaVersion: release.betaVersion, downloads: release.totalDownloads && fmtNum(release.totalDownloads) };
+  for (const [key, value] of Object.entries(fields)) {
+    if (!val.includes(`{${key}}`)) continue;
+    if (!value) return null;
+    val = val.replace(`{${key}}`, value);
+  }
   return val;
 }
 
@@ -40,7 +45,7 @@ export async function applyLang(lang) {
   const dict = await loadDict(lang);
   document.documentElement.lang = lang;
   currentLang = lang;
-  localStorage.setItem(STORAGE_KEY, lang);
+  try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) { /* private mode: the choice lasts this visit */ }
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const raw = dict[el.getAttribute('data-i18n')];
     if (raw === undefined) return;

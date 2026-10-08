@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MDA Overdrive — classic soft-clip overdrive plugin.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2
+  pt-BR:
+    description: MDA Overdrive — overdrive clássico soft-clip.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

@@ -11,8 +11,6 @@
 
 mod app_update;
 mod audio_health_tick;
-mod audio_wizard_step;
-mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
@@ -40,6 +38,7 @@ mod block_reorder;
 #[cfg(test)]
 #[path = "block_stream_read_tests.rs"]
 mod block_stream_read_tests;
+mod block_stream_sync;
 mod block_toggle;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
@@ -160,6 +159,8 @@ mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod session_dispatch;
 mod settings;
+mod setup_wizard_step;
+mod setup_wizard_wiring;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
@@ -200,10 +201,13 @@ mod split_path_gestures;
 mod split_path_wiring;
 mod split_picker_entries;
 mod stepped_input_mark;
+mod stepped_input_system_log;
 mod stepped_input_tick;
+mod stepped_input_timer;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
+mod tuner_tolerance;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
@@ -234,6 +238,7 @@ mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
+mod capture_file_chooser;
 mod chain_block_lists;
 mod chain_editor;
 mod chain_graph_adapter;
@@ -242,7 +247,9 @@ mod chain_graph_drop;
 #[cfg(test)]
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
+mod chain_graph_lanes;
 mod chain_graph_models;
+mod chain_graph_ports;
 mod chain_graph_split_group;
 mod chain_graph_wiring;
 pub mod crash_context;
@@ -283,6 +290,8 @@ mod helpers;
 mod issue_1006_meter_direction_tests;
 #[cfg(test)]
 mod issue_1074_meter_row_per_output_tests;
+#[cfg(test)]
+mod issue_398_paint_order_tests;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
@@ -335,8 +344,29 @@ pub mod midi_profile_wiring;
 mod midi_selection_mirror;
 /// #1060: panic reports written to the session log.
 pub mod panic_log;
+mod plugin_editor_bridge_sync;
+mod plugin_editor_ctx;
+mod plugin_editor_draft;
+mod plugin_editor_intents;
+mod plugin_editor_link;
+mod plugin_info_window_open;
+mod plugin_library_events;
+mod plugin_library_session;
+mod plugin_windows_wiring;
+mod plugins_bridge_sync;
+mod plugins_ctx;
+mod plugins_intents;
+mod plugins_view;
+mod plugins_wiring;
 /// #1060: writes one stream to two sinks.
 pub mod tee_writer;
+mod tone3000_bridge_sync;
+mod tone3000_ctx;
+mod tone3000_intents;
+mod tone3000_links;
+mod tone3000_session;
+mod tone3000_view;
+mod tone3000_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 #[cfg(test)]
@@ -379,6 +409,7 @@ mod model_search_wiring;
 /// #127: the UI must not name the audio backend outside the modules that own it.
 #[cfg(test)]
 mod no_infra_cpal_in_wiring_tests;
+mod port_block_names;
 mod port_wiring;
 mod preset_search;
 mod project_close_session;
@@ -399,6 +430,7 @@ mod recent_projects;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
+mod appearance_events;
 mod audio_settings_mode;
 mod block_drawer_state;
 mod block_editor_draft;
@@ -433,6 +465,7 @@ pub(crate) use project_ops::{
 };
 use state::UNTITLED_PROJECT_NAME;
 mod desktop_app;
+mod desktop_app_appearance;
 mod desktop_app_block_models;
 mod desktop_app_block_wiring;
 mod desktop_app_catalog;

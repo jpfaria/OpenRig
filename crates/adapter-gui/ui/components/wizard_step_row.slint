@@ -1,0 +1,64 @@
+// Responsibility: renders one step of the setup wizard's progress rail.
+// The rail only shows progress, it is not a menu: a done step carries a check,
+// the current one its number on the accent with an accent edge, a step still
+// ahead its number on a quiet badge.
+import { Theme } from "../theme.slint";
+
+export component WizardStepRow inherits Rectangle {
+    in property <int> number;
+    in property <string> label;
+    in property <bool> current;
+    in property <bool> done;
+
+    height: 44px;
+    // The row asks for its label's full width so the rail grows to fit the
+    // longest translated step name instead of eliding it.
+    min-width: step-label.preferred-width + 72px;
+    background: root.current ? Theme.panel : transparent;
+
+    if root.current : Rectangle {
+        x: 0; y: 0;
+        width: 2px; height: parent.height;
+        background: Theme.accent;
+    }
+
+    badge := Rectangle {
+        x: 16px; y: (parent.height - 26px) / 2;
+        width: 26px; height: 26px;
+        border-radius: 13px;
+        background: root.current ? Theme.accent : root.done ? Theme.ok : transparent;
+        border-width: root.current || root.done ? 0px : 1px;
+        border-color: Theme.ink-3.with-alpha(0.6);
+
+        if root.done && !root.current : Image {
+            x: (parent.width - 14px) / 2; y: (parent.height - 14px) / 2;
+            width: 14px; height: 14px;
+            source: @image-url("../assets/check.svg");
+            colorize: Theme.on-ok;
+        }
+
+        if !root.done || root.current : Text {
+            text: root.number;
+            color: root.current ? Theme.on-accent : Theme.ink-3;
+            font-size: Theme.min-font;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    step-label := Text {
+        x: 56px; y: 0;
+        width: parent.width - 64px; height: parent.height;
+        text: root.label;
+        color: root.current ? Theme.ink : root.done ? Theme.ink-2 : Theme.ink-3;
+        font-size: Theme.min-font;
+        font-weight: root.current ? 600 : 400;
+        letter-spacing: 0.04 * Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    accessible-role: list-item;
+    accessible-label: root.label;
+}

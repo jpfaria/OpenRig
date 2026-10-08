@@ -1,5 +1,5 @@
 //! Responsibility: starts the profile-driven MIDI daemon.
-//! GUI entry point for the profile-driven MIDI daemon (issue #548).
+//! GUI entry point for the profile-driven MIDI daemon.
 //!
 //! The binary calls `start_midi_profiles` once, after the dispatcher
 //! is built. The daemon then runs on its own thread, opening every
@@ -12,10 +12,10 @@
 //! Profile dirs:
 //! - **factory** = `<data-root>/assets/midi-profiles/` (the install's
 //!   shipped profiles; `data-root` resolved by `infra_filesystem::detect_data_root`).
-//! - **user** = `<data-dir>/openrig/midi-profiles/` (macOS:
-//!   `~/Library/Application Support`, Linux: `~/.local/share`, Windows:
-//!   `%APPDATA%`). Drop a `<name>.yaml` here and the daemon picks it up
-//!   on the next launch — no rebuild.
+//! - **user** = `<user folder>/midi-profiles/` (`infra_filesystem::user_data_root`:
+//!   `~/.openrig` on macOS and Linux, `%APPDATA%\OpenRig` on Windows). Drop a
+//!   `<name>.yaml` here and the daemon picks it up on the next launch — no
+//!   rebuild.
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -29,17 +29,7 @@ fn factory_profiles_dir() -> PathBuf {
 }
 
 fn user_profiles_dir() -> PathBuf {
-    let base = if cfg!(target_os = "macos") {
-        dirs::data_dir()
-            .or_else(dirs::home_dir)
-            .unwrap_or_else(|| PathBuf::from("."))
-    } else if cfg!(target_os = "windows") {
-        dirs::data_dir().unwrap_or_else(|| PathBuf::from("."))
-    } else {
-        // Linux / Unix
-        dirs::data_dir().unwrap_or_else(|| PathBuf::from("."))
-    };
-    base.join("openrig").join("midi-profiles")
+    infra_filesystem::user_data_root().join("midi-profiles")
 }
 
 pub fn start_midi_profiles(

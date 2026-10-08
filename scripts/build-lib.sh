@@ -7,7 +7,7 @@ set -euo pipefail
 #   ./scripts/build-lib.sh <plugin|all>                          # build for current platform
 #   ./scripts/build-lib.sh <plugin|all> --platform linux-x86_64  # Linux x86_64 via Docker
 #   ./scripts/build-lib.sh <plugin|all> --platform linux-aarch64 # Linux ARM64 via Docker (QEMU)
-#   ./scripts/build-lib.sh <plugin|all> --platform windows-x64   # Windows via Docker (mingw)
+#   ./scripts/build-lib.sh <plugin|all> --platform windows-x86_64   # Windows via Docker (mingw)
 #   ./scripts/build-lib.sh <plugin|all> --platform all           # build for ALL platforms
 #   ./scripts/build-lib.sh --list                                # list available plugins
 #
@@ -76,14 +76,16 @@ echo "Platform: $PLATFORM"
 echo "Plugins:  ${PLUGINS[*]}"
 echo ""
 
-# Determine output directory for a plugin + platform.
-# All LV2 plugins go to libs/lv2/. NAM is NOT built here since #612 — the
-# official NeuralAmpModelerCore is compiled from cpp/ by the nam crate's
-# build.rs during `cargo build` and bundled directly by the package scripts.
+# Determine output directory for a plugin + platform
+# NAM goes to libs/nam/, everything else to libs/lv2/
 output_dir_for_platform() {
     local plugin="$1"
     local platform="$2"
-    echo "$PROJECT_ROOT/libs/lv2/$platform"
+    if [ "$plugin" = "nam" ]; then
+        echo "$PROJECT_ROOT/libs/nam/$platform"
+    else
+        echo "$PROJECT_ROOT/libs/lv2/$platform"
+    fi
 }
 
 # --- macOS: build natively ---
@@ -118,7 +120,7 @@ build_docker() {
             docker_platform="linux/arm64"
             docker_tag="$DOCKER_IMAGE:linux-arm64"
             ;;
-        windows-x64)
+        windows-x86_64)
             # Cross-compile from Linux using mingw-w64
             docker_platform="linux/amd64"
             docker_tag="$DOCKER_IMAGE:linux-amd64"
@@ -129,7 +131,7 @@ build_docker() {
                 -e "CMAKE_EXTRA=-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++"
             )
             ;;
-        windows-arm64)
+        windows-aarch64)
             # Cross-compile using llvm-mingw (aarch64-w64-mingw32) on Linux amd64
             docker_platform="linux/amd64"
             docker_tag="$DOCKER_IMAGE:linux-amd64"
@@ -174,7 +176,7 @@ build_docker() {
     done
 }
 
-ALL_PLATFORMS=(macos-universal linux-x86_64 linux-aarch64 windows-x64 windows-arm64)
+ALL_PLATFORMS=(macos-universal linux-x86_64 linux-aarch64 windows-x86_64 windows-aarch64)
 
 # --- Dispatch ---
 if [ "$PLATFORM" = "all" ]; then
@@ -200,12 +202,12 @@ else
         macos-universal)
             build_native
             ;;
-        linux-x86_64|linux-aarch64|windows-x64|windows-arm64)
+        linux-x86_64|linux-aarch64|windows-x86_64|windows-aarch64)
             build_docker "$PLATFORM"
             ;;
         *)
             echo "ERROR: Unsupported platform: $PLATFORM"
-            echo "Supported: macos-universal, linux-x86_64, linux-aarch64, windows-x64, windows-arm64, all"
+            echo "Supported: macos-universal, linux-x86_64, linux-aarch64, windows-x86_64, windows-aarch64, all"
             exit 1
             ;;
     esac

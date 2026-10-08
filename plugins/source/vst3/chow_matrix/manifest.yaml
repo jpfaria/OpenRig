@@ -1,0 +1,175 @@
+manifest_version: 1
+id: vst3_chow_matrix
+display_name: Delay ChowMatrix
+description: ChowMatrix — growable multitap delay with per-node modulation and feedback by ChowDSP.
+brand: chowdsp
+license: BSD-3-Clause
+homepage: https://github.com/Chowdhury-DSP/ChowMatrix
+type: vst3
+backend: vst3
+bundle: bundles/ChowMatrix.vst3
+parameters:
+  - vst3_id: 1447548153
+    name: dry
+    display_name: "Dry"
+    group: "Global"
+  - vst3_id: 141402740
+    name: wet
+    display_name: "Wet"
+    group: "Global"
+  - vst3_id: 1396649284
+    name: wet_gain_comp
+    display_name: "Wet Gain Comp."
+    group: "Global"
+  - vst3_id: 537964083
+    name: insanity
+    display_name: "Insanity"
+    group: "Global"
+  - vst3_id: 46562371
+    name: insanity_reset
+    display_name: "Insanity Reset"
+    group: "Global"
+  - vst3_id: 500631670
+    name: delay_type
+    display_name: "Delay Type"
+    group: "Global"
+  - vst3_id: 3535525
+    name: sync
+    display_name: "Sync"
+    group: "Global"
+  - vst3_id: 1026022911
+    name: assign_1
+    display_name: "Assign 1"
+    group: "Global"
+  - vst3_id: 1026022912
+    name: assign_2
+    display_name: "Assign 2"
+    group: "Global"
+  - vst3_id: 1026022913
+    name: assign_3
+    display_name: "Assign 3"
+    group: "Global"
+  - vst3_id: 1026022914
+    name: assign_4
+    display_name: "Assign 4"
+    group: "Global"
+  - vst3_id: 1026022915
+    name: assign_5
+    display_name: "Assign 5"
+    group: "Global"
+  - vst3_id: 1026022916
+    name: assign_6
+    display_name: "Assign 6"
+    group: "Global"
+  - vst3_id: 1026022917
+    name: assign_7
+    display_name: "Assign 7"
+    group: "Global"
+  - vst3_id: 1026022918
+    name: assign_8
+    display_name: "Assign 8"
+    group: "Global"
+  - vst3_id: 1492297669
+    name: node_1_delay
+    display_name: "Node 1: Delay"
+    group: "Node 1"
+  - vst3_id: 1492308849
+    name: node_1_pan
+    display_name: "Node 1: Pan"
+    group: "Node 1"
+  - vst3_id: 1164122387
+    name: node_1_feedback
+    display_name: "Node 1: Feedback"
+    group: "Node 1"
+  - vst3_id: 1164149515
+    name: node_1_gain
+    display_name: "Node 1: Gain"
+    group: "Node 1"
+  - vst3_id: 1492305462
+    name: node_1_lpf
+    display_name: "Node 1: LPF"
+    group: "Node 1"
+  - vst3_id: 1492301618
+    name: node_1_hpf
+    display_name: "Node 1: HPF"
+    group: "Node 1"
+  - vst3_id: 1164068146
+    name: node_1_pitch
+    display_name: "Node 1: Pitch"
+    group: "Node 1"
+  - vst3_id: 1737456916
+    name: node_1_diffusion
+    display_name: "Node 1: Diffusion"
+    group: "Node 1"
+  - vst3_id: 1164067729
+    name: node_1_distortion
+    display_name: "Node 1: Distortion"
+    group: "Node 1"
+  - vst3_id: 1492310903
+    name: node_1_reverse
+    display_name: "Node 1: Reverse"
+    group: "Node 1"
+  - vst3_id: 1592505153
+    name: node_1_mod_freq
+    display_name: "Node 1: Mod Freq"
+    group: "Node 1"
+  - vst3_id: 2120791482
+    name: node_1_delay_mod
+    display_name: "Node 1: Delay Mod"
+    group: "Node 1"
+  - vst3_id: 744116884
+    name: node_1_pan_mod
+    display_name: "Node 1: Pan Mod"
+    group: "Node 1"
+  - vst3_id: 1493221190
+    name: node_2_delay
+    display_name: "Node 2: Delay"
+    group: "Node 2"
+  - vst3_id: 1493232370
+    name: node_2_pan
+    display_name: "Node 2: Pan"
+    group: "Node 2"
+  - vst3_id: 1192751538
+    name: node_2_feedback
+    display_name: "Node 2: Feedback"
+    group: "Node 2"
+  - vst3_id: 1192778666
+    name: node_2_gain
+    display_name: "Node 2: Gain"
+    group: "Node 2"
+  - vst3_id: 1493228983
+    name: node_2_lpf
+    display_name: "Node 2: LPF"
+    group: "Node 2"
+  - vst3_id: 1493225139
+    name: node_2_hpf
+    display_name: "Node 2: HPF"
+    group: "Node 2"
+  - vst3_id: 1192697297
+    name: node_2_pitch
+    display_name: "Node 2: Pitch"
+    group: "Node 2"
+  - vst3_id: 477476949
+    name: node_2_diffusion
+    display_name: "Node 2: Diffusion"
+    group: "Node 2"
+  - vst3_id: 1192696880
+    name: node_2_distortion
+    display_name: "Node 2: Distortion"
+    group: "Node 2"
+  - vst3_id: 1493234424
+    name: node_2_reverse
+    display_name: "Node 2: Reverse"
+    group: "Node 2"
+  - vst3_id: 1395991648
+    name: node_2_mod_freq
+    display_name: "Node 2: Mod Freq"
+    group: "Node 2"
+  - vst3_id: 323840123
+    name: node_2_delay_mod
+    display_name: "Node 2: Delay Mod"
+    group: "Node 2"
+  - vst3_id: 1084146069
+    name: node_2_pan_mod
+    display_name: "Node 2: Pan Mod"
+    group: "Node 2"

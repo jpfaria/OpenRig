@@ -55,15 +55,17 @@ try {
     # ── 2. Generate Windows icon (.ico) ──────────────────────────────────────────
     Write-Host "==> Generating Windows icon..."
     New-Item -ItemType Directory -Force "wix" | Out-Null
-    $svgPath = "crates\adapter-gui\ui\assets\openrig-logomark.svg"
+    # 1024px raster of openrig-logomark.svg: ImageMagick's built-in SVG
+    # renderer drops the icon's gradients/filters (#1098).
+    $srcPath = "assets\brands\openrig\icon.png"
     $icoPath = (Resolve-Path "wix").Path + "\openrig.ico"
     $iconOk = $false
     try {
-        # Convert SVG to PNG at multiple sizes, then combine into ICO
+        # Resize the icon to multiple sizes, then combine into ICO
         $tmpPngs = @()
         foreach ($size in @(16, 32, 48, 64, 128, 256)) {
             $png = "wix\icon_${size}.png"
-            & magick -background none -density 300 $svgPath -resize "${size}x${size}" $png 2>$null
+            & magick $srcPath -background none -resize "${size}x${size}" $png 2>$null
             if ($LASTEXITCODE -eq 0 -and (Test-Path $png)) { $tmpPngs += $png }
         }
         if ($tmpPngs.Count -gt 0) {
@@ -135,8 +137,7 @@ try {
     if (Test-Path "presets") {
         Copy-Item -Recurse "presets"          "$stageDir\presets"
     }
-    # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
-    # ship via openrig-plugins.zip (extracted on first launch).
+    # LV2/VST3 plugins are versioned in this repo under plugins\source (#1093).
 
     # Bundle plugins as a pre-extracted directory next to openrig.exe.
     # plugin_loader::registry::init_many scans <exe_dir>/plugins plus

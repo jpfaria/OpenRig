@@ -236,6 +236,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::Metronome(_) => self.handle_metronome(cmd),
             Command::Player(_) => self.handle_player(cmd),
             Command::Drums(_) => self.handle_drums(cmd),
+            Command::Tone3000(_) => self.handle_tone3000(cmd),
+            Command::PluginLibrary(_) => self.handle_plugin_library(cmd),
 
             // #1007: a chain's own faders live in the project, not the
             // system mixer state.
@@ -309,6 +311,10 @@ impl CommandDispatcher for LocalDispatcher {
             }
             Command::Settings(SettingsCommand::SetMcpEnabled { enabled }) => {
                 self.handle_set_mcp_enabled(enabled)
+            }
+            // #398: the light/dark scheme → config.yaml.
+            Command::Settings(SettingsCommand::SetAppearance { appearance }) => {
+                self.handle_set_appearance(appearance)
             }
 
             // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
@@ -391,6 +397,8 @@ impl CommandDispatcher for LocalDispatcher {
                     }
                 },
                 AsyncDone::Events(completed) => events.extend(completed),
+                AsyncDone::Tone3000(done) => events.extend(self.finish_tone3000(done)),
+                AsyncDone::PluginLibrary(done) => events.extend(self.finish_plugin_library(done)),
             }
         }
         events
@@ -490,6 +498,21 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn drums_library(&self) -> crate::drums::DrumLibrary {
         LocalDispatcher::drums_library(self)
+    }
+
+    fn attach_tone3000_state(
+        &self,
+        state: Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>,
+    ) {
+        LocalDispatcher::attach_tone3000_state(self, state)
+    }
+
+    fn tone3000_snapshot(&self) -> crate::tone3000_state::Tone3000Snapshot {
+        LocalDispatcher::tone3000_snapshot(self)
+    }
+
+    fn plugin_library_roots(&self) -> crate::plugin_library::PluginRoots {
+        LocalDispatcher::plugin_library_roots(self)
     }
 
     fn attach_mixer_state(&self, state: Rc<RefCell<MixerControlState>>) {

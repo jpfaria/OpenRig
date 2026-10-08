@@ -131,9 +131,9 @@ silently ignores a binding.
 >
 > | OS | Path |
 > |---|---|
-> | macOS | `~/Library/Application Support/OpenRig/midi-bindings.yaml` |
+> | macOS | `~/.openrig/midi-bindings.yaml` |
 > | Windows | `%APPDATA%\OpenRig\midi-bindings.yaml` |
-> | Linux | `~/.config/OpenRig/midi-bindings.yaml` |
+> | Linux | `~/.openrig/midi-bindings.yaml` |
 
 ### Upgrading from a legacy `midi-map.yaml`
 

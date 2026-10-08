@@ -1,7 +1,12 @@
 // Responsibility: renders a knob.
-// Sprite-sheet knob with value box below.
-// Horizontal strip: 8320×128 px, 65 frames (each 128×128).
-// Used in both block_panel_editor and compact_chain_view.
+// #398: a drawn knob (no sprite) — a quiet track arc, the value arc in the
+// block's colour (lit from the centre for a bipolar range), a white cap with
+// a dark pointer, and the value in a field below. The knob is `width` square;
+// the value box shows when the caller leaves room under it.
+import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+import { KnobArc } from "knob_arc.slint";
+
 export component PanelKnob inherits Rectangle {
     in property <float> value;
     in property <float> min-val;
@@ -11,6 +16,8 @@ export component PanelKnob inherits Rectangle {
     // One display text per step from `min-val` (the plugin's own "2.5 s");
     // empty shows the number (#1011).
     in property <[string]> value-labels: [];
+    // The value arc's colour: the block's category colour.
+    in property <color> tint: Theme.accent;
     callback changed(string, float);
 
     private property <int> label-index: root.step > 0.0
@@ -21,8 +28,9 @@ export component PanelKnob inherits Rectangle {
     private property <float> norm: root.max-val > root.min-val
         ? Math.max(0.0, Math.min(1.0, (root.current-val - root.min-val) / (root.max-val - root.min-val)))
         : 0.0;
-    private property <int> frame-count: 65;
-    private property <int> frame-index: Math.min(Math.max(Math.round(root.norm * (root.frame-count - 1)), 0), root.frame-count - 1);
+    // Pointer angle in degrees, 0 at twelve o'clock: -135 (min) .. 135 (max).
+    private property <float> angle: -135 + 270 * root.norm;
+    private property <bool> bipolar: root.min-val < 0 && root.max-val > 0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
     private property <bool> preview-active: false;
@@ -31,53 +39,40 @@ export component PanelKnob inherits Rectangle {
 
     background: transparent;
 
-    // ── Knob sprite ──
-    Rectangle {
-        x: (root.width - root.ks) / 2;
+    KnobArc {
+        x: 0;
         y: 0;
         width: root.ks;
         height: root.ks;
-        clip: true;
-
-        Image {
-            source: @image-url("../assets/sprites/knob-strip.png");
-            // Show only the current frame: shift the full strip left
-            x: -root.frame-index * root.ks;
-            y: 0;
-            // Scale the strip so each frame = ks×ks
-            width: root.frame-count * root.ks;
-            height: root.ks;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
+        angle: root.angle;
+        from: root.bipolar ? 0 : -135;
+        tint: root.tint;
     }
 
-    // ── Value box below knob ──
-    // Only when the caller leaves room under the sprite; the box then grows to
-    // the 18px value text (never less than 22px tall) instead of cutting it.
+    // ── Value box below the knob ──
     Rectangle {
         visible: root.height > root.ks + 4px;
         x: (root.width - self.width) / 2;
         y: root.ks + 3px;
-        width: max(root.ks * 0.9, value-text.preferred-width + 4px);
-        height: max(22px, root.height - root.ks - 4px);
-        border-radius: 3px;
-        background: #0c0a12;
+        width: max(root.ks * 1.2, value-text.preferred-width + 8px);
+        height: max(18px, root.height - root.ks - 4px);
+        border-radius: 2px;
+        background: Theme.field;
         border-width: 1px;
-        border-color: #2a2832;
+        border-color: ta.has-hover ? Theme.field-line : Theme.hair;
 
         value-text := Text {
             width: parent.width;
             height: parent.height;
+            font-family: Locale.mono-font-family;
             text: root.label-index >= 0 && root.label-index < root.value-labels.length
                 ? root.value-labels[root.label-index]
                 : root.step >= 1.0
                 ? Math.round(root.current-val) + ""
                 : Math.round(root.current-val * 10) / 10 + "";
-            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            font-weight: 700;
+            color: Theme.ink;
+            font-size: Theme.knob-caption-font;
+            font-weight: 500;
             horizontal-alignment: center;
             vertical-alignment: center;
         }

@@ -9,6 +9,7 @@ use application::drums::{bundled_drum_dir, scan_drum_library, user_drum_dir};
 use application::drums_state::DrumsControlState;
 use application::local_dispatcher::LocalDispatcher;
 use application::metronome_state::MetronomeControlState;
+use application::tone3000_state::Tone3000ControlState;
 use infra_filesystem::FilesystemStorage;
 use project::project::Project;
 use project::rig::RigProject;
@@ -117,6 +118,7 @@ impl ProjectSession {
         attach_metronome_state(dispatcher.as_ref());
         crate::player_session::attach_player_state(dispatcher.as_ref());
         attach_drums_state(dispatcher.as_ref());
+        attach_tone3000_state(dispatcher.as_ref());
         Self {
             project,
             dispatcher,
@@ -156,6 +158,22 @@ fn attach_drums_state(dispatcher: &dyn CommandDispatcher) {
         &config.drums,
         library,
         machine_config_path(),
+    ))));
+}
+
+/// #879: the TONE3000 browser — the user's key from `config.yaml` and the
+/// plugins folder it defines, which installs go into. A test build has no
+/// config path, so it has no install folder either.
+fn attach_tone3000_state(dispatcher: &dyn CommandDispatcher) {
+    let config = FilesystemStorage::load_app_config().unwrap_or_default();
+    let config_path = machine_config_path();
+    let root = config_path
+        .as_deref()
+        .map(plugin_loader::plugins_root_from_config);
+    dispatcher.attach_tone3000_state(Rc::new(RefCell::new(Tone3000ControlState::restored(
+        &config.tone3000,
+        config_path,
+        root,
     ))));
 }
 

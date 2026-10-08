@@ -175,6 +175,9 @@ pub struct LocalDispatcher {
     /// The drum machine's state, attached by the frontend; unattached means
     /// an empty library and nothing persisted.
     pub(crate) drums: RefCell<Rc<RefCell<DrumsControlState>>>,
+    /// #879: the TONE3000 browser, attached by the frontend; unattached
+    /// means no key, no install folder and nothing persisted.
+    pub(crate) tone3000: RefCell<Rc<RefCell<crate::tone3000_state::Tone3000ControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -187,6 +190,10 @@ pub(crate) enum AsyncDone {
     /// Work whose state lives elsewhere (e.g. the global plugin
     /// registry): just surface the completion events.
     Events(Vec<Event>),
+    /// #879: a TONE3000 search or install worker reported back.
+    Tone3000(crate::local_dispatcher_tone3000::Tone3000Done),
+    /// A plugin library worker reported back.
+    PluginLibrary(crate::plugin_library::redo_worker::PluginLibraryDone),
 }
 
 /// #791: the captured signal for one Tone Doctor run, produced off-thread
@@ -231,6 +238,9 @@ impl LocalDispatcher {
             mixer: RefCell::new(Rc::new(RefCell::new(MixerControlState::default()))),
             player: RefCell::new(Rc::new(RefCell::new(PlayerControlState::default()))),
             drums: RefCell::new(Rc::new(RefCell::new(DrumsControlState::default()))),
+            tone3000: RefCell::new(Rc::new(RefCell::new(
+                crate::tone3000_state::Tone3000ControlState::default(),
+            ))),
         }
     }
 

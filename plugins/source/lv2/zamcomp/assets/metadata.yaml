@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ZamComp — professional mono compressor with sidechain support.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins
+  pt-BR:
+    description: ZamComp — compressor mono profissional com suporte a sidechain.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

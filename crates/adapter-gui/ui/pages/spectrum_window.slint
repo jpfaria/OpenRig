@@ -2,153 +2,126 @@
 // SpectrumWindow — top-bar feature replacing the spectrum_analyzer block.
 // One row per terminal output entry of every enabled chain.
 //
-// Visual: dark card per row, 63 vertical bars per analyzer (1/6-octave),
-// labelled at decade markers. Peak hold drawn as a 1-px line above each bar.
+// #398: a dark tool bar with the POWER pill, then one teal scope per output
+// on the well: 63 bars (1/6-octave) lit from teal to yellow, labelled at the
+// decade markers, with a faint peak hold over each bar.
+import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
 import { AnalyzerBridge } from "../analyzer_globals.slint";
 import { SpectrumRow } from "../analyzer_rows.slint";
+import { LcdGlass } from "../components/lcd_glass.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
+import { PillSwitch } from "../components/pill_switch.slint";
+import { Locale } from "../locale_globals.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
 export { SpectrumRow }
 
-// Power footswitch — same sprite + size used by block FootSwitch
-// (see components/foot_switch.slint). No LED, no label.
-component PowerFootSwitch inherits Rectangle {
-    in property <bool> active;
-    callback toggled();
+// One decade label under the bars, centred on its band and kept inside.
+component AxisLabel inherits Text {
+    in property <length> at;
+    in property <length> span;
 
-    width: 48px;
-    height: 48px;
-    clip: true;
-
-    Image {
-        source: @image-url("../assets/sprites/footswitch.png");
-        x: 0;
-        y: root.active ? -parent.height : 0;
-        width: parent.width;
-        height: 2 * parent.height;
-        image-fit: fill;
-        image-rendering: smooth;
-    }
-    TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.toggled(); }
-    }
+    x: Math.clamp(root.at - self.width / 2, 0px, root.span - self.width);
+    y: 0;
+    width: self.preferred-width;
+    color: Theme.scope-axis;
+    font-family: Locale.mono-font-family;
+    font-size: Theme.min-font;
+    vertical-alignment: center;
 }
 
-
-// ── Single-row spectrum card — vertical bars on a dark canvas ──────────
+// ── One output's scope ───────────────────────────────────────────────────
 component SpectrumCard inherits Rectangle {
     in property <SpectrumRow> data;
 
-    // Tall enough for an 18px label on top and 18px decade labels below
-    // (22px lines each) without clipping either against the bars.
-    height: 140px;
-    border-radius: 8px;
-    background: @linear-gradient(180deg, #14181f 0%, #0e1116 100%);
-    border-width: 1px;
-    border-color: #1f2632;
-    clip: true;
-    drop-shadow-blur: 6px;
-    drop-shadow-color: #00000080;
+    property <length> bars-h: 120px;
 
-    // Channel label (top-left)
-    Text {
-        x: 14px; y: 8px;
-        width: parent.width - 32px;
-        height: 22px;
-        text: root.data.label;
-        color: #c5cdd9;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
-        overflow: elide;
-    }
+    height: 188px;
 
-    // Inactive state ribbon
-    if !root.data.active : Text {
-        x: 0; y: parent.height / 2 - 11px;
-        width: parent.width; height: 22px;
-        text: @tr("—");
-        color: #2a3340;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        horizontal-alignment: center;
-    }
+    LcdGlass {
+        width: 100%;
+        height: 100%;
+        glass: Theme.scope;
 
-    // Bars — uniform width with small gap, anchored to the baseline.
-    // Slint can't iterate `int` ranges directly, so pre-compute the
-    // (level, peak) tuples server-side and feed `data.levels` /
-    // `data.peaks` (already 63-element arrays).
-    if root.data.active : Rectangle {
-        x: 12px;
-        y: 30px;
-        width: parent.width - 24px;
-        height: parent.height - 56px;
-
-        // 63 bars + 62 gaps. Bar stride derives from the available width.
-        property <length> bar-stride: parent.width / 63;
-        property <length> bar-width: bar-stride - 1px;
-
-        for level[i] in root.data.levels : Rectangle {
-            x: i * parent.bar-stride;
-            y: parent.height * (1.0 - level);
-            width: parent.bar-width;
-            height: parent.height * level;
-            background: level > 0.85 ? #ff7878 : (level > 0.6 ? #ffc266 : #4ade80);
-            border-radius: 1px;
+        bands := Text {
+            x: parent.width - 14px - self.width; y: 10px;
+            width: self.preferred-width; height: 22px;
+            text: @tr("label-spectrum-bands", root.data.levels.length > 0 ? root.data.levels.length : 63);
+            font-family: Locale.mono-font-family;
+            color: Theme.scope-mid;
+            font-size: Theme.min-font;
+            letter-spacing: 0.08 * Theme.min-font;
+            vertical-alignment: center;
         }
-
-        // Peak hold — 1 px line per band, sits at peak position.
-        for peak[i] in root.data.peaks : Rectangle {
-            x: i * parent.bar-stride;
-            y: parent.height * (1.0 - peak) - 1px;
-            width: parent.bar-width;
-            height: 1px;
-            background: #f5f7ff;
-            opacity: 0.65;
-        }
-    }
-
-    // Decade labels at the bottom (20 / 100 / 1k / 10k / 20k).
-    // Drawn at fixed positions — labels on bands 0, 14, 34, 54, 60
-    // (matches `feature_dsp::spectrum_fft::BAND_LABELS`).
-    Rectangle {
-        x: 12px;
-        y: parent.height - 24px;
-        width: parent.width - 24px;
-        height: 22px;
-
-        property <length> bar-stride: parent.width / 63;
 
         Text {
-            x: 0 * parent.bar-stride; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("20"); color: #4a525e;
-            font-family: "Bebas Neue"; font-size: 18px;
-            letter-spacing: 0.8px;
+            x: 14px; y: 10px;
+            width: parent.width - 38px - bands.width; height: 22px;
+            text: root.data.label;
+            font-family: Locale.mono-font-family;
+            color: Theme.scope-mid;
+            font-size: Theme.min-font;
+            letter-spacing: 0.08 * Theme.min-font;
+            vertical-alignment: center;
+            overflow: elide;
         }
-        Text {
-            x: 14 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("100"); color: #4a525e;
-            font-family: "Bebas Neue"; font-size: 18px;
-            letter-spacing: 0.8px;
+
+        if !root.data.active : Text {
+            x: 0; y: 40px;
+            width: parent.width; height: root.bars-h;
+            text: @tr("—");
+            color: Theme.scope-axis;
+            font-family: Locale.display-font-family;
+            font-size: 26px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
         }
-        Text {
-            x: 34 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("1k"); color: #4a525e;
-            font-family: "Bebas Neue"; font-size: 18px;
-            letter-spacing: 0.8px;
+
+        // Bars — one per band, each lit from teal at its foot to yellow at
+        // its top, standing on the baseline.
+        if root.data.active : Rectangle {
+            x: 14px; y: 40px;
+            width: parent.width - 28px;
+            height: root.bars-h;
+
+            property <length> stride: self.width / 63;
+
+            for level[i] in root.data.levels : Rectangle {
+                x: i * parent.stride;
+                y: parent.height - self.height;
+                width: parent.stride - 1px;
+                height: max(2px, parent.height * level);
+                border-top-left-radius: 1px;
+                border-top-right-radius: 1px;
+                background: @linear-gradient(0deg, Theme.scope-lo 0%, Theme.scope-mid 70%, Theme.scope-hi 100%);
+            }
+
+            // Peak hold — a faint line where each band last peaked.
+            for peak[i] in root.data.peaks : Rectangle {
+                x: i * parent.stride;
+                y: parent.height * (1.0 - peak) - 1px;
+                width: parent.stride - 1px;
+                height: 1px;
+                background: Theme.scope-hi;
+                opacity: 0.5;
+            }
         }
-        Text {
-            x: min(54 * parent.bar-stride - 6px, label-20k.x - self.width - 4px); y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("10k"); color: #4a525e;
-            font-family: "Bebas Neue"; font-size: 18px;
-            letter-spacing: 0.8px;
-        }
-        label-20k := Text {
-            // Kept inside the card's right edge (the card clips).
-            x: min(60 * parent.bar-stride - 4px, parent.width - self.width); y: 0; width: self.preferred-width; height: parent.height;
-            text: @tr("20k"); color: #4a525e;
-            font-family: "Bebas Neue"; font-size: 18px;
-            letter-spacing: 0.8px;
+
+        // Decade labels on bands 0, 14, 34, 54 and 60 — the ones
+        // `feature_dsp::spectrum_fft::BAND_LABELS` names.
+        Rectangle {
+            x: 14px; y: 40px + root.bars-h;
+            width: parent.width - 28px; height: 22px;
+
+            property <length> stride: self.width / 63;
+
+            AxisLabel { at: 0.5 * parent.stride; span: parent.width; height: parent.height; text: @tr("20"); }
+            AxisLabel { at: 14.5 * parent.stride; span: parent.width; height: parent.height; text: @tr("100"); }
+            AxisLabel { at: 34.5 * parent.stride; span: parent.width; height: parent.height; text: @tr("1k"); }
+            AxisLabel { at: 54.5 * parent.stride; span: parent.width; height: parent.height; text: @tr("10k"); }
+            AxisLabel { at: 62.5 * parent.stride; span: parent.width; height: parent.height; text: @tr("20k"); }
         }
     }
 }
@@ -161,112 +134,70 @@ export component SpectrumPanel inherits Rectangle {
     callback close-spectrum();
     callback toggle-enabled(bool);
 
-    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+    property <length> bar-h: 46px;
 
-    // ── Header bar ───────────────────────────────────────────────────────
-    Rectangle {
+    background: Theme.well;
+
+    ToolBar {
         x: 0; y: 0;
         width: parent.width;
-        height: 72px;
-        background: #0c0e12;
+        icon: @image-url("../assets/spectrum.svg");
+        title: @tr("label-spectrum");
 
-        Rectangle {
-            x: 0; y: parent.height - 1px;
-            width: parent.width; height: 1px;
-            background: #1c2028;
-        }
-
-        // Power footswitch — first element. Centered vertically.
-        PowerFootSwitch {
-            x: 14px; y: (72px - self.height) / 2;
-            active: root.spectrum-enabled;
+        PillSwitch {
+            text: @tr("label-power");
+            on: root.spectrum-enabled;
             toggled => { root.toggle-enabled(!root.spectrum-enabled); }
         }
 
-        // Spectrum icon
-        Image {
-            x: 78px; y: 24px;
-            width: 24px; height: 24px;
-            source: @image-url("../assets/spectrum.svg");
-            colorize: #c5cdd9;
+        if root.show-close-button : ToolBarClose {
+            clicked => { root.close-spectrum(); }
         }
+    }
 
-        Text {
-            x: 110px; y: 0;
-            width: self.preferred-width; height: parent.height;
-            text: @tr("label-spectrum");
-            color: #e5ebf2;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 3.0px;
-            vertical-alignment: center;
-        }
+    // ── Empty state: the scope says why it is blank ──────────────────────
+    if root.spectrum-rows.length == 0 : LcdGlass {
+        x: 14px; y: root.bar-h + 14px;
+        width: parent.width - 28px;
+        height: empty-col.preferred-height;
+        glass: Theme.scope;
 
-        // Close button (inline mode only)
-        if root.show-close-button : Rectangle {
-            x: parent.width - 40px; y: 22px;
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: close-ta.has-hover ? #2a3340 : #1c2028;
-            border-width: 1px;
-            border-color: #2c323d;
+        empty-col := VerticalLayout {
+            padding-top: 28px;
+            padding-bottom: 28px;
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 8px;
 
-            Image {
-                x: (parent.width - 12px) / 2;
-                y: (parent.height - 12px) / 2;
-                width: 12px;
-                height: 12px;
-                source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                colorize: #c5cdd9;
+            Text {
+                text: @tr("status-no-active-outputs");
+                color: Theme.scope-mid;
+                font-size: 26px;
+                letter-spacing: 0.08 * 26px;
+                horizontal-alignment: center;
             }
 
-            close-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.close-spectrum(); }
+            Text {
+                text: @tr("status-spectrum-empty-help");
+                color: Theme.scope-axis;
+                font-size: Theme.min-font;
+                horizontal-alignment: center;
+                wrap: word-wrap;
             }
         }
     }
 
-    // ── Empty state ──────────────────────────────────────────────────────
-    if root.spectrum-rows.length == 0 : Rectangle {
-        x: 0; y: 72px;
-        width: parent.width;
-        height: parent.height - 72px;
-
-        Text {
-            x: 0; y: parent.height / 2 - 32px;
-            width: parent.width; height: 24px;
-            text: @tr("status-no-active-outputs");
-            color: #4a525e;
-            font-family: "Bebas Neue";
-            font-size: 18px;
-            letter-spacing: 2.4px;
-            horizontal-alignment: center;
-        }
-        // Wraps (and grows) instead of running off a narrow window.
-        Text {
-            x: 16px; y: parent.height / 2 - 4px;
-            width: parent.width - 32px; height: self.preferred-height;
-            text: @tr("status-spectrum-empty-help");
-            color: #4a525e;
-            font-family: "Inter";
-            font-size: 18px;
-            horizontal-alignment: center;
-            wrap: word-wrap;
-        }
-    }
-
-    // ── Spectrum cards ──────────────────────────────────────────────────
+    // ── One scope per output ─────────────────────────────────────────────
     if root.spectrum-rows.length > 0 : ScrollView {
-        x: 16px; y: 88px;
-        width: parent.width - 32px;
-        height: parent.height - 104px;
-        viewport-height: root.spectrum-rows.length * 152px;
+        x: 0; y: root.bar-h;
+        width: parent.width;
+        height: parent.height - root.bar-h;
+        content-height: 14px + root.spectrum-rows.length * 200px;
 
         for row[index] in root.spectrum-rows : SpectrumCard {
-            x: 0;
-            y: index * 152px;
-            width: parent.width - 8px;
+            x: 14px;
+            y: 14px + index * 200px;
+            width: parent.width - 28px;
             data: row;
         }
     }
@@ -274,14 +205,14 @@ export component SpectrumPanel inherits Rectangle {
 
 export component SpectrumWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
-    default-font-family: "Bebas Neue";
+    default-font-family: Locale.font-family;
     default-font-size: 18px;
     title: @tr("title-window-spectrum");
     min-width: 560px;
     min-height: 280px;
     preferred-width: 720px;
     preferred-height: 480px;
-    background: #050608;
+    background: Theme.well;
 
     // Rows and power come from the bridge — the channel `spectrum_wiring`
     // publishes on (#873), same pattern as MetronomeWindow.
@@ -298,4 +229,7 @@ export component SpectrumWindow inherits Window {
         close-spectrum => { root.close-spectrum-window(); }
         toggle-enabled(e) => { root.toggle-enabled(e); }
     }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
 }

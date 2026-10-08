@@ -1,0 +1,111 @@
+manifest_version: 1
+id: vst3_vitottx
+display_name: Multiband vit-multiband
+description: Multiband upward/downward compressor (open-source, Vital DSP based) by Sakhnovkrg.
+brand: sakhnovkrg
+license: GPL-3.0-or-later
+homepage: https://github.com/Sakhnovkrg/vitOTTx
+type: vst3
+backend: vst3
+bundle: bundles/vitOTTx.vst3
+parameters:
+  - vst3_id: 1938712153
+    name: in_gain
+    display_name: "In Gain"
+    group: "General"
+  - vst3_id: 54048208
+    name: out_gain
+    display_name: "Out Gain"
+    group: "General"
+  - vst3_id: 108124
+    name: mix
+    display_name: "Mix"
+    group: "General"
+  - vst3_id: 95472323
+    name: depth
+    display_name: "Depth"
+    group: "General"
+  - vst3_id: 1309203351
+    name: upward
+    display_name: "Upward"
+    group: "General"
+  - vst3_id: 1428133406
+    name: downward
+    display_name: "Downward"
+    group: "General"
+  - vst3_id: 537398699
+    name: attack
+    display_name: "Attack"
+    group: "General"
+  - vst3_id: 1591200435
+    name: release
+    display_name: "Release"
+    group: "General"
+  - vst3_id: 102905323
+    name: low_gain
+    display_name: "Low. Gain"
+    group: "Low"
+  - vst3_id: 103828844
+    name: mid_gain
+    display_name: "Mid. Gain"
+    group: "Mid"
+  - vst3_id: 99211239
+    name: high_gain
+    display_name: "High. Gain"
+    group: "High"
+  - vst3_id: 527070434
+    name: low_mid_freq
+    display_name: "Low/Mid Freq"
+    group: "Low"
+  - vst3_id: 326327764
+    name: mid_high_freq
+    display_name: "Mid/High Freq"
+    group: "Mid"
+  - vst3_id: 1824510595
+    name: low_lower_threshold
+    display_name: "Low (Lower) Threshold"
+    group: "Low"
+  - vst3_id: 255099748
+    name: low_upper_threshold
+    display_name: "Low (Upper) Threshold"
+    group: "Low"
+  - vst3_id: 1822457058
+    name: low_lower_ratio
+    display_name: "Low (Lower) Ratio"
+    group: "Low"
+  - vst3_id: 253046211
+    name: low_upper_ratio
+    display_name: "Low (Upper) Ratio"
+    group: "Low"
+  - vst3_id: 1418849252
+    name: mid_lower_threshold
+    display_name: "Mid (Lower) Threshold"
+    group: "Mid"
+  - vst3_id: 1996922053
+    name: mid_upper_threshold
+    display_name: "Mid (Upper) Threshold"
+    group: "Mid"
+  - vst3_id: 1416795715
+    name: mid_lower_ratio
+    display_name: "Mid (Lower) Ratio"
+    group: "Mid"
+  - vst3_id: 1994868516
+    name: mid_upper_ratio
+    display_name: "Mid (Upper) Ratio"
+    group: "Mid"
+  - vst3_id: 2043938769
+    name: high_lower_threshold
+    display_name: "High (Lower) Threshold"
+    group: "High"
+  - vst3_id: 474527922
+    name: high_upper_threshold
+    display_name: "High (Upper) Threshold"
+    group: "High"
+  - vst3_id: 2041885232
+    name: high_lower_ratio
+    display_name: "High (Lower) Ratio"
+    group: "High"
+  - vst3_id: 472474385
+    name: high_upper_ratio
+    display_name: "High (Upper) Ratio"
+    group: "High"

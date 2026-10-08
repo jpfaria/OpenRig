@@ -1,0 +1,130 @@
+// Responsibility: draws the face of a vector knob.
+// #398: drawn on a 40-unit grid, scaled to `width`. A track arc from seven to
+// five o'clock, the value arc from `from` to `angle` in `tint`, a dropped
+// white cap and a dark pointer. Angles are degrees, 0 at twelve o'clock.
+import { Theme, Gear } from "../theme.slint";
+
+export component KnobArc inherits Rectangle {
+    in property <float> angle: -135;
+    in property <float> from: -135;
+    in property <color> tint: Theme.accent;
+    in property <bool> show-value: true;
+
+    private property <float> lo: Math.min(root.from, root.angle);
+    private property <float> hi: Math.max(root.from, root.angle);
+    // Logical px per grid unit.
+    private property <length> u: root.width / 40;
+
+    background: transparent;
+
+    // Track: -135° .. 135°, radius 17.
+    Path {
+        width: root.width;
+        height: root.height;
+        viewbox-width: 40;
+        viewbox-height: 40;
+        fill: transparent;
+        stroke: Theme.ktrack;
+        stroke-width: 2 * root.u;
+        stroke-line-cap: round;
+        MoveTo { x: 20 - 17 * 0.7071; y: 20 + 17 * 0.7071; }
+        ArcTo {
+            x: 20 + 17 * 0.7071;
+            y: 20 + 17 * 0.7071;
+            radius-x: 17;
+            radius-y: 17;
+            large-arc: true;
+            sweep: true;
+        }
+    }
+
+    // Value arc.
+    if root.show-value && root.hi - root.lo > 0.5 : Path {
+        width: root.width;
+        height: root.height;
+        viewbox-width: 40;
+        viewbox-height: 40;
+        fill: transparent;
+        stroke: root.tint;
+        stroke-width: 2 * root.u;
+        stroke-line-cap: round;
+        MoveTo {
+            x: 20 + 17 * Math.sin(root.lo * 1deg);
+            y: 20 - 17 * Math.cos(root.lo * 1deg);
+        }
+        ArcTo {
+            x: 20 + 17 * Math.sin(root.hi * 1deg);
+            y: 20 - 17 * Math.cos(root.hi * 1deg);
+            radius-x: 17;
+            radius-y: 17;
+            large-arc: root.hi - root.lo > 180;
+            sweep: true;
+        }
+    }
+
+    // The cap's drop, one unit low.
+    Rectangle {
+        x: 8 * root.u;
+        y: 9 * root.u;
+        width: 24 * root.u;
+        height: 24 * root.u;
+        border-radius: self.width / 2;
+        background: Gear.knob-drop;
+    }
+
+    // The white cap: an edge tone with a lit face over it, clipped round.
+    Rectangle {
+        x: 8 * root.u;
+        y: 8 * root.u;
+        width: 24 * root.u;
+        height: 24 * root.u;
+        border-radius: self.width / 2;
+        background: Gear.knob-edge;
+        clip: true;
+
+        Rectangle {
+            x: 2 * root.u;
+            y: 1.5 * root.u;
+            width: 19 * root.u;
+            height: 19 * root.u;
+            border-radius: self.width / 2;
+            background: Gear.knob-mid;
+        }
+
+        Rectangle {
+            x: 5 * root.u;
+            y: 4 * root.u;
+            width: 11 * root.u;
+            height: 11 * root.u;
+            border-radius: self.width / 2;
+            background: Gear.white;
+            opacity: 0.7;
+        }
+
+        Rectangle {
+            border-radius: self.width / 2;
+            border-width: max(1px, 0.8 * root.u);
+            border-color: Gear.knob-rim;
+        }
+    }
+
+    // The pointer, from radius 3.5 to 10.5.
+    Path {
+        width: root.width;
+        height: root.height;
+        viewbox-width: 40;
+        viewbox-height: 40;
+        fill: transparent;
+        stroke: Gear.knob-pointer;
+        stroke-width: 1.6 * root.u;
+        stroke-line-cap: round;
+        MoveTo {
+            x: 20 + 3.5 * Math.sin(root.angle * 1deg);
+            y: 20 - 3.5 * Math.cos(root.angle * 1deg);
+        }
+        LineTo {
+            x: 20 + 10.5 * Math.sin(root.angle * 1deg);
+            y: 20 - 10.5 * Math.cos(root.angle * 1deg);
+        }
+    }
+}

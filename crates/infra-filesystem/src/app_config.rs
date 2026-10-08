@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::appearance::Appearance;
 use crate::asset_paths::AssetPaths;
 use crate::crash_reporting_config::CrashReportingConfig;
 use crate::drums_config::DrumsConfig;
@@ -14,6 +15,7 @@ use crate::metronome_config::MetronomeConfig;
 use crate::midi_device::MidiDeviceSelection;
 use crate::mixer_config::MixerStripConfig;
 use crate::player_config::PlayerConfig;
+use crate::tone3000_config::Tone3000Config;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct RecentProjectEntry {
@@ -43,6 +45,10 @@ pub struct AppConfig {
     /// locale.
     #[serde(default)]
     pub language: Option<String>,
+    /// #398: light/dark scheme of the interface. `system` (the default)
+    /// follows the operating system.
+    #[serde(default)]
+    pub appearance: Appearance,
     /// Per-machine MIDI device selection (#513). Empty list = none seen
     /// yet; the GUI seeds rows from `adapter_midi::list_input_ports()`.
     #[serde(default)]
@@ -85,6 +91,10 @@ pub struct AppConfig {
     /// Per-machine crash reporter choice (#1070, ADR 0003).
     #[serde(default)]
     pub crash_reporting: CrashReportingConfig,
+    /// Per-machine TONE3000 account (#879, ADR 0003). Absent until the user
+    /// sets a Secret Key.
+    #[serde(default, skip_serializing_if = "Tone3000Config::is_empty")]
+    pub tone3000: Tone3000Config,
 }
 
 fn default_true() -> bool {

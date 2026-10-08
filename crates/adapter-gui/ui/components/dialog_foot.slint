@@ -1,0 +1,24 @@
+// Responsibility: renders the footer row of a dialog.
+// #398: the low panel under a hairline, its buttons (and anything else the
+// dialog puts in) laid out to the right.
+import { Theme } from "../theme.slint";
+
+export component DialogFoot inherits Rectangle {
+    in property <LayoutAlignment> alignment: end;
+
+    height: 62px;
+    background: Theme.panel-lo;
+
+    Rectangle { x: 0; y: 0; width: parent.width; height: 1px; background: Theme.hair; }
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        spacing: 8px;
+        alignment: root.alignment;
+
+        @children
+    }
+}

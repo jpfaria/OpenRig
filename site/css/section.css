@@ -1,0 +1,17 @@
+/* Responsibility: the vertical rhythm and backgrounds of the content sections. */
+.sec{padding:clamp(72px,10vw,120px) 0}
+.sec.alt{background:radial-gradient(var(--dot) 1px,transparent 1.2px) 0 0/18px 18px,var(--panel-lo);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.sec-head{margin-bottom:clamp(32px,5vw,52px)}
+.sec-sub{margin-top:clamp(56px,8vw,88px)}
+.two{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(28px,4vw,56px);align-items:center}
+.two.flip{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+@media (max-width:960px){.two,.two.flip{grid-template-columns:minmax(0,1fr)}.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:720px){.grid-3{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.grid-4{grid-template-columns:minmax(0,1fr)}}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-content:start}
+.grid-2>:last-child:nth-child(odd){grid-column:1/-1}
+.tools-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
+@media (max-width:860px){.tools-grid{grid-template-columns:minmax(0,1fr)}.tools-grid .shot{max-width:420px}}
+@media (max-width:520px){.grid-2{grid-template-columns:minmax(0,1fr)}}

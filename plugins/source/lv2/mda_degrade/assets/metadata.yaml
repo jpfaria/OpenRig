@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: MDA Degrade — lo-fi bit crusher and sample rate reducer.
+    license: MIT
+    homepage: https://github.com/rncbc/mda-lv2

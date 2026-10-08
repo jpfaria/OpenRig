@@ -61,6 +61,8 @@ pub fn invalidate_device_cache() {
     crate::device_config_cache::invalidate();
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     crate::device_lookup::invalidate();
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    crate::device_name_cache::invalidate();
     #[cfg(all(target_os = "linux", feature = "jack"))]
     invalidate_proc_cache();
     log::info!("device descriptor cache invalidated (stale-while-revalidate)");
@@ -159,10 +161,10 @@ fn count_devices_cheap() -> usize {
     }
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
+        // #1081: every device the host has, unfiltered — cpal's direction
+        // filters build an AudioUnit per device (see `device_list`).
         let host = select_host_for_enumeration();
-        let input = host.input_devices().map(|it| it.count()).unwrap_or(0);
-        let output = host.output_devices().map(|it| it.count()).unwrap_or(0);
-        input + output
+        host.devices().map(|it| it.count()).unwrap_or(0)
     }
 }
 
@@ -247,6 +249,28 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
         fetched_at: Some(Instant::now()),
     };
     Ok(devices)
+}
+
+/// The devices of the last snapshots, input side first, without enumerating
+/// and whatever their age: empty until the boot warmer or a picker has filled
+/// the cache. For readers polled many times a second, which must never start
+/// a CoreAudio enumeration.
+pub fn cached_device_descriptors() -> Vec<AudioDeviceDescriptor> {
+    let input = INPUT_DEVICE_CACHE.lock().unwrap().clone();
+    let output = OUTPUT_DEVICE_CACHE.lock().unwrap().clone();
+    snapshot_devices(&input, &output)
+}
+
+fn snapshot_devices(
+    input: &TimedDeviceCache,
+    output: &TimedDeviceCache,
+) -> Vec<AudioDeviceDescriptor> {
+    [input, output]
+        .into_iter()
+        .filter_map(|cache| cache.devices.as_deref())
+        .flatten()
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]

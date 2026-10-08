@@ -259,8 +259,9 @@ fn the_editor_opens_with_the_ports_endpoint_already_picked() {
 }
 
 /// What each select in the port editor actually DISPLAYS, top to bottom.
+/// #398: the selects are drawn `DropSelect` fields.
 fn shown_values(window: &ChainPortWindow) -> Vec<String> {
-    i_slint_backend_testing::ElementHandle::find_by_element_type_name(window, "ComboBox")
+    i_slint_backend_testing::ElementHandle::find_by_element_type_name(window, "DropSelect")
         .map(|el| el.accessible_value().unwrap_or_default().to_string())
         .collect()
 }

@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_supersonic
+display_name: GxSupersonic
+description: GxSupersonic — supersonic amp simulation by the Guitarix project.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: amp
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_supersonic_#_supersonic_
+binaries:
+  macos-universal: platform/macos-universal/gx_supersonic.dylib
+  linux-x86_64: platform/linux-x86_64/gx_supersonic.so
+  linux-aarch64: platform/linux-aarch64/gx_supersonic.so
+  windows-x86_64: platform/windows-x86_64/gx_supersonic.dll
