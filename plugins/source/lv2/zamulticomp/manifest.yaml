@@ -12,6 +12,9 @@ backend: lv2
 plugin_uri: urn:zamaudio:ZaMultiComp
 binaries:
   macos-universal: platform/macos-universal/ZaMultiComp_dsp.dylib
+  linux-aarch64: platform/linux-aarch64/ZaMultiComp_dsp.so
+  linux-x86_64: platform/linux-x86_64/ZaMultiComp_dsp.so
+  windows-x86_64: platform/windows-x86_64/ZaMultiComp_dsp.dll
 # Parameter tabs for the block editor (issue #119). Keyed by the port's
 # lv2:symbol; the live TTL stays the source of truth for which ports exist and
 # for their names. A port not listed here is grouped dynamically by the app.
