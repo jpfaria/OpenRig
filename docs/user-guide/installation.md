@@ -66,13 +66,13 @@ cargo build --release -p adapter-gui
 
 ### 3. Get the models
 
-The amps, pedals, cabs and IRs live in a separate repository, [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins):
+The LV2 and VST3 effects come with the clone, under `plugins/source/`. Make sure their Git LFS objects are there (the clone above fetches them when `git lfs install` ran first):
 
 ```bash
-git clone https://github.com/jpfaria/OpenRig-plugins.git
+git lfs pull --include="plugins/source/**"
 ```
 
-In OpenRig, open **Settings → Paths → Plugins** and choose `OpenRig-plugins/plugins/source`. Without this step the block picker is empty.
+Run the app from the `OpenRig` folder and it finds them on its own. NAM and IR captures are not included; to use your own, open **Settings → Paths → Plugins** and choose the folder that holds them.
 
 ### 4. Set up audio
 
@@ -112,7 +112,7 @@ The app is fine; macOS blocks apps that Apple has not notarized. Use the [one-co
 
 ### The block picker has no amps or pedals
 
-OpenRig cannot find the models. Point **Settings → Paths → Plugins** at the `plugins/source` folder of your [OpenRig-plugins](https://github.com/jpfaria/OpenRig-plugins) clone. The macOS app ships the models inside it, so this only happens with a source build.
+OpenRig cannot find the plugins. In a source build, run the app from the `OpenRig` folder and pull the plugin tree with `git lfs pull --include="plugins/source/**"`. The macOS app ships the LV2/VST3 plugins inside it, so this only happens with a source build.
 
 ### "is a Git LFS pointer" when building
 

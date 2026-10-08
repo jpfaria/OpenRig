@@ -27,6 +27,9 @@ use crate::helpers::set_status_info;
 use crate::state::ProjectSession;
 use crate::{AppWindow, DeviceSelectionItem, ProjectSettingsWindow};
 
+#[path = "device_rows_selection.rs"]
+mod selection;
+
 /// Everything the refresh writes into. Cloned handles only — no window is
 /// held strongly, so registering this never keeps a closed window alive.
 pub(crate) struct DeviceRefreshHandles {
@@ -77,13 +80,18 @@ pub(crate) fn refresh_now(also_status_window: bool) {
         crate::settings::io_bindings::reseed_device_models(w, p, &fresh_input, &fresh_output);
     }
 
-    if let Some(session) = handles.project_session.borrow().as_ref() {
-        handles.project_devices.set_vec(build_project_device_rows(
-            &fresh_input,
-            &fresh_output,
-            &session.project.borrow().device_settings,
-        ));
-    }
+    let saved = {
+        let session = handles.project_session.borrow();
+        let project = session
+            .as_ref()
+            .map(|s| s.project.borrow().device_settings.clone());
+        selection::saved_device_settings(project.as_deref(), &handles.app_config.borrow())
+    };
+    handles.project_devices.set_vec(build_project_device_rows(
+        &fresh_input,
+        &fresh_output,
+        &saved,
+    ));
 
     // #716 Task 13: bindings that reference a now-absent device are never
     // dropped — they stay in the registry flagged unresolved, and we log so

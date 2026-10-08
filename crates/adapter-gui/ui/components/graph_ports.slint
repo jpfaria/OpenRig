@@ -1,0 +1,33 @@
+// Responsibility: places the ports a graph node's wires plug into.
+// #398: a wire ends on the edge of what its node draws (the gear's side, the
+// jack's rim, a hub's port), never at the centre under a bypassed,
+// see-through piece. A hub stacks one port per path, `pitch` apart, and
+// grows with its path count.
+
+import { GraphNode } from "graph_view_types.slint";
+import { GearShape } from "gear_shape.slint";
+
+export global GraphPorts {
+    out property <length> pitch: 26px;
+    out property <length> hub-width: 54px;
+    out property <length> jack: 30px;
+
+    // Unscaled hub height for `count` paths: one pitch per gap plus the rim.
+    public pure function hub-height(count: int) -> length {
+        return (Math.max(2, count) - 1) * self.pitch + 28px;
+    }
+
+    // Unscaled half width of what `node` draws, where its wires end.
+    public pure function half(node: GraphNode) -> length {
+        return node.kind == "block" ? GearShape.width(GearShape.piece(node.block.icon-kind)) / 2
+            : node.kind == "split" || node.kind == "mixer" ? self.hub-width / 2
+            : node.kind == "io_input" || node.kind == "io_output" ? self.jack / 2
+            : 0px;
+    }
+
+    // Unscaled offset of port `port` from the centre line of a hub with
+    // `count` paths; a node's single port (-1) sits on it.
+    public pure function dy(port: int, count: int) -> length {
+        return port < 0 ? 0px : (port - (Math.max(2, count) - 1) / 2.0) * self.pitch;
+    }
+}

@@ -1,0 +1,105 @@
+// Responsibility: renders a field that picks one string from a short list.
+// #398: the closed field shows the current option (or a quiet placeholder) with
+// a chevron; a click unfolds the options right under it, the current one lit.
+// The list unfolds inline (the field grows), never in a `PopupWindow`, whose
+// rows do not reliably receive clicks (docs/development/ui-rules.md §1). For
+// long, searchable lists the app uses `Select` instead.
+import { Theme } from "../theme.slint";
+
+export component DropSelect inherits Rectangle {
+    in property <[string]> model;
+    in-out property <int> current: -1;
+    in property <string> placeholder;
+    callback picked(int);
+
+    private property <bool> has-value: root.current >= 0 && root.current < root.model.length;
+    private property <bool> open: false;
+    private property <length> field-h: 36px;
+    private property <length> row-h: 34px;
+    private property <length> list-h: root.model.length * root.row-h + 8px;
+
+    height: root.open ? root.field-h + 4px + root.list-h : root.field-h;
+    min-width: 120px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: root.field-h;
+        border-radius: 3px;
+        background: Theme.field;
+        border-width: 1px;
+        border-color: root.open || ta.has-hover ? Theme.ink-3 : Theme.field-line;
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            spacing: 8px;
+
+            Text {
+                horizontal-stretch: 1;
+                text: root.has-value ? root.model[root.current] : root.placeholder;
+                color: root.has-value ? Theme.ink : Theme.ink-3;
+                font-size: Theme.min-font;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    width: 11px;
+                    height: 11px;
+                    source: @image-url("../assets/chevron-down.svg");
+                    colorize: Theme.ink-3;
+                }
+            }
+        }
+
+        ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.open = !root.open; }
+        }
+    }
+
+    if root.open : Rectangle {
+        x: 0; y: root.field-h + 4px;
+        width: parent.width; height: root.list-h;
+        background: Theme.panel;
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: Theme.hair;
+
+        for option[i] in root.model : Rectangle {
+            x: 4px; y: 4px + i * root.row-h;
+            width: parent.width - 8px; height: root.row-h;
+            border-radius: 3px;
+            background: i == root.current ? Theme.accent-soft
+                : opt-ta.has-hover ? Theme.hover
+                : transparent;
+
+            Text {
+                x: 10px;
+                width: parent.width - 20px;
+                height: parent.height;
+                text: option;
+                color: Theme.ink;
+                font-size: Theme.min-font;
+                font-weight: i == root.current ? 600 : 400;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            opt-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.current = i;
+                    root.open = false;
+                    root.picked(i);
+                }
+            }
+        }
+    }
+
+    accessible-role: combobox;
+    accessible-value: root.has-value ? root.model[root.current] : root.placeholder;
+    accessible-action-default => { root.open = !root.open; }
+}

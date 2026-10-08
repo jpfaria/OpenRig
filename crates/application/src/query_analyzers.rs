@@ -33,6 +33,8 @@ pub struct TunerReading {
     pub frequency: f32,
     /// `true` once the row has a confident detection.
     pub active: bool,
+    /// `true` while the detection sits inside the tuner's in-tune tolerance.
+    pub in_tune: bool,
 }
 
 /// One spectrum row: the band levels of a single (chain, input, channel) tap.

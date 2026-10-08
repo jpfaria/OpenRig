@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Wolf Shaper — waveshaper distortion with visual curve editor.
+    license: GPL-3.0
+    homepage: https://github.com/wolf-plugins/wolf-shaper
+  pt-BR:
+    description: Wolf Shaper — distorção waveshaper com editor visual de curva.
+    license: GPL-3.0
+    homepage: https://github.com/wolf-plugins/wolf-shaper

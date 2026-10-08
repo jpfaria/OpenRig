@@ -1,6 +1,18 @@
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
-  <rect x="9" y="2" width="6" height="10" rx="3"/>
-  <path d="M5 11a7 7 0 0 0 14 0" stroke-linecap="round"/>
-  <line x1="12" y1="18" x2="12" y2="22" stroke-linecap="round"/>
-  <line x1="9" y1="22" x2="15" y2="22" stroke-linecap="round"/>
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      <rect x="0" y="0" width="24" height="24" fill="#ffffff"/>
+      <g fill="#000000">
+        <rect x="9" y="5" width="6" height=".9"/>
+        <rect x="9" y="7.4" width="6" height=".9"/>
+        <rect x="9" y="9.8" width="6" height=".9"/>
+      </g>
+    </mask>
+  </defs>
+  <g mask="url(#cut)" fill="#ffffff">
+    <rect x="8.5" y="1.5" width="7" height="12" rx="3.5"/>
+    <path d="M5 10.5a7 7 0 0 0 14 0" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <rect x="11" y="17" width="2" height="4"/>
+    <rect x="7.5" y="20.5" width="9" height="2" rx="1"/>
+  </g>
 </svg>

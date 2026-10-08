@@ -1,4 +1,6 @@
-// Responsibility: holds the palette the UI draws with.
+// Responsibility: holds the design tokens the UI draws with.
+import { Palette as SystemPalette } from "std-widgets.slint";
+
 export struct Palette {
     pure-black: brush,
     deep-space: brush,
@@ -40,6 +42,9 @@ export struct Typo {
     button: Font,
 }
 
+// #398: Settings → Appearance; `system` follows the operating system.
+export enum ThemeMode { system, light, dark }
+
 export global Theme {
     // The smallest text the app may draw: the preset select's own size (#954).
     out property <length> min-font: 18px;
@@ -49,25 +54,157 @@ export global Theme {
     // Non-numeric knob positions (e.g. BLUES / JAZZ) around a selector knob.
     out property <length> knob-option-font: 10px;
 
-    in property <Palette> palette: {
-        pure-black: #05070b,
-        deep-space: #0a0d12,
-        card: #0f131b,
-        card-secondary: #151b25,
-        row-start: #1b2430,
-        row-end: #131922,
-        border: #232c3a,
-        border-strong: #364457,
-        text-primary: #ffffff,
-        text-secondary: #dde4ef,
-        text-muted: #93a1b7,
-        accent-start: #22a7ff,
-        accent-end: #0d7eff,
-        accent-border: #62c1ff,
-        secondary-start: #1a212c,
-        secondary-end: #121821,
-        secondary-border: #48566c,
-        background-gradient: @radial-gradient(circle, #123a7228 0%, #05070b 70%),
+    // #398: the scheme Settings → Appearance chose; under `system` the app
+    // follows the OS, and an unknown OS scheme keeps the dark look the app
+    // always had. Rust sets `mode` on every window (each has its own Theme).
+    in property <ThemeMode> mode: ThemeMode.system;
+    out property <bool> dark: root.mode == ThemeMode.dark
+        || (root.mode == ThemeMode.system && SystemPalette.color-scheme != ColorScheme.light);
+
+    // Surfaces, from the page behind everything up to the raised panel.
+    out property <color> page: dark ? #0b0e12 : #dde2e8;
+    out property <color> chrome: dark ? #12161c : #1a2029;
+    out property <color> chrome-2: dark ? #1a2029 : #232b36;
+    out property <color> chrome-line: dark ? #07090c : #10151b;
+    out property <color> chrome-fg: #e2e7ee;
+    out property <color> chrome-fg-2: #8b96a5;
+    // The ring of a control sitting on the chrome (the TAP button).
+    out property <color> chrome-ring: #3b4250;
+    // A field (preset, scene, latency) sitting on the chrome.
+    out property <color> chrome-field: #1d1d1f;
+    out property <color> chrome-field-line: #444444;
+    // A state lit on the chrome (the Tone Doctor verdict): brighter than the
+    // panel's state colours so it reads on the dark card.
+    out property <color> chrome-bad: #ff8a7a;
+    out property <color> chrome-warn: #f2d36b;
+    out property <color> chrome-ok: #7fdc9c;
+    out property <color> panel: dark ? #232a33 : #e4e8ee;
+    out property <color> panel-hi: dark ? #2a323c : #eef1f5;
+    out property <color> panel-lo: dark ? #1d232b : #d6dce4;
+    out property <color> well: dark ? #161b21 : #cdd4dd;
+    out property <color> field: dark ? #11151a : #fbfcfd;
+
+    // Lines stay subtle: hairlines, the field outline, the dark groove.
+    out property <color> hair: dark ? #2d343e : #cdd3db;
+    out property <color> hair-2: dark ? #262c35 : #dbe0e6;
+    out property <color> field-line: dark ? #353e49 : #c0c7d0;
+    out property <color> groove: dark ? #0f1318 : #c3cad3;
+    out property <color> ktrack: dark ? #3a434f : #c3cad3;
+    out property <color> wire: dark ? #8b95a3 : #5d5d62;
+    // The routing hub (#398): the app's own split/mix node, not real gear, so
+    // it follows the scheme — a slate tile with a light trunk in the dark, a
+    // pale tile with dark ink in the light — and the round ports on its edges.
+    out property <color> hub-hi: dark ? #3a4452 : #f8fafc;
+    out property <color> hub-lo: dark ? #1c232d : #e2e7ed;
+    out property <color> hub-edge: dark ? #0b0f14 : #aab3bf;
+    out property <color> hub-line: dark ? #e6ebf1 : #2a323d;
+    out property <color> port-fill: dark ? #0a0d11 : #ffffff;
+    out property <color> port-ring: dark ? #c3cbd6 : #2a323d;
+    // The dot grid of the graph well, and the tint of a side rail.
+    out property <color> dot: dark ? #ffffff0f : #00000017;
+    out property <color> side-tint: dark ? #ffffff08 : #ffffff73;
+    // panel-hi under side-tint: the side column's own tone, for edges that
+    // fade into it.
+    out property <color> side-ground: dark ? #313842 : #f6f7f9;
+
+    // Text, strongest first.
+    out property <color> ink: dark ? #e8ecf1 : #18202b;
+    out property <color> ink-2: dark ? #aab3bf : #465262;
+    out property <color> ink-3: dark ? #7a8592 : #75808f;
+
+    // Overlays.
+    out property <color> scrim: dark ? #00000099 : #0e121773;
+    out property <color> hover: dark ? #ffffff0d : #0000000a;
+    out property <color> shadow: dark ? #000000b3 : #141e2d52;
+
+    // The launcher hero sits on its photo in both schemes.
+    out property <color> hero-bg: #1b1d22;
+    out property <color> hero-fg: #eef1f5;
+    out property <color> hero-fg-2: #c9d1dc;
+    out property <color> hero-line: #34383f;
+    out property <color> hero-shade-top: #17191dcc;
+    out property <color> hero-shade-mid: #17191de6;
+    out property <color> hero-shade-bottom: #17191dd9;
+
+    // The LCD readouts are physical displays, the same in both schemes: dark
+    // glass with amber digits (tuner, metronome, drums, player)...
+    out property <color> lcd: #121a14;
+    out property <color> lcd-rim: #000000;
+    out property <color> lcd-shade: #00000099;
+    out property <color> lcd-glow: #ffb648;
+    out property <color> lcd-dim: #b98738;
+    out property <color> lcd-faint: #8a6c3a;
+    out property <color> lcd-off: #5a4a2c;
+    out property <color> lcd-in: #6dff9b;
+    out property <color> lcd-lamp: #2a2418;
+    out property <color> lcd-lamp-hi: #fff2c4;
+    // ...and the spectrum's teal scope.
+    out property <color> scope: #0f1716;
+    out property <color> scope-lo: #1f8f7a;
+    out property <color> scope-mid: #7fe0c8;
+    out property <color> scope-hi: #ffd166;
+    out property <color> scope-axis: #4f8d80;
+
+    // Accent and state.
+    out property <color> accent: #f28c1e;
+    out property <color> accent-soft: #f28c1e24;
+    out property <color> accent-line: #f28c1e66;
+    out property <color> on-accent: #1a1206;
+    out property <color> ok: #2f9a55;
+    out property <color> on-ok: #06110b;
+    out property <color> warn: #d9b43a;
+    out property <color> bad: #c8443e;
+    out property <color> ok-soft: #2f9a552e;
+    out property <color> warn-soft: #d9b43a2e;
+    out property <color> bad-soft: #c8443e2e;
+    out property <color> in: #2b8fd6;
+    out property <color> out: #8a4fe0;
+
+    // Block categories.
+    out property <color> c-filter: #c9a100;
+    out property <color> c-dyn: #2f6fe0;
+    out property <color> c-gain: #e8671b;
+    out property <color> c-amp: #d23b2d;
+    out property <color> c-pre: #b8862a;
+    out property <color> c-cab: #7c6d5a;
+    out property <color> c-mod: #8a4fe0;
+    out property <color> c-dly: #0f9c8e;
+    out property <color> c-rvb: #2b8fd6;
+    out property <color> c-vol: #69717f;
+
+    // Plugin backends.
+    out property <color> b-nam: #2b8fd6;
+    out property <color> b-native: #2f9a55;
+    out property <color> b-ir: #e8671b;
+    out property <color> b-lv2: #8a4fe0;
+    out property <color> b-vst3: #d0457f;
+
+    // Line weights.
+    out property <length> line: 1px;
+    out property <length> wire-width: 1.25px;
+    out property <length> mark: 2px;
+    out property <length> track: 3px;
+
+    // The pre-#398 names, kept as aliases of the tokens above.
+    out property <Palette> palette: {
+        pure-black: page,
+        deep-space: page,
+        card: panel,
+        card-secondary: panel-hi,
+        row-start: panel-hi,
+        row-end: panel,
+        border: hair,
+        border-strong: field-line,
+        text-primary: ink,
+        text-secondary: ink-2,
+        text-muted: ink-3,
+        accent-start: accent,
+        accent-end: accent,
+        accent-border: accent,
+        secondary-start: panel-hi,
+        secondary-end: panel-lo,
+        secondary-border: field-line,
+        background-gradient: page,
     };
 
     in property <Spaces> spaces: {
@@ -99,4 +236,63 @@ export global Theme {
             weight: 500
         },
     };
+}
+
+// The materials a piece of gear is made of (#398). Real hardware keeps its
+// colours in both schemes, so these do not follow `Theme.dark`.
+export global Gear {
+    out property <color> white: #ffffff;
+    out property <color> black: #000000;
+    out property <color> shadow: #0000004d;
+    out property <color> edge-soft: #00000073;
+    out property <color> edge: #111111;
+    out property <color> knob-lo: #c9c9cc;
+    // The vector knob cap (#398): white to a soft grey, a thin rim, its drop.
+    out property <color> knob-mid: #e2e2e4;
+    out property <color> knob-edge: #c3c3c7;
+    out property <color> knob-rim: #8b8b8f;
+    out property <color> knob-drop: #0000002e;
+    out property <color> knob-pointer: #1f1f21;
+    out property <color> pointer: #222222;
+    out property <color> off: #8e8e93;
+    out property <color> window: #ffffffd9;
+    out property <color> led: #ff3b2f;
+    out property <color> led-off: #5a2420;
+    out property <color> switch-hi: #fbfbfb;
+    out property <color> switch-lo: #a9a9ae;
+    out property <color> switch-edge: #00000066;
+    out property <color> switch-shadow: #00000040;
+    out property <color> tolex: #29292c;
+    out property <color> panel: #0e0e0f;
+    out property <color> plate-hi: #eeeeee;
+    out property <color> plate-lo: #d4d4d6;
+    out property <color> plate-edge: #00000033;
+    out property <color> print: #1d1d1f;
+    out property <color> cab: #2a2a2d;
+    out property <color> grille: #36322e;
+    out property <color> grille-line: #4a4540;
+    out property <color> badge: #e9e9ea;
+    out property <color> rack-hi: #ececed;
+    out property <color> rack-lo: #cfcfd1;
+    out property <color> rack-edge: #6f6f73;
+    out property <color> ear: #bdbdc0;
+    out property <color> ear-edge: #999999;
+    out property <color> screw: #555555;
+    out property <color> screen: #16211d;
+    out property <color> screen-text: #7fe0c8;
+    out property <color> tread: #3a3a3e;
+    out property <color> tread-line: #151517;
+    out property <color> jack-hi: #6c6c70;
+    out property <color> jack-mid: #2b2b2e;
+    out property <color> jack-rim: #8a8a8f;
+    out property <color> jack-shadow: #00000059;
+    out property <color> jack-hole: #0c0c0d;
+    // The metronome's TAP key (#398): a white key, grey towards its foot.
+    out property <color> key-mid: #dcdfe4;
+    out property <color> key-lo: #c4c9d0;
+    out property <color> key-ink: #18202b;
+    // The drums' round metal FILL button (#398) and its dark collar.
+    out property <color> fill-mid: #b9bcc2;
+    out property <color> fill-lo: #8d9097;
+    out property <color> fill-ring: #2a2f37;
 }

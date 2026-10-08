@@ -1,0 +1,30 @@
+// Responsibility: sizes the piece of gear each block type draws.
+// #398: GearArt draws the piece and the graph canvas ends a wire on its
+// edge; both read the piece and its unscaled size here, so they never
+// disagree.
+
+export global GearShape {
+    // The piece a block of type `icon-kind` is drawn as.
+    public pure function piece(icon-kind: string) -> string {
+        return icon-kind == "amp" || icon-kind == "preamp" || icon-kind == "full_rig" || icon-kind == "nam" ? "head"
+            : icon-kind == "cab" || icon-kind == "ir" || icon-kind == "body" ? "cab"
+            : icon-kind == "reverb" || icon-kind == "insert" ? "rack"
+            : icon-kind == "wah" || icon-kind == "utility" ? "exp"
+            : "stomp";
+    }
+
+    public pure function width(piece: string) -> length {
+        return piece == "head" || piece == "rack" ? 104px
+            : piece == "cab" ? 78px
+            : piece == "exp" ? 46px
+            : 58px;
+    }
+
+    public pure function height(piece: string) -> length {
+        return piece == "head" ? 58px
+            : piece == "cab" ? 80px
+            : piece == "rack" ? 40px
+            : piece == "exp" ? 80px
+            : 84px;
+    }
+}

@@ -1,61 +1,33 @@
-//! Responsibility: resolves the per-OS location of the MIDI configuration files.
+//! Responsibility: resolves where the MIDI configuration files live.
 //!
-//! Split out of `io_bindings.rs` (#873), which could not be described without
-//! naming two jobs: where the MIDI files live is not the same concern as
-//! persisting the I/O binding registry.
+//! Kept apart from `io_bindings.rs`: where the MIDI files live is not the same
+//! concern as persisting the I/O binding registry. Every file sits at the root
+//! of the user folder ([`crate::user_data_root`]).
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
-use crate::FilesystemStorage;
+use crate::{user_data_root, FilesystemStorage};
 
 impl FilesystemStorage {
-    /// Per-OS path of the **legacy** single-file MIDI mapping (`adapter-midi`,
-    /// issue #22). macOS `~/Library/Application Support/OpenRig/midi-map.yaml`,
-    /// Windows `%APPDATA%\OpenRig\midi-map.yaml`, Linux
-    /// `~/.config/OpenRig/midi-map.yaml`. Never hardcoded — resolved like every
-    /// other OpenRig config file. After #499 this file is migrated on first
-    /// load into the system [`midi_profile_path`] + system [`midi_bindings_path`]
-    /// and then deleted; this getter survives only for the migration path.
+    /// Path of the **legacy** single-file MIDI mapping (`midi-map.yaml`). It is
+    /// migrated on first load into the system [`Self::midi_profile_path`] +
+    /// system [`Self::midi_bindings_path`] and then deleted; this getter
+    /// survives only for the migration path.
     pub fn midi_map_path() -> Result<std::path::PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(std::path::PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-map.yaml"))
+        Ok(user_data_root().join("midi-map.yaml"))
     }
 
-    /// Per-OS path of the **MIDI device profile** (ADR 0003 / #499): which
-    /// controller to listen to. System layer; never overridden by the project.
-    /// macOS `~/Library/Application Support/OpenRig/midi-profile.yaml`,
-    /// Windows `%APPDATA%\OpenRig\midi-profile.yaml`, Linux
-    /// `~/.config/OpenRig/midi-profile.yaml`.
+    /// Path of the **MIDI device profile** (ADR 0003): which controller to
+    /// listen to. System layer; never overridden by the project.
     pub fn midi_profile_path() -> Result<std::path::PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(std::path::PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-profile.yaml"))
+        Ok(user_data_root().join("midi-profile.yaml"))
     }
 
-    /// Per-OS path of the **system-wide MIDI bindings fallback** (ADR 0003 /
-    /// #499). Used at resolve time when a project carries no `midi:` field;
-    /// the shipped default ships as `examples/midi-map.default.yaml` and the
-    /// system fallback overrides it when present. Same per-OS layout as the
-    /// other config files.
+    /// Path of the **system-wide MIDI bindings fallback** (ADR 0003). Used at
+    /// resolve time when a project carries no `midi:` field; the shipped
+    /// default ships as `examples/midi-map.default.yaml` and the system
+    /// fallback overrides it when present.
     pub fn midi_bindings_path() -> Result<std::path::PathBuf> {
-        let base_dir = dirs::config_dir()
-            .or_else(|| {
-                std::env::var_os("HOME")
-                    .map(std::path::PathBuf::from)
-                    .map(|home| home.join(".config"))
-            })
-            .context("failed to resolve user config directory")?;
-        Ok(base_dir.join("OpenRig").join("midi-bindings.yaml"))
+        Ok(user_data_root().join("midi-bindings.yaml"))
     }
 }

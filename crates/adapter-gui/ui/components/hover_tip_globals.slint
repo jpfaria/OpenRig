@@ -1,0 +1,23 @@
+// Responsibility: carries the hover label a window shows.
+// #398 — a hover label is drawn once per window, above everything, by
+// `HoverTipLayer`; the hovered control only writes here what to say and where
+// it is. Drawn inside its control, a label was cut by any dialog, list or
+// panel that clips (nothing may hide behind an edge).
+
+export global HoverTip {
+    in-out property <bool> show;
+    in-out property <string> text;
+    // The hovered control, window-absolute.
+    in-out property <length> host-x;
+    in-out property <length> host-y;
+    in-out property <length> host-w;
+    in-out property <length> host-h;
+    in-out property <bool> prefer-above;
+    // Bumped by every control that takes the label over, so a control that
+    // stops being hovered only hides the label while it is still its own.
+    in-out property <int> owner;
+    // Bumped while the owner is hovered. A control removed while hovered
+    // (a dialog closed by its own button) stops beating, and the layer drops
+    // its label.
+    in-out property <int> beat;
+}

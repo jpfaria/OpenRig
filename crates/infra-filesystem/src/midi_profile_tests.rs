@@ -97,7 +97,7 @@ fn deserialize_empty_yaml_uses_default() {
 fn filesystem_storage_midi_profile_path_uses_per_os_config_dir() {
     let path = FilesystemStorage::midi_profile_path().unwrap();
     assert!(
-        path.ends_with("OpenRig/midi-profile.yaml"),
+        path == crate::user_data_root().join("midi-profile.yaml"),
         "unexpected midi profile path: {path:?}"
     );
 }

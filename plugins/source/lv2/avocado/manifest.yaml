@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_avocado
+display_name: Avocado
+description: Avocado — warm analog-style delay by Remaincalm.
+brand: remaincalm
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: MIT
+homepage: https://github.com/remaincalm/avocado
+type: delay
+backend: lv2
+plugin_uri: http://remaincalm.org/plugins/avocado
+binaries:
+  macos-universal: platform/macos-universal/avocado_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/avocado_dsp.so

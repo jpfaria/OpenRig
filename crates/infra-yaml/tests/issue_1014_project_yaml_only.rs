@@ -99,13 +99,14 @@ fn scan(dir: &Path, hits: &mut Vec<String>) {
 }
 
 /// `.openrig` as a file extension, or the extension literal / loader of the
-/// removed format. Not a hit: the owner's `~/.openrig` directory, the
+/// removed format. Not a hit: the `~/.openrig` user folder (also when joined
+/// onto a path as `.join(".openrig")`), the
 /// `.openrig-plugin` package, `com.openrig.app`, or `openrig` as a name.
 fn mentions_openrig_project_format(line: &str) -> bool {
     let extension = line.match_indices(".openrig").any(|(i, m)| {
         let before = line[..i].chars().next_back();
         let after = line[i + m.len()..].chars().next();
-        let is_dir = matches!(before, Some('/' | '~'));
+        let is_dir = matches!(before, Some('/' | '~')) || line[..i].ends_with("join(\"");
         let is_longer_name =
             matches!(after, Some(c) if c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'));
         !is_dir && !is_longer_name

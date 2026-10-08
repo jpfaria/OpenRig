@@ -5,15 +5,12 @@
 use slint::{ComponentHandle, Global};
 
 use application::command::{BlockCommand, Command};
-use project::catalog::{model_brand, model_display_name, model_type_label};
 
-use crate::helpers::show_child_window;
-use crate::helpers::system_language;
-use crate::plugin_info;
+use crate::plugin_info_window_open::open_plugin_info_window;
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{load_screenshot_image, replace_project_chains, set_selected_block};
+use crate::project_view::{replace_project_chains, set_selected_block};
 use crate::runtime_sync_policy::request_chain_sync;
-use crate::{AppWindow, BlockEditorWindow, PluginInfoWindow};
+use crate::{AppWindow, BlockEditorWindow};
 
 use crate::block_editor_window_lifecycle::BlockEditorWindowLifecycleCtx;
 
@@ -172,62 +169,8 @@ pub(crate) fn wire_plugin_info_close(
         let weak_main = weak_main_window.clone();
         let plugin_info_window = plugin_info_window.clone();
         win.on_show_plugin_info(move |effect_type, model_id| {
-            let Some(window) = weak_main.upgrade() else {
-                return;
-            };
-            let effect_type = effect_type.to_string();
-            let model_id = model_id.to_string();
-
-            let display_name = model_display_name(&effect_type, &model_id);
-            let brand = model_brand(&effect_type, &model_id);
-            let type_label = model_type_label(&effect_type, &model_id);
-
-            let lang = system_language();
-            let meta = plugin_info::plugin_metadata(&lang, &model_id);
-
-            let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
-
-            let info_win = match PluginInfoWindow::new() {
-                Ok(w) => w,
-                Err(e) => {
-                    log::error!("Failed to create PluginInfoWindow: {}", e);
-                    return;
-                }
-            };
-            {
-                crate::Locale::get(&info_win)
-                    .set_font_family(crate::i18n::font_for_persisted_runtime().into());
-            }
-
-            info_win.set_plugin_name(display_name.into());
-            info_win.set_brand(brand.into());
-            info_win.set_type_label(type_label.into());
-            info_win.set_description(meta.description.into());
-            info_win.set_license(meta.license.into());
-            info_win.set_has_homepage(!meta.homepage.is_empty());
-            info_win.set_homepage(meta.homepage.clone().into());
-            info_win.set_screenshot(screenshot_img);
-            info_win.set_has_screenshot(has_screenshot);
-
-            {
-                let homepage = meta.homepage.clone();
-                info_win.on_open_homepage(move || {
-                    plugin_info::open_homepage(&homepage);
-                });
-            }
-
-            {
-                let win_weak = info_win.as_weak();
-                info_win.on_close_window(move || {
-                    if let Some(w) = win_weak.upgrade() {
-                        let _ = w.window().hide();
-                    }
-                });
-            }
-
-            *plugin_info_window.borrow_mut() = Some(info_win);
-            if let Some(w) = plugin_info_window.borrow().as_ref() {
-                show_child_window(window.window(), w.window());
+            if let Some(window) = weak_main.upgrade() {
+                open_plugin_info_window(&window, &plugin_info_window, &effect_type, &model_id);
             }
         });
     }

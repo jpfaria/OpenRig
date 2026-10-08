@@ -55,9 +55,14 @@ fn all_kinds() -> Vec<QueryKind> {
         QueryKind::MetronomeState,
         QueryKind::PlayerState,
         QueryKind::DrumsState,
+        QueryKind::Tone3000State,
         QueryKind::OutputRoutes,
         QueryKind::MixerState,
         QueryKind::ChainMixer { chain },
+        QueryKind::PluginLibrary,
+        QueryKind::PluginLibraryGrid {
+            plugin_id: "x".to_string(),
+        },
     ]
 }
 
@@ -65,7 +70,7 @@ fn all_kinds() -> Vec<QueryKind> {
 /// arm in `match_all_kinds` (exhaustive match) AND a new entry here (fixed
 /// array length), and `all_kinds_covers_every_variant` then fails until
 /// `all_kinds` lists it too — the loop below cannot silently skip a kind.
-const KIND_NAMES: [&str; 25] = [
+const KIND_NAMES: [&str; 28] = [
     "ProjectYaml",
     "Devices",
     "Ids",
@@ -88,9 +93,12 @@ const KIND_NAMES: [&str; 25] = [
     "MetronomeState",
     "PlayerState",
     "DrumsState",
+    "Tone3000State",
     "OutputRoutes",
     "MixerState",
     "ChainMixer",
+    "PluginLibrary",
+    "PluginLibraryGrid",
 ];
 
 fn match_all_kinds(kind: &QueryKind) -> &'static str {
@@ -117,9 +125,12 @@ fn match_all_kinds(kind: &QueryKind) -> &'static str {
         QueryKind::MetronomeState => "MetronomeState",
         QueryKind::PlayerState => "PlayerState",
         QueryKind::DrumsState => "DrumsState",
+        QueryKind::Tone3000State => "Tone3000State",
         QueryKind::OutputRoutes => "OutputRoutes",
         QueryKind::MixerState => "MixerState",
         QueryKind::ChainMixer { .. } => "ChainMixer",
+        QueryKind::PluginLibrary => "PluginLibrary",
+        QueryKind::PluginLibraryGrid { .. } => "PluginLibraryGrid",
     }
 }
 

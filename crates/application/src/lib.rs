@@ -38,6 +38,7 @@ pub mod json_fmt;
 pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
+mod local_dispatcher_appearance;
 mod local_dispatcher_attach;
 mod local_dispatcher_block_draft;
 mod local_dispatcher_block_edit;
@@ -70,6 +71,8 @@ mod local_dispatcher_paths;
 mod local_dispatcher_player;
 mod local_dispatcher_player_track_delete;
 mod local_dispatcher_plugin_catalog;
+mod local_dispatcher_plugin_library;
+mod local_dispatcher_plugin_redo;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;
 mod local_dispatcher_queries;
@@ -81,6 +84,8 @@ mod local_dispatcher_selection;
 mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tempo;
+mod local_dispatcher_tone3000;
+mod local_dispatcher_tone3000_naming;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
@@ -103,6 +108,8 @@ pub mod player_event;
 pub mod player_library;
 pub mod player_state;
 pub mod player_track_category;
+pub mod plugin_library;
+pub mod plugin_library_event;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
@@ -121,8 +128,10 @@ pub mod query_mixer;
 pub mod query_output_routes;
 pub mod query_paths;
 pub mod query_player;
+pub mod query_plugin_library;
 pub mod query_plugins;
 pub mod query_presets;
+pub mod query_tone3000;
 /// #831: the single `QueryKind` resolver every transport answers through —
 /// one match, one payload shape, one error string.
 pub mod read;
@@ -137,6 +146,10 @@ pub mod snapshot;
 mod split_path_commands;
 mod split_path_references;
 mod split_rules;
+/// #879: the in-app TONE3000 browser — API client, axes, levels, installs.
+pub mod tone3000;
+pub mod tone3000_event;
+pub mod tone3000_state;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;
@@ -150,6 +163,10 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_appearance_tests.rs"]
+mod local_dispatcher_appearance_tests;
 
 #[cfg(test)]
 #[path = "local_dispatcher_mixer_tests.rs"]

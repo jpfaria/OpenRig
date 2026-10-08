@@ -1,0 +1,73 @@
+// Responsibility: renders the fields only a new capture plugin asks for.
+// Its name, its maker, the block it becomes, what it plays and the button
+// that adds capture files. #398 vocabulary: captions over form fields and
+// segmented choices on a raised card.
+import { Theme } from "../theme.slint";
+import { PluginEditorBridge } from "plugin_editor_globals.slint";
+import { TextField } from "text_field.slint";
+import { SegControl } from "seg_control.slint";
+import { FormButton, FormButtonKind } from "form_button.slint";
+import { FieldCaption } from "field_caption.slint";
+import { SettingsCard } from "settings_card.slint";
+
+export component PluginEditorCreateForm inherits SettingsCard {
+    height: form.preferred-height;
+
+    form := GridLayout {
+        padding: 14px;
+        spacing-horizontal: 12px;
+        spacing-vertical: 10px;
+        Row {
+            FieldCaption { text: @tr("label-plugin-editor-name"); }
+            TextField {
+                text <=> PluginEditorBridge.display-name;
+                placeholder: @tr("placeholder-plugin-editor-name");
+            }
+            FieldCaption { text: @tr("label-plugin-editor-brand"); }
+            TextField {
+                text <=> PluginEditorBridge.brand;
+                placeholder: @tr("placeholder-plugin-editor-brand");
+            }
+        }
+        Row {
+            FieldCaption { text: @tr("label-plugin-editor-block"); }
+            HorizontalLayout {
+                colspan: 3;
+                alignment: start;
+                SegControl {
+                    label: @tr("label-plugin-editor-block");
+                    options: [
+                        @tr("option-plugin-editor-amp"),
+                        @tr("option-plugin-editor-preamp"),
+                        @tr("option-plugin-editor-gain"),
+                        @tr("option-plugin-editor-cab"),
+                        @tr("option-plugin-editor-body"),
+                    ];
+                    current: PluginEditorBridge.block-type;
+                    picked(i) => { PluginEditorBridge.set-block-type(i); }
+                }
+            }
+        }
+        Row {
+            FieldCaption { text: @tr("label-plugin-editor-plays"); }
+            HorizontalLayout {
+                colspan: 3;
+                spacing: 12px;
+                alignment: start;
+                SegControl {
+                    label: @tr("label-plugin-editor-plays");
+                    options: ["NAM", "IR"];
+                    current: PluginEditorBridge.backend;
+                    enabled: PluginEditorBridge.rows.length == 0;
+                    picked(i) => { PluginEditorBridge.set-backend(i); }
+                }
+                FormButton {
+                    icon: @image-url("../assets/open-file.svg");
+                    label: @tr("btn-plugin-editor-add-captures");
+                    enabled: !PluginEditorBridge.busy;
+                    clicked => { PluginEditorBridge.add-files(); }
+                }
+            }
+        }
+    }
+}

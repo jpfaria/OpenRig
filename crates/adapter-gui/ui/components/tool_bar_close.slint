@@ -1,0 +1,28 @@
+// Responsibility: renders the close button of a tool bar.
+// #398: a plain cross on the chrome that lights on hover; the inline (fullscreen
+// and touch) placement of a tool window closes with it.
+import { Theme } from "../theme.slint";
+
+export component ToolBarClose inherits Rectangle {
+    callback clicked();
+
+    width: 30px;
+    border-radius: 4px;
+    background: close-ta.has-hover ? Theme.chrome-2 : transparent;
+
+    Image {
+        x: (parent.width - 14px) / 2; y: (parent.height - 14px) / 2;
+        width: 14px; height: 14px;
+        source: @image-url("../assets/close.svg");
+        colorize: close-ta.has-hover ? Theme.chrome-fg : Theme.chrome-fg-2;
+    }
+
+    close-ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: @tr("btn-close");
+    accessible-action-default => { root.clicked(); }
+}

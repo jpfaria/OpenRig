@@ -1,5 +1,7 @@
 // Responsibility: renders the backing track's seek bar.
-// Position fill, the loop's stretch, a pending loop mark and a thumb. A click
+import { Theme, Gear } from "../theme.slint";
+// #398: a thin groove, the played part in the accent, the loop as a tinted
+// zone ringed in the accent, and a white thumb. Position fill, the loop's stretch, a pending loop mark and a thumb. A click
 // asks to jump there; the bar itself never moves until the player reports the
 // new position.
 export component PlayerSeekBar inherits Rectangle {
@@ -12,17 +14,17 @@ export component PlayerSeekBar inherits Rectangle {
     callback seek(float);
 
     private property <float> span: max(root.duration, 0.001);
-    private property <length> rail-x: 8px;
-    private property <length> rail-w: root.width - 16px;
+    private property <length> rail-x: 7px;
+    private property <length> rail-w: root.width - 14px;
 
-    height: 32px;
+    height: 24px;
 
     // Rail.
     Rectangle {
-        x: root.rail-x; y: (parent.height - 6px) / 2;
-        width: root.rail-w; height: 6px;
-        border-radius: 3px;
-        background: #1c2028;
+        x: root.rail-x; y: (parent.height - 3px) / 2;
+        width: root.rail-w; height: 3px;
+        border-radius: 2px;
+        background: Theme.groove;
     }
 
     // The loop's stretch, under the fill.
@@ -32,9 +34,9 @@ export component PlayerSeekBar inherits Rectangle {
         width: root.rail-w * clamp((root.loop-end - root.loop-start) / root.span, 0, 1);
         height: 14px;
         border-radius: 3px;
-        background: #946d2255;
+        background: Theme.accent.with-alpha(0.22);
         border-width: 1px;
-        border-color: #d8b268;
+        border-color: Theme.accent;
     }
 
     // Played so far.
@@ -43,14 +45,14 @@ export component PlayerSeekBar inherits Rectangle {
         width: root.rail-w * clamp(root.position / root.span, 0, 1);
         height: 6px;
         border-radius: 3px;
-        background: #ccaa66;
+        background: Theme.accent;
     }
 
     if root.loop-mark >= 0 : Rectangle {
         x: root.rail-x + root.rail-w * clamp(root.loop-mark / root.span, 0, 1) - 1px;
-        y: 4px;
-        width: 2px; height: parent.height - 8px;
-        background: #d8b268;
+        y: 3px;
+        width: 2px; height: parent.height - 6px;
+        background: Theme.accent;
     }
 
     // Thumb.
@@ -59,9 +61,12 @@ export component PlayerSeekBar inherits Rectangle {
         y: (parent.height - 14px) / 2;
         width: 14px; height: 14px;
         border-radius: 7px;
-        background: #f1f4f8;
+        background: Gear.white;
+        border-width: 1px;
+        border-color: Gear.edge-soft;
         drop-shadow-blur: 4px;
-        drop-shadow-color: #00000080;
+        drop-shadow-offset-y: 2px;
+        drop-shadow-color: Gear.switch-shadow;
     }
 
     ta := TouchArea {

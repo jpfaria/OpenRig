@@ -8,7 +8,10 @@ fn main() {
     // #974: the NeuralAmpModelerCore sources come from the vendored archive.
     // The first build after a `git fetch` reports a newer upstream release
     // (CI vendors it on develop); every other build stays offline.
-    let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    // Read at run time: a compiled build script is reused across clones that
+    // share the target directory, and `env!` would keep the first clone.
+    let manifest = std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR");
+    let repo = std::path::Path::new(&manifest).join("../..");
     if let Some(out_dir) = std::env::var_os("OUT_DIR") {
         build_vendor_check::check_after_fetch(&repo, std::path::Path::new(&out_dir));
     }

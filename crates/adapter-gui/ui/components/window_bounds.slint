@@ -1,0 +1,20 @@
+// Responsibility: publishes the size of a window to the overlays drawn in it.
+// #398 — a hover label or a list that drops from a small control cannot see
+// the window it sits in. Every window declares one `WindowBoundsProbe` as a
+// direct child; it fills the window and keeps `WindowBounds` (a per-window
+// global) at the window's size, which `OverlayPlacement` uses as the limit.
+
+export global WindowBounds {
+    // Huge until the probe reports, so nothing flips before the size is known.
+    in-out property <length> width: 100000px;
+    in-out property <length> height: 100000px;
+}
+
+export component WindowBoundsProbe inherits Rectangle {
+    init => {
+        WindowBounds.width = self.width;
+        WindowBounds.height = self.height;
+    }
+    changed width => { WindowBounds.width = self.width; }
+    changed height => { WindowBounds.height = self.height; }
+}

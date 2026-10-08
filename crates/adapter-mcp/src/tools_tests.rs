@@ -86,7 +86,13 @@ use application::command_schema::command_variant_names;
 /// `DeletePlayerTrack` — the trash on the user's own tracks. The drum machine
 /// adds its ten `DrumsCommand` leaves (play, stop, toggle, enable, kit, groove,
 /// fill, volume, output) — the drums follow the project tempo (#1050).
-const COMMAND_VARIANT_COUNT: usize = 137;
+/// #398 bumped to 138 with `SetAppearance` — the light/dark scheme.
+/// The in-app TONE3000 browser adds its five `Tone3000Command` leaves (search,
+/// install, update, uninstall, set the Secret Key).
+/// The plugin library adds its five `PluginLibraryCommand` leaves (save the
+/// parameters, restore a version, redo, uninstall, create from captures),
+/// and TONE3000 two more (finish or cancel an install waiting for names).
+const COMMAND_VARIANT_COUNT: usize = 150;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

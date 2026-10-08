@@ -29,6 +29,7 @@ component BaseActionButton inherits Rectangle {
             width: 16px;
             height: 16px;
             source: root.icon;
+            colorize: root.enabled ? root.text-color : Theme.palette.text-secondary;
         }
 
         Text {
@@ -44,6 +45,7 @@ component BaseActionButton inherits Rectangle {
             width: 16px;
             height: 16px;
             source: root.icon;
+            colorize: root.enabled ? root.text-color : Theme.palette.text-secondary;
         }
     }
 
@@ -59,7 +61,7 @@ export component PrimaryActionButton inherits BaseActionButton {
     width: 144px;
     fill: @linear-gradient(180deg, Theme.palette.accent-start 0%, Theme.palette.accent-end 100%);
     outline-color: Theme.palette.accent-border;
-    text-color: #f6f8ff;
+    text-color: Theme.ink;
     text-weight: 700;
 }
 
@@ -90,6 +92,7 @@ component BaseIconActionButton inherits Rectangle {
         width: 18px;
         height: 18px;
         source: root.icon;
+        colorize: root.enabled ? root.text-color : Theme.palette.text-secondary;
     }
 
     TouchArea {
@@ -123,6 +126,7 @@ export component IconAction inherits Rectangle {
         width: parent.width;
         height: parent.height;
         source: root.icon;
+        colorize: root.enabled ? root.text-color : Theme.palette.text-secondary;
     }
 
     TouchArea {
@@ -153,6 +157,7 @@ export component ColoredIconAction inherits Rectangle {
         width: 16px;
         height: 16px;
         source: root.icon;
+        colorize: root.enabled ? root.text-color : Theme.palette.text-secondary;
     }
 
     TouchArea {

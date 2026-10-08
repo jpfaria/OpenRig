@@ -1,0 +1,142 @@
+// Responsibility: renders the plugin catalog window.
+// Every plugin the user owns — from the plugins folder or from TONE3000 —
+// filtered by origin, by type and by name, with its actions and the button
+// that creates a new capture plugin. Plugins that ship with the app are not
+// listed. #398 vocabulary: the dark tool bar, the well, raised cards.
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { SegControl } from "../components/seg_control.slint";
+import { Select } from "../components/select.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { TextField } from "../components/text_field.slint";
+import { WindowBoundsProbe } from "../components/window_bounds.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { PluginsBridge } from "../components/plugins_globals.slint";
+import { PluginLibraryItem } from "../components/plugin_library_item.slint";
+
+export component PluginsPanel inherits Rectangle {
+    background: Theme.well;
+
+    VerticalLayout {
+        ToolBar {
+            icon: @image-url("../assets/plugins.svg");
+            title: @tr("title-plugins");
+            sub: @tr("label-plugins-count", PluginsBridge.total);
+
+            FormButton {
+                kind: FormButtonKind.primary;
+                icon: @image-url("../assets/plus.svg");
+                label: @tr("btn-plugins-create");
+                clicked => { PluginsBridge.create(); }
+            }
+        }
+
+        VerticalLayout {
+            vertical-stretch: 1;
+            padding: 16px;
+            spacing: 12px;
+
+            HorizontalLayout {
+                spacing: 10px;
+                SegControl {
+                    label: @tr("label-plugins-origin");
+                    options: [@tr("option-plugins-origin-all"), @tr("option-plugins-origin-folder"), "TONE3000"];
+                    current: PluginsBridge.origin;
+                    picked(i) => {
+                        PluginsBridge.origin = i;
+                        PluginsBridge.filter();
+                    }
+                }
+                Select {
+                    width: 220px;
+                    options: PluginsBridge.types;
+                    active-key: PluginsBridge.type-key;
+                    field-label: PluginsBridge.type-key == "" ? PluginsBridge.all-types-label : PluginsBridge.type-label;
+                    search-placeholder: @tr("placeholder-plugins-type-search");
+                    empty-text: @tr("status-plugins-no-type");
+                    popup-width: 260px;
+                    opened => { PluginsBridge.type-query(""); }
+                    query-changed(q) => { PluginsBridge.type-query(q); }
+                    picked(key) => {
+                        PluginsBridge.type-key = key;
+                        PluginsBridge.filter();
+                    }
+                }
+                TextField {
+                    horizontal-stretch: 1;
+                    text <=> PluginsBridge.query;
+                    placeholder: @tr("placeholder-plugins-search");
+                    edited(text) => { PluginsBridge.filter(); }
+                }
+            }
+
+            if PluginsBridge.error != "" : Rectangle {
+                height: max(40px, err.preferred-height + 16px);
+                border-radius: 4px;
+                background: Theme.bad-soft;
+                border-width: 1px;
+                border-color: Theme.bad;
+                err := Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: PluginsBridge.error;
+                    color: Theme.ink;
+                    font-size: Theme.min-font;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                vertical-stretch: 1;
+
+                if PluginsBridge.rows.length == 0 : Text {
+                    x: 24px;
+                    width: parent.width - 48px;
+                    text: PluginsBridge.total == 0 ? @tr("status-plugins-none") : @tr("status-plugins-no-match");
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    wrap: word-wrap;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        spacing: 8px;
+                        for plugin in PluginsBridge.rows : PluginLibraryItem {
+                            plugin: plugin;
+                            info => { PluginsBridge.info(plugin.plugin-id, plugin.effect-type); }
+                            edit => { PluginsBridge.edit(plugin.plugin-id); }
+                            redo => { PluginsBridge.redo(plugin.plugin-id); }
+                            uninstall => { PluginsBridge.uninstall(plugin.plugin-id); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The standalone window is only a host for the panel.
+export component PluginsWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: Locale.font-family;
+    default-font-size: 18px;
+    title: @tr("title-window-plugins");
+    min-width: 760px;
+    min-height: 520px;
+    preferred-width: 920px;
+    preferred-height: 720px;
+    background: Theme.well;
+
+    PluginsPanel {
+        width: 100%;
+        height: 100%;
+    }
+
+    WindowBoundsProbe { }
+    HoverTipLayer { }
+}

@@ -21,7 +21,7 @@
 | `scripts/deploy-orange-pi.sh --host USER@IP` | Builds the arm64 `.deb` and installs it on an Orange Pi over SSH |
 | `scripts/build-orange-pi-image.sh` | An SD card image for the Orange Pi |
 | `scripts/flash-sd.sh` | Flashes the SD card |
-| `scripts/build-lib.sh` | Builds the external LV2 plugin libraries — see [Building](development/building.md#lv2-plugin-libraries) |
+| `scripts/build-lib.sh` | Builds the LV2/VST3 plugin binaries under `plugins/source/` from the `deps/` submodules (recipes in `scripts/recipes/`, table in `scripts/plugin-recipes.tsv`) — see [plugin-binaries.md](development/plugin-binaries.md) |
 | `scripts/add-dep.sh <name> <repo-url> [commit]` | Adds a git submodule dependency pinned to a commit |
 | `scripts/coverage.sh` | HTML coverage report |
 | `scripts/patch-coverage.sh [base] [--files] [--fresh]` | PATCH coverage — the lines the branch adds, the same number `codecov/patch` reports on the PR. `PATCH_COV_OFF=1` turns it off |
@@ -37,12 +37,12 @@
 A local macOS build ships as `OpenRig-<version>-macos-universal.dmg`: the version belongs in the file name, because these get installed side by side while validating a release and an unversioned file says nothing about what is in `/Applications`.
 
 ```bash
-OPENRIG_PLUGINS_DIR=<plugins> ./scripts/package-macos.sh <version>
+./scripts/package-macos.sh <version>
 ```
 
 **The packager does not change the compiled version.** The app renders the compiled-in `CARGO_PKG_VERSION`, and the release workflow sets it only from the tag, so a pre-tag build shows the previous version on screen. For a dmg that stands for a release, set it first with `set_workspace_version` (`scripts/lib/release-version.sh`, e.g. `0.4.2-921`) and revert the manifest afterwards. The packager already signs ad-hoc inside-out and verifies (`codesign --sign -`); the install still strips quarantine.
 
-**"Build me a DMG to install" means build it AND install it**: build in the solver with `OPENRIG_PLUGINS_DIR` and a local version, then quit the app, mount, `rm -rf /Applications/OpenRig.app`, copy, detach, strip quarantine, `open -a OpenRig`, and report the installed version — never hand back a command to paste when the agent can run it. This is **not** a licence to replace `/Applications` when no install was asked for.
+**"Build me a DMG to install" means build it AND install it**: build in the solver (its `plugins/source` is the bundled tree) with a local version, then quit the app, mount, `rm -rf /Applications/OpenRig.app`, copy, detach, strip quarantine, `open -a OpenRig`, and report the installed version — never hand back a command to paste when the agent can run it. This is **not** a licence to replace `/Applications` when no install was asked for.
 
 ## Branch → .deb → Orange Pi
 
@@ -72,3 +72,7 @@ cd .solvers/issue-N && cargo clean && ./scripts/build-deb-local.sh
 ```
 
 Mandatory after: a `git merge`, editing a struct/enum in 2+ crates, changing a `#[cfg(...)]`, the first `build-*local.sh` of the session.
+
+## Build scripts and a shared target directory
+
+Clones can share one cargo target directory (`target-dir` in `~/.cargo/config.toml`), and cargo gives a workspace member the same build-script hash in every clone, so a build script compiled in one clone runs in another. A build script therefore reads its package directory with `std::env::var_os("CARGO_MANIFEST_DIR")` when it runs, never `env!("CARGO_MANIFEST_DIR")`: `env!` freezes the clone that compiled it, and the GUI shipped another clone's translations that way (every key added on the branch showed raw). Guarded by `crates/adapter-gui/tests/build_script_reads_its_own_clone.rs`.

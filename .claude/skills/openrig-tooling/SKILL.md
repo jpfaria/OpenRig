@@ -46,12 +46,11 @@ Not for: editing code (see `openrig-code-quality`), or UI design work (see
 `scripts/package-macos.sh <ver>` builds a universal (arm64+x86_64) bundle,
 ad-hoc signs inside-out, and emits `dist/OpenRig-<ver>-macos-universal.dmg`.
 
-- **Plugins live in a SEPARATE repo** (`OpenRig-plugins`), not in this one.
-  The default source `plugins/source` is absent on a fresh OpenRig checkout, so
-  the bundle ships **without plugins** (a NOTE, not an error) unless you pass
-  `OPENRIG_PLUGINS_DIR=<path-to>/OpenRig-plugins/plugins/source`. Find the local
-  path in `config.yaml` → `paths.plugins_path`. The tree is git-LFS + multi-GB;
-  point at an existing checkout, don't re-clone it for a build.
+- **The bundled LV2/VST3 tree is versioned here** under `plugins/source/` (#1093),
+  as Git LFS objects (~600 MB). A clone made without them has only pointers and
+  the bundle ships broken plugins — pull them first with
+  `git lfs pull --include="plugins/source/**"`. NAM/IR captures never ship; they
+  live in the private OpenRig-plugins repo (`config.yaml` → `paths.plugins_path`).
 - **NAM sources come from Git LFS, not a submodule:** the `nam` build
   unpacks `deps/NeuralAmpModelerCore.tar.gz` into `deps/NeuralAmpModelerCore/`.
   A clone made without LFS has only a pointer there and the cmake build of
@@ -101,7 +100,7 @@ everything that does not need his ear (log lines, `openrig://routes`,
    Same for your own probes or recorders that open the interface.
 2. **Isolate with `HOME`, not only `--config`.** The session loader reads the I/O
    bindings and device settings from the default config path
-   (`$HOME/Library/Application Support/OpenRig/config.yaml`), whatever `--config`
+   (`$HOME/.openrig/config.yaml`), whatever `--config`
    says. Write the test config there under a scratch `HOME` and pass the same path
    to `--config`. The owner's config and project are never read for writing.
 3. **Project format = the branch's.** `version:` must not exceed the branch's
@@ -116,7 +115,7 @@ everything that does not need his ear (log lines, `openrig://routes`,
    ```
    HOME=<scratch>/home DYLD_FALLBACK_LIBRARY_PATH=$PWD/$(ls -td target/debug/build/nam-*/out/lib | head -1) \
    OPENRIG_PLUGINS_ROOT=<plugins_path> RUST_LOG=info target/debug/adapter-gui \
-     --config "<scratch>/home/Library/Application Support/OpenRig/config.yaml" \
+     --config "<scratch>/home/.openrig/config.yaml" \
      --project <scratch>/project.yaml --mcp=127.0.0.1:4124 > <scratch>/app.log 2>&1
    ```
    Use a port other than 4123 (the owner's app).
@@ -140,6 +139,5 @@ mirror into `platform/orange-pi/` (`docs/hardware/orange-pi-deploy.md`).
   an up-to-date clone of the target branch (verify HEAD).
 - Forgetting `cargo clean` in a `.solvers/` workspace after a merge / multi-crate
   struct change → stale `target/` causes `E0460`/`E0463`/ICE (`docs/scripts.md`).
-- Bundling a `.dmg` without `OPENRIG_PLUGINS_DIR` → app with no amps/cabs/effects.
-- Re-cloning the LFS plugin repo for every build → it's multi-GB; reuse the
-  local checkout from `config.yaml` `plugins_path`.
+- Bundling a `.dmg` before `git lfs pull --include="plugins/source/**"` → the
+  plugin binaries are LFS pointers and no LV2/VST3 effect loads.

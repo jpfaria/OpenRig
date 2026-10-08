@@ -1,0 +1,83 @@
+manifest_version: 1
+id: lv2_zamgeq31
+display_name: ZamGEQ31
+description: ZamGEQ31 — 31-band graphic equalizer.
+brand: zam
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: filter
+backend: lv2
+plugin_uri: urn:zamaudio:ZamGEQ31
+binaries:
+  macos-universal: platform/macos-universal/ZamGEQ31_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamGEQ31_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamGEQ31_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamGEQ31_dsp.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. A port not listed here is grouped dynamically by the app.
+# The 29 bands are split by decade (Low 32-251 Hz, Mid 316-2514 Hz, High
+# 3165-20801 Hz) — the band names live in the TTL (lv2:name = the frequency).
+parameters:
+  - symbol: master
+    group: Master
+  - symbol: band1
+    group: Low
+  - symbol: band2
+    group: Low
+  - symbol: band3
+    group: Low
+  - symbol: band4
+    group: Low
+  - symbol: band5
+    group: Low
+  - symbol: band6
+    group: Low
+  - symbol: band7
+    group: Low
+  - symbol: band8
+    group: Low
+  - symbol: band9
+    group: Low
+  - symbol: band10
+    group: Low
+  - symbol: band11
+    group: Mid
+  - symbol: band12
+    group: Mid
+  - symbol: band13
+    group: Mid
+  - symbol: band14
+    group: Mid
+  - symbol: band15
+    group: Mid
+  - symbol: band16
+    group: Mid
+  - symbol: band17
+    group: Mid
+  - symbol: band18
+    group: Mid
+  - symbol: band19
+    group: Mid
+  - symbol: band20
+    group: Mid
+  - symbol: band21
+    group: High
+  - symbol: band22
+    group: High
+  - symbol: band23
+    group: High
+  - symbol: band24
+    group: High
+  - symbol: band25
+    group: High
+  - symbol: band26
+    group: High
+  - symbol: band27
+    group: High
+  - symbol: band28
+    group: High
+  - symbol: band29
+    group: High

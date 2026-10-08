@@ -1,5 +1,10 @@
 // Responsibility: renders a model select with a search field.
+import { Theme, Gear } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
+import { TextField } from "text_field.slint";
+import { ModelPickRow } from "model_pick_row.slint";
+import { OverlayPlacement } from "overlay_placement.slint";
+import { WindowBounds } from "window_bounds.slint";
 
 // Reusable model picker with embedded search field.
 //
@@ -24,6 +29,10 @@ export component ModelSelectWithSearch inherits Rectangle {
     // isn't clipped. Default `false` keeps every other caller (standalone
     // block editor, block-insert flow) on the original behavior.
     in property <bool> external-popup: false;
+    // #398: the compact card shows the type badge on its category strip.
+    in property <bool> show-badge: true;
+    // #398: the editor's model bar is dark chrome; the field follows it.
+    in property <bool> on-chrome: false;
 
     // ── outputs ───────────────────────────────────────────────────────
     callback select(string);
@@ -33,34 +42,42 @@ export component ModelSelectWithSearch inherits Rectangle {
     callback open-requested(length, length, length);
 
     // ── closed-button visuals ─────────────────────────────────────────
+    // #398: a quiet field with a chevron.
     height: 40px;
-    background: #060610;
+    background: root.on-chrome ? Theme.chrome-field : Theme.field;
     border-width: 1px;
-    border-color: #252538;
-    border-radius: 6px;
+    border-color: root.on-chrome
+        ? (main-ta.has-hover ? Theme.chrome-fg-2 : Theme.chrome-field-line)
+        : (main-ta.has-hover ? Theme.ink-3 : Theme.field-line);
+    border-radius: 3px;
 
-    private property <bool> selected-has-brand:
-        root.selected-model.brand != ""
-        && root.selected-model.brand != "native"
-        && root.selected-model.brand != "generic";
-
+    // Composed in Rust (`block_model_picker_items`): the brand as the catalog
+    // writes it, then the model.
     private property <string> selected-button-label:
-        root.selected-has-brand
-            ? root.selected-model.brand + " " + root.selected-model.display_name
-            : root.selected-model.display_name;
+        root.selected-model.label != "" ? root.selected-model.label : root.selected-model.display_name;
+
+    // The backend's colour: a tinted chip on a light field, solid on the chrome.
+    private property <color> backend-color:
+        root.selected-model.type_label == "NATIVE" ? Theme.b-native
+        : root.selected-model.type_label == "NAM/A2" ? Theme.warn
+        : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? Theme.b-nam
+        : root.selected-model.type_label == "IR" ? Theme.b-ir
+        : root.selected-model.type_label == "LV2" ? Theme.b-lv2
+        : Theme.b-vst3;
 
     private property <length> badge-reserve:
-        root.selected-model.type_label == "" ? 0px : badge.width + 14px;
+        root.selected-model.type_label == "" || !root.show-badge ? 0px : badge.width + 14px;
 
     Text {
-        x: 12px;
+        x: 10px;
         y: 0;
         width: parent.width - 30px - root.badge-reserve;
         height: parent.height;
-        text: root.selected-button-label;
-        color: #d8e0ff;
-        font-size: 19px;
-        font-weight: 700;
+        text: root.on-chrome ? root.selected-button-label.to-uppercase() : root.selected-button-label;
+        color: root.on-chrome ? Theme.chrome-fg : Theme.ink;
+        font-size: Theme.min-font;
+        font-weight: 600;
+        letter-spacing: root.on-chrome ? 0.06 * Theme.min-font : 0px;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -68,36 +85,21 @@ export component ModelSelectWithSearch inherits Rectangle {
     // Always present (hidden when empty) so the label can reserve its width;
     // the badge follows its text ("NATIVE" no longer fits 42px at 18px).
     badge := Rectangle {
-        visible: root.selected-model.type_label != "";
+        visible: root.selected-model.type_label != "" && root.show-badge;
         x: parent.width - 28px - self.width;
         y: (parent.height - 22px) / 2;
         width: max(42px, badge-text.preferred-width + 10px);
         height: 22px;
         border-radius: 3px;
-        background: root.selected-model.type_label == "NATIVE" ? #0d2a0d
-            : root.selected-model.type_label == "NAM/A2" ? #2e260d
-            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #0d1a2e
-            : root.selected-model.type_label == "IR" ? #1a0d2e
-            : root.selected-model.type_label == "LV2" ? #0d2e2a
-            : #2e1a0d;
-        border-width: 1px;
-        border-color: root.selected-model.type_label == "NATIVE" ? #1a6b1a
-            : root.selected-model.type_label == "NAM/A2" ? #8a6a1a
-            : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #1a4488
-            : root.selected-model.type_label == "IR" ? #6b1a88
-            : root.selected-model.type_label == "LV2" ? #1a886b
-            : #883300;
+        background: root.on-chrome ? root.backend-color : root.backend-color.with-alpha(0.14);
+        border-width: root.on-chrome ? 0px : 1px;
+        border-color: root.backend-color.with-alpha(0.5);
 
         badge-text := Text {
             width: parent.width;
             height: parent.height;
             text: root.selected-model.type_label;
-            color: root.selected-model.type_label == "NATIVE" ? #33bb33
-                : root.selected-model.type_label == "NAM/A2" ? #ffcc44
-                : (root.selected-model.type_label == "NAM" || root.selected-model.type_label == "NAM/A1") ? #4499ff
-                : root.selected-model.type_label == "IR" ? #aa44ff
-                : root.selected-model.type_label == "LV2" ? #44ddaa
-                : #ff8833;
+            color: root.on-chrome ? Gear.white : root.backend-color;
             font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.5px;
@@ -106,16 +108,13 @@ export component ModelSelectWithSearch inherits Rectangle {
         }
     }
 
-    Text {
-        x: parent.width - 22px;
-        y: 0;
-        width: 18px;
-        height: parent.height;
-        text: @tr("▼");
-        color: #ffffff;
-        font-size: 18px;
-        vertical-alignment: center;
-        horizontal-alignment: center;
+    Image {
+        x: parent.width - 20px;
+        y: (parent.height - 10px) / 2;
+        width: 10px;
+        height: 10px;
+        source: @image-url("../assets/chevron-down.svg");
+        colorize: root.on-chrome ? Theme.chrome-fg-2 : Theme.ink-3;
     }
 
     main-ta := TouchArea {
@@ -134,207 +133,101 @@ export component ModelSelectWithSearch inherits Rectangle {
     }
 
     // ── popup ─────────────────────────────────────────────────────────
+    // #398: the search field (focused on open) over one framed list, grouped
+    // by block type, each model with its backend as a solid badge.
     popup := PopupWindow {
         x: 0;
-        y: root.height + 4px;
-        width: root.width;
-        height: root.popup-height;
+        // Under the field, above it when the window has no room below (#398).
+        y: OverlayPlacement.top(root.absolute-position.y - 4px, root.absolute-position.y + root.height + 4px,
+            self.height, WindowBounds.height) - root.absolute-position.y;
+        width: max(root.width, 320px);
+        height: OverlayPlacement.fit(root.popup-height, WindowBounds.height);
         close-policy: close-on-click-outside;
 
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #08080e;
+            background: Theme.panel;
             border-width: 1px;
-            border-color: #2a2a40;
+            border-color: Theme.hair;
             border-radius: 6px;
-            drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
-            drop-shadow-offset-x: 0px;
-            drop-shadow-offset-y: 6px;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: Theme.shadow;
+            drop-shadow-offset-y: 8px;
             clip: true;
 
-            // Sticky search header.
-            search-field := Rectangle {
-                x: 6px;
-                y: 6px;
-                width: parent.width - 12px;
-                height: 40px;
-                background: #14142a;
-                border-width: 1px;
-                border-color: #2a2a40;
-                border-radius: 6px;
+            VerticalLayout {
+                padding: 10px;
+                spacing: 10px;
 
-                // Magnifier icon (flat SVG, colorized).
-                Image {
-                    x: 10px;
-                    y: (parent.height - 16px) / 2;
-                    width: 16px;
-                    height: 16px;
-                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
-                    colorize: #6a6a82;
-                }
-
-                input := TextInput {
-                    x: 30px;
-                    y: 0;
-                    width: parent.width - 30px - (root.search-text == "" ? 8px : 28px);
-                    height: parent.height;
+                TextField {
                     text <=> root.search-text;
-                    color: #d8e0ff;
-                    font-size: 18px;
-                    horizontal-alignment: left;
-                    vertical-alignment: center;
-                    single-line: true;
-                    edited => {
-                        root.search-text-changed(self.text);
-                    }
+                    placeholder: @tr("placeholder-search-models");
+                    edited(t) => { root.search-text-changed(t); }
+                    init => { self.focus-field(); }
                 }
 
-                // Placeholder text shown when input is empty.
-                if root.search-text == "" : Text {
-                    x: 30px;
-                    y: 0;
-                    width: parent.width - 38px;
-                    height: parent.height;
-                    text: @tr("placeholder-search-models");
-                    color: #6a6a82;
-                    font-size: 18px;
-                    vertical-alignment: center;
-                }
-
-                if root.search-text != "" : TouchArea {
-                    x: parent.width - 28px;
-                    y: 0;
-                    width: 24px;
-                    height: parent.height;
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.search-text = "";
-                        root.search-text-changed("");
-                    }
-
-                    Image {
-                        x: (parent.width - 12px) / 2;
-                        y: (parent.height - 12px) / 2;
-                        width: 12px;
-                        height: 12px;
-                        source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                        colorize: #8a8aa2;
-                    }
-                }
-            }
-
-            // Empty state.
-            if root.filtered-models.length == 0 : Text {
-                x: 0;
-                y: 58px;
-                width: parent.width;
-                height: 36px;
-                text: @tr("status-no-models-found");
-                color: #6a6a82;
-                font-size: 18px;
-                vertical-alignment: center;
-                horizontal-alignment: center;
-            }
-
-            // Filtered list. Flickable supports wheel/trackpad scroll
-            // without rendering a visible scrollbar — the visual noise
-            // of std-widgets ScrollView's track was rejected.
-            if root.filtered-models.length > 0 : Flickable {
-                x: 0;
-                y: 54px;
-                width: parent.width;
-                height: parent.height - 54px;
-                viewport-width: self.width;
-                viewport-height: root.filtered-models.length * 36px + 8px;
-
-                for model[i] in root.filtered-models : Rectangle {
-                    x: 4px;
-                    y: 4px + i * 36px;
-                    width: parent.width - 8px;
+                // Empty state.
+                if root.filtered-models.length == 0 : Text {
                     height: 36px;
-                    border-radius: 5px;
-                    opacity: model.available ? 1.0 : 0.4;
-                    background: model.model_id == root.selected-model.model_id
-                        ? #14142a : transparent;
+                    text: @tr("status-no-models-found");
+                    color: Theme.ink-3;
+                    font-size: Theme.min-font;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
 
-                    private property <bool> row-has-brand:
-                        model.brand != ""
-                        && model.brand != "native"
-                        && model.brand != "generic";
+                // Filtered list. Flickable supports wheel/trackpad scroll
+                // without rendering a visible scrollbar — the visual noise
+                // of std-widgets ScrollView's track was rejected.
+                if root.filtered-models.length > 0 : Rectangle {
+                    vertical-stretch: 1;
+                    border-radius: 4px;
+                    clip: true;
+                    background: Theme.field;
+                    border-width: 1px;
+                    border-color: Theme.hair;
 
-                    Text {
-                        x: 12px;
-                        y: 0;
-                        width: model.type_label == ""
-                            ? parent.width - 70px
-                            : row-badge.x - 4px - 12px;
-                        height: parent.height;
-                        text: row-has-brand
-                            ? model.brand + " " + model.display_name
-                            : model.display_name;
-                        color: model.model_id == root.selected-model.model_id
-                            ? #7788ff : #b0bce0;
-                        font-size: 19px;
-                        font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
+                    Flickable {
+                        x: 1px;
+                        y: 1px;
+                        width: parent.width - 2px;
+                        height: parent.height - 2px;
+                        content-width: self.width;
+                        content-height: rows.preferred-height;
 
-                    // Follows its text; always present so the name can
-                    // stop short of it.
-                    row-badge := Rectangle {
-                        visible: model.type_label != "";
-                        x: parent.width - 12px - self.width;
-                        y: (parent.height - 22px) / 2;
-                        width: max(42px, row-badge-text.preferred-width + 10px);
-                        height: 22px;
-                        border-radius: 3px;
-                        background: model.type_label == "NATIVE" ? #0d2a0d
-                            : model.type_label == "NAM/A2" ? #2e260d
-                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #0d1a2e
-                            : model.type_label == "IR" ? #1a0d2e
-                            : model.type_label == "LV2" ? #0d2e2a
-                            : #2e1a0d;
-                        border-width: 1px;
-                        border-color: model.type_label == "NATIVE" ? #1a6b1a
-                            : model.type_label == "NAM/A2" ? #8a6a1a
-                            : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #1a4488
-                            : model.type_label == "IR" ? #6b1a88
-                            : model.type_label == "LV2" ? #1a886b
-                            : #883300;
+                        rows := VerticalLayout {
+                            alignment: start;
 
-                        row-badge-text := Text {
-                            width: parent.width;
-                            height: parent.height;
-                            text: model.type_label;
-                            color: model.type_label == "NATIVE" ? #33bb33
-                                : model.type_label == "NAM/A2" ? #ffcc44
-                                : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #4499ff
-                                : model.type_label == "IR" ? #aa44ff
-                                : model.type_label == "LV2" ? #44ddaa
-                                : #ff8833;
-                            font-size: 18px;
-                            font-weight: 800;
-                            letter-spacing: 0.5px;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                        }
-                    }
+                            for model[i] in root.filtered-models : Rectangle {
+                                height: pick.height;
 
-                    row-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.select(model.model_id);
-                            popup.close();
-                        }
-                        // Bubble wheel/trackpad scroll up to the outer
-                        // ScrollView — without this, the row's TouchArea
-                        // swallows the scroll event and the dropdown
-                        // stops scrolling when the cursor is over a row.
-                        scroll-event(_) => {
-                            reject
+                                pick := ModelPickRow {
+                                    width: parent.width;
+                                    model: model;
+                                    on: model.model_id == root.selected-model.model_id;
+                                    divided: i > 0;
+                                    header: i == 0 || model.effect_type != root.filtered-models[i - 1].effect_type
+                                        ? model.effect_type.to-uppercase() : "";
+                                }
+
+                                row-ta := TouchArea {
+                                    y: pick.header-height;
+                                    height: parent.height - pick.header-height;
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select(model.model_id);
+                                        popup.close();
+                                    }
+                                    // Bubble wheel/trackpad scroll up to the
+                                    // Flickable — without this, the row's
+                                    // TouchArea swallows the scroll event and
+                                    // the list stops scrolling under the cursor.
+                                    scroll-event(_) => {
+                                        reject
+                                    }
+                                }
+                            }
                         }
                     }
                 }

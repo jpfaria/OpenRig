@@ -1,4 +1,6 @@
 // Responsibility: places the offered update button beside the running version label.
+import { Theme, Gear } from "../theme.slint";
+import { Locale } from "../locale_globals.slint";
 import { AppUpdate } from "app_update_globals.slint";
 import { UpdateButton } from "update_button.slint";
 
@@ -8,11 +10,23 @@ export component AppVersionBadge inherits HorizontalLayout {
     spacing: 10px;
     alignment: end;
 
-    Text {
-        text: "v" + root.version;
-        color: #4a5060;
-        font-size: 18px;
-        vertical-alignment: center;
+    // The running version, a small dark chip over the photo.
+    Rectangle {
+        width: ver.preferred-width + 16px;
+        border-radius: 3px;
+        background: Gear.black.with-alpha(0.35);
+
+        ver := Text {
+            x: 8px;
+            width: self.preferred-width;
+            height: parent.height;
+            text: "v" + root.version;
+            font-family: Locale.mono-font-family;
+            color: Theme.chrome-fg-2;
+            font-size: 18px;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
     }
 
     if AppUpdate.latest-version != "" : UpdateButton {

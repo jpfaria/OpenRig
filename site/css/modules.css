@@ -1,0 +1,9 @@
+/* Responsibility: the hardware-module card (coloured header bar over a light panel). */
+.mod{--c:var(--accent);display:flex;flex-direction:column;background:var(--panel);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.mod-h{display:flex;align-items:center;gap:10px;min-height:38px;padding:9px 14px;background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 78%,#000))}
+.mod-h h3,.mod-h b{margin:0;font:700 12px/1.2 var(--body);letter-spacing:.16em;text-transform:uppercase;color:#fff}
+.mod-h::before{content:"";flex:none;width:14px;height:14px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M8 2v5'/%3E%3Cpath d='M4.6 4.4a5 5 0 1 0 6.8 0'/%3E%3C/svg%3E") center/contain no-repeat;opacity:.92}
+.mod-b{flex:1;padding:16px 16px 18px;background:linear-gradient(180deg,var(--panel-hi),var(--panel));border-top:1px solid color-mix(in srgb,var(--c) 40%,#000)}
+.mod-b p{margin:0;font-size:15.5px;line-height:1.5;color:var(--ink-2)}
+.badge{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:3px;background:var(--b,#69717f);font:700 10.5px/1 var(--body);letter-spacing:.1em;color:#fff}
+.mod-h .badge{margin-left:auto;background:#0000003a}

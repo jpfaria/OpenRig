@@ -109,6 +109,11 @@ pub enum QueryKind {
     /// The drum machine: its settings, the installed kits and grooves, and
     /// the live bar and beat. Serialized by [`crate::query_drums`].
     DrumsState,
+    /// #879: the TONE3000 browser — whether a key is set, the last search,
+    /// installs in flight and the installed packages. Never the key.
+    /// Serialized by [`crate::query_tone3000`]; MCP serves it as
+    /// `openrig://tone3000`.
+    Tone3000State,
     /// #923: what each output ROUTE's device stream pulled — callbacks
     /// served, empty pops, and the loudest sample since the previous read,
     /// per (chain, runtime group, route). The per-chain meters say what a
@@ -128,4 +133,15 @@ pub enum QueryKind {
     /// [`crate::query_chain_mixer::chain_mixer_json`]; MCP serves it as
     /// `openrig://chains/{chain}/mixer`.
     ChainMixer { chain: domain::ids::ChainId },
+    /// The plugins the user owns — the plugins folder and TONE3000
+    /// installs, never the bundled ones — with their origin and saved
+    /// versions. Serialized by
+    /// [`crate::query_plugin_library::plugin_library_json`]; MCP serves it
+    /// as `openrig://plugin-library`.
+    PluginLibrary,
+    /// One owned plugin's capture grid as the editor shows it. Serialized
+    /// by [`crate::query_plugin_library::plugin_grid_json`]; MCP serves it
+    /// as `openrig://plugin-library/{id}`. An id the catalog does not hold
+    /// answers the empty shape.
+    PluginLibraryGrid { plugin_id: String },
 }

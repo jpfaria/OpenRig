@@ -3,6 +3,7 @@
 // editor and the inline drawer. Routes back to the matching widget (slider,
 // stepper, footswitch, file picker) by parameter type.
 
+import { Theme } from "../theme.slint";
 import { ComboBox } from "std-widgets.slint";
 import { BlockParameterItem } from "../models.slint";
 import { ToolbarButton, ParamFieldBox, BlockValueStepper, BlockValueSlider, BlockFootswitch } from "./block_value_widgets.slint";
@@ -33,7 +34,7 @@ export component BlockParameterRow inherits Rectangle {
         height: 22px;
         text: root.item.label;
         overflow: elide;
-        color: #eef2f8;
+        color: Theme.ink;
         font-size: 18px;
         font-weight: 650;
     }
@@ -128,7 +129,7 @@ export component BlockParameterRow inherits Rectangle {
         y: 33px;
         width: 24px;
         height: 24px;
-        background: file-hover.has-hover ? #ffffff10 : transparent;
+        background: file-hover.has-hover ? Theme.hover : transparent;
 
         Image {
             x: 2px;
@@ -136,6 +137,7 @@ export component BlockParameterRow inherits Rectangle {
             width: 20px;
             height: 20px;
             source: @image-url("../assets/open-file.svg");
+            colorize: Theme.ink-2;
             image-fit: contain;
         }
 
@@ -158,7 +160,7 @@ export component BlockParameterRow inherits Rectangle {
         height: 24px;
         background: transparent;
         border-width: 1px;
-        border-color: #465063;
+        border-color: Theme.field-line;
         border-radius: 3px;
 
         unit-label := Text {
@@ -167,7 +169,7 @@ export component BlockParameterRow inherits Rectangle {
             width: parent.width;
             height: parent.height;
             text: root.item.unit_text;
-            color: #a6b7ce;
+            color: Theme.ink-2;
             font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;

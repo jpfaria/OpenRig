@@ -1,4 +1,5 @@
 // Responsibility: draws one wire of the graph view.
+import { Theme } from "../theme.slint";
 // Bezier wire between two viewport-space points. Drawn behind the nodes.
 //
 // The Path fills the whole canvas and declares its viewbox in canvas
@@ -13,7 +14,7 @@ export component GraphWire inherits Path {
     in property <length> to_y;
     in property <length> canvas_width;
     in property <length> canvas_height;
-    in property <color> stroke_color: #8aaac8;
+    in property <color> stroke_color: Theme.wire;
     in property <length> stroke_thickness: 2px;
 
     x: 0px;

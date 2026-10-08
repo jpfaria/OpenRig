@@ -105,7 +105,8 @@ pub fn wire(
                 crate::i18n::apply_bundled_translation(lang.as_deref());
                 // Swap default-font-family on the Slint side so CJK/Devanagari
                 // glyphs render against a face that actually contains them
-                // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
+                // (Barlow and Bebas Neue are Latin-only and produce tofu □□ in
+                // ja/zh/ko/hi).
                 let new_locale_for_font = locale_for_runtime(lang.as_deref());
                 let new_font = font_family_for_locale(&new_locale_for_font);
                 eprintln!(
@@ -135,6 +136,9 @@ pub fn wire(
         });
     let for_app = on_change.clone();
     crate::SettingsBridge::get(window).on_change_language(move |idx: i32| for_app(idx));
+    // The setup wizard hosts the language section on the main window.
+    let for_wizard = on_change.clone();
+    crate::SettingsBridge::get(window).on_language_selected(move |idx: i32| for_wizard(idx));
     let for_settings = on_change;
     crate::SettingsBridge::get(project_settings_window)
         .on_language_selected(move |idx: i32| for_settings(idx));

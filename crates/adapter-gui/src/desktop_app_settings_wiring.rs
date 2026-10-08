@@ -81,12 +81,12 @@ pub(crate) fn wire(
             output_chain_devices: output_chain_devices.clone(),
         },
     );
-    // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---
-    crate::audio_wizard_wiring::wire(
+    // --- First-run setup wizard buttons ---
+    crate::setup_wizard_wiring::wire(
         window,
-        crate::audio_wizard_wiring::AudioWizardCtx {
-            input_devices: input_devices.clone(),
-            toast_timer: toast_timer.clone(),
+        crate::setup_wizard_wiring::SetupWizardCtx {
+            project_session: project_session.clone(),
+            app_config: app_config.clone(),
         },
     );
     // --- Audio settings save callbacks (extracted to settings::audio) ---

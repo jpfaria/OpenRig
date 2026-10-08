@@ -19,19 +19,10 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     Ok(config)
 }
 
-/// Default location for the bundled preset library.
-///
-/// Resolves to `<data_root>/presets` where `data_root` is:
-/// - `<bundle>/Contents/Resources/` on macOS (.dmg / .app)
-/// - `/usr/share/openrig/` on Linux (.deb / .rpm)
-/// - `<install_dir>/` on Windows (.msi)
-/// - the current working directory in dev (so `./presets` in the repo still works).
-///
-/// Used as the fallback when `config.yaml` has no `presets_path` entry; user
-/// projects can still override this by setting `presets_path` in their own
-/// `config.yaml`.
+/// Default folder of the user's presets, used when `config.yaml` has no
+/// `presets_path` entry (`<user folder>/presets`).
 pub(crate) fn default_presets_path() -> PathBuf {
-    infra_filesystem::detect_data_root().join("presets")
+    infra_filesystem::default_presets_path()
 }
 
 pub(crate) fn load_app_config(path: &Path) -> Result<AppConfigYaml> {

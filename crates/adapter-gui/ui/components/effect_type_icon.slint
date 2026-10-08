@@ -1,10 +1,11 @@
 // Responsibility: maps an effect type onto its icon.
+import { Theme } from "../theme.slint";
 // Single source of truth for effect type → icon mapping.
 // Use this component everywhere instead of duplicating the ternary chain.
 
 export component EffectTypeIcon inherits Rectangle {
     in property <string> icon-kind;
-    in property <color> tint: #ffffff;
+    in property <color> tint: Theme.ink;
 
     background: transparent;
 

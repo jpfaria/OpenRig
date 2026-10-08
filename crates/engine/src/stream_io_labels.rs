@@ -21,6 +21,8 @@ pub struct OutputIoLabel {
     pub name: String,
     /// 1-based channels the route writes, e.g. "1,2".
     pub channels: String,
+    /// Id of the interface the route writes to.
+    pub device: String,
 }
 
 /// The E/S names one stream (meter row) carries: where its input comes from
@@ -31,6 +33,8 @@ pub struct StreamIoLabels {
     pub output: String,
     /// 1-based channels the stream reads, e.g. "1" (#1006).
     pub input_channels: String,
+    /// Id of the interface the stream reads from.
+    pub input_device: String,
     /// 1-based channels the stream writes, one group per output, e.g. "1,2 + 17,18".
     pub output_channels: String,
     /// Every output the stream feeds, in route order (#1074).
@@ -84,6 +88,7 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
                     route,
                     name: label.clone(),
                     channels: chans,
+                    device: entry.device_id.0.clone(),
                 });
                 if !label.is_empty() && !outputs.contains(&label) {
                     outputs.push(label);
@@ -104,6 +109,7 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
                 input: input_id.map(|id| name(&id)).unwrap_or_default(),
                 output: outputs.join(" + "),
                 input_channels: channel_list(&segment.input.channels),
+                input_device: segment.input.device_id.0.clone(),
                 output_channels: output_channels.join(" + "),
                 outputs: routes,
             }

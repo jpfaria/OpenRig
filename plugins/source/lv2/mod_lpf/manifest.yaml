@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_mod_lpf
+display_name: MOD Low Pass
+description: MOD Low Pass Filter — clean low-pass filter.
+brand: mod
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://github.com/moddevices/mod-utilities
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/mod-devel/LowPassFilter
+binaries:
+  macos-universal: platform/macos-universal/mod-lpf.dylib
+  linux-x86_64: platform/linux-x86_64/mod-lpf.so
+  linux-aarch64: platform/linux-aarch64/mod-lpf.so

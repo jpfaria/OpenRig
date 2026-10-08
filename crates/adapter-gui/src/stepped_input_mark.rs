@@ -9,7 +9,9 @@
 //! - `cycles-<k>.csv`: host time and frame range of each callback;
 //! - `device-<k>.json`: the device as the OS reported it at the trip;
 //! - `device-after-<k>.json`: the same, read again once the new streams run;
-//! - `openrig.json`: the streams OpenRig had open and the chain's routes.
+//! - `openrig.json`: the streams OpenRig had open and the chain's routes;
+//! - `system-audio-log.txt`: the system's audio log of the minutes before
+//!   (macOS, #1081, `stepped_input_system_log`).
 
 use std::fs;
 use std::io::{self, Write};
@@ -49,6 +51,14 @@ pub(crate) fn leave_mark(evidence: SteppedInputEvidence) {
                     return;
                 }
             };
+            match crate::stepped_input_system_log::write_system_log(
+                &dir,
+                &crate::stepped_input_system_log::read_audio_log,
+            ) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::Unsupported => {}
+                Err(e) => log::error!("[{}] stepped input: no system log: {e}", evidence.chain_id),
+            }
             std::thread::sleep(AFTER_RESTART);
             if let Err(e) = write_after_probe(&dir, &evidence, &infra_cpal::probe_input_device) {
                 log::error!("[{}] stepped input: no after-probe: {e}", evidence.chain_id);

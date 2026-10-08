@@ -1,0 +1,135 @@
+manifest_version: 1
+id: vst3_frequalizer
+display_name: EQ Frequalizer
+description: Frequalizer — 6-band parametric EQ with spectrum analyser.
+brand: ffaudio
+license: BSD-3-Clause
+homepage: https://github.com/ffAudio/Frequalizer
+type: vst3
+backend: vst3
+bundle: bundles/Frequalizer.vst3
+parameters:
+  - vst3_id: 1141971201
+    name: output
+    display_name: "Output"
+    group: "General"
+  - vst3_id: 326296149
+    name: q1_filter_type
+    display_name: "Q1: Filter Type"
+    group: "Band 1"
+  - vst3_id: 1583737633
+    name: q1_frequency
+    display_name: "Q1: Frequency"
+    group: "Band 1"
+  - vst3_id: 534500356
+    name: q1_quality
+    display_name: "Q1: Quality"
+    group: "Band 1"
+  - vst3_id: 325885594
+    name: q1_gain
+    display_name: "Q1: Gain"
+    group: "Band 1"
+  - vst3_id: 1621325665
+    name: q1_active
+    display_name: "Q1: Active"
+    group: "Band 1"
+  - vst3_id: 342779443
+    name: q2_filter_type
+    display_name: "Q2: Filter Type"
+    group: "Band 2"
+  - vst3_id: 1207443971
+    name: q2_frequency
+    display_name: "Q2: Frequency"
+    group: "Band 2"
+  - vst3_id: 1962040166
+    name: q2_quality
+    display_name: "Q2: Quality"
+    group: "Band 2"
+  - vst3_id: 342368888
+    name: q2_gain
+    display_name: "Q2: Gain"
+    group: "Band 2"
+  - vst3_id: 281902015
+    name: q2_active
+    display_name: "Q2: Active"
+    group: "Band 2"
+  - vst3_id: 154652304
+    name: q3_filter_type
+    display_name: "Q3: Filter Type"
+    group: "Band 3"
+  - vst3_id: 2139253702
+    name: q3_frequency
+    display_name: "Q3: Frequency"
+    group: "Band 3"
+  - vst3_id: 251279849
+    name: q3_quality
+    display_name: "Q3: Quality"
+    group: "Band 3"
+  - vst3_id: 154241749
+    name: q3_gain
+    display_name: "Q3: Gain"
+    group: "Band 3"
+  - vst3_id: 2027831516
+    name: q3_active
+    display_name: "Q3: Active"
+    group: "Band 3"
+  - vst3_id: 494705566
+    name: q4_filter_type
+    display_name: "Q4: Filter Type"
+    group: "Band 4"
+  - vst3_id: 1595512696
+    name: q4_frequency
+    display_name: "Q4: Frequency"
+    group: "Band 4"
+  - vst3_id: 1097640475
+    name: q4_quality
+    display_name: "Q4: Quality"
+    group: "Band 4"
+  - vst3_id: 494295011
+    name: q4_gain
+    display_name: "Q4: Gain"
+    group: "Band 4"
+  - vst3_id: 254018154
+    name: q4_active
+    display_name: "Q4: Active"
+    group: "Band 4"
+  - vst3_id: 1264920677
+    name: q5_filter_type
+    display_name: "Q5: Filter Type"
+    group: "Band 5"
+  - vst3_id: 1547497233
+    name: q5_frequency
+    display_name: "Q5: Frequency"
+    group: "Band 5"
+  - vst3_id: 713233396
+    name: q5_quality
+    display_name: "Q5: Quality"
+    group: "Band 5"
+  - vst3_id: 1264510122
+    name: q5_gain
+    display_name: "Q5: Gain"
+    group: "Band 5"
+  - vst3_id: 1696364913
+    name: q5_active
+    display_name: "Q5: Active"
+    group: "Band 5"
+  - vst3_id: 1224973027
+    name: q6_filter_type
+    display_name: "Q6: Filter Type"
+    group: "Band 6"
+  - vst3_id: 282614611
+    name: q6_frequency
+    display_name: "Q6: Frequency"
+    group: "Band 6"
+  - vst3_id: 338733238
+    name: q6_quality
+    display_name: "Q6: Quality"
+    group: "Band 6"
+  - vst3_id: 1224562472
+    name: q6_gain
+    display_name: "Q6: Gain"
+    group: "Band 6"
+  - vst3_id: 1961378927
+    name: q6_active
+    display_name: "Q6: Active"
+    group: "Band 6"

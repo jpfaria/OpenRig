@@ -22,7 +22,7 @@ insert-error-select-send: "सेंड डिवाइस और चैनल �
 warn-add-input: "कम से कम एक इनपुट जोड़ें।"
 warn-add-output: "कम से कम एक आउटपुट जोड़ें।"
 
-status-wizard-select-input: "जारी रखने से पहले कम से कम एक इनपुट चुनें।"
+status-wizard-select-devices: "जारी रखने से पहले कम से कम एक इनपुट और एक आउटपुट चुनें।"
 status-audio-disconnected: "ऑडियो डिवाइस डिस्कनेक्ट हो गया — पुनः कनेक्ट हो रहा है..."
 status-audio-reconnected: "ऑडियो डिवाइस पुनः कनेक्ट हो गया"
 status-audio-starting: "ऑडियो शुरू हो रहा है..."
@@ -115,3 +115,5 @@ title-endpoints-path: "पाथ %{path} के आउटपुट"
 mixer-strip-di: "DI"
 mixer-strip-master: "मास्टर"
 mixer-strip-looper: "लूपर %{n}"
+# the plugin editor's kept versions
+option-plugin-editor-version: "संस्करण %{n}"

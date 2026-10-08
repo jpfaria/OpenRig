@@ -1,0 +1,5 @@
+i18n:
+  en-US:
+    description: ZaMultiComp — 3-band multiband compressor.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

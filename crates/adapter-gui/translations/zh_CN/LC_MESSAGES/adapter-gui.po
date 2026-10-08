@@ -222,7 +222,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "混音器"
+msgstr "混音"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1274,3 +1274,478 @@ msgstr "搜索"
 
 msgid "status-drums-no-match"
 msgstr "没有匹配项"
+
+msgid "tooltip-move-chain-up"
+msgstr "链上移"
+
+msgid "tooltip-move-chain-down"
+msgstr "链下移"
+
+msgid "accessible-chain-power"
+msgstr "开关链"
+
+msgid "compact-block-power"
+msgstr "开启或关闭模块"
+
+msgid "compact-block-remove"
+msgstr "删除模块"
+
+msgid "block-editor-power"
+msgstr "开关此模块"
+
+msgid "block-editor-info"
+msgstr "信息"
+
+msgid "block-editor-remove"
+msgstr "移除模块"
+
+msgid "block-editor-save"
+msgstr "添加模块"
+
+msgid "label-mixer-chain"
+msgstr "链路"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} 频段"
+
+msgid "label-count-in-on"
+msgstr "1小节"
+
+msgid "label-count-in-off"
+msgstr "关"
+
+msgid "title-settings"
+msgstr "设置"
+
+msgid "label-device-channels {} {}"
+msgstr "{} 输入 · {} 输出"
+
+msgid "help-buffer-latency"
+msgstr "每个音频块的延迟"
+
+msgid "btn-refresh-devices"
+msgstr "刷新"
+
+msgid "empty-no-midi-devices"
+msgstr "未找到 MIDI 设备"
+
+msgid "placeholder-midi-alias"
+msgstr "别名"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · 通道 {}"
+
+msgid "btn-edit"
+msgstr "编辑"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "路径"
+
+msgid "title-add-block"
+msgstr "添加模块"
+
+msgid "di-source-label"
+msgstr "来源"
+
+msgid "title-section-appearance"
+msgstr "外观"
+
+msgid "label-theme"
+msgstr "主题"
+
+msgid "appearance-system"
+msgstr "系统"
+
+msgid "appearance-light"
+msgstr "浅色"
+
+msgid "appearance-dark"
+msgstr "深色"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 捕获"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "浏览"
+
+msgid "tab-tone3000-installed"
+msgstr "已安装 ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "每位用户使用自己的密钥。它只保存在这台机器上。"
+
+msgid "placeholder-tone3000-key"
+msgstr "粘贴你的 t3k_cs_ 密钥"
+
+msgid "status-tone3000-key-set"
+msgstr "已设置密钥"
+
+msgid "status-tone3000-key-unset"
+msgstr "未设置密钥"
+
+msgid "btn-tone3000-key-save"
+msgstr "保存"
+
+msgid "btn-tone3000-key-clear"
+msgstr "移除"
+
+msgid "btn-tone3000-search"
+msgstr "搜索"
+
+msgid "btn-tone3000-install"
+msgstr "安装"
+
+msgid "btn-tone3000-update"
+msgstr "更新"
+
+msgid "btn-tone3000-retry"
+msgstr "重试"
+
+msgid "btn-tone3000-uninstall"
+msgstr "卸载"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "确认"
+
+msgid "btn-tone3000-previous-page"
+msgstr "上一页"
+
+msgid "btn-tone3000-next-page"
+msgstr "下一页"
+
+msgid "placeholder-tone3000-search"
+msgstr "搜索音箱头、效果器、整套、IR"
+
+msgid "label-tone3000-format"
+msgstr "格式"
+
+msgid "label-tone3000-gear"
+msgstr "设备"
+
+msgid "label-tone3000-sort"
+msgstr "排序"
+
+msgid "label-tone3000-all"
+msgstr "全部"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "最相关"
+
+msgid "label-tone3000-sort-trending"
+msgstr "热门"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "下载最多"
+
+msgid "label-tone3000-sort-newest"
+msgstr "最新"
+
+msgid "label-tone3000-gear-amp"
+msgstr "音箱头"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "整套"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "音箱头 + 箱体"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "效果器"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "外置设备"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "箱体"
+
+msgid "label-tone3000-block-amp"
+msgstr "音箱头"
+
+msgid "label-tone3000-block-preamp"
+msgstr "前级"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "效果器"
+
+msgid "label-tone3000-block-cab"
+msgstr "箱体"
+
+msgid "label-tone3000-block-body"
+msgstr "琴体"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} · {} 次下载"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "已安装"
+
+msgid "label-tone3000-captures"
+msgstr "{} 个捕获"
+
+msgid "label-tone3000-page"
+msgstr "第 {} / {} 页 · {} 个音色"
+
+msgid "status-tone3000-downloading"
+msgstr "正在下载 {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "正在测量电平"
+
+msgid "status-tone3000-fetching"
+msgstr "正在准备"
+
+msgid "btn-tone3000-open-settings"
+msgstr "打开设置"
+
+msgid "link-tone3000-get-key"
+msgstr "在 tone3000.com 创建 Secret Key"
+
+msgid "title-tone3000-no-key"
+msgstr "需要 TONE3000 Secret Key"
+
+msgid "status-tone3000-no-key"
+msgstr "搜索和安装采样需要你自己的 TONE3000 Secret Key。请在设置中添加。"
+
+msgid "status-tone3000-searching"
+msgstr "正在搜索"
+
+msgid "status-tone3000-no-results"
+msgstr "没有匹配的音色。"
+
+msgid "status-tone3000-start"
+msgstr "在 TONE3000 搜索音箱头、效果器和 IR。"
+
+msgid "status-tone3000-none-installed"
+msgstr "尚未安装任何 TONE3000 捕获。"
+msgid "label-tone3000-built-in"
+msgstr "内置"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "按名称搜索已安装"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "没有与此名称匹配的已安装 TONE3000 插件。"
+
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "插件"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — 插件"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — 插件编辑器"
+
+msgid "title-plugins"
+msgstr "插件"
+
+msgid "label-plugins-count"
+msgstr "已安装 {} 个"
+
+msgid "label-plugins-origin"
+msgstr "来源"
+
+msgid "option-plugins-origin-all"
+msgstr "全部"
+
+msgid "option-plugins-origin-folder"
+msgstr "插件文件夹"
+
+msgid "option-plugins-all-types"
+msgstr "所有类型"
+
+msgid "placeholder-plugins-search"
+msgstr "按名称搜索"
+
+msgid "placeholder-plugins-type-search"
+msgstr "搜索类型"
+
+msgid "status-plugins-no-type"
+msgstr "没有该名称的类型。"
+
+msgid "status-plugins-none"
+msgstr "尚未安装插件。可从 TONE3000 安装或新建一个。"
+
+msgid "status-plugins-no-match"
+msgstr "没有符合筛选条件的插件。"
+
+msgid "label-plugins-captures"
+msgstr "{} 个捕获"
+
+msgid "btn-plugins-create"
+msgstr "新建插件"
+
+msgid "btn-plugins-info"
+msgstr "信息"
+
+msgid "btn-plugins-edit"
+msgstr "编辑参数"
+
+msgid "btn-plugins-update"
+msgstr "从 TONE3000 更新"
+
+msgid "btn-plugins-redo"
+msgstr "重建"
+
+msgid "btn-plugins-uninstall"
+msgstr "卸载"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "确认卸载"
+
+msgid "title-plugin-editor-edit"
+msgstr "编辑参数"
+
+msgid "title-plugin-editor-create"
+msgstr "新插件"
+
+msgid "title-plugin-editor-naming"
+msgstr "为参数命名"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000 未说明每个捕获改变了什么。请为参数命名以完成安装。"
+
+msgid "status-plugin-editor-no-captures"
+msgstr "添加捕获以开始。"
+
+msgid "status-plugin-editor-no-version"
+msgstr "没有该编号的版本。"
+
+msgid "label-plugin-editor-versions"
+msgstr "{} 个版本"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "恢复版本"
+
+msgid "label-plugin-editor-name"
+msgstr "名称"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "插件名称"
+
+msgid "label-plugin-editor-brand"
+msgstr "品牌"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "可选"
+
+msgid "label-plugin-editor-block"
+msgstr "模块"
+
+msgid "label-plugin-editor-plays"
+msgstr "播放方式"
+
+msgid "option-plugin-editor-amp"
+msgstr "放大器"
+
+msgid "option-plugin-editor-preamp"
+msgstr "前级"
+
+msgid "option-plugin-editor-gain"
+msgstr "增益"
+
+msgid "option-plugin-editor-cab"
+msgstr "箱体"
+
+msgid "option-plugin-editor-body"
+msgstr "琴体"
+
+msgid "label-plugin-editor-capture"
+msgstr "捕获"
+
+msgid "label-plugin-editor-kind"
+msgstr "类型"
+
+msgid "option-plugin-editor-choice"
+msgstr "列表"
+
+msgid "option-plugin-editor-knob"
+msgstr "旋钮"
+
+msgid "option-plugin-editor-switch"
+msgstr "开关"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "参数"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "添加参数"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "移除参数"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "添加捕获"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "移除捕获"
+msgid "title-setup-wizard"
+msgstr "初始设置"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "第 {} 步，共 {} 步"
+
+msgid "desc-wizard-language"
+msgstr "选择应用的语言。之后可以在设置中更改。"
+
+msgid "desc-wizard-audio"
+msgstr "打开连接吉他的音频接口，然后设置采样率和缓冲区大小。"
+
+msgid "desc-wizard-io"
+msgstr "为接口的输入和输出命名：吉他从哪个通道进入，声音从哪里输出。"
+
+msgid "desc-wizard-tone3000"
+msgstr "粘贴您的 TONE3000 密钥，即可在应用内搜索并安装音箱和效果器捕获。也可以稍后添加。"
+
+msgid "btn-wizard-back"
+msgstr "上一步"
+
+msgid "btn-wizard-next"
+msgstr "下一步"
+
+msgid "btn-wizard-skip"
+msgstr "跳过"
+
+msgid "btn-wizard-finish"
+msgstr "完成"

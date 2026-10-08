@@ -5,10 +5,16 @@
 // Root-level (a PopupWindow's content does not receive clicks, #749/#761);
 // the rows are the app's one checklist, ChannelPicker (#880). A click outside
 // the card closes it. Nothing is added to or removed from the E/S here.
+//
+// #398: the dialog card — the node's name and its endpoint count on the dark
+// bar with the X, the checklist on the panel.
 
+import { Theme } from "../theme.slint";
 import { ChainGraphOverlayState } from "../chain_graph_overlay_globals.slint";
 import { ScrollView } from "std-widgets.slint";
 import { ChannelPicker } from "channel_picker.slint";
+import { ToolBar } from "tool_bar.slint";
+import { ToolBarClose } from "tool_bar_close.slint";
 
 export component EndpointChecklistOverlay inherits Rectangle {
     x: 0;
@@ -22,75 +28,47 @@ export component EndpointChecklistOverlay inherits Rectangle {
     if ChainGraphOverlayState.checklist-open : Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: min(root.width - 32px, 440px);
+        width: min(root.width - 32px, 460px);
         height: min(root.height - 32px, card.preferred-height);
-        background: #111114;
-        border-radius: 10px;
+        background: Theme.panel;
+        border-radius: 6px;
         border-width: 1px;
-        border-color: #27272a;
-        drop-shadow-blur: 20px;
-        drop-shadow-color: #000000c0;
+        border-color: Theme.hair;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
         clip: true;
 
         // Swallow clicks on the card so only the backdrop closes it.
         TouchArea { }
 
         card := VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
+            ToolBar {
+                title: ChainGraphOverlayState.checklist-title;
+                sub: @tr("label-endpoint-count {}", ChainGraphOverlayState.checklist-items.length);
 
-            HorizontalLayout {
-                height: 44px;
-                spacing: 8px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: ChainGraphOverlayState.checklist-title;
-                    color: #f1f4f8;
-                    font-size: 22px;
-                    font-weight: 800;
-                    vertical-alignment: center;
-                }
-                // The round X every panel closes with.
-                VerticalLayout {
-                    alignment: center;
-                    close-x := Rectangle {
-                        width: 28px;
-                        height: 28px;
-                        border-radius: 14px;
-                        background: close-ta.has-hover ? #2a3340 : #1c2028;
-                        border-width: 1px;
-                        border-color: #2c323d;
-                        accessible-role: button;
-                        accessible-label: @tr("btn-close");
-                        accessible-action-default => { ChainGraphOverlayState.checklist-open = false; }
-                        Image {
-                            x: (parent.width - 12px) / 2;
-                            y: (parent.height - 12px) / 2;
-                            width: 12px;
-                            height: 12px;
-                            source: @image-url("../modules/surrealism-ui/icons/close.svg");
-                            colorize: #c5cdd9;
-                        }
-                        close-ta := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { ChainGraphOverlayState.checklist-open = false; }
-                        }
-                    }
+                // The X every panel closes with.
+                close-x := ToolBarClose {
+                    clicked => { ChainGraphOverlayState.checklist-open = false; }
                 }
             }
 
-            // A rig can list many endpoints: past the cap the list scrolls
-            // inside the card instead of growing it off-screen.
-            ScrollView {
-                height: min(picker.height, 360px);
-                viewport-height: picker.height;
-                picker := ChannelPicker {
-                    width: parent.width;
-                    channels: ChainGraphOverlayState.checklist-items;
-                    empty-hint: @tr("hint-endpoints-empty");
-                    show-total: false;
-                    toggled(row, on) => {
-                        ChainGraphOverlayState.checklist-toggled(ChainGraphOverlayState.checklist-chain-index, ChainGraphOverlayState.checklist-node, row, on);
+            VerticalLayout {
+                padding: 18px;
+
+                // A rig can list many endpoints: past the cap the list scrolls
+                // inside the card instead of growing it off-screen.
+                ScrollView {
+                    height: min(picker.height, 360px);
+                    content-height: picker.height;
+                    picker := ChannelPicker {
+                        width: parent.width;
+                        channels: ChainGraphOverlayState.checklist-items;
+                        empty-hint: @tr("hint-endpoints-empty");
+                        show-total: false;
+                        toggled(row, on) => {
+                            ChainGraphOverlayState.checklist-toggled(ChainGraphOverlayState.checklist-chain-index, ChainGraphOverlayState.checklist-node, row, on);
+                        }
                     }
                 }
             }

@@ -270,10 +270,17 @@ impl LocalDispatcher {
             presets_path: "./presets",
         })
         .map_err(|e| anyhow!("failed to serialize sidecar config for {project_path:?}: {e}"))?;
-        crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
-            config_path,
-            config_yaml.into_bytes(),
-        ));
+        // A project saved at the root of the user folder shares its sidecar
+        // path with the system config; the system config already points at
+        // that same `presets` folder, so it is left untouched.
+        let is_system_config = infra_filesystem::FilesystemStorage::app_config_path()
+            .is_ok_and(|system| system == config_path);
+        if !is_system_config {
+            crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
+                config_path,
+                config_yaml.into_bytes(),
+            ));
+        }
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::EnsureDir(
             parent_dir.join("presets"),
         ));

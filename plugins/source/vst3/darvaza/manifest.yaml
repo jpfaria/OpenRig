@@ -1,0 +1,14 @@
+manifest_version: 1
+id: vst3_darvaza
+display_name: Gate darvaza
+description: darvaza — glitch / mangle gate by igorski.
+brand: igorski
+license: MIT
+homepage: https://github.com/igorski/darvaza
+type: vst3
+backend: vst3
+bundle: bundles/darvaza.vst3
+# Parameters are discovered at runtime from the plugin's IEditController; the
+# app groups them dynamically (issue #117). No manual groups declared here —
+# the plugin's auto-grouping is already sensible / it has too few params to tab.
+parameters: []

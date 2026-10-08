@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_x42_dpl
+display_name: x42 Limiter
+description: x42 dpl — look-ahead true-peak limiter (Fons Adriaensen peaklim core).
+brand: x42
+license: GPL-3.0
+homepage: https://github.com/x42/dpl.lv2
+type: dyn
+backend: lv2
+plugin_uri: http://gareus.org/oss/lv2/dpl#stereo
+binaries:
+  macos-universal: platform/macos-universal/dpl.dylib
+  windows-x86_64: platform/windows-x86_64/dpl.dll
+  linux-x86_64: platform/linux-x86_64/dpl.so
+  linux-aarch64: platform/linux-aarch64/dpl.so

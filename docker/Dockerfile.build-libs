@@ -47,6 +47,9 @@ ENV PATH="/opt/llvm-mingw/bin:${PATH}"
 WORKDIR /build
 
 COPY scripts/build-lib-internal.sh /usr/local/bin/build-lib
+# The dispatcher sources its recipes from a sibling recipes/ dir (resolved via
+# BASH_SOURCE). Copy it next to the baked build-lib so Docker builds match CI.
+COPY scripts/recipes/ /usr/local/bin/recipes/
 RUN chmod +x /usr/local/bin/build-lib
 
 ENTRYPOINT ["build-lib"]

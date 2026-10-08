@@ -222,7 +222,7 @@ msgstr "Out"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:56
 msgid "graph-node-mixer"
-msgstr "믹서"
+msgstr "믹스"
 
 #: crates/adapter-gui/ui/components/graph_node_card.slint:145
 msgid "accessible-graph-node-bypass"
@@ -1278,3 +1278,478 @@ msgstr "검색"
 
 msgid "status-drums-no-match"
 msgstr "일치하는 항목이 없습니다"
+
+msgid "tooltip-move-chain-up"
+msgstr "체인을 위로"
+
+msgid "tooltip-move-chain-down"
+msgstr "체인을 아래로"
+
+msgid "accessible-chain-power"
+msgstr "체인 켜기/끄기"
+
+msgid "compact-block-power"
+msgstr "블록 켜기/끄기"
+
+msgid "compact-block-remove"
+msgstr "블록 삭제"
+
+msgid "block-editor-power"
+msgstr "블록 켜기/끄기"
+
+msgid "block-editor-info"
+msgstr "정보"
+
+msgid "block-editor-remove"
+msgstr "블록 제거"
+
+msgid "block-editor-save"
+msgstr "블록 추가"
+
+msgid "label-mixer-chain"
+msgstr "체인"
+
+msgid "label-power"
+msgstr "POWER"
+
+msgid "label-spectrum-bands"
+msgstr "{} 밴드"
+
+msgid "label-count-in-on"
+msgstr "1마디"
+
+msgid "label-count-in-off"
+msgstr "끔"
+
+msgid "title-settings"
+msgstr "설정"
+
+msgid "label-device-channels {} {}"
+msgstr "입력 {} · 출력 {}"
+
+msgid "help-buffer-latency"
+msgstr "오디오 블록당 지연"
+
+msgid "btn-refresh-devices"
+msgstr "새로고침"
+
+msgid "empty-no-midi-devices"
+msgstr "MIDI 장치가 없습니다"
+
+msgid "placeholder-midi-alias"
+msgstr "별칭"
+
+msgid "label-endpoint-summary {} {}"
+msgstr "{} · 채널 {}"
+
+msgid "btn-edit"
+msgstr "편집"
+
+msgid "label-count-in {}"
+msgstr "{} IN"
+
+msgid "label-count-out {}"
+msgstr "{} OUT"
+
+msgid "label-pill-in {}"
+msgstr "IN {}"
+
+msgid "label-pill-out {}"
+msgstr "OUT {}"
+
+msgid "label-endpoint-count {}"
+msgstr "{} ENDPOINTS"
+
+msgid "label-split-paths"
+msgstr "경로"
+
+msgid "title-add-block"
+msgstr "블록 추가"
+
+msgid "di-source-label"
+msgstr "소스"
+
+msgid "title-section-appearance"
+msgstr "모양"
+
+msgid "label-theme"
+msgstr "테마"
+
+msgid "appearance-system"
+msgstr "시스템"
+
+msgid "appearance-light"
+msgstr "라이트"
+
+msgid "appearance-dark"
+msgstr "다크"
+
+# #879 TONE3000 browser
+msgid "tooltip-tone3000"
+msgstr "TONE3000 캡처"
+
+msgid "title-window-tone3000"
+msgstr "TONE3000"
+
+msgid "tab-tone3000-browse"
+msgstr "찾아보기"
+
+msgid "tab-tone3000-installed"
+msgstr "설치됨 ({})"
+
+msgid "label-tone3000-key"
+msgstr "TONE3000 Secret Key"
+
+msgid "desc-tone3000-key"
+msgstr "사용자마다 자신의 키를 사용합니다. 키는 이 컴퓨터에만 저장됩니다."
+
+msgid "placeholder-tone3000-key"
+msgstr "t3k_cs_ 키 붙여넣기"
+
+msgid "status-tone3000-key-set"
+msgstr "키 설정됨"
+
+msgid "status-tone3000-key-unset"
+msgstr "키 없음"
+
+msgid "btn-tone3000-key-save"
+msgstr "저장"
+
+msgid "btn-tone3000-key-clear"
+msgstr "제거"
+
+msgid "btn-tone3000-search"
+msgstr "검색"
+
+msgid "btn-tone3000-install"
+msgstr "설치"
+
+msgid "btn-tone3000-update"
+msgstr "업데이트"
+
+msgid "btn-tone3000-retry"
+msgstr "다시 시도"
+
+msgid "btn-tone3000-uninstall"
+msgstr "제거"
+
+msgid "btn-tone3000-uninstall-confirm"
+msgstr "확인"
+
+msgid "btn-tone3000-previous-page"
+msgstr "이전 페이지"
+
+msgid "btn-tone3000-next-page"
+msgstr "다음 페이지"
+
+msgid "placeholder-tone3000-search"
+msgstr "앰프, 페달, 리그, IR 검색"
+
+msgid "label-tone3000-format"
+msgstr "형식"
+
+msgid "label-tone3000-gear"
+msgstr "장비"
+
+msgid "label-tone3000-sort"
+msgstr "정렬"
+
+msgid "label-tone3000-all"
+msgstr "전체"
+
+msgid "label-tone3000-sort-best-match"
+msgstr "관련도순"
+
+msgid "label-tone3000-sort-trending"
+msgstr "인기"
+
+msgid "label-tone3000-sort-downloads"
+msgstr "다운로드순"
+
+msgid "label-tone3000-sort-newest"
+msgstr "최신순"
+
+msgid "label-tone3000-gear-amp"
+msgstr "앰프"
+
+msgid "label-tone3000-gear-full-rig"
+msgstr "풀 리그"
+
+msgid "label-tone3000-gear-amp-cab"
+msgstr "앰프 + 캐비닛"
+
+msgid "label-tone3000-gear-pedal"
+msgstr "페달"
+
+msgid "label-tone3000-gear-outboard"
+msgstr "아웃보드"
+
+msgid "label-tone3000-gear-ir"
+msgstr "IR"
+
+msgid "label-tone3000-gear-cab"
+msgstr "캐비닛"
+
+msgid "label-tone3000-block-amp"
+msgstr "앰프"
+
+msgid "label-tone3000-block-preamp"
+msgstr "프리앰프"
+
+msgid "label-tone3000-block-gain-pedal"
+msgstr "페달"
+
+msgid "label-tone3000-block-cab"
+msgstr "캐비닛"
+
+msgid "label-tone3000-block-body"
+msgstr "바디"
+
+msgid "label-tone3000-author-downloads"
+msgstr "{} · 다운로드 {}"
+
+msgid "label-tone3000-count-a1"
+msgstr "{} A1"
+
+msgid "label-tone3000-count-a2"
+msgstr "{} A2"
+
+msgid "label-tone3000-count-ir"
+msgstr "{} IR"
+
+msgid "label-tone3000-installed"
+msgstr "설치됨"
+
+msgid "label-tone3000-captures"
+msgstr "캡처 {}개"
+
+msgid "label-tone3000-page"
+msgstr "{} / {} 페이지 · 톤 {}개"
+
+msgid "status-tone3000-downloading"
+msgstr "다운로드 중 {}/{}"
+
+msgid "status-tone3000-measuring"
+msgstr "레벨 측정 중"
+
+msgid "status-tone3000-fetching"
+msgstr "준비 중"
+
+msgid "btn-tone3000-open-settings"
+msgstr "설정 열기"
+
+msgid "link-tone3000-get-key"
+msgstr "tone3000.com에서 Secret Key 만들기"
+
+msgid "title-tone3000-no-key"
+msgstr "TONE3000 Secret Key가 필요합니다"
+
+msgid "status-tone3000-no-key"
+msgstr "캡처 검색과 설치에는 본인의 TONE3000 Secret Key가 사용됩니다. 설정에서 추가하세요."
+
+msgid "status-tone3000-searching"
+msgstr "검색 중"
+
+msgid "status-tone3000-no-results"
+msgstr "검색 결과가 없습니다."
+
+msgid "status-tone3000-start"
+msgstr "TONE3000에서 앰프, 페달, IR을 검색하세요."
+
+msgid "status-tone3000-none-installed"
+msgstr "아직 설치된 TONE3000 캡처가 없습니다."
+msgid "label-tone3000-built-in"
+msgstr "내장"
+
+msgid "placeholder-tone3000-installed-search"
+msgstr "설치된 항목을 이름으로 검색"
+
+msgid "status-tone3000-no-installed-match"
+msgstr "이 이름과 일치하는 설치된 TONE3000 플러그인이 없습니다."
+
+
+# Plugin catalog and parameter editor
+msgid "tooltip-plugins"
+msgstr "플러그인"
+
+msgid "title-window-plugins"
+msgstr "OpenRig — 플러그인"
+
+msgid "title-window-plugin-editor"
+msgstr "OpenRig — 플러그인 편집기"
+
+msgid "title-plugins"
+msgstr "플러그인"
+
+msgid "label-plugins-count"
+msgstr "{}개 설치됨"
+
+msgid "label-plugins-origin"
+msgstr "출처"
+
+msgid "option-plugins-origin-all"
+msgstr "전체"
+
+msgid "option-plugins-origin-folder"
+msgstr "플러그인 폴더"
+
+msgid "option-plugins-all-types"
+msgstr "모든 유형"
+
+msgid "placeholder-plugins-search"
+msgstr "이름으로 검색"
+
+msgid "placeholder-plugins-type-search"
+msgstr "유형 검색"
+
+msgid "status-plugins-no-type"
+msgstr "해당 이름의 유형이 없습니다."
+
+msgid "status-plugins-none"
+msgstr "설치된 플러그인이 없습니다. TONE3000에서 설치하거나 새로 만드세요."
+
+msgid "status-plugins-no-match"
+msgstr "조건에 맞는 플러그인이 없습니다."
+
+msgid "label-plugins-captures"
+msgstr "캡처 {}개"
+
+msgid "btn-plugins-create"
+msgstr "플러그인 만들기"
+
+msgid "btn-plugins-info"
+msgstr "정보"
+
+msgid "btn-plugins-edit"
+msgstr "파라미터 편집"
+
+msgid "btn-plugins-update"
+msgstr "TONE3000에서 업데이트"
+
+msgid "btn-plugins-redo"
+msgstr "다시 만들기"
+
+msgid "btn-plugins-uninstall"
+msgstr "제거"
+
+msgid "btn-plugins-uninstall-confirm"
+msgstr "제거 확인"
+
+msgid "title-plugin-editor-edit"
+msgstr "파라미터 편집"
+
+msgid "title-plugin-editor-create"
+msgstr "새 플러그인"
+
+msgid "title-plugin-editor-naming"
+msgstr "파라미터 이름 지정"
+
+msgid "status-plugin-editor-naming"
+msgstr "TONE3000이 각 캡처가 무엇을 바꾸는지 알려주지 않았습니다. 설치를 마치려면 파라미터 이름을 지정하세요."
+
+msgid "status-plugin-editor-no-captures"
+msgstr "캡처를 추가해 시작하세요."
+
+msgid "status-plugin-editor-no-version"
+msgstr "해당 번호의 버전이 없습니다."
+
+msgid "label-plugin-editor-versions"
+msgstr "버전 {}개"
+
+msgid "placeholder-plugin-editor-version-search"
+msgstr "버전 복원"
+
+msgid "label-plugin-editor-name"
+msgstr "이름"
+
+msgid "placeholder-plugin-editor-name"
+msgstr "플러그인 이름"
+
+msgid "label-plugin-editor-brand"
+msgstr "브랜드"
+
+msgid "placeholder-plugin-editor-brand"
+msgstr "선택 사항"
+
+msgid "label-plugin-editor-block"
+msgstr "블록"
+
+msgid "label-plugin-editor-plays"
+msgstr "재생 방식"
+
+msgid "option-plugin-editor-amp"
+msgstr "앰프"
+
+msgid "option-plugin-editor-preamp"
+msgstr "프리앰프"
+
+msgid "option-plugin-editor-gain"
+msgstr "게인"
+
+msgid "option-plugin-editor-cab"
+msgstr "캐비닛"
+
+msgid "option-plugin-editor-body"
+msgstr "바디"
+
+msgid "label-plugin-editor-capture"
+msgstr "캡처"
+
+msgid "label-plugin-editor-kind"
+msgstr "종류"
+
+msgid "option-plugin-editor-choice"
+msgstr "목록"
+
+msgid "option-plugin-editor-knob"
+msgstr "노브"
+
+msgid "option-plugin-editor-switch"
+msgstr "스위치"
+
+msgid "placeholder-plugin-editor-parameter"
+msgstr "파라미터"
+
+msgid "btn-plugin-editor-add-parameter"
+msgstr "파라미터 추가"
+
+msgid "btn-plugin-editor-remove-parameter"
+msgstr "파라미터 삭제"
+
+msgid "btn-plugin-editor-add-captures"
+msgstr "캡처 추가"
+
+msgid "btn-plugin-editor-remove-capture"
+msgstr "캡처 삭제"
+msgid "title-setup-wizard"
+msgstr "초기 설정"
+
+msgid "title-section-tone3000"
+msgstr "TONE3000"
+
+msgid "label-wizard-step"
+msgstr "{}단계 / {}"
+
+msgid "desc-wizard-language"
+msgstr "앱 언어를 선택하세요. 나중에 설정에서 바꿀 수 있습니다."
+
+msgid "desc-wizard-audio"
+msgstr "기타가 연결된 오디오 인터페이스를 켜고 샘플 레이트와 버퍼 크기를 설정하세요."
+
+msgid "desc-wizard-io"
+msgstr "인터페이스의 입력과 출력에 이름을 붙이세요: 기타가 들어오는 채널과 소리가 나가는 곳입니다."
+
+msgid "desc-wizard-tone3000"
+msgstr "TONE3000 키를 붙여 넣으면 앱 안에서 앰프와 페달 캡처를 검색하고 설치할 수 있습니다. 나중에 추가해도 됩니다."
+
+msgid "btn-wizard-back"
+msgstr "뒤로"
+
+msgid "btn-wizard-next"
+msgstr "다음"
+
+msgid "btn-wizard-skip"
+msgstr "건너뛰기"
+
+msgid "btn-wizard-finish"
+msgstr "완료"

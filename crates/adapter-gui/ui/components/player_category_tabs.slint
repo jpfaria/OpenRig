@@ -1,5 +1,9 @@
 // Responsibility: renders the tabs that pick which part the library lists.
+// #398: one closed segmented field, four equal parts, the picked one filled
+// in the accent.
+import { Theme } from "../theme.slint";
 import { PlayerBridge } from "player_globals.slint";
+import { Locale } from "../locale_globals.slint";
 
 // One part a player can practise over: solo, rhythm, bass, acoustic.
 component PlayerCategoryTab inherits Rectangle {
@@ -9,10 +13,7 @@ component PlayerCategoryTab inherits Rectangle {
 
     min-width: 0;
     horizontal-stretch: 1;
-    border-radius: 5px;
-    background: root.active ? #ccaa6640 : (ta.has-hover ? #1b2230 : transparent);
-    border-width: 1px;
-    border-color: root.active ? #ccaa66 : #2b3340;
+    background: root.active ? Theme.accent : (ta.has-hover ? Theme.panel-hi : transparent);
 
     Text {
         x: 6px;
@@ -23,10 +24,10 @@ component PlayerCategoryTab inherits Rectangle {
             : root.key == "bass" ? @tr("label-category-bass")
             : root.key == "acoustic" ? @tr("label-category-acoustic")
             : @tr("label-category-other");
-        color: root.active ? #ccaa66 : #c4ccd8;
-        font-family: "Bebas Neue";
-        font-size: 18px;
-        letter-spacing: 1.4px;
+        color: root.active ? Theme.on-accent : Theme.ink-2;
+        font-family: Locale.display-font-family;
+        font-size: Theme.min-font;
+        letter-spacing: 0.08 * Theme.min-font;
         overflow: elide;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -40,10 +41,15 @@ component PlayerCategoryTab inherits Rectangle {
 }
 
 export component PlayerCategoryTabs inherits Rectangle {
-    height: 38px;
+    height: 32px;
+    border-radius: 4px;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: Theme.field-line;
+    clip: true;
 
     HorizontalLayout {
-        spacing: 8px;
+        padding: 1px;
         for key in PlayerBridge.categories : PlayerCategoryTab {
             key: key;
             active: key == PlayerBridge.category;

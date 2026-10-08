@@ -18,11 +18,6 @@ pub(crate) fn format_clock(seconds: f64) -> String {
     format!("{}:{:02}", whole / 60, whole % 60)
 }
 
-/// `position / duration`, as the LCD shows it.
-pub(crate) fn time_label(position: f64, duration: f64) -> String {
-    format!("{} / {}", format_clock(position), format_clock(duration))
-}
-
 /// The speed knob's readout, e.g. `0.75×`.
 pub(crate) fn speed_label(speed: f32) -> String {
     format!("{speed:.2}×")

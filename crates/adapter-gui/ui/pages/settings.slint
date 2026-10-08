@@ -1,65 +1,82 @@
 // Responsibility: renders the settings page.
-// Settings rendered as a master-detail panel (issue #513).
+// Settings rendered as a master-detail panel (issue #513): the section list
+// on the left, the chosen section on the right.
 //
-// Per ux-ui-mastery:desktop-app-design, master-detail (list left,
-// content right) is the dominant desktop preferences pattern (macOS
-// System Preferences, VS Code, Logic Pro). The previous
-// TabWidget+accordion layout was wrong for this surface — too many
-// expand/collapse interactions, too much chrome around tiny content.
-//
-// Tokens (from ux-ui-mastery:ui-visual-design-system):
-//   - Type scale Major Third — xs=10px, sm=13px, base=16px.
-//   - Spacing base-4 — 4/8/12/16/20/24/32/40/48.
-//   - Dark surfaces: page #171a1f, surface #1a1d22, elevated #22272f,
-//     hover #1e2229. Hairline border #25292f.
-//   - Text: primary #dde3ec, secondary #8a92a3, tertiary #6b7786.
-//   - Accent #188cff (focus/active). Focus ring 2px #45a7ff @ 150ms.
+// #398: a dark bar titled SETTINGS with a close cross; the list is a darker
+// rail with a scope label per group and an icon per section, the chosen one
+// lit by an accent edge; the section name is a display heading, with the
+// section's primary action at the right end of its row; Close and Apply sit
+// in a footer strip under the content.
 
-import { Button, ScrollView } from "std-widgets.slint";
-import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow, IoBindingModel, ChannelOptionItem } from "../models.slint";
+import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
+import { SectionSystemAppearance } from "settings/section_system_appearance.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
 import { SectionSystemIntegrations } from "settings/section_system_integrations.slint";
 import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
 import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
+import { ToolBar } from "../components/tool_bar.slint";
+import { ToolBarClose } from "../components/tool_bar_close.slint";
+import { FormButton, FormButtonKind } from "../components/form_button.slint";
+import { Locale } from "../locale_globals.slint";
+import { SettingsBridge } from "../settings_globals.slint";
 
-// Sidebar nav row — selectable item with hover bg, active-state bg,
-// 2px brand-blue left accent when selected. Used inside the sidebar
-// VerticalLayout; not exported.
+// A group label of the rail (SYSTEM, PROJECT).
+component NavScope inherits Rectangle {
+    in property <string> text;
+    in property <length> gap-above: 0;
+
+    height: 34px + root.gap-above;
+
+    Text {
+        x: 16px; y: root.gap-above;
+        width: parent.width - 32px; height: 34px;
+        text: root.text;
+        color: Theme.ink-3;
+        font-size: Theme.min-font;
+        letter-spacing: 0.14 * Theme.min-font;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+// One section of the rail: its icon and name; the chosen one sits on the
+// content's colour with an accent edge.
 component NavRow inherits Rectangle {
     in property <string> label;
+    in property <image> icon;
     in property <bool> selected;
     callback clicked();
 
-    height: 36px;
-    // The row asks for its label's full width so the sidebar grows to fit
-    // the longest translated section name instead of eliding it.
-    min-width: nav-label.preferred-width + 24px;
-    background: root.selected
-        ? #22272f
-        : (ta.has-hover ? #1e2229 : transparent);
-    animate background { duration: 150ms; }
+    height: 40px;
+    // The row asks for its label's full width so the rail grows to fit the
+    // longest translated section name instead of eliding it.
+    min-width: nav-label.preferred-width + 60px;
+    background: root.selected ? Theme.panel : ta.has-hover ? Theme.hover : transparent;
 
-    // Left accent bar — only renders when this row is the active one.
     if root.selected : Rectangle {
-        x: 0px;
-        y: 6px;
-        width: 2px;
-        height: parent.height - 12px;
-        background: #188cff;
+        x: 0; y: 0;
+        width: 3px; height: parent.height;
+        background: Theme.accent;
+    }
+
+    Image {
+        x: 16px; y: (parent.height - 18px) / 2;
+        width: 18px; height: 18px;
+        source: root.icon;
+        colorize: root.selected ? Theme.accent : Theme.ink-3;
     }
 
     nav-label := Text {
-        x: 16px;
-        y: 0px;
-        width: parent.width - 24px;
-        height: parent.height;
+        x: 44px; y: 0;
+        width: parent.width - 52px; height: parent.height;
         text: root.label;
-        color: root.selected ? #dde3ec : #8a92a3;
-        font-size: 18px;
-        font-weight: root.selected ? 600 : 400;
+        color: root.selected ? Theme.ink : Theme.ink-2;
+        font-size: Theme.min-font;
+        letter-spacing: 0.04 * Theme.min-font;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -68,12 +85,15 @@ component NavRow inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
+    accessible-role: tab;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
 }
 
 export component SettingsPage inherits Rectangle {
     // Anchor a min size so the inner layouts can resolve without
     // bubbling preferred-width upward (which produces binding loops
-    // through the ScrollView viewport-width).
+    // through the ScrollView content-width).
     min-width: 720px;
     min-height: 480px;
     preferred-width: 960px;
@@ -89,11 +109,6 @@ export component SettingsPage inherits Rectangle {
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
-    // #561: status text for the plugin catalog reload row in the
-    // Paths section. Empty until the user runs the action.
-    // Default-bind to project-name-draft so SettingsPage shows the
-    // current project name inside the secondary ProjectSettingsWindow
-    // (which only forwards project-name-draft).
     // Retained for callsite compatibility (old top-of-page FieldBox).
     callback update-project-name(string);
     callback save-audio-settings();
@@ -102,198 +117,223 @@ export component SettingsPage inherits Rectangle {
     // Command::SaveProject path the toolbar Save button uses.
     callback save-project();
     callback close-settings();
-    // #712: System / Integrations master switches (per-machine config.yaml).
-    // #716: System / I/O bindings section.
-    // System / Paths section callbacks (#513)
-    // #582: evaluations directory pick/reset (Settings → Paths).
-    // #561: hot-reload the plugin catalog (no payload).
 
     // Active section index (sidebar selection). 0 = Audio, default.
     in-out property <int> selected-section: 0;
+    // The I/O binding opened on the bindings page, so the title row's
+    // "New binding" can open the one it creates.
+    private property <string> io-expanded-binding: "";
 
-    background: #171a1f;
+    background: Theme.panel;
 
-    HorizontalLayout {
-        spacing: 0px;
+    // The new binding lands at the end of the list: once the list has laid
+    // it out (the next tick, not inside the click), bring it into view.
+    scroll-to-end := Timer {
+        interval: 1ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            section-scroll.content-y = min(0px, section-scroll.visible-height - section-scroll.content-height);
+        }
+    }
 
-        // ── Sidebar ───────────────────────────────────────────────
-        Rectangle {
-            min-width: 200px;
-            horizontal-stretch: 0;
-            background: #1a1d22;
+    VerticalLayout {
+        ToolBar {
+            title: @tr("title-settings");
 
-            VerticalLayout {
-                padding-top: 16px;
-                padding-bottom: 16px;
-                padding-left: 0px;
-                padding-right: 0px;
-                spacing: 4px;
-
-                // Group label: SYSTEM
-                Rectangle {
-                    height: 24px;
-                    HorizontalLayout {
-                        padding-left: 16px;
-                        Text {
-                            text: @tr("nav-group-system");
-                            color: #6b7786;
-                            font-size: 18px;
-                            font-weight: 700;
-                            letter-spacing: 0.8px;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-
-                NavRow {
-                    label: @tr("title-section-audio-interface");
-                    selected: root.selected-section == 0;
-                    clicked => { root.selected-section = 0; }
-                }
-                NavRow {
-                    label: @tr("title-section-language");
-                    selected: root.selected-section == 1;
-                    clicked => { root.selected-section = 1; }
-                }
-                NavRow {
-                    label: @tr("title-section-midi-devices");
-                    selected: root.selected-section == 2;
-                    clicked => { root.selected-section = 2; }
-                }
-                NavRow {
-                    label: @tr("title-section-paths");
-                    selected: root.selected-section == 3;
-                    clicked => { root.selected-section = 3; }
-                }
-                NavRow {
-                    label: @tr("title-section-integrations");
-                    selected: root.selected-section == 5;
-                    clicked => { root.selected-section = 5; }
-                }
-                NavRow {
-                    label: @tr("title-section-io-bindings");
-                    selected: root.selected-section == 6;
-                    clicked => { root.selected-section = 6; }
-                }
-
-                // Visual gap between groups (24px between unrelated
-                // groups per the spacing tokens).
-                Rectangle { height: 12px; }
-
-                // Group label: PROJECT
-                Rectangle {
-                    height: 24px;
-                    HorizontalLayout {
-                        padding-left: 16px;
-                        Text {
-                            text: @tr("nav-group-project");
-                            color: #6b7786;
-                            font-size: 18px;
-                            font-weight: 700;
-                            letter-spacing: 0.8px;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-
-                NavRow {
-                    label: @tr("title-section-project-meta");
-                    selected: root.selected-section == 4;
-                    clicked => { root.selected-section = 4; }
-                }
-                // Vertical stretch so the nav rows hug the top.
-                Rectangle { vertical-stretch: 1; }
+            ToolBarClose {
+                clicked => { root.close-settings(); }
             }
         }
 
-        // Vertical hairline divider between sidebar and content area.
-        Rectangle {
-            width: 1px;
-            background: #25292f;
-        }
+        HorizontalLayout {
+            vertical-stretch: 1;
 
-        // ── Content area ──────────────────────────────────────────
-        Rectangle {
-            horizontal-stretch: 1;
-            background: #171a1f;
+            // ── Rail ───────────────────────────────────────────────────
+            Rectangle {
+                min-width: 210px;
+                horizontal-stretch: 0;
+                background: Theme.panel-lo;
 
-            VerticalLayout {
-                padding: 24px;
-                spacing: 16px;
-
-                // Section title (rendered by the shell, not the section).
-                Text {
-                    text:
-                        root.selected-section == 0 ? @tr("title-section-audio-interface")
-                        : root.selected-section == 1 ? @tr("title-section-language")
-                        : root.selected-section == 2 ? @tr("title-section-midi-devices")
-                        : root.selected-section == 3 ? @tr("title-section-paths")
-                        : root.selected-section == 5 ? @tr("title-section-integrations")
-                        : root.selected-section == 6 ? @tr("title-section-io-bindings")
-                        : @tr("title-section-project-meta");
-                    color: #dde3ec;
-                    font-size: 18px;
-                    font-weight: 700;
-                }
-
-                // Hairline separator under the title.
                 Rectangle {
-                    background: #25292f;
-                    height: 1px;
+                    x: parent.width - 1px; y: 0;
+                    width: 1px; height: parent.height;
+                    background: Theme.hair;
                 }
 
-                // Active section content. ScrollView so over-tall
-                // sections scroll inside the panel.
-                ScrollView {
-                    horizontal-stretch: 1;
+                VerticalLayout {
+                    padding-top: 8px;
+                    padding-right: 1px;
+                    spacing: 2px;
+                    alignment: start;
+
+                    NavScope { text: @tr("nav-group-system"); }
+                    NavRow {
+                        icon: @image-url("../assets/nav-audio.svg");
+                        label: @tr("title-section-audio-interface");
+                        selected: root.selected-section == 0;
+                        clicked => { root.selected-section = 0; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/nav-io.svg");
+                        label: @tr("title-section-io-bindings");
+                        selected: root.selected-section == 6;
+                        clicked => { root.selected-section = 6; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/globe.svg");
+                        label: @tr("title-section-language");
+                        selected: root.selected-section == 1;
+                        clicked => { root.selected-section = 1; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/nav-appearance.svg");
+                        label: @tr("title-section-appearance");
+                        selected: root.selected-section == 7;
+                        clicked => { root.selected-section = 7; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/nav-midi.svg");
+                        label: @tr("title-section-midi-devices");
+                        selected: root.selected-section == 2;
+                        clicked => { root.selected-section = 2; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/open-file.svg");
+                        label: @tr("title-section-paths");
+                        selected: root.selected-section == 3;
+                        clicked => { root.selected-section = 3; }
+                    }
+                    NavRow {
+                        icon: @image-url("../assets/nav-integrations.svg");
+                        label: @tr("title-section-integrations");
+                        selected: root.selected-section == 5;
+                        clicked => { root.selected-section = 5; }
+                    }
+                    NavScope { gap-above: 12px; text: @tr("nav-group-project"); }
+                    NavRow {
+                        icon: @image-url("../assets/nav-meta.svg");
+                        label: @tr("title-section-project-meta");
+                        selected: root.selected-section == 4;
+                        clicked => { root.selected-section = 4; }
+                    }
+                }
+            }
+
+            // ── Content ────────────────────────────────────────────────
+            VerticalLayout {
+                horizontal-stretch: 1;
+
+                VerticalLayout {
                     vertical-stretch: 1;
+                    padding-top: 20px;
+                    padding-bottom: 12px;
+                    padding-left: 22px;
+                    padding-right: 22px;
+                    spacing: 14px;
 
-                    // A ScrollView only auto-sizes its viewport (and thus
-                    // scrolls) when its DIRECT child is a single layout. The
-                    // section conditionals must live inside one VerticalLayout —
-                    // as bare children the viewport stayed pinned to the panel
-                    // height and overflowing content (e.g. 2+ I/O bindings) was
-                    // unreachable. `alignment: start` makes the layout report its
-                    // children's preferred height (so the viewport grows to the
-                    // full content) instead of stretching them to the visible
-                    // height — without it the content compresses and won't scroll.
-                    VerticalLayout {
-                        alignment: start;
-                    if root.selected-section == 0 : SectionSystemAudio {
-                        sample-rate-options: root.sample-rate-options;
-                        buffer-size-options: root.buffer-size-options;
-                        bit-depth-options: root.bit-depth-options;
-                        save-audio-settings => { root.save-audio-settings(); }
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        spacing: 16px;
+
+                        section-title := Text {
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                            text:
+                                root.selected-section == 0 ? @tr("title-section-audio-interface")
+                                : root.selected-section == 1 ? @tr("title-section-language")
+                                : root.selected-section == 2 ? @tr("title-section-midi-devices")
+                                : root.selected-section == 3 ? @tr("title-section-paths")
+                                : root.selected-section == 5 ? @tr("title-section-integrations")
+                                : root.selected-section == 6 ? @tr("title-section-io-bindings")
+                                : root.selected-section == 7 ? @tr("title-section-appearance")
+                                : @tr("title-section-project-meta");
+                            color: Theme.ink;
+                            font-family: Locale.display-font-family;
+                            font-size: 26px;
+                            letter-spacing: 0.05 * 26px;
+                        }
+
+                        if root.selected-section == 6 : VerticalLayout {
+                            alignment: center;
+                            new-binding-btn := FormButton {
+                                icon-only: true;
+                                icon: @image-url("../assets/plus.svg");
+                                label: @tr("btn-new-binding");
+                                clicked => {
+                                    root.io-expanded-binding = SettingsBridge.create-io-binding("");
+                                    scroll-to-end.running = true;
+                                }
+                            }
+                        }
                     }
-                    if root.selected-section == 1 : SectionSystemLanguage {
-                    }
-                    if root.selected-section == 2 : SectionSystemMidiDevices {
-                    }
-                    if root.selected-section == 3 : SectionSystemPaths {
-                    }
-                    if root.selected-section == 5 : SectionSystemIntegrations {
-                    }
-                    if root.selected-section == 6 : SectionSystemIoBindings {
-                    }
-                    if root.selected-section == 4 : SectionProjectMeta {
-                        save-project => { root.save-project(); }
-                    }
+
+                    // Over-tall sections scroll inside the pane.
+                    section-scroll := ScrollView {
+                        vertical-stretch: 1;
+
+                        // A ScrollView only auto-sizes its viewport (and thus
+                        // scrolls) when its DIRECT child is a single layout;
+                        // `alignment: start` makes it report the sections'
+                        // preferred height instead of stretching them.
+                        VerticalLayout {
+                            alignment: start;
+                            padding-right: 8px;
+
+                            if root.selected-section == 0 : SectionSystemAudio {
+                                sample-rate-options: root.sample-rate-options;
+                                buffer-size-options: root.buffer-size-options;
+                                bit-depth-options: root.bit-depth-options;
+                                save-audio-settings => { root.save-audio-settings(); }
+                            }
+                            if root.selected-section == 1 : SectionSystemLanguage {}
+                            if root.selected-section == 7 : SectionSystemAppearance {}
+                            if root.selected-section == 2 : SectionSystemMidiDevices {}
+                            if root.selected-section == 3 : SectionSystemPaths {}
+                            if root.selected-section == 5 : SectionSystemIntegrations {}
+                            if root.selected-section == 6 : SectionSystemIoBindings {
+                                expanded-binding-id <=> root.io-expanded-binding;
+                            }
+                            if root.selected-section == 4 : SectionProjectMeta {
+                                save-project => { root.save-project(); }
+                            }
+                        }
                     }
                 }
 
-                // Footer: action buttons bottom-right. Aplicar only
-                // appears on the Audio section (it's the one that needs
-                // an explicit save — runtime restart).
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 8px;
-                    if root.selected-section == 0 : Button {
-                        text: @tr("btn-save-audio-settings");
-                        clicked => { root.save-audio-settings(); }
+                // Footer strip: Apply only on the Audio section — the one
+                // that needs an explicit save (runtime restart).
+                Rectangle {
+                    height: 58px;
+                    background: Theme.panel-lo;
+
+                    Rectangle {
+                        x: 0; y: 0;
+                        width: parent.width; height: 1px;
+                        background: Theme.hair;
                     }
-                    Button {
-                        text: @tr("btn-close");
-                        clicked => { root.close-settings(); }
+
+                    HorizontalLayout {
+                        padding-top: 12px;
+                        padding-bottom: 12px;
+                        padding-left: 22px;
+                        padding-right: 22px;
+                        spacing: 8px;
+                        alignment: end;
+
+                        FormButton {
+                            icon-only: true;
+                            icon: @image-url("../assets/close.svg");
+                            label: @tr("btn-close");
+                            clicked => { root.close-settings(); }
+                        }
+                        if root.selected-section == 0 : FormButton {
+                            icon-only: true;
+                            icon: @image-url("../assets/save.svg");
+                            kind: FormButtonKind.primary;
+                            label: @tr("btn-save-audio-settings");
+                            clicked => { root.save-audio-settings(); }
+                        }
                     }
                 }
             }

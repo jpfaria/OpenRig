@@ -1,0 +1,431 @@
+manifest_version: 1
+id: vst3_reevr
+display_name: Reverb reevr
+description: REEV-R — convolution reverb with modulation and post-processing by tiagolr.
+brand: tiagolr
+license: GPL-3.0-or-later
+homepage: https://github.com/tiagolr/reevr
+type: vst3
+backend: vst3
+bundle: bundles/REEV-R.vst3
+parameters:
+  - vst3_id: 280069795
+    name: show_viewport
+    display_name: "Show Viewport"
+    group: "Reverb"
+  - vst3_id: 2033778658
+    name: truestereo_enabled
+    display_name: "TrueStereo Enabled"
+    group: "Reverb"
+  - vst3_id: 1356393360
+    name: pattern
+    display_name: "Pattern"
+    group: "Pattern"
+  - vst3_id: 1356382654
+    name: pattern_sync
+    display_name: "Pattern Sync"
+    group: "Sync"
+  - vst3_id: 1087591864
+    name: trigger
+    display_name: "Trigger"
+    group: "Sync"
+  - vst3_id: 3545755
+    name: sync
+    display_name: "Sync"
+    group: "Sync"
+  - vst3_id: 3493088
+    name: rate_hz
+    display_name: "Rate Hz"
+    group: "Sync"
+  - vst3_id: 106629499
+    name: phase
+    display_name: "Phase"
+    group: "Pattern"
+  - vst3_id: 108114
+    name: min
+    display_name: "Min"
+    group: "Pattern"
+  - vst3_id: 107876
+    name: max
+    display_name: "Max"
+    group: "Pattern"
+  - vst3_id: 1248949678
+    name: smooth
+    display_name: "Smooth"
+    group: "Pattern"
+  - vst3_id: 740224584
+    name: attack
+    display_name: "Attack"
+    group: "Pattern"
+  - vst3_id: 1090594823
+    name: release
+    display_name: "Release"
+    group: "Pattern"
+  - vst3_id: 720390226
+    name: tension
+    display_name: "Tension"
+    group: "Pattern"
+  - vst3_id: 1341225222
+    name: attack_tension
+    display_name: "Attack Tension"
+    group: "Pattern"
+  - vst3_id: 1341241095
+    name: release_tension
+    display_name: "Release Tension"
+    group: "Pattern"
+  - vst3_id: 404672687
+    name: split_low
+    display_name: "Split Low"
+    group: "Pattern"
+  - vst3_id: 1807309735
+    name: split_high
+    display_name: "Split High"
+    group: "Pattern"
+  - vst3_id: 202283078
+    name: split_slope
+    display_name: "Split Slope"
+    group: "Pattern"
+  - vst3_id: 3534794
+    name: snap
+    display_name: "Snap"
+    group: "Pattern"
+  - vst3_id: 3181382
+    name: grid
+    display_name: "Grid"
+    group: "Pattern"
+  - vst3_id: 1983151019
+    name: sequencer_step
+    display_name: "Sequencer Step"
+    group: "Reverb"
+  - vst3_id: 1213131218
+    name: send_offset
+    display_name: "Send Offset"
+    group: "Sync"
+  - vst3_id: 3526536
+    name: send_offset
+    display_name: "Send Offset"
+    group: "Sync"
+  - vst3_id: 1273327131
+    name: send_offset
+    display_name: "Send Offset"
+    group: "Sync"
+  - vst3_id: 665245430
+    name: reverb_offset
+    display_name: "Reverb Offset"
+    group: "Reverb"
+  - vst3_id: 856962240
+    name: pre_delay
+    display_name: "Pre-Delay"
+    group: "Pattern"
+  - vst3_id: 1889660763
+    name: pre_delay_sync
+    display_name: "Pre-Delay Sync"
+    group: "Sync"
+  - vst3_id: 195475426
+    name: pre_delay_use_sync
+    display_name: "Pre-Delay Use Sync"
+    group: "Sync"
+  - vst3_id: 113126854
+    name: width
+    display_name: "Width"
+    group: "Reverb"
+  - vst3_id: 1652631697
+    name: ir_decay_rate
+    display_name: "IR Decay Rate"
+    group: "Reverb"
+  - vst3_id: 1442887857
+    name: ir_attack
+    display_name: "IR Attack"
+    group: "Pattern"
+  - vst3_id: 2057788465
+    name: ir_decay
+    display_name: "IR Decay"
+    group: "Reverb"
+  - vst3_id: 310839122
+    name: ir_trim_left
+    display_name: "IR Trim Left"
+    group: "Pattern"
+  - vst3_id: 1051739185
+    name: ir_trim_right
+    display_name: "IR Trim Right"
+    group: "Pattern"
+  - vst3_id: 573335996
+    name: ir_stretch
+    display_name: "IR Stretch"
+    group: "Pattern"
+  - vst3_id: 967023656
+    name: ir_gain
+    display_name: "IR Gain"
+    group: "Mix"
+  - vst3_id: 1407571353
+    name: ir_reverse
+    display_name: "IR Reverse"
+    group: "Pattern"
+  - vst3_id: 1753282775
+    name: ir_lowcut
+    display_name: "IR LowCut"
+    group: "Pattern"
+  - vst3_id: 1223207959
+    name: ir_highcut
+    display_name: "IR HighCut"
+    group: "Pattern"
+  - vst3_id: 247679796
+    name: ir_lowcut_slope
+    display_name: "IR Lowcut Slope"
+    group: "Pattern"
+  - vst3_id: 929669108
+    name: ir_highcut_slope
+    display_name: "IR Highcut Slope"
+    group: "Pattern"
+  - vst3_id: 824435163
+    name: drywet_mix
+    display_name: "DryWet Mix"
+    group: "Mix"
+  - vst3_id: 2996819
+    name: audio_algorithm
+    display_name: "Audio Algorithm"
+    group: "Pattern"
+  - vst3_id: 602006635
+    name: audio_threshold
+    display_name: "Audio Threshold"
+    group: "Pattern"
+  - vst3_id: 109323182
+    name: audio_sensitivity
+    display_name: "Audio Sensitivity"
+    group: "Pattern"
+  - vst3_id: 1050619502
+    name: audio_lowcut
+    display_name: "Audio LowCut"
+    group: "Pattern"
+  - vst3_id: 915482976
+    name: audio_highcut
+    display_name: "Audio HighCut"
+    group: "Pattern"
+  - vst3_id: 1127703699
+    name: audio_offset
+    display_name: "Audio Offset"
+    group: "Sync"
+  - vst3_id: 32093444
+    name: send_env_on
+    display_name: "Send Env ON"
+    group: "Pattern"
+  - vst3_id: 1688771809
+    name: send_env_thresh
+    display_name: "Send Env Thresh"
+    group: "Pattern"
+  - vst3_id: 994883395
+    name: send_env_amount
+    display_name: "Send Env Amount"
+    group: "Pattern"
+  - vst3_id: 994883603
+    name: send_env_attack
+    display_name: "Send Env Attack"
+    group: "Pattern"
+  - vst3_id: 994899476
+    name: send_env_release
+    display_name: "Send Env Release"
+    group: "Pattern"
+  - vst3_id: 776824484
+    name: send_env_hold
+    display_name: "Send Env Hold"
+    group: "Pattern"
+  - vst3_id: 1466350355
+    name: send_env_lowcut
+    display_name: "Send Env Lowcut"
+    group: "Pattern"
+  - vst3_id: 918237531
+    name: send_env_highcut
+    display_name: "Send Env HighCut"
+    group: "Pattern"
+  - vst3_id: 1882866889
+    name: rev_env_on
+    display_name: "Rev Env ON"
+    group: "Pattern"
+  - vst3_id: 351388198
+    name: rev_env_threvh
+    display_name: "Rev Env Threvh"
+    group: "Pattern"
+  - vst3_id: 386801694
+    name: rev_env_amount
+    display_name: "Rev Env Amount"
+    group: "Pattern"
+  - vst3_id: 386801902
+    name: rev_env_attack
+    display_name: "Rev Env Attack"
+    group: "Pattern"
+  - vst3_id: 386817775
+    name: rev_env_release
+    display_name: "Rev Env Release"
+    group: "Pattern"
+  - vst3_id: 1253644585
+    name: rev_env_hold
+    display_name: "Rev Env Hold"
+    group: "Pattern"
+  - vst3_id: 128966744
+    name: rev_env_lowcut
+    display_name: "Rev Env LowCut"
+    group: "Pattern"
+  - vst3_id: 261534902
+    name: rev_env_highcut
+    display_name: "Rev Env HighCut"
+    group: "Pattern"
+  - vst3_id: 1717666873
+    name: post_eq_band1_mode
+    display_name: "Post EQ Band1 Mode"
+    group: "Pattern"
+  - vst3_id: 1717461262
+    name: post_eq_band1_freq
+    display_name: "Post EQ Band1 Freq"
+    group: "Pattern"
+  - vst3_id: 1944694171
+    name: post_eq_band1_q
+    display_name: "Post EQ Band1 Q"
+    group: "Pattern"
+  - vst3_id: 1717474837
+    name: post_eq_band1_gain
+    display_name: "Post EQ Band1 Gain"
+    group: "Mix"
+  - vst3_id: 1105095166
+    name: post_eq_band1_bypass
+    display_name: "Post EQ Band1 Bypass"
+    group: "Pattern"
+  - vst3_id: 1746296024
+    name: post_eq_band2_mode
+    display_name: "Post EQ Band2 Mode"
+    group: "Pattern"
+  - vst3_id: 1746090413
+    name: post_eq_band2_freq
+    display_name: "Post EQ Band2 Freq"
+    group: "Pattern"
+  - vst3_id: 1944695132
+    name: post_eq_band2_q
+    display_name: "Post EQ Band2 Q"
+    group: "Pattern"
+  - vst3_id: 1746103988
+    name: post_eq_band2_gain
+    display_name: "Post EQ Band2 Gain"
+    group: "Mix"
+  - vst3_id: 700421853
+    name: post_eq_band2_bypass
+    display_name: "Post EQ Band2 Bypass"
+    group: "Pattern"
+  - vst3_id: 1774925175
+    name: post_eq_band3_mode
+    display_name: "Post EQ Band3 Mode"
+    group: "Pattern"
+  - vst3_id: 1774719564
+    name: post_eq_band3_freq
+    display_name: "Post EQ Band3 Freq"
+    group: "Pattern"
+  - vst3_id: 1944696093
+    name: post_eq_band3_q
+    display_name: "Post EQ Band3 Q"
+    group: "Pattern"
+  - vst3_id: 1774733139
+    name: post_eq_band3_gain
+    display_name: "Post EQ Band3 Gain"
+    group: "Mix"
+  - vst3_id: 295748540
+    name: post_eq_band3_bypass
+    display_name: "Post EQ Band3 Bypass"
+    group: "Pattern"
+  - vst3_id: 1803554326
+    name: post_eq_band4_mode
+    display_name: "Post EQ Band4 Mode"
+    group: "Pattern"
+  - vst3_id: 1803348715
+    name: post_eq_band4_freq
+    display_name: "Post EQ Band4 Freq"
+    group: "Pattern"
+  - vst3_id: 1944697054
+    name: post_eq_band4_q
+    display_name: "Post EQ Band4 Q"
+    group: "Pattern"
+  - vst3_id: 1803362290
+    name: post_eq_band4_gain
+    display_name: "Post EQ Band4 Gain"
+    group: "Mix"
+  - vst3_id: 2038558875
+    name: post_eq_band4_bypass
+    display_name: "Post EQ Band4 Bypass"
+    group: "Pattern"
+  - vst3_id: 1025662815
+    name: decay_eq_band1_mode
+    display_name: "Decay EQ Band1 Mode"
+    group: "Reverb"
+  - vst3_id: 1025457204
+    name: decay_eq_band1_freq
+    display_name: "Decay EQ Band1 Freq"
+    group: "Reverb"
+  - vst3_id: 149754933
+    name: decay_eq_band1_q
+    display_name: "Decay EQ Band1 Q"
+    group: "Reverb"
+  - vst3_id: 1025470779
+    name: decay_eq_band1_gain
+    display_name: "Decay EQ Band1 Gain"
+    group: "Reverb"
+  - vst3_id: 1809126308
+    name: decay_eq_band1_bypass
+    display_name: "Decay EQ Band1 Bypass"
+    group: "Reverb"
+  - vst3_id: 1054291966
+    name: decay_eq_band2_mode
+    display_name: "Decay EQ Band2 Mode"
+    group: "Reverb"
+  - vst3_id: 1054086355
+    name: decay_eq_band2_freq
+    display_name: "Decay EQ Band2 Freq"
+    group: "Reverb"
+  - vst3_id: 149755894
+    name: decay_eq_band2_q
+    display_name: "Decay EQ Band2 Q"
+    group: "Reverb"
+  - vst3_id: 1054099930
+    name: decay_eq_band2_gain
+    display_name: "Decay EQ Band2 Gain"
+    group: "Reverb"
+  - vst3_id: 1404452995
+    name: decay_eq_band2_bypass
+    display_name: "Decay EQ Band2 Bypass"
+    group: "Reverb"
+  - vst3_id: 1082921117
+    name: decay_eq_band3_mode
+    display_name: "Decay EQ Band3 Mode"
+    group: "Reverb"
+  - vst3_id: 1082715506
+    name: decay_eq_band3_freq
+    display_name: "Decay EQ Band3 Freq"
+    group: "Reverb"
+  - vst3_id: 149756855
+    name: decay_eq_band3_q
+    display_name: "Decay EQ Band3 Q"
+    group: "Reverb"
+  - vst3_id: 1082729081
+    name: decay_eq_band3_gain
+    display_name: "Decay EQ Band3 Gain"
+    group: "Reverb"
+  - vst3_id: 999779682
+    name: decay_eq_band3_bypass
+    display_name: "Decay EQ Band3 Bypass"
+    group: "Reverb"
+  - vst3_id: 1111550268
+    name: decay_eq_band4_mode
+    display_name: "Decay EQ Band4 Mode"
+    group: "Reverb"
+  - vst3_id: 1111344657
+    name: decay_eq_band4_freq
+    display_name: "Decay EQ Band4 Freq"
+    group: "Reverb"
+  - vst3_id: 149757816
+    name: decay_eq_band4_q
+    display_name: "Decay EQ Band4 Q"
+    group: "Reverb"
+  - vst3_id: 1111358232
+    name: decay_eq_band4_gain
+    display_name: "Decay EQ Band4 Gain"
+    group: "Reverb"
+  - vst3_id: 595106369
+    name: decay_eq_band4_bypass
+    display_name: "Decay EQ Band4 Bypass"
+    group: "Reverb"

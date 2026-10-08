@@ -12,6 +12,7 @@ fn make_item(id: &str) -> DeviceSelectionItem {
         sample_rate_text: "48000".into(),
         buffer_size_text: "256".into(),
         bit_depth_text: "32".into(),
+        ..Default::default()
     }
 }
 

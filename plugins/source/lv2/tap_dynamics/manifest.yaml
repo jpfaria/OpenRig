@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_tap_dynamics
+display_name: TAP Dynamics
+description: TAP Dynamics — dynamic range processor.
+brand: tap
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: http://tap-plugins.sourceforge.net
+type: dyn
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/tap/dynamics
+binaries:
+  macos-universal: platform/macos-universal/tap_dynamics.dylib
+  linux-x86_64: platform/linux-x86_64/tap_dynamics.so

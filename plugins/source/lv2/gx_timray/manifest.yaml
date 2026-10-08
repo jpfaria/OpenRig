@@ -1,0 +1,16 @@
+manifest_version: 1
+id: lv2_gx_timray
+display_name: Tim Ray
+description: Tim Ray — overdrive by Guitarix.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: gain_pedal
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_timray_#_timray_
+binaries:
+  macos-universal: platform/macos-universal/gx_timray.dylib
+  linux-x86_64: platform/linux-x86_64/gx_timray.so
+  linux-aarch64: platform/linux-aarch64/gx_timray.so
+  windows-x86_64: platform/windows-x86_64/gx_timray.dll

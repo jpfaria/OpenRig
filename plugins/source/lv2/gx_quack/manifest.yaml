@@ -1,0 +1,17 @@
+manifest_version: 1
+id: lv2_gx_quack
+display_name: GxQuack
+description: GxQuack — wah-wah effect by the Guitarix project.
+brand: guitarix
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-2.0
+homepage: https://guitarix.org
+type: wah
+backend: lv2
+plugin_uri: http://guitarix.sourceforge.net/plugins/gx_quack_#_quack_
+binaries:
+  macos-universal: platform/macos-universal/gx_quack.dylib
+  linux-x86_64: platform/linux-x86_64/gx_quack.so
+  linux-aarch64: platform/linux-aarch64/gx_quack.so
+  windows-x86_64: platform/windows-x86_64/gx_quack.dll

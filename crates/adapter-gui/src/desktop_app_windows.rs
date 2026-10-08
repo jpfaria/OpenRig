@@ -13,8 +13,8 @@ use std::rc::Rc;
 
 use crate::{
     AppWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow, DrumsWindow, MetronomeWindow,
-    MixerWindow, PlayerWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow,
-    TunerWindow,
+    MixerWindow, PlayerWindow, PluginEditorWindow, PluginInfoWindow, PluginsWindow,
+    ProjectSettingsWindow, SpectrumWindow, Tone3000Window, TunerWindow,
 };
 
 pub(crate) struct DesktopWindows {
@@ -28,6 +28,12 @@ pub(crate) struct DesktopWindows {
     pub mixer_window: MixerWindow,
     pub player_window: PlayerWindow,
     pub drums_window: DrumsWindow,
+    /// #879 — the TONE3000 browser.
+    pub tone3000_window: Tone3000Window,
+    /// The catalog of the plugins the user installed.
+    pub plugins_window: PluginsWindow,
+    /// The capture grid of one plugin.
+    pub plugin_editor_window: PluginEditorWindow,
     /// Built on demand by the chain editor's open callback.
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
     /// Built on demand when a plugin's info panel is opened.
@@ -78,6 +84,13 @@ pub(crate) fn create() -> Result<DesktopWindows> {
     crate::Locale::get(&player_window).set_font_family(boot_font.into());
     let drums_window = DrumsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     crate::Locale::get(&drums_window).set_font_family(boot_font.into());
+    let tone3000_window = Tone3000Window::new().map_err(|error| anyhow!(error.to_string()))?;
+    crate::Locale::get(&tone3000_window).set_font_family(boot_font.into());
+    let plugins_window = PluginsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    crate::Locale::get(&plugins_window).set_font_family(boot_font.into());
+    let plugin_editor_window =
+        PluginEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    crate::Locale::get(&plugin_editor_window).set_font_family(boot_font.into());
 
     Ok(DesktopWindows {
         window,
@@ -90,6 +103,9 @@ pub(crate) fn create() -> Result<DesktopWindows> {
         mixer_window,
         player_window,
         drums_window,
+        tone3000_window,
+        plugins_window,
+        plugin_editor_window,
         chain_editor_window: Rc::new(RefCell::new(None)),
         plugin_info_window: Rc::new(RefCell::new(None)),
     })

@@ -5,6 +5,7 @@
 // dual strips are only this chain's endpoints (`ChainMixerPanel.global-*`).
 // Closed, it takes no height; it always reopens on IN.
 
+import { Theme } from "../theme.slint";
 import { ChainMixerPanel } from "../components/chain_mixer_panel_globals.slint";
 import { ChainMixerTabs } from "../components/chain_mixer_tabs.slint";
 
@@ -21,7 +22,7 @@ export component ChainRowMixer inherits Rectangle {
     if root.open : Rectangle {
         x: 18px; y: 0;
         width: parent.width - 36px; height: 1px;
-        background: #ffffff14;
+        background: Theme.hover;
     }
 
     if root.open : ChainMixerTabs {

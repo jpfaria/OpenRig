@@ -29,10 +29,12 @@ pub mod midi;
 pub mod mixer;
 pub mod player;
 pub mod plugin;
+pub mod plugin_library;
 pub mod project;
 pub mod selection;
 pub mod settings;
 pub mod split;
+pub mod tone3000;
 pub mod tone_doctor;
 
 pub use block::BlockCommand;
@@ -45,10 +47,12 @@ pub use midi::MidiCommand;
 pub use mixer::MixerCommand;
 pub use player::PlayerCommand;
 pub use plugin::PluginCommand;
+pub use plugin_library::PluginLibraryCommand;
 pub use project::ProjectCommand;
 pub use selection::SelectionCommand;
 pub use settings::SettingsCommand;
 pub use split::SplitCommand;
+pub use tone3000::Tone3000Command;
 pub use tone_doctor::ToneDoctorCommand;
 
 pub use crate::di_loader::DiLoopSource;
@@ -90,6 +94,10 @@ pub enum Command {
     Player(PlayerCommand),
     /// The built-in drum machine — transport, tempo, kit, groove and output.
     Drums(DrumsCommand),
+    /// #879: the in-app TONE3000 browser — key, search, install, uninstall.
+    Tone3000(Tone3000Command),
+    /// The plugins the user owns — edit, version, redo, remove, create.
+    PluginLibrary(PluginLibraryCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.
