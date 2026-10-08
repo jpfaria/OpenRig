@@ -116,15 +116,20 @@ fn fingerprint_stable_for_identical_projects() {
     );
 }
 
+/// The row labels carry the binding name, so renaming a binding must
+/// rebuild the session or the window keeps the stale name.
 #[test]
-fn short_device_label_strips_backend_prefix() {
-    assert_eq!(
-        short_device_label("coreaudio:Built-in Output"),
-        "Built-in Output"
+fn fingerprint_changes_when_binding_is_renamed() {
+    let named = |name: &str| {
+        vec![IoBinding {
+            name: name.into(),
+            ..binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])
+        }]
+    };
+    let mk = || project_from_chain(chain_bound("chain:0", true));
+
+    assert_ne!(
+        project_stream_fingerprint(&mk(), &named("GUITARRA 1")),
+        project_stream_fingerprint(&mk(), &named("GUITARRA 2"))
     );
-    assert_eq!(
-        short_device_label("jack:system:playback_1"),
-        "system:playback_1"
-    );
-    assert_eq!(short_device_label("plain-device"), "plain-device");
 }

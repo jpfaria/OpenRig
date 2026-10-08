@@ -31,6 +31,7 @@ use feature_dsp::spectrum_fft::{SpectrumAnalyzer, SpectrumSnapshot, FFT_SIZE, N_
 use project::project::Project;
 use slint::{Model, ModelRc, VecModel};
 
+use crate::spectrum_row_label::spectrum_row_label;
 use crate::SpectrumRow;
 
 /// Capacity per channel: 4 × FFT_SIZE so a slow UI tick (≈100 ms) can still
@@ -117,18 +118,13 @@ fn project_stream_fingerprint(project: &Project, registry: &[IoBinding]) -> Stri
                 stream_index, entry.device_id.0, entry.mode
             ));
         }
+        // The row labels carry the binding names — a rename rebuilds them.
+        for io in crate::meter_row_labels::project_stream_labels(chain, registry) {
+            s.push_str(&format!("<{}/{}>", io.input, io.output));
+        }
         s.push(';');
     }
     s
-}
-
-/// Strip the OS backend prefix (`coreaudio:`, `wasapi:`, `jack:`, ...)
-/// so the row label shows the device name only. Inner colons preserved.
-fn short_device_label(device_id: &str) -> String {
-    device_id
-        .split_once(':')
-        .map(|(_, rest)| rest.to_string())
-        .unwrap_or_else(|| device_id.to_string())
 }
 
 /// Which tap a spectrum row reads. The Slint row carries only a display
@@ -211,25 +207,9 @@ impl SpectrumSession {
             // registry, not from block `entries`.
             let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
 
-            // Best-effort device label for each stream — picks the resolved
-            // input entries in order, falling back to the chain id if there are
-            // more streams than entries (e.g. mono splits).
-            let mut entry_labels: Vec<String> = Vec::new();
-            for entry in &resolved_inputs {
-                let label = short_device_label(&entry.device_id.0);
-                if matches!(entry.mode, project::chain::ChainInputMode::Mono)
-                    && entry.channels.len() > 1
-                {
-                    // The engine splits this mono entry into one stream per
-                    // channel — produce a per-channel label so the spectrum
-                    // rows stay readable.
-                    for &ch in &entry.channels {
-                        entry_labels.push(format!("{label} CH {}", ch + 1));
-                    }
-                } else {
-                    entry_labels.push(label);
-                }
-            }
+            // One E/S label per engine stream, read off the same segment map
+            // the runtime counts its streams from.
+            let stream_labels = crate::meter_row_labels::project_stream_labels(chain, registry);
 
             let sample_rate = resolved_inputs
                 .first()
@@ -243,10 +223,14 @@ impl SpectrumSession {
                 .unwrap_or(live_sample_rate as usize);
 
             for stream_index in 0..stream_count {
-                let device_label = entry_labels
-                    .get(stream_index)
-                    .cloned()
-                    .unwrap_or_else(|| format!("stream {}", stream_index + 1));
+                let row_label = |side: &str| {
+                    spectrum_row_label(
+                        &chain_label,
+                        stream_labels.get(stream_index),
+                        stream_index,
+                        side,
+                    )
+                };
 
                 let Some(tap) = taps.subscribe(
                     &TapPoint::StreamOutput {
@@ -267,12 +251,7 @@ impl SpectrumSession {
                 let l_levels = make_zero_band_model();
                 let l_peaks = make_zero_band_model();
                 rows_model.push(SpectrumRow {
-                    label: format!(
-                        "{}  ·  IN: {}  ·  L",
-                        chain_label.to_uppercase(),
-                        device_label
-                    )
-                    .into(),
+                    label: row_label("L").into(),
                     levels: ModelRc::from(l_levels.clone()),
                     peaks: ModelRc::from(l_peaks.clone()),
                     active: false,
@@ -294,12 +273,7 @@ impl SpectrumSession {
                 let r_levels = make_zero_band_model();
                 let r_peaks = make_zero_band_model();
                 rows_model.push(SpectrumRow {
-                    label: format!(
-                        "{}  ·  IN: {}  ·  R",
-                        chain_label.to_uppercase(),
-                        device_label
-                    )
-                    .into(),
+                    label: row_label("R").into(),
                     levels: ModelRc::from(r_levels.clone()),
                     peaks: ModelRc::from(r_peaks.clone()),
                     active: false,
