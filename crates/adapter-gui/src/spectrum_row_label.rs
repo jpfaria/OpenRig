@@ -1,26 +1,38 @@
-//! Responsibility: names the stream a spectrum row reads.
+//! Responsibility: names the stream outputs the spectrum rows read.
 
 use engine::stream_io_labels::StreamIoLabels;
 
-/// `CHAIN  ·  <input> IN <ch>  →  <output> OUT <ch>  ·  <side>`, upper-cased —
-/// the interface plus direction plus 1-based channels on each side, as the
-/// chain meters name a stream. A stream with no resolved E/S keeps its
-/// 1-based number.
-pub fn spectrum_row_label(
+/// One `CHAIN  ·  <input> IN <ch>  →  <output> OUT <ch>` per output the
+/// stream feeds, upper-cased — the interface plus direction plus 1-based
+/// channels on each side, as the chain meters name a stream. A stream with no
+/// listed output keeps its aggregate output; one with no resolved E/S keeps
+/// its 1-based number.
+pub fn spectrum_output_labels(
     chain_label: &str,
     io: Option<&StreamIoLabels>,
     stream_index: usize,
-    side: &str,
-) -> String {
-    let stream = match io {
-        Some(io) => format!(
-            "{}  →  {}",
-            endpoint(&io.input, "IN", &io.input_channels),
-            endpoint(&io.output, "OUT", &io.output_channels)
-        ),
-        None => format!("STREAM {}", stream_index + 1),
+) -> Vec<String> {
+    let label = |stream: String| format!("{chain_label}  ·  {stream}").to_uppercase();
+    let Some(io) = io else {
+        return vec![label(format!("STREAM {}", stream_index + 1))];
     };
-    format!("{chain_label}  ·  {stream}  ·  {side}").to_uppercase()
+    let input = endpoint(&io.input, "IN", &io.input_channels);
+    if io.outputs.is_empty() {
+        let output = endpoint(&io.output, "OUT", &io.output_channels);
+        return vec![label(format!("{input}  →  {output}"))];
+    }
+    io.outputs
+        .iter()
+        .map(|out| {
+            let output = endpoint(&out.name, "OUT", &out.channels);
+            label(format!("{input}  →  {output}"))
+        })
+        .collect()
+}
+
+/// The label of one side (`L`/`R`) of an output row.
+pub fn spectrum_row_label(output_label: &str, side: &str) -> String {
+    format!("{output_label}  ·  {side}")
 }
 
 fn endpoint(name: &str, direction: &str, channels: &str) -> String {
