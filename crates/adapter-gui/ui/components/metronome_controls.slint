@@ -7,6 +7,7 @@
 // are small field buttons and TAP is a white key.
 import { Theme, Gear } from "../theme.slint";
 import { KnobArc } from "knob_arc.slint";
+import { ElidedText } from "elided_text.slint";
 
 // One beat lamp on the LCD. The downbeat keeps a dim ring even when unlit, so
 // the bar has a visible starting point at a glance.
@@ -46,7 +47,7 @@ export component ControlCell inherits Rectangle {
     width: 76px;
     height: 92px;
 
-    caption-text := Text {
+    caption-text := ElidedText {
         x: 0; y: 0;
         width: parent.width; height: 16px;
         text: root.caption;
@@ -56,7 +57,6 @@ export component ControlCell inherits Rectangle {
         letter-spacing: 0.1 * Theme.knob-caption-font;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     @children

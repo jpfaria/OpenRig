@@ -23,6 +23,7 @@ import { ToolBarClose } from "../components/tool_bar_close.slint";
 import { FormButton, FormButtonKind } from "../components/form_button.slint";
 import { Locale } from "../locale_globals.slint";
 import { SettingsBridge } from "../settings_globals.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // A group label of the rail (SYSTEM, PROJECT).
 component NavScope inherits Rectangle {
@@ -31,7 +32,7 @@ component NavScope inherits Rectangle {
 
     height: 34px + root.gap-above;
 
-    Text {
+    ElidedText {
         x: 16px; y: root.gap-above;
         width: parent.width - 32px; height: 34px;
         text: root.text;
@@ -39,7 +40,6 @@ component NavScope inherits Rectangle {
         font-size: Theme.min-font;
         letter-spacing: 0.14 * Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
     }
 }
 
@@ -70,7 +70,7 @@ component NavRow inherits Rectangle {
         colorize: root.selected ? Theme.accent : Theme.ink-3;
     }
 
-    nav-label := Text {
+    nav-label := ElidedText {
         x: 44px; y: 0;
         width: parent.width - 52px; height: parent.height;
         text: root.label;
@@ -78,7 +78,8 @@ component NavRow inherits Rectangle {
         font-size: Theme.min-font;
         letter-spacing: 0.04 * Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover;
     }
 
     ta := TouchArea {

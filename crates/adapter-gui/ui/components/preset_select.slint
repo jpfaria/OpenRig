@@ -17,6 +17,8 @@ import { PresetOption } from "../models.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 import { WindowBounds } from "window_bounds.slint";
 import { PresetPicker } from "../preset_picker_globals.slint";
+import { ElidedText } from "elided_text.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
 
 export component PresetSelect inherits Rectangle {
     in property <[string]> labels;
@@ -43,7 +45,7 @@ export component PresetSelect inherits Rectangle {
             ? PresetPicker.options.length * root.row-height
             : root.row-height;
 
-    Text {
+    ElidedText {
         x: 10px;
         width: parent.width - 36px;
         height: parent.height;
@@ -54,7 +56,9 @@ export component PresetSelect inherits Rectangle {
         font-size: Theme.min-font;
         font-weight: 600;
         vertical-alignment: center;
-        overflow: elide;
+        // The field's TouchArea keeps the click.
+        own-hover: false;
+        hovered: ta.has-hover;
     }
     Image {
         x: parent.width - 24px;
@@ -204,7 +208,7 @@ export component PresetSelect inherits Rectangle {
                     background: option.slot == root.active-index
                         ? Theme.accent
                         : (row-ta.has-hover ? Theme.panel-lo : transparent);
-                    Text {
+                    ElidedText {
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
@@ -213,7 +217,9 @@ export component PresetSelect inherits Rectangle {
                         font-size: Theme.min-font;
                         font-weight: option.slot == root.active-index ? 700 : 500;
                         vertical-alignment: center;
-                        overflow: elide;
+                        own-hover: false;
+                        hovered: row-ta.has-hover;
+                        in-popup: true;
                     }
                     row-ta := TouchArea {
                         mouse-cursor: pointer;
@@ -229,6 +235,10 @@ export component PresetSelect inherits Rectangle {
                     }
                 }
             }
+        }
+
+        HoverTipLayer {
+            for-popup: true;
         }
     }
 }

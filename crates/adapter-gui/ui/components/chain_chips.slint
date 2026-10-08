@@ -2,6 +2,7 @@
 import { Theme } from "../theme.slint";
 import { HeaderIconStyle } from "header_icon_style.slint";
 import { IconTooltip } from "icon_tooltip.slint";
+import { ElidedText } from "elided_text.slint";
 // Small, reusable chips that decorate a ChainRow header and inline action
 // surfaces — endpoint summary chips, the chain power toggle, header icons.
 // Pure visual primitives.
@@ -70,7 +71,7 @@ export component ChainEndpointChip inherits Rectangle {
     }
 
     // Label
-    Text {
+    ElidedText {
         x: 4px;
         y: 50px;
         width: parent.width - 8px;
@@ -81,7 +82,8 @@ export component ChainEndpointChip inherits Rectangle {
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: !root.interactive;
+        hovered: hover-area.has-hover;
     }
 
     hover-area := TouchArea {

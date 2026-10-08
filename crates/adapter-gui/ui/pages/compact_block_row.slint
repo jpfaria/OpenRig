@@ -9,6 +9,7 @@ import { ParamTabBar } from "../components/param_tab_bar.slint";
 import { BlockStreamMiniDisplay } from "../components/block_stream_mini_display.slint";
 import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
 import { CompactBlockParamStrip } from "compact_block_param_strip.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // Single block row in the compact chain view. Exported so
 // CompactChainViewPage (in compact_chain_view.slint) can use it.
@@ -182,7 +183,7 @@ export component CompactBlockRow inherits Rectangle {
                     tint: Gear.white;
                 }
 
-                Text {
+                ElidedText {
                     x: 68px;
                     width: parent.width - 68px - badge.width - 16px;
                     height: parent.height;
@@ -192,7 +193,6 @@ export component CompactBlockRow inherits Rectangle {
                     font-weight: 700;
                     letter-spacing: 0.12 * Theme.min-font;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
 
                 badge := Rectangle {
@@ -327,7 +327,7 @@ export component CompactBlockRow inherits Rectangle {
                         preferred-width: 66px;
                         height: 90px;
 
-                        Text {
+                        ElidedText {
                             x: 0; y: 0; width: parent.width; height: 22px;
                             text: knob.label;
                             color: Theme.ink-2;
@@ -335,7 +335,6 @@ export component CompactBlockRow inherits Rectangle {
                             font-weight: 600;
                             horizontal-alignment: center;
                             vertical-alignment: center;
-                            overflow: elide;
                         }
 
                         PanelKnob {
