@@ -36,6 +36,21 @@ fn main() {
         cmake_cfg.cxxflag("-O3 -march=armv8-a+simd -ffast-math");
     }
 
+    // Windows x86_64: Eigen only vectorizes with SSE2 by default, and three
+    // NAM models on one pipeline overloaded an i5-1334U (#978). AVX2 (with
+    // the FMA MSVC implies) is the Windows counterpart of the NEON flags.
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "windows" && target_arch == "x86_64" {
+        let env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+        let flags = if env == "msvc" {
+            "/arch:AVX2"
+        } else {
+            "-O3 -mavx2 -mfma"
+        };
+        cmake_cfg.cflag(flags);
+        cmake_cfg.cxxflag(flags);
+    }
+
     let dst = cmake_cfg.build();
     let install_lib = dst.join("lib");
     println!("cargo:rustc-link-search=native={}", install_lib.display());
