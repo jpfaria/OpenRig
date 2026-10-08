@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_tube2
+display_name: Airwindows Tube2
+description: Airwindows Tube2 — tube saturation with input trim.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/tube2
+binaries:
+  macos-universal: platform/macos-universal/airwindows_Tube2.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_Tube2.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_Tube2.so
+  linux-aarch64: platform/linux-aarch64/airwindows_Tube2.so

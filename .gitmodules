@@ -176,3 +176,6 @@
 [submodule "deps/delirion"]
 	path = deps/delirion
 	url = https://github.com/igorski/delirion.git
+[submodule "deps/airwindows-lv2"]
+	path = deps/airwindows-lv2
+	url = https://git.sr.ht/~hannes/airwindows-lv2

@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_consolelabuss
+display_name: Airwindows ConsoleLABuss
+description: Airwindows ConsoleLABuss — Quad Eight-style console buss.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/consolelabuss
+binaries:
+  macos-universal: platform/macos-universal/airwindows_ConsoleLABuss.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_ConsoleLABuss.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_ConsoleLABuss.so
+  linux-aarch64: platform/linux-aarch64/airwindows_ConsoleLABuss.so

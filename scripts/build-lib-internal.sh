@@ -255,6 +255,7 @@ PLUGINS=(
     aether
     x42
     distrho
+    airwindows
 )
 
 # Map plugin name to build function
@@ -272,6 +273,7 @@ dispatch() {
         mda-lv2)          build_mda_lv2 ;;
         fomp)             build_fomp ;;
         invada-studio)    build_invada_studio ;;
+        airwindows)       build_airwindows ;;
         wolf-shaper)      build_wolf_shaper ;;
         artyfx)           build_artyfx ;;
         sooperlooper)     build_sooperlooper ;;

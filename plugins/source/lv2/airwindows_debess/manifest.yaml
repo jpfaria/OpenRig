@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_debess
+display_name: Airwindows DeBess
+description: Airwindows DeBess — de-esser that leaves non-ess audio untouched.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: dyn
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/debess
+binaries:
+  macos-universal: platform/macos-universal/airwindows_DeBess.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_DeBess.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_DeBess.so
+  linux-aarch64: platform/linux-aarch64/airwindows_DeBess.so

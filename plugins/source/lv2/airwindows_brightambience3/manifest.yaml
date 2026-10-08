@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_brightambience3
+display_name: Airwindows BrightAmbience3
+description: Airwindows BrightAmbience3 — bright ambience and early reflections.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: reverb
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/brightambience3
+binaries:
+  macos-universal: platform/macos-universal/airwindows_BrightAmbience3.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_BrightAmbience3.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_BrightAmbience3.so
+  linux-aarch64: platform/linux-aarch64/airwindows_BrightAmbience3.so

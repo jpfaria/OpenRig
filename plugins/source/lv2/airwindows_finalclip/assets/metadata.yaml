@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Airwindows FinalClip — final-stage clipper set to +6 dB.
+    license: MIT
+    homepage: https://git.sr.ht/~hannes/airwindows-lv2
+  pt-BR:
+    description: Airwindows FinalClip — clipper de estágio final ajustado em +6 dB.
+    license: MIT
+    homepage: https://git.sr.ht/~hannes/airwindows-lv2

@@ -278,3 +278,27 @@ build_distrho() {
         cp -R "$b" "$OUTPUT_DIR/ttl/$(basename "$b")" 2>/dev/null || true
     done
 }
+
+build_airwindows() {
+    # airwindows-lv2 (Hannes Braun's MIT port of Chris Johnson's Airwindows):
+    # Meson, one shared library per plugin, LV2 headers only. Every plugin is
+    # built; commit-libs keeps only the basenames a manifest claims. Generic
+    # names (EQ, Desk, Tube2) would clash with other recipes' binaries, so each
+    # lib is copied out as airwindows_<Name>. macOS gets both arches through
+    # CFLAGS/LDFLAGS, which meson reads at setup.
+    local src="$DEPS_DIR/airwindows-lv2"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        export CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=11.0"
+        export LDFLAGS="-arch x86_64 -arch arm64"
+    fi
+    do_meson "$src"
+    unset CFLAGS LDFLAGS
+    local named="$LAST_BUILD_DIR/openrig-named"
+    mkdir -p "$named"
+    local lib
+    for lib in "$LAST_BUILD_DIR"/*."$LIB_EXT"; do
+        [ -f "$lib" ] || continue
+        cp "$lib" "$named/airwindows_$(basename "$lib")"
+    done
+    collect_libs "$named" "airwindows_*"
+}

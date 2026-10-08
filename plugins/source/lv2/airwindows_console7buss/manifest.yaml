@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_console7buss
+display_name: Airwindows Console7Buss
+description: Airwindows Console7Buss — Console7 buss stage with anti-alias filtering.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/console7buss
+binaries:
+  macos-universal: platform/macos-universal/airwindows_Console7Buss.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_Console7Buss.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_Console7Buss.so
+  linux-aarch64: platform/linux-aarch64/airwindows_Console7Buss.so

@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_airwindows_desk
+display_name: Airwindows Desk
+description: Airwindows Desk — subtle analog desk coloring.
+brand: airwindows
+license: MIT
+homepage: https://git.sr.ht/~hannes/airwindows-lv2
+type: gain_pedal
+backend: lv2
+plugin_uri: https://hannesbraun.net/ns/lv2/airwindows/desk
+binaries:
+  macos-universal: platform/macos-universal/airwindows_Desk.dylib
+  windows-x86_64: platform/windows-x86_64/airwindows_Desk.dll
+  linux-x86_64: platform/linux-x86_64/airwindows_Desk.so
+  linux-aarch64: platform/linux-aarch64/airwindows_Desk.so

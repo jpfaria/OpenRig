@@ -1,0 +1,7 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<https://hannesbraun.net/ns/lv2/airwindows/brightambience3>
+	a lv2:Plugin ;
+	lv2:binary <airwindows_BrightAmbience3.so> ;
+	rdfs:seeAlso <BrightAmbience3.ttl> .

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Airwindows Verbity — dual-mono feedforward reverb.
+    license: MIT
+    homepage: https://git.sr.ht/~hannes/airwindows-lv2
+  pt-BR:
+    description: Airwindows Verbity — reverb dual mono feedforward.
+    license: MIT
+    homepage: https://git.sr.ht/~hannes/airwindows-lv2
