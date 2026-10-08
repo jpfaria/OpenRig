@@ -1,10 +1,12 @@
-//! A spectrum row names its stream by binding + direction + 1-based
-//! channels on both sides (ui-rules §5), never by the raw device id.
+//! A spectrum row names its stream like the chain meters do: the interface
+//! plus direction plus 1-based channels on both sides, never the raw device id.
 
 use super::spectrum_row_label;
+use crate::meter_row_labels::project_stream_labels;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use engine::stream_io_labels::{chain_stream_io_labels, StreamIoLabels};
+use domain::AudioDeviceDescriptor;
+use engine::stream_io_labels::StreamIoLabels;
 use project::chain::Chain;
 
 const DEVICE: &str = "coreaudio:TUSBAudio:Fender:Quantum HD 8:1ed8:0210:0:QT9E25260495:11";
@@ -35,10 +37,10 @@ fn chain(binding_ids: Vec<&str>) -> Chain {
 }
 
 #[test]
-fn label_names_the_binding_and_channels_of_each_side() {
+fn label_names_the_interface_and_channels_of_each_side() {
     let io = StreamIoLabels {
-        input: "GUITARRA 1".into(),
-        output: "MAIN".into(),
+        input: "Quantum HD 8".into(),
+        output: "Quantum HD 8".into(),
         input_channels: "1".into(),
         output_channels: "1,2".into(),
         ..Default::default()
@@ -46,7 +48,21 @@ fn label_names_the_binding_and_channels_of_each_side() {
 
     assert_eq!(
         spectrum_row_label("Digital", Some(&io), 0, "L"),
-        "DIGITAL  ·  GUITARRA 1 IN 1  →  MAIN OUT 1,2  ·  L"
+        "DIGITAL  ·  QUANTUM HD 8 IN 1  →  QUANTUM HD 8 OUT 1,2  ·  L"
+    );
+}
+
+#[test]
+fn label_without_a_known_interface_keeps_direction_and_channels() {
+    let io = StreamIoLabels {
+        input_channels: "3".into(),
+        output_channels: "1,2".into(),
+        ..Default::default()
+    };
+
+    assert_eq!(
+        spectrum_row_label("Digital", Some(&io), 0, "R"),
+        "DIGITAL  ·  IN 3  →  OUT 1,2  ·  R"
     );
 }
 
@@ -74,9 +90,13 @@ fn streams_on_one_interface_get_distinct_labels_without_the_device_id() {
             outputs: vec![ep("out", vec![16, 17], ChannelMode::Stereo)],
         },
     ];
-    let chain = chain(vec!["g1", "g2"]);
+    let devices = vec![AudioDeviceDescriptor {
+        id: DEVICE.into(),
+        name: "Quantum HD 8".into(),
+        channels: 30,
+    }];
 
-    let labels: Vec<String> = chain_stream_io_labels(&chain, &registry)
+    let labels: Vec<String> = project_stream_labels(&chain(vec!["g1", "g2"]), &registry, &devices)
         .iter()
         .enumerate()
         .map(|(i, io)| spectrum_row_label("Digital", Some(io), i, "L"))
@@ -85,8 +105,8 @@ fn streams_on_one_interface_get_distinct_labels_without_the_device_id() {
     assert_eq!(
         labels,
         vec![
-            "DIGITAL  ·  GUITARRA 1 IN 11  →  GUITARRA 1 OUT 1,2  ·  L".to_string(),
-            "DIGITAL  ·  GUITARRA 2 IN 12  →  GUITARRA 2 OUT 17,18  ·  L".to_string(),
+            "DIGITAL  ·  QUANTUM HD 8 IN 11  →  QUANTUM HD 8 OUT 1,2  ·  L".to_string(),
+            "DIGITAL  ·  QUANTUM HD 8 IN 12  →  QUANTUM HD 8 OUT 17,18  ·  L".to_string(),
         ]
     );
 }

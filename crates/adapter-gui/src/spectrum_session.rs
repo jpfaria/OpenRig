@@ -118,10 +118,6 @@ fn project_stream_fingerprint(project: &Project, registry: &[IoBinding]) -> Stri
                 stream_index, entry.device_id.0, entry.mode
             ));
         }
-        // The row labels carry the binding names — a rename rebuilds them.
-        for io in crate::meter_row_labels::project_stream_labels(chain, registry) {
-            s.push_str(&format!("<{}/{}>", io.input, io.output));
-        }
         s.push(';');
     }
     s
@@ -207,9 +203,14 @@ impl SpectrumSession {
             // registry, not from block `entries`.
             let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
 
-            // One E/S label per engine stream, read off the same segment map
-            // the runtime counts its streams from.
-            let stream_labels = crate::meter_row_labels::project_stream_labels(chain, registry);
+            // The meters' labels: one per engine stream, read off the same
+            // segment map the runtime counts its streams from, each side
+            // named after the interface as the host names it.
+            let stream_labels = crate::meter_row_labels::project_stream_labels(
+                chain,
+                registry,
+                &crate::device_refresh_list::cached_devices(),
+            );
 
             let sample_rate = resolved_inputs
                 .first()

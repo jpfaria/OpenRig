@@ -2,9 +2,10 @@
 
 use engine::stream_io_labels::StreamIoLabels;
 
-/// `CHAIN  ·  <input> IN <ch>  →  <output> OUT <ch>  ·  <side>` — the binding
-/// name plus direction plus 1-based channels on each side, the I/O label every
-/// screen uses. A stream with no resolved E/S keeps its 1-based number.
+/// `CHAIN  ·  <input> IN <ch>  →  <output> OUT <ch>  ·  <side>`, upper-cased —
+/// the interface plus direction plus 1-based channels on each side, as the
+/// chain meters name a stream. A stream with no resolved E/S keeps its
+/// 1-based number.
 pub fn spectrum_row_label(
     chain_label: &str,
     io: Option<&StreamIoLabels>,
@@ -19,7 +20,7 @@ pub fn spectrum_row_label(
         ),
         None => format!("STREAM {}", stream_index + 1),
     };
-    format!("{}  ·  {stream}  ·  {side}", chain_label.to_uppercase())
+    format!("{chain_label}  ·  {stream}  ·  {side}").to_uppercase()
 }
 
 fn endpoint(name: &str, direction: &str, channels: &str) -> String {
