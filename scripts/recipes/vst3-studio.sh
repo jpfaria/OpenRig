@@ -117,6 +117,7 @@ _mimo_from_chars_shim() { # rewrites every std::from_chars call; prints the -inc
     mkdir -p "$BUILD_WORK_DIR"
     cat > "$hdr" <<'HDR'
 #pragma once
+#if __cplusplus >= 201703L
 #include <charconv>
 #include <string>
 #include <type_traits>
@@ -139,6 +140,7 @@ static inline std::from_chars_result mimo_from_chars(const char* first, const ch
         return std::from_chars(first, last, value, rest...);
     }
 }
+#endif
 HDR
     grep -rl --include='*.hpp' --include='*.cpp' --include='*.h' 'std::from_chars(' "$1" | grep -v '/dpf/' |
         while read -r f; do sed -i.bak 's/std::from_chars(/mimo_from_chars(/g' "$f"; done
