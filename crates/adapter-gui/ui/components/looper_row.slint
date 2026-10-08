@@ -16,6 +16,7 @@ import { LooperIconButton, LooperRowAction, LooperSlider, LooperSegmented } from
 import { LooperSelectField, LooperSelectBox } from "looper_select_field.slint";
 import { FieldCaption } from "field_caption.slint";
 import { ToggleSwitch } from "toggle_switch.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component LooperRow inherits Rectangle {
     in property <LooperItem> looper;
@@ -134,7 +135,7 @@ export component LooperRow inherits Rectangle {
                     : root.code == 4 ? Theme.hair-2
                     : Theme.panel-lo;
 
-                state-text := Text {
+                state-text := ElidedText {
                     x: 8px;
                     width: parent.width - 16px;
                     height: parent.height;
@@ -154,7 +155,6 @@ export component LooperRow inherits Rectangle {
                     letter-spacing: 0.1 * Theme.min-font;
                     horizontal-alignment: center;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
             }
         }

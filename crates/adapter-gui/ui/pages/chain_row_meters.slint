@@ -8,13 +8,13 @@
 
 import { Theme } from "../theme.slint";
 import { ProjectChainItem } from "../models.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // The E/S name on a meter.
-component MeterName inherits Text {
+component MeterName inherits ElidedText {
     font-size: Theme.min-font;
     font-weight: 600;
     color: Theme.ink-2;
-    overflow: elide;
     horizontal-stretch: 1;
     vertical-alignment: center;
 }

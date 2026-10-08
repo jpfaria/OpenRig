@@ -4,6 +4,7 @@
 import { Theme } from "../theme.slint";
 import { PlayerBridge } from "player_globals.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 // One part a player can practise over: solo, rhythm, bass, acoustic.
 component PlayerCategoryTab inherits Rectangle {
@@ -15,7 +16,7 @@ component PlayerCategoryTab inherits Rectangle {
     horizontal-stretch: 1;
     background: root.active ? Theme.accent : (ta.has-hover ? Theme.panel-hi : transparent);
 
-    Text {
+    ElidedText {
         x: 6px;
         width: parent.width - 12px;
         height: parent.height;
@@ -28,7 +29,8 @@ component PlayerCategoryTab inherits Rectangle {
         font-family: Locale.display-font-family;
         font-size: Theme.min-font;
         letter-spacing: 0.08 * Theme.min-font;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover;
         horizontal-alignment: center;
         vertical-alignment: center;
     }

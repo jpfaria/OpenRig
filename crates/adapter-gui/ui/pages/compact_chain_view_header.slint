@@ -5,6 +5,7 @@ import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { ChainActionIcon } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // Compact chain view header — preset select + scene bar + chain action
 // cluster. Extracted out of `compact_chain_view.slint` to keep that page
@@ -120,12 +121,11 @@ export component CompactChainViewHeader inherits Rectangle {
             vertical-alignment: center;
         }
 
-        lat-ms := Text {
+        lat-ms := ElidedText {
             x: lat-lbl.x + lat-lbl.width + 4px;
             y: 0px;
             width: parent.width - self.x - 7px;
             height: parent.height;
-            overflow: elide;
             text: Math.round(root.latency-ms) + "ms";
             color: root.latency-ms < 10.0 ? Theme.chrome-fg
                  : root.latency-ms < 20.0 ? Theme.warn

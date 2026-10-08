@@ -5,6 +5,7 @@
 // rows do not reliably receive clicks (docs/development/ui-rules.md §1). For
 // long, searchable lists the app uses `Select` instead.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component DropSelect inherits Rectangle {
     in property <[string]> model;
@@ -34,13 +35,14 @@ export component DropSelect inherits Rectangle {
             padding-right: 10px;
             spacing: 8px;
 
-            Text {
+            ElidedText {
                 horizontal-stretch: 1;
                 text: root.has-value ? root.model[root.current] : root.placeholder;
                 color: root.has-value ? Theme.ink : Theme.ink-3;
                 font-size: Theme.min-font;
                 vertical-alignment: center;
-                overflow: elide;
+                own-hover: false;
+                hovered: ta.has-hover;
             }
 
             VerticalLayout {
@@ -76,7 +78,7 @@ export component DropSelect inherits Rectangle {
                 : opt-ta.has-hover ? Theme.hover
                 : transparent;
 
-            Text {
+            ElidedText {
                 x: 10px;
                 width: parent.width - 20px;
                 height: parent.height;
@@ -85,7 +87,8 @@ export component DropSelect inherits Rectangle {
                 font-size: Theme.min-font;
                 font-weight: i == root.current ? 600 : 400;
                 vertical-alignment: center;
-                overflow: elide;
+                own-hover: false;
+                hovered: opt-ta.has-hover;
             }
 
             opt-ta := TouchArea {

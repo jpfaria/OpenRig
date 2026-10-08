@@ -11,6 +11,7 @@ import { CheckMark } from "../../components/check_mark.slint";
 import { FormButton, FormButtonKind } from "../../components/form_button.slint";
 import { ListBox, ListRow } from "../../components/list_box.slint";
 import { TextField } from "../../components/text_field.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 export component SectionSystemMidiDevices inherits Rectangle {
 
@@ -57,13 +58,12 @@ export component SectionSystemMidiDevices inherits Rectangle {
                     }
                 }
 
-                Text {
+                ElidedText {
                     horizontal-stretch: 1;
                     text: d.instance == 0 ? d.name : "\{d.name} (#\{d.instance})";
                     color: d.enabled ? Theme.ink : Theme.ink-2;
                     font-size: Theme.min-font;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
 
                 VerticalLayout {

@@ -17,6 +17,7 @@ import { Theme } from "../../theme.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 import { TextField } from "../../components/text_field.slint";
 import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 // One directory: its label, the path, Choose… and Reset.
 component PathRow inherits HorizontalLayout {
@@ -110,7 +111,7 @@ export component SectionSystemPaths inherits Rectangle {
                 font-weight: 600;
                 vertical-alignment: center;
             }
-            Text {
+            ElidedText {
                 horizontal-stretch: 1;
                 text: SettingsBridge.plugin-catalog-status == ""
                     ? @tr("status-plugin-catalog-idle")
@@ -118,7 +119,6 @@ export component SectionSystemPaths inherits Rectangle {
                 color: Theme.ink-3;
                 font-size: Theme.min-font;
                 vertical-alignment: center;
-                overflow: elide;
             }
             FormButton {
                 icon-only: true;

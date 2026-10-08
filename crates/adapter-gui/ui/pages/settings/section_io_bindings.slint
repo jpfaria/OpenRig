@@ -20,6 +20,7 @@ import { ListBox } from "../../components/list_box.slint";
 import { TagPill } from "../../components/tag_pill.slint";
 import { IoEndpointRow, RowIconButton } from "io_endpoint_row.slint";
 import { Locale } from "../../locale_globals.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 // The framed panel the add form sits in.
 component AddPanel inherits Rectangle {
@@ -87,13 +88,12 @@ export component SectionSystemIoBindings inherits Rectangle {
                 padding-left: 14px;
                 padding-right: 6px;
                 spacing: 8px;
-                Text {
+                ElidedText {
                     horizontal-stretch: 1;
                     text: SettingsBridge.io-binding-error;
                     color: Theme.bad;
                     font-size: Theme.min-font;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
                 VerticalLayout {
                     alignment: center;
@@ -156,7 +156,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                         horizontal-stretch: 1;
                         HorizontalLayout {
                             spacing: 8px;
-                            Text {
+                            ElidedText {
                                 horizontal-stretch: 1;
                                 text: binding.name;
                                 color: Theme.ink;
@@ -164,7 +164,8 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 font-size: 24px;
                                 letter-spacing: 0.05 * 24px;
                                 vertical-alignment: center;
-                                overflow: elide;
+                                own-hover: false;
+                                hovered: name-ta.has-hover;
                             }
                             VerticalLayout { alignment: center;
                                 TagPill { text: @tr("label-count-in {}", binding.inputs.length); tone: Theme.in; } }

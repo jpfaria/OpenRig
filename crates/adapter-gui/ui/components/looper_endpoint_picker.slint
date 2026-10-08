@@ -10,6 +10,7 @@ import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { ListBox, ListRow } from "list_box.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component LooperEndpointPicker inherits Rectangle {
     in property <[string]> input-options;
@@ -83,13 +84,14 @@ export component LooperEndpointPicker inherits Rectangle {
                             height: parent.height;
                             divided: i > 0;
                             on: i == LooperPanel.endpoint-picker-selected;
-                            Text {
+                            ElidedText {
                                 horizontal-stretch: 1;
                                 text: option;
                                 color: Theme.ink;
                                 font-size: Theme.min-font;
                                 vertical-alignment: center;
-                                overflow: elide;
+                                own-hover: false;
+                                hovered: opt-ta.has-hover;
                             }
                         }
 

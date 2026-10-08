@@ -1,0 +1,64 @@
+// Responsibility: renders a cut-short text that shows its full content on hover.
+// Any text the UI elides uses this instead of a bare `Text`: when the text does
+// not fit and the pointer rests on it, the window's `HoverTipLayer` shows the
+// whole text. A text that fits never shows a label.
+//
+// Hover comes from one of two places. A label nothing else covers tracks the
+// pointer itself (`own-hover`, the default). A label that sits inside or under
+// a control's `TouchArea` sets `own-hover: false` and passes that area's
+// `has-hover` as `hovered`, so the control keeps every click.
+import { IconTooltip } from "icon_tooltip.slint";
+
+export component ElidedText {
+    in property <string> text;
+    in property <brush> color;
+    in property <length> font-size;
+    in property <int> font-weight;
+    in property <string> font-family;
+    in property <length> letter-spacing;
+    in property <TextHorizontalAlignment> horizontal-alignment;
+    in property <TextVerticalAlignment> vertical-alignment;
+    in property <TextWrap> wrap: no-wrap;
+    in property <bool> hovered;
+    in property <bool> own-hover: true;
+    // The label is drawn inside a PopupWindow (see `HoverTipLayer.for-popup`).
+    in property <bool> in-popup;
+    in property <bool> prefer-above;
+
+    out property <bool> elided: root.wrap == TextWrap.no-wrap
+        ? label.preferred-width > root.width + 0.5px
+        : label.preferred-height > root.height + 0.5px;
+
+    min-width: label.min-width;
+    min-height: label.min-height;
+    preferred-width: label.preferred-width;
+    preferred-height: label.preferred-height;
+
+    label := Text {
+        width: root.width;
+        height: root.height;
+        text: root.text;
+        color: root.color;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        font-family: root.font-family;
+        letter-spacing: root.letter-spacing;
+        horizontal-alignment: root.horizontal-alignment;
+        vertical-alignment: root.vertical-alignment;
+        wrap: root.wrap;
+        overflow: elide;
+    }
+
+    pointer := TouchArea {
+        enabled: root.own-hover && root.elided;
+    }
+
+    IconTooltip {
+        width: root.width;
+        height: root.height;
+        text: root.text;
+        show: root.elided && (root.hovered || pointer.has-hover);
+        in-popup: root.in-popup;
+        prefer-above: root.prefer-above;
+    }
+}

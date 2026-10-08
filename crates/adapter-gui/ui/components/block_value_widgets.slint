@@ -8,6 +8,7 @@ import { Theme } from "../theme.slint";
 import { ComboBox } from "std-widgets.slint";
 import { BlockTypePickerItem } from "../models.slint";
 import { EffectTypeIcon } from "./effect_type_icon.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -94,7 +95,7 @@ export component BlockValueStepper inherits Rectangle {
     height: 72px;
     background: transparent;
 
-    Text {
+    ElidedText {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -103,7 +104,6 @@ export component BlockValueStepper inherits Rectangle {
         color: Theme.ink;
         font-size: 18px;
         font-weight: 800;
-        overflow: elide;
     }
 
     // Tall enough for the value line plus the unit line at 18px (#954).
@@ -170,7 +170,7 @@ export component BlockValueStepper inherits Rectangle {
                 edited => { root.text-changed(self.text); }
             }
 
-            if root.unit-text != "" : Text {
+            if root.unit-text != "" : ElidedText {
                 x: 0px;
                 y: 24px;
                 width: parent.width;
@@ -181,7 +181,6 @@ export component BlockValueStepper inherits Rectangle {
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
-                overflow: elide;
             }
         }
 
@@ -231,7 +230,7 @@ export component BlockValueSlider inherits Rectangle {
     height: 78px;
     background: transparent;
 
-    Text {
+    ElidedText {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -240,7 +239,6 @@ export component BlockValueSlider inherits Rectangle {
         color: Theme.ink;
         font-size: 18px;
         font-weight: 800;
-        overflow: elide;
     }
 
     Rectangle {
@@ -312,7 +310,7 @@ export component BlockValueSlider inherits Rectangle {
             edited => { root.text-changed(self.text); }
         }
 
-        if root.unit-text != "" : Text {
+        if root.unit-text != "" : ElidedText {
             x: 4px;
             y: 24px;
             width: parent.width - 8px;
@@ -323,7 +321,6 @@ export component BlockValueSlider inherits Rectangle {
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
-            overflow: elide;
         }
     }
 }
@@ -404,7 +401,7 @@ export component BlockTypeCard inherits Rectangle {
     }
 
     // Label under the icon (#398): the icon is what the eye scans first.
-    Text {
+    ElidedText {
         x: 6px;
         y: parent.height - 30px;
         width: parent.width - 12px;
@@ -415,7 +412,8 @@ export component BlockTypeCard inherits Rectangle {
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: touch.has-hover;
     }
 
     if root.item.icon-kind == "vst3" : Image {

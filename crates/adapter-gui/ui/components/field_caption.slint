@@ -3,6 +3,7 @@
 // spaced out and quiet so the field below reads first. Callers pass the
 // normal translated string; the caption sets it in upper case.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component FieldCaption {
     in property <string> text;
@@ -13,7 +14,7 @@ export component FieldCaption {
     preferred-width: label.preferred-width;
     vertical-stretch: 0;
 
-    label := Text {
+    label := ElidedText {
         width: 100%;
         height: 100%;
         text: root.text.to-uppercase();
@@ -22,6 +23,5 @@ export component FieldCaption {
         font-weight: 700;
         letter-spacing: 0.12 * Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
     }
 }

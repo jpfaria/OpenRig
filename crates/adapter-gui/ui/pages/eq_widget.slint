@@ -4,6 +4,7 @@ import { MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 
 import "../fonts/BebasNeue.ttf";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // Vertical band slider built from primitives — track + fader cap + value
 // readout. No sprite, so it scales to any height the parent gives it.
@@ -52,7 +53,7 @@ component EqBandSlider inherits Rectangle {
     background: transparent;
 
     // ── dB readout (top) ──
-    if !root.tight : Text {
+    if !root.tight : ElidedText {
         x: 0; y: 0;
         width: parent.width;
         height: root.top-h;
@@ -65,7 +66,8 @@ component EqBandSlider inherits Rectangle {
         font-weight: 500;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover && ta.mouse-y < root.top-h;
     }
 
     // ── Track: a thin groove ──
@@ -123,7 +125,7 @@ component EqBandSlider inherits Rectangle {
     }
 
     // ── Frequency label (bottom) ──
-    if !root.tight : Text {
+    if !root.tight : ElidedText {
         x: 0;
         y: parent.height - root.bottom-h;
         width: parent.width;
@@ -135,7 +137,8 @@ component EqBandSlider inherits Rectangle {
         letter-spacing: 0.06 * 18px;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover && ta.mouse-y > root.height - root.bottom-h;
     }
 
     // ── Drag interaction ──

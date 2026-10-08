@@ -5,6 +5,7 @@ import { AppVersionBadge } from "../components/app_version_badge.slint";
 import { Theme } from "../theme.slint";
 import { Locale } from "../locale_globals.slint";
 import { IconTooltip } from "../components/icon_tooltip.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -84,7 +85,7 @@ component RecentProjectRow inherits Rectangle {
         background: Theme.hair-2;
     }
 
-    Text {
+    ElidedText {
         x: 12px;
         y: 10px;
         width: parent.width - 64px;
@@ -94,10 +95,11 @@ component RecentProjectRow inherits Rectangle {
         font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: main-area.has-hover && main-area.mouse-y < 34px;
     }
 
-    Text {
+    ElidedText {
         x: 12px;
         y: 34px;
         width: parent.width - 64px;
@@ -108,7 +110,8 @@ component RecentProjectRow inherits Rectangle {
         font-size: 18px;
         font-weight: 500;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: main-area.has-hover && main-area.mouse-y >= 34px;
     }
 
     main-area := TouchArea {

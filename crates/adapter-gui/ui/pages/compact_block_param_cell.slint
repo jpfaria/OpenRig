@@ -4,6 +4,8 @@ import { BlockParameterItem } from "../models.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
+import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // One parameter cell of a compact block row: the generic widget for a single
 // parameter (knob/stepper/slider, enum selector, dropdown, bool toggle).
@@ -35,7 +37,7 @@ export component CompactBlockParamCell inherits Rectangle {
     height: 90px;
 
     // Label
-    Text {
+    ElidedText {
         x: 0;
         y: 0;
         width: parent.width;
@@ -46,7 +48,6 @@ export component CompactBlockParamCell inherits Rectangle {
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     // ── Numeric knob/stepper/slider ──
@@ -90,7 +91,7 @@ export component CompactBlockParamCell inherits Rectangle {
         }
 
         // ── Bottom-left label (7h) — option 0 ──
-        Text {
+        ElidedText {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -99,9 +100,10 @@ export component CompactBlockParamCell inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 0 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-first-ta.has-hover;
         }
-        TouchArea {
+        opt-first-ta := TouchArea {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -110,7 +112,7 @@ export component CompactBlockParamCell inherits Rectangle {
         }
 
         // ── Bottom-right label (5h) — last option ──
-        Text {
+        ElidedText {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -122,9 +124,10 @@ export component CompactBlockParamCell inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
             horizontal-alignment: left;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-last-ta.has-hover;
         }
-        TouchArea {
+        opt-last-ta := TouchArea {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -133,7 +136,7 @@ export component CompactBlockParamCell inherits Rectangle {
         }
 
         // ── Top-center label (12h) — option 1 for 3-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 3;
             x: parent.cx - 55px; y: parent.top-row;
             width: 110px; height: 14px;
@@ -142,9 +145,10 @@ export component CompactBlockParamCell inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-top-ta.has-hover;
         }
-        TouchArea {
+        opt-top-ta := TouchArea {
             visible: parent.n == 3;
             x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
             mouse-cursor: pointer;
@@ -152,7 +156,7 @@ export component CompactBlockParamCell inherits Rectangle {
         }
 
         // ── Upper-left label (10h) — option 1 for 4-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 4;
             x: 0; y: parent.top-row;
             width: parent.lw; height: 14px;
@@ -161,9 +165,10 @@ export component CompactBlockParamCell inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-upper-left-ta.has-hover;
         }
-        TouchArea {
+        opt-upper-left-ta := TouchArea {
             visible: parent.n == 4;
             x: 0; y: parent.top-row; width: parent.lw; height: 14px;
             mouse-cursor: pointer;
@@ -171,7 +176,7 @@ export component CompactBlockParamCell inherits Rectangle {
         }
 
         // ── Upper-right label (2h) — option 2 for 4-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 4;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
             width: parent.lw; height: 14px;
@@ -180,9 +185,10 @@ export component CompactBlockParamCell inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 2 == parent.sel ? 700 : 400;
             horizontal-alignment: left;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-upper-right-ta.has-hover;
         }
-        TouchArea {
+        opt-upper-right-ta := TouchArea {
             visible: parent.n == 4;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
             mouse-cursor: pointer;
@@ -197,12 +203,14 @@ export component CompactBlockParamCell inherits Rectangle {
         background: Theme.field;
         border-width: 1px; border-color: dd-ta2.has-hover ? Theme.field-line : Theme.hair; border-radius: 2px;
 
-        Text {
+        ElidedText {
             x: 8px; width: parent.width - 26px; height: parent.height;
             text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
                 ? root.param.option_labels[root.param.selected_option_index] : "";
             color: Theme.ink; font-size: 18px; font-weight: 600;
-            vertical-alignment: center; overflow: elide;
+            vertical-alignment: center;
+            own-hover: false;
+            hovered: dd-ta2.has-hover;
         }
         Image {
             x: parent.width - 18px; y: (parent.height - 10px) / 2;
@@ -227,12 +235,15 @@ export component CompactBlockParamCell inherits Rectangle {
                         width: parent.width - 6px; height: 28px;
                         border-radius: 4px;
                         background: oi == root.param.selected_option_index ? Theme.accent-soft : (opt-ta.has-hover ? Theme.hover : transparent);
-                        Text {
+                        ElidedText {
                             x: 8px; width: parent.width - 16px; height: parent.height;
                             text: option;
                             color: oi == root.param.selected_option_index ? Theme.accent : Theme.ink-2;
                             font-size: 18px; font-weight: oi == root.param.selected_option_index ? 600 : 400;
-                            vertical-alignment: center; overflow: elide;
+                            vertical-alignment: center;
+                            own-hover: false;
+                            hovered: opt-ta.has-hover;
+                            in-popup: true;
                         }
                         opt-ta := TouchArea {
                             mouse-cursor: pointer;
@@ -240,6 +251,9 @@ export component CompactBlockParamCell inherits Rectangle {
                         }
                     }
                 }
+            }
+            HoverTipLayer {
+                for-popup: true;
             }
         }
     }

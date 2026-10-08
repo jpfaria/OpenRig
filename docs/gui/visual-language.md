@@ -58,7 +58,7 @@ Read with `docs/development/ui-rules.md` (the owner's standing UI rules) and
    decoration only.
 5. **Text never goes below `Theme.min-font` (18px).** The only exceptions
    are the text printed on gear around a knob (`knob-caption-font`,
-   `knob-option-font`). Long names elide; they are never clipped.
+   `knob-option-font`). Long names elide (and show in full on hover); they are never clipped.
 
 ## Tokens
 
@@ -195,6 +195,12 @@ hover labels hang below it (chain header, top bar, compact header, block
 editor header) still declares `z: 10` (`src/issue_398_paint_order_tests.rs`).
 A list a user clicks is a root-level overlay, never a `PopupWindow`
 (`ui-rules.md` §1).
+
+Any text cut short with an ellipsis ("Master…", a long preset or model name)
+shows its full content on hover: it is an `ElidedText`, whose hover label is
+drawn by the same `HoverTipLayer` and only appears when the text does not
+fit. A `PopupWindow` paints above the window's layer, so a popup with elided
+rows declares its own `HoverTipLayer { for-popup: true; }`.
 
 The hover card of a graph block is a window-level layer too: the canvas
 writes the hovered block and its window position into `BlockHoverState`,

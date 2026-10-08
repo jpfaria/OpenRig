@@ -8,6 +8,7 @@
 import { Theme } from "../../theme.slint";
 import { IoEndpointModel } from "../../models.slint";
 import { ListRow } from "../../components/list_box.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 // A square icon action that lights on hover; `danger` reddens it.
 export component RowIconButton inherits Rectangle {
@@ -49,23 +50,21 @@ export component IoEndpointRow inherits ListRow {
         : root.endpoint.mode == "stereo" ? @tr("mode-stereo")
         : @tr("mode-dual-mono");
 
-    Text {
+    ElidedText {
         horizontal-stretch: 1;
         text: root.endpoint.device_label;
         color: Theme.ink;
         font-size: Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     // #880: a many-channel endpoint must not push the row's actions out.
-    Text {
+    ElidedText {
         max-width: 260px;
         text: @tr("label-endpoint-summary {} {}", root.mode-text, root.endpoint.channels_label);
         color: Theme.ink-3;
         font-size: Theme.min-font;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     VerticalLayout {
