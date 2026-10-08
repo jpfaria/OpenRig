@@ -337,7 +337,7 @@ pub(crate) fn wire(
                         &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
-                        &[],
+                        &session.io_bindings.borrow(),
                     );
                     window.set_project_title(
                         project_title_for_path(
@@ -481,7 +481,7 @@ pub(crate) fn wire(
                         &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
-                        &[],
+                        &session.io_bindings.borrow(),
                     );
                     window.set_project_title(
                         project_title_for_path(

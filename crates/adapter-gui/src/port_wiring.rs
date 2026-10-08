@@ -212,7 +212,7 @@ pub(crate) fn wire_port_window(
                 &session.project.borrow(),
                 &ctx_save.input_chain_devices.borrow(),
                 &ctx_save.output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             if let Some(window) = weak_window.upgrade() {
                 sync_project_dirty(
@@ -273,7 +273,7 @@ pub(crate) fn wire_port_window(
                 &session.project.borrow(),
                 &ctx_toggle.input_chain_devices.borrow(),
                 &ctx_toggle.output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             let enabled = session
                 .project
@@ -333,7 +333,7 @@ pub(crate) fn wire_port_window(
                 &session.project.borrow(),
                 &ctx_del.input_chain_devices.borrow(),
                 &ctx_del.output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             *ctx_del.port_draft.borrow_mut() = None;
             let _ = pw.hide();

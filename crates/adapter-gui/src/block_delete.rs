@@ -76,7 +76,7 @@ pub(crate) fn delete_drafted_block(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     Ok(())
 }

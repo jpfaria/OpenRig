@@ -338,7 +338,7 @@ pub(crate) fn persist_block_editor_draft(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
     if close_after_save {
