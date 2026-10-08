@@ -128,7 +128,8 @@ pub(crate) fn chain_graph(chain: &Chain, labels: &IoLabels) -> ChainGraph {
     }
 }
 
-/// A port block (insert, mid-chain input/output) is named after its binding.
+/// A port block (insert, mid-chain input/output) is named after what it plays
+/// through (`port_block_names`).
 fn blueprint(block: &AudioBlock, labels: &IoLabels) -> BlockBlueprint {
     let port = labels.port(&block.id.0);
     let label = match block.model_ref() {

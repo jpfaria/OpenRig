@@ -89,7 +89,7 @@ pub(crate) fn open_project_at(
         &session.project.borrow(),
         ctx.input_chain_devices,
         ctx.output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     // #808: the rows were built with an empty binding registry, so the DI
     // output select stayed empty until the chain was first enabled.

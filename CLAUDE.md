@@ -14,7 +14,7 @@ Virtual guitar rig/pedalboard in Rust + Slint. macOS, Windows, Linux.
 
 ## Real-time invariants — never regress
 
-1. Round-trip latency. 2. Audio quality (noise, aliasing, THD, frequency response). 3. Stream stability — zero xruns, dropouts, clicks. 4. Stream isolation (law 6). 5. Streams are stereo inside: mono → `Stereo([s,s])`, DualMono → independent `[L,R]`; mono out only via `OutputBlock.mode == mono` (`apply_mixdown`); never auto-pan. 6. Stable callback jitter. 7. Audio-thread CPU. 8. Zero allocation, lock, syscall or I/O on the audio thread. 9. Golden samples within tolerance. 10. Per-stream volume is immutable unless the owner asks; if `crates/engine/src/volume_invariants_tests.rs` breaks, the source is wrong, not the test.
+1. Round-trip latency. 2. Audio quality (noise, aliasing, THD, frequency response). 3. Stream stability — zero xruns, dropouts, clicks. 4. Stream isolation (law 6). 5. Streams are stereo inside: mono → `Stereo([s,s])`, DualMono → independent `[L,R]`; mono out only via `OutputBlock.mode == mono` (`apply_mixdown`); never auto-pan. 6. Stable callback jitter. 7. Audio-thread CPU. 8. Zero allocation, lock, syscall or I/O on the audio thread; the one exception is the split lanes' wake and join (`Thread::unpark`/`park` in `runtime_split_lanes.rs`), so a waiting thread does not burn a core. 9. Golden samples within tolerance. 10. Per-stream volume is immutable unless the owner asks; if `crates/engine/src/volume_invariants_tests.rs` breaks, the source is wrong, not the test.
 
 **Red flags — stop and report:** new xrun/click, latency +1 ms unexplained, golden tests failing, `Mutex`/log/I/O in processing, "the sound changed on one OS", "the volume changed", any state shared by 2+ streams.
 

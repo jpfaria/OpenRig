@@ -10,6 +10,7 @@ pub mod axis_rows;
 pub mod block_type;
 pub mod capture_levels;
 pub mod catalog_tones;
+pub mod catalog_tones_cache;
 pub mod convolve;
 pub mod enum_tokens;
 pub mod install;

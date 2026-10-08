@@ -103,8 +103,9 @@ pub(crate) struct IoLabels {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) leaves: Vec<(PathRef, String)>,
-    /// #398: the binding each port block (insert, mid-chain input/output)
-    /// plays through, by block id.
+    /// #398 / #1103: what each port block plays through, by block id — the
+    /// binding of an insert, the device and channels of a mid-chain
+    /// input/output.
     pub(crate) ports: Vec<(String, String)>,
 }
 
@@ -118,7 +119,7 @@ impl IoLabels {
             .unwrap_or_default()
     }
 
-    /// The binding name port block `block_id` shows; empty for any other block.
+    /// The name port block `block_id` shows; empty for any other block.
     pub(crate) fn port(&self, block_id: &str) -> &str {
         self.ports
             .iter()
@@ -162,7 +163,7 @@ pub(crate) fn io_labels(
                 (leaf, text)
             })
             .collect(),
-        ports: port_block_names(chain, registry, &none),
+        ports: port_block_names(chain, registry, input_devices, output_devices, &none),
     }
 }
 

@@ -151,3 +151,52 @@ fn path_threads_take_the_realtime_policy_of_the_worker_driving_the_split() {
         "no path thread was promoted to the worker's realtime policy"
     );
 }
+
+/// CPU time the calling thread has used so far.
+fn thread_cpu() -> Duration {
+    let mut ts = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
+    Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
+}
+
+/// Sleeps on its first sample: a path far slower than the worker's own.
+struct Slow {
+    done: bool,
+}
+
+impl MonoProcessor for Slow {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        if !self.done {
+            self.done = true;
+            std::thread::sleep(Duration::from_millis(40));
+        }
+        input
+    }
+}
+
+#[test]
+fn the_worker_does_not_burn_its_core_while_a_slow_path_runs() {
+    let paths = vec![
+        vec![mono_node("p0", Box::new(ThreadProbe(Default::default())))],
+        vec![mono_node("p1", Box::new(Slow { done: false }))],
+    ];
+    let mut state = split(paths);
+    let start = thread_cpu();
+    run(&mut state, 64);
+    let used = thread_cpu() - start;
+    assert!(
+        used < Duration::from_millis(10),
+        "the worker used {used:?} of CPU waiting 40 ms for a path"
+    );
+}
+
+#[test]
+fn an_idle_lane_sleeps_until_it_is_handed_a_job() {
+    let lanes = super::PathLanes::spawn(3, "idle");
+    std::thread::sleep(Duration::from_millis(100));
+    let wakes = lanes.wakes();
+    assert!(wakes <= 4, "two idle lanes woke {wakes} times in 100 ms");
+}

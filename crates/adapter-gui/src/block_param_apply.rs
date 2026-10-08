@@ -179,7 +179,7 @@ pub(crate) fn apply_parameter_to_block(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     Ok(true)
 }

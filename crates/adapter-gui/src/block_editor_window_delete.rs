@@ -138,7 +138,7 @@ pub(crate) fn wire_block_delete(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
             drop(session_borrow);

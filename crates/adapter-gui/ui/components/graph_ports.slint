@@ -18,8 +18,14 @@ export global GraphPorts {
     }
 
     // Unscaled half width of what `node` draws, where its wires end.
+    // #1103: a mid-chain input/output block is drawn as a jack.
+    public pure function is-jack-block(node: GraphNode) -> bool {
+        return node.kind == "block" && (node.block.icon-kind == "input" || node.block.icon-kind == "output");
+    }
+
     public pure function half(node: GraphNode) -> length {
-        return node.kind == "block" ? GearShape.width(GearShape.piece(node.block.icon-kind)) / 2
+        return self.is-jack-block(node) ? self.jack / 2
+            : node.kind == "block" ? GearShape.width(GearShape.piece(node.block.icon-kind)) / 2
             : node.kind == "split" || node.kind == "mixer" ? self.hub-width / 2
             : node.kind == "io_input" || node.kind == "io_output" ? self.jack / 2
             : 0px;

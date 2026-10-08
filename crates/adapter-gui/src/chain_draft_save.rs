@@ -69,7 +69,7 @@ pub(crate) fn save_drafted_chain(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     Ok(chain_id)
 }

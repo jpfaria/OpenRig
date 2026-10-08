@@ -82,7 +82,7 @@ pub(crate) fn toggle_block_at_row(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     Ok(ToggledBlock {
         block_index,

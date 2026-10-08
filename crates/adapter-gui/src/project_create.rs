@@ -60,7 +60,7 @@ pub(crate) fn create_project(
         &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-        &[],
+        &session.io_bindings.borrow(),
     );
     // #127: the seam is wired BEFORE the session is installed, so a
     // runtime-control command issued before the first chain sync still reaches

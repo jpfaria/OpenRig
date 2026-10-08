@@ -1,7 +1,7 @@
 //! Responsibility: fills the catalog from the plugin roots on disk.
 
 use crate::discover::{discover, LoadedPackage};
-use crate::registry::{NATIVES, REGISTRY, REGISTRY_INITIALIZED};
+use crate::registry::{GENERATION, NATIVES, REGISTRY, REGISTRY_INITIALIZED};
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -116,6 +116,7 @@ pub fn reload(plugins_roots: &[std::path::PathBuf]) -> ReloadStats {
     let disk_count = total_count - native_count;
     let leaked: &'static [LoadedPackage] = Box::leak(loaded.into_boxed_slice());
     *REGISTRY.write().expect("REGISTRY poisoned") = leaked;
+    GENERATION.fetch_add(1, Ordering::Release);
     REGISTRY_INITIALIZED.store(true, Ordering::SeqCst);
     ReloadStats {
         native_count,

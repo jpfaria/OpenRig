@@ -165,7 +165,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
@@ -230,7 +230,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = iw.hide();
@@ -310,7 +310,7 @@ pub(crate) fn wire(
                 &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
+                &session.io_bindings.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = iw.hide();

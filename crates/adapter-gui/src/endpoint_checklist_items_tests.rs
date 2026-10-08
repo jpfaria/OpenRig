@@ -200,8 +200,9 @@ fn a_shared_row_is_checked_while_any_copy_still_plays() {
     assert_eq!(labels(&outputs), vec![(OUT_12, true)]);
 }
 
-/// #398: an insert or a mid-chain port card is named after its E/S binding,
-/// never its kind again ("INSERT" over "INSERT").
+/// #398: an insert card is named after its E/S binding, never its kind
+/// again ("INSERT" over "INSERT"); #1103: a mid-chain input/output card is
+/// named after the device and channels it plays through.
 #[test]
 fn a_port_block_is_named_after_its_binding() {
     let insert = |id: &str, io: &str| project::block::AudioBlock {
@@ -227,7 +228,7 @@ fn a_port_block_is_named_after_its_binding() {
         "a binding gone from the registry keeps its id"
     );
     assert_eq!(io.port("unset"), none);
-    assert_eq!(io.port("mid"), "Scarlett");
+    assert_eq!(io.port("mid"), IN_1);
 
     let graph = crate::chain_graph_adapter::chain_graph(&c, &io);
     let label = |id: &str| {
@@ -239,5 +240,30 @@ fn a_port_block_is_named_after_its_binding() {
             .unwrap_or_else(|| panic!("no node {id}"))
     };
     assert_eq!(label("ins"), "Scarlett");
-    assert_eq!(label("mid"), "Scarlett");
+    assert_eq!(label("mid"), IN_1);
+}
+
+/// #1103: a mid-chain input/output card reads the device and channels of its
+/// endpoint, like the chain's own input/output rows; an endpoint the binding
+/// no longer has falls back to the binding name.
+#[test]
+fn a_mid_chain_io_block_is_named_after_its_device() {
+    let port_out = |id: &str, io: &str, endpoint: &str| project::block::AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: project::block::AudioBlockKind::Output(project::block::OutputBlock {
+            model: "standard".into(),
+            io: io.into(),
+            endpoint: endpoint.into(),
+        }),
+    };
+    let c = chain(vec![
+        port_in("in2", "main", "In 2"),
+        port_out("out", "aux", "Out L/R"),
+        port_in("stale", "main", "In 9"),
+    ]);
+    let io = io_labels(&c, &registry(), &devices(), &devices(), "In", "Out");
+    assert_eq!(io.port("in2"), IN_2);
+    assert_eq!(io.port("out"), OUT_34);
+    assert_eq!(io.port("stale"), "Scarlett");
 }
