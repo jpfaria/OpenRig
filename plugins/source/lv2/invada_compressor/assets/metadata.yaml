@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Invada Compressor — stereo RMS compressor with soft knee and output limiting.
+    license: GPL-2.0
+    homepage: https://launchpad.net/invada-studio-plugins-lv2
+  pt-BR:
+    description: Invada Compressor — compressor RMS estéreo com joelho suave e limitação de saída.
+    license: GPL-2.0
+    homepage: https://launchpad.net/invada-studio-plugins-lv2

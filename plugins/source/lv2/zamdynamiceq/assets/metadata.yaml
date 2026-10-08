@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ZamDynamicEQ — dynamic EQ band that boosts or cuts only when the signal crosses the threshold.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins
+  pt-BR:
+    description: ZamDynamicEQ — banda de EQ dinâmico que só realça ou corta quando o sinal passa do threshold.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

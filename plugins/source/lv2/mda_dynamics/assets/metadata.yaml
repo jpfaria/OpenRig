@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MDA Dynamics — compressor, limiter and gate in one stereo processor.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2
+  pt-BR:
+    description: MDA Dynamics — compressor, limitador e gate num só processador estéreo.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2

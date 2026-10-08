@@ -28,11 +28,12 @@ pub(crate) fn disk_package_audio_mode(package: &plugin_loader::LoadedPackage) ->
 /// (`docs/development/file-organization.md`, issue #130): a 2in/2out plugin
 /// forced to `DualMono` ran averaged per channel and printed L == R (#938).
 /// A 2in/1out plugin is a sidechain — mono as far as the chain is concerned.
+/// A 3in/2out plugin is a stereo one with a sidechain input (#1105).
 pub(crate) fn lv2_audio_mode(ports: &[Lv2Port]) -> ModelAudioMode {
     let count = |role: Lv2PortRole| ports.iter().filter(|p| p.role == role).count();
     match (count(Lv2PortRole::AudioIn), count(Lv2PortRole::AudioOut)) {
         (1, 2) => ModelAudioMode::MonoToStereo,
-        (2, 2) => ModelAudioMode::TrueStereo,
+        (2, 2) | (3, 2) => ModelAudioMode::TrueStereo,
         _ => ModelAudioMode::DualMono,
     }
 }

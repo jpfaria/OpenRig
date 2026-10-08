@@ -118,6 +118,7 @@ The builder and the `audio_mode` must match. Mixing them up means a SIGSEGV or w
 | 1 in / 2 out | `lv2::build_stereo_lv2_processor_full` with `[in], [L, R]` (the input gets the L/R mid) | `MonoToStereo` |
 | 2 in / 2 out | `lv2::build_stereo_lv2_processor_full` | `TrueStereo` |
 | 2 in / 1 out (sidechain) | `lv2::build_lv2_processor_full` | `DualMono` |
+| 3 in / 2 out (stereo + sidechain) | `lv2::build_stereo_lv2_processor_full` with `[L, R, sidechain]` (the sidechain gets the L/R mid) | `TrueStereo` |
 
 Classic symptom: a 4-port plugin declared `DualMono` → 2 dangling ports → SIGSEGV on the first write.
 

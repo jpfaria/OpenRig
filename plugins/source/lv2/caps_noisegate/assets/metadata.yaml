@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: CAPS Noisegate — noise gate with mains-hum notch.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html
+  pt-BR:
+    description: CAPS Noisegate — noise gate com filtro de zumbido da rede elétrica.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html

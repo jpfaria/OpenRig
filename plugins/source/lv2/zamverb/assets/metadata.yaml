@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ZamVerb — stereo convolution room reverb.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins
+  pt-BR:
+    description: ZamVerb — reverb de sala estéreo por convolução.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

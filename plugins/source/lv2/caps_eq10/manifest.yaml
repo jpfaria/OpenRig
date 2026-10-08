@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_caps_eq10
+display_name: CAPS Eq10
+description: CAPS Eq10 — mono ten-band octave graphic EQ.
+brand: caps
+license: GPL-3.0
+homepage: http://quitte.de/dsp/caps.html
+type: filter
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Eq10
+binaries:
+  macos-universal: platform/macos-universal/Eq10.dylib
+  linux-x86_64: platform/linux-x86_64/Eq10.so
+  linux-aarch64: platform/linux-aarch64/Eq10.so

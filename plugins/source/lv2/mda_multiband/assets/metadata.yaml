@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MDA MultiBand — three-band stereo compressor with band width control.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2
+  pt-BR:
+    description: MDA MultiBand — compressor estéreo de três bandas com controle de largura por banda.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2

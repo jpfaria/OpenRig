@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ZamDelay — tempo-syncable mono delay with feedback filter.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins
+  pt-BR:
+    description: ZamDelay — delay mono sincronizável ao tempo com filtro no feedback.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: CAPS CompressX2 — stereo compressor with saturating output stage.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html
+  pt-BR:
+    description: CAPS CompressX2 — compressor estéreo com estágio de saída saturado.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html

@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_caps_compress
+display_name: CAPS Compress
+description: CAPS Compress — mono compressor with saturating output stage.
+brand: caps
+license: GPL-3.0
+homepage: http://quitte.de/dsp/caps.html
+type: dyn
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Compress
+binaries:
+  macos-universal: platform/macos-universal/Compress.dylib
+  linux-x86_64: platform/linux-x86_64/Compress.so
+  linux-aarch64: platform/linux-aarch64/Compress.so

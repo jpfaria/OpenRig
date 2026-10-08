@@ -1,0 +1,75 @@
+manifest_version: 1
+id: lv2_zamulticompx2
+display_name: ZaMultiCompX2
+description: ZaMultiCompX2 — stereo three-band compressor.
+brand: zam
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: dyn
+backend: lv2
+plugin_uri: urn:zamaudio:ZaMultiCompX2
+binaries:
+  macos-universal: platform/macos-universal/ZaMultiCompX2_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZaMultiCompX2_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZaMultiCompX2_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZaMultiCompX2_dsp.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Tabs mirror the plugin's own UI sections.
+parameters:
+  - symbol: toggle1
+    group: Band 1
+  - symbol: listen1
+    group: Band 1
+  - symbol: att1
+    group: Band 1
+  - symbol: rel1
+    group: Band 1
+  - symbol: kn1
+    group: Band 1
+  - symbol: rat1
+    group: Band 1
+  - symbol: thr1
+    group: Band 1
+  - symbol: mak1
+    group: Band 1
+  - symbol: toggle2
+    group: Band 2
+  - symbol: listen2
+    group: Band 2
+  - symbol: att2
+    group: Band 2
+  - symbol: rel2
+    group: Band 2
+  - symbol: kn2
+    group: Band 2
+  - symbol: rat2
+    group: Band 2
+  - symbol: thr2
+    group: Band 2
+  - symbol: mak2
+    group: Band 2
+  - symbol: toggle3
+    group: Band 3
+  - symbol: listen3
+    group: Band 3
+  - symbol: att3
+    group: Band 3
+  - symbol: rel3
+    group: Band 3
+  - symbol: kn3
+    group: Band 3
+  - symbol: rat3
+    group: Band 3
+  - symbol: thr3
+    group: Band 3
+  - symbol: mak3
+    group: Band 3
+  - symbol: xover1
+    group: Global
+  - symbol: xover2
+    group: Global
+  - symbol: stereodet
+    group: Global
+  - symbol: globalgain
+    group: Global

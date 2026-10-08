@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: MDA Limiter — opto-style stereo peak limiter.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2
+  pt-BR:
+    description: MDA Limiter — limitador de pico estéreo estilo óptico.
+    license: GPL-2.0-or-later
+    homepage: https://github.com/rncbc/mda-lv2

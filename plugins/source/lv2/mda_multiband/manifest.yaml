@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_mda_multiband
+display_name: MDA MultiBand
+description: MDA MultiBand — three-band stereo compressor with band width control.
+brand: mda
+license: GPL-2.0-or-later
+homepage: https://github.com/rncbc/mda-lv2
+type: dyn
+backend: lv2
+plugin_uri: http://drobilla.net/plugins/mda/MultiBand
+binaries:
+  macos-universal: platform/macos-universal/MultiBand.dylib
+  windows-x86_64: platform/windows-x86_64/MultiBand.dll
+  linux-x86_64: platform/linux-x86_64/MultiBand.so
+  linux-aarch64: platform/linux-aarch64/MultiBand.so

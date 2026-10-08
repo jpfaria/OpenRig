@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: CAPS Eq10X2 — stereo ten-band octave graphic EQ.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html
+  pt-BR:
+    description: CAPS Eq10X2 — EQ gráfico estéreo de dez bandas em oitavas.
+    license: GPL-3.0
+    homepage: http://quitte.de/dsp/caps.html

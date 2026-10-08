@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_caps_compressx2
+display_name: CAPS CompressX2
+description: CAPS CompressX2 — stereo compressor with saturating output stage.
+brand: caps
+license: GPL-3.0
+homepage: http://quitte.de/dsp/caps.html
+type: dyn
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/CompressX2
+binaries:
+  macos-universal: platform/macos-universal/CompressX2.dylib
+  linux-x86_64: platform/linux-x86_64/CompressX2.so
+  linux-aarch64: platform/linux-aarch64/CompressX2.so

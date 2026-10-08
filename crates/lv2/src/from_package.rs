@@ -22,6 +22,7 @@ use plugin_loader::dispatch::{lv2_control_value, scan_lv2_ports, Lv2Port, Lv2Por
 use plugin_loader::manifest::{Backend, Lv2Slot};
 use plugin_loader::LoadedPackage;
 
+use crate::audio_shape::{classify, AudioShape};
 use crate::{build_lv2_processor_full, build_stereo_lv2_processor_full};
 
 /// Result of partitioning a plugin's scanned ports by role.
@@ -177,15 +178,8 @@ pub fn build_from_package(
     let bundle_str = path_str(&bundle_path)?;
     let sr = sample_rate as f64;
 
-    let processor = match (plan.audio_in.len(), plan.audio_out.len()) {
-        // (2, 1) is a SIDECHAIN plugin (ZaMcomp, ZamGate…): main input plus a
-        // detector input, one output. It is mono as far as the chain is
-        // concerned — and `Lv2Processor` connects every audio-in port to the
-        // same buffer, so the detector reads the signal the main input carries
-        // (an internal sidechain, which is what the plugin does with its own
-        // sidechain switch off). Refusing the shape bypassed the block, so the
-        // owner's compressor never ran.
-        (1, 1) | (2, 1) => build_mono_input(
+    let processor = match classify(plan.audio_in.len(), plan.audio_out.len()) {
+        Some(AudioShape::MonoInput) => build_mono_input(
             &lib_str,
             &plugin_uri,
             sr,
@@ -194,7 +188,7 @@ pub fn build_from_package(
             layout,
             &package.manifest.id,
         )?,
-        (1, 2) | (2, 2) => build_stereo_input(
+        Some(AudioShape::StereoInput) => build_stereo_input(
             &lib_str,
             &plugin_uri,
             sr,
@@ -203,9 +197,11 @@ pub fn build_from_package(
             layout,
             &package.manifest.id,
         )?,
-        (a_in, a_out) => bail!(
-            "LV2 plugin `{}` has unsupported audio shape: {a_in} in / {a_out} out",
-            package.manifest.id
+        None => bail!(
+            "LV2 plugin `{}` has unsupported audio shape: {} in / {} out",
+            package.manifest.id,
+            plan.audio_in.len(),
+            plan.audio_out.len()
         ),
     };
     // Issue #491: aplica `manifest.output_gain_db` (baseline objetivo do

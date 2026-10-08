@@ -24,6 +24,11 @@ caps_platex2	caps-lv2
 caps_scape	caps-lv2
 caps_spice	caps-lv2
 caps_spicex2	caps-lv2
+caps_compress	caps-lv2
+caps_compressx2	caps-lv2
+caps_eq10	caps-lv2
+caps_eq10x2	caps-lv2
+caps_noisegate	caps-lv2
 chow_centaur	chowcentaur
 chow_matrix	chowmatrix
 chow_phaser	chowphaser
@@ -80,6 +85,8 @@ gx_vmk2	gxplugins
 gx_voodofuzz	gxplugins
 harmless	shiro-plugins
 invada_tube	invada-studio
+invada_compressor	invada-studio
+invada_erreverb	invada-studio
 larynx	shiro-plugins
 luftikus	distrho
 mda_ambience	mda-lv2
@@ -92,6 +99,9 @@ mda_overdrive	mda-lv2
 mda_repsycho	mda-lv2
 mda_ringmod	mda-lv2
 mda_thruzero	mda-lv2
+mda_dynamics	mda-lv2
+mda_limiter	mda-lv2
+mda_multiband	mda-lv2
 mod_hpf	mod-utilities
 mod_lpf	mod-utilities
 modulay	shiro-plugins
@@ -132,6 +142,16 @@ zameq2	zam-plugins
 zamgate	zam-plugins
 zamgeq31	zam-plugins
 zamulticomp	zam-plugins
+zamautosat	zam-plugins
+zamaximx2	zam-plugins
+zamchild670	zam-plugins
+zamcompx2	zam-plugins
+zamdelay	zam-plugins
+zamdynamiceq	zam-plugins
+zamgatex2	zam-plugins
+zamtube	zam-plugins
+zamulticompx2	zam-plugins
+zamverb	zam-plugins
 cloud_reverb	cloudreverb
 frequalizer	frequalizer
 retuner	retuner

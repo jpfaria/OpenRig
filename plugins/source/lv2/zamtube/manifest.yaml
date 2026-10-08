@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_zamtube
+display_name: ZamTube
+description: ZamTube — wave-digital-filter triode stage with tone stack.
+brand: zam
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: gain_pedal
+backend: lv2
+plugin_uri: urn:zamaudio:ZamTube
+binaries:
+  macos-universal: platform/macos-universal/ZamTube_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamTube_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamTube_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamTube_dsp.so

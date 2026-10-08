@@ -9,6 +9,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+mod audio_shape;
 mod from_package;
 mod host;
 mod host_abi;

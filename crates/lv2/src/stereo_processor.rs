@@ -11,17 +11,22 @@ const MAX_BLOCK_SIZE: usize = 4096;
 const ATOM_BUF_SIZE: usize = 4096;
 
 /// Stereo audio processor wrapping a loaded LV2 plugin with two audio
-/// outputs and one or two audio inputs.
+/// outputs and one, two or three audio inputs.
 ///
 /// Unlike `Lv2Processor` (mono), this connects separate L/R output buffers.
 /// A 1-in/2-out plugin is fed the mid of the stereo frame on its single
 /// input — connecting both of its outputs to one buffer (the mono path)
 /// kept only the last one written and printed L == R (#938).
+/// A 3-in/2-out plugin (ZamCompX2, ZamGateX2) has L, R and a sidechain
+/// input; the sidechain is fed the mid of the same frame, an internal
+/// sidechain like the plugin's own with its sidechain switch off (#1105).
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,
     mono_input: bool,
+    sidechain_input: bool,
     in_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
     in_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
+    in_buf_sidechain: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Scratch buffer for output control ports (meters, latency) that
@@ -40,7 +45,8 @@ pub struct StereoLv2Processor {
 impl StereoLv2Processor {
     /// Create a new stereo processor.
     ///
-    /// - `audio_in_ports`: exactly 2 port indices `[left_in, right_in]`
+    /// - `audio_in_ports`: `[mono_in]`, `[left_in, right_in]` or
+    ///   `[left_in, right_in, sidechain_in]`
     /// - `audio_out_ports`: exactly 2 port indices `[left_out, right_out]`
     /// - `control_ports`: `(port_index, initial_value)` pairs
     pub fn new(
@@ -86,17 +92,19 @@ impl StereoLv2Processor {
         extra_out_ports: &[usize],
     ) -> Self {
         assert!(
-            matches!(audio_in_ports.len(), 1 | 2),
-            "stereo requires 1 or 2 audio inputs"
+            matches!(audio_in_ports.len(), 1..=3),
+            "stereo requires 1, 2 or 3 audio inputs"
         );
         assert!(
             audio_out_ports.len() == 2,
             "stereo requires 2 audio outputs"
         );
         let mono_input = audio_in_ports.len() == 1;
+        let sidechain_input = audio_in_ports.len() == 3;
 
         let mut in_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut in_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut in_buf_sidechain = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut dummy_out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
@@ -130,6 +138,12 @@ impl StereoLv2Processor {
                     in_buf_r.as_mut_ptr() as *mut c_void,
                 );
             }
+            if sidechain_input {
+                plugin.connect_port(
+                    audio_in_ports[2] as u32,
+                    in_buf_sidechain.as_mut_ptr() as *mut c_void,
+                );
+            }
             plugin.connect_port(
                 audio_out_ports[0] as u32,
                 out_buf_l.as_mut_ptr() as *mut c_void,
@@ -152,8 +166,10 @@ impl StereoLv2Processor {
         Self {
             plugin,
             mono_input,
+            sidechain_input,
             in_buf_l,
             in_buf_r,
+            in_buf_sidechain,
             out_buf_l,
             out_buf_r,
             _dummy_out_buf: dummy_out_buf,
@@ -192,6 +208,9 @@ impl StereoLv2Processor {
         } else {
             self.in_buf_l[i] = frame[0];
             self.in_buf_r[i] = frame[1];
+            if self.sidechain_input {
+                self.in_buf_sidechain[i] = 0.5 * (frame[0] + frame[1]);
+            }
         }
     }
 }

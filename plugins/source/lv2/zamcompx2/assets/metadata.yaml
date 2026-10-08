@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ZamCompX2 — stereo bus compressor with sidechain.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins
+  pt-BR:
+    description: ZamCompX2 — compressor estéreo de bus com sidechain.
+    license: GPL-2.0
+    homepage: https://github.com/zamaudio/zam-plugins

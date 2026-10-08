@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_zamdelay
+display_name: ZamDelay
+description: ZamDelay — tempo-syncable mono delay with feedback filter.
+brand: zam
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: delay
+backend: lv2
+plugin_uri: urn:zamaudio:ZamDelay
+binaries:
+  macos-universal: platform/macos-universal/ZamDelay_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamDelay_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamDelay_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamDelay_dsp.so

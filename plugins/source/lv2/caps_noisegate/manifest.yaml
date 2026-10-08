@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_caps_noisegate
+display_name: CAPS Noisegate
+description: CAPS Noisegate — noise gate with mains-hum notch.
+brand: caps
+license: GPL-3.0
+homepage: http://quitte.de/dsp/caps.html
+type: dyn
+backend: lv2
+plugin_uri: http://moddevices.com/plugins/caps/Noisegate
+binaries:
+  macos-universal: platform/macos-universal/Noisegate.dylib
+  linux-x86_64: platform/linux-x86_64/Noisegate.so
+  linux-aarch64: platform/linux-aarch64/Noisegate.so

@@ -52,3 +52,12 @@ fn lv2_two_in_two_out_runs_true_stereo() {
         ModelAudioMode::TrueStereo
     );
 }
+
+#[test]
+fn lv2_stereo_sidechain_three_in_two_out_runs_true_stereo() {
+    // #1105: ZamCompX2 / ZamGateX2 — L, R, sidechain in; L, R out.
+    assert_eq!(
+        lv2_audio_mode(&audio_ports(3, 2)),
+        ModelAudioMode::TrueStereo
+    );
+}

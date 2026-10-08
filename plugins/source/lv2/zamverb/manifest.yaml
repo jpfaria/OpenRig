@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_zamverb
+display_name: ZamVerb
+description: ZamVerb — stereo convolution room reverb.
+brand: zam
+license: GPL-2.0
+homepage: https://github.com/zamaudio/zam-plugins
+type: reverb
+backend: lv2
+plugin_uri: urn:zamaudio:ZamVerb
+binaries:
+  macos-universal: platform/macos-universal/ZamVerb_dsp.dylib
+  windows-x86_64: platform/windows-x86_64/ZamVerb_dsp.dll
+  linux-x86_64: platform/linux-x86_64/ZamVerb_dsp.so
+  linux-aarch64: platform/linux-aarch64/ZamVerb_dsp.so
