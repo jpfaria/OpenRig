@@ -141,6 +141,7 @@ pub enum QueryKind {
     PluginLibrary,
     /// One owned plugin's capture grid as the editor shows it. Serialized
     /// by [`crate::query_plugin_library::plugin_grid_json`]; MCP serves it
-    /// as `openrig://plugin-library/{id}`.
+    /// as `openrig://plugin-library/{id}`. An id the catalog does not hold
+    /// answers the empty shape.
     PluginLibraryGrid { plugin_id: String },
 }

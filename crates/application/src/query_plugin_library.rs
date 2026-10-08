@@ -44,7 +44,18 @@ pub fn plugin_grid(roots: &PluginRoots, plugin_id: &str) -> Result<PluginGridVie
 }
 
 /// [`plugin_grid`] as JSON. A plugin that is not a capture plugin has no
-/// grid (`null`) and is not editable.
+/// grid (`null`) and is not editable. A plugin the catalog does not hold
+/// answers the same shape, empty: no origin, no versions, no grid.
 pub fn plugin_grid_json(roots: &PluginRoots, plugin_id: &str) -> Result<String> {
+    if plugin_loader::registry::find(plugin_id).is_none() {
+        return Ok(serde_json::json!({
+            "plugin_id": plugin_id,
+            "origin": null,
+            "editable": false,
+            "versions": [],
+            "grid": null,
+        })
+        .to_string());
+    }
     serde_json::to_string(&plugin_grid(roots, plugin_id)?).map_err(|e| anyhow!("{e}"))
 }
