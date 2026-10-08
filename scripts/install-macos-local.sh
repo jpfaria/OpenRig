@@ -25,6 +25,15 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 1
 fi
 
+# ── 0. Stamp the version into the workspace manifest, as the release CI does ──
+# The launcher footer renders env!("CARGO_PKG_VERSION"); without this a local
+# build ships the manifest's stale version under a fresh artifact name.
+if [ "$VERSION" != "dev" ]; then
+    source scripts/lib/release-version.sh
+    trap 'git checkout -q -- Cargo.toml Cargo.lock' EXIT
+    set_workspace_version Cargo.toml "$VERSION"
+fi
+
 # ── 1. Build the universal, ad-hoc-signed bundle (single source of truth) ─────
 # package-macos.sh produces dist/OpenRig.app (and a .dmg as a byproduct). We
 # reuse it wholesale so the installed app is byte-for-byte what a release ships,

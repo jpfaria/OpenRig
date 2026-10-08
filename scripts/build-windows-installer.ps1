@@ -37,6 +37,16 @@ try {
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
     if ((Test-Path $cargoBin) -and ($env:PATH -notlike "*$cargoBin*")) { $env:PATH = "$cargoBin;$env:PATH" }
 
+    # Stamp the version into the workspace manifest, as the release CI does: the
+    # launcher footer renders env!("CARGO_PKG_VERSION"), so without this a local
+    # build ships the manifest's stale version under a fresh artifact name.
+    if ($Version -ne "dev") {
+        $bash = "C:\Program Files\Git\bin\bash.exe"
+        & $bash -c "source scripts/lib/release-version.sh && set_workspace_version Cargo.toml '$Version'"
+        if ($LASTEXITCODE -ne 0) { throw "set_workspace_version failed with exit code $LASTEXITCODE" }
+        $stamped = $true
+    }
+
     Write-Host "==> Building release binaries..."
     cargo build --release -p adapter-gui -p adapter-console -p adapter-console-rig -p adapter-render
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed with exit code $LASTEXITCODE" }
@@ -51,5 +61,6 @@ try {
     Get-ChildItem dist -Filter "OpenRig-*-windows-x64.*" | ForEach-Object { Write-Host "    $($_.FullName)" }
 }
 finally {
+    if ($stamped) { git checkout -q -- Cargo.toml Cargo.lock }
     Pop-Location
 }
