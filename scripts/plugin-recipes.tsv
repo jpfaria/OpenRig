@@ -202,3 +202,10 @@ airwindows_totape6	airwindows
 airwindows_tube2	airwindows
 airwindows_tubedesk	airwindows
 airwindows_verbity	airwindows
+lsp_compressor	lsp
+lsp_mb_compressor	lsp
+lsp_gate	lsp
+lsp_para_eq_x16	lsp
+lsp_graph_eq_x16	lsp
+lsp_limiter	lsp
+lsp_deesser	lsp

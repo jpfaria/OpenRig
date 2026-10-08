@@ -1,0 +1,83 @@
+manifest_version: 1
+id: lv2_lsp_limiter
+display_name: LSP Limiter
+description: LSP Limiter — stereo lookahead limiter with oversampling, dithering and automatic level regulation.
+brand: lsp
+license: LGPL-3.0
+homepage: https://lsp-plug.in
+type: dyn
+backend: lv2
+plugin_uri: http://lsp-plug.in/plugins/lv2/limiter_stereo
+binaries:
+  linux-x86_64: platform/linux-x86_64/lsp-plugins-lv2.so
+  linux-aarch64: platform/linux-aarch64/lsp-plugins-lv2.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's analyzer and graph toggles.
+parameters:
+  - symbol: mode
+    group: Limiter
+  - symbol: th
+    group: Limiter
+  - symbol: knee
+    group: Limiter
+  - symbol: boost
+    group: Limiter
+  - symbol: lk
+    group: Limiter
+  - symbol: at
+    group: Limiter
+  - symbol: rt
+    group: Limiter
+  - symbol: ovs
+    group: Limiter
+  - symbol: dith
+    group: Limiter
+  - symbol: smooth
+    group: Limiter
+  - symbol: alr
+    group: Auto level
+  - symbol: alr_at
+    group: Auto level
+  - symbol: alr_rt
+    group: Auto level
+  - symbol: enabled
+    group: Mix
+  - symbol: g_in
+    group: Mix
+  - symbol: g_out
+    group: Mix
+  - symbol: in2lk
+    group: Sidechain
+  - symbol: lk2in
+    group: Sidechain
+  - symbol: lk2sc
+    group: Sidechain
+  - symbol: scp
+    group: Sidechain
+  - symbol: extsc
+    group: Sidechain
+  - symbol: slink
+    group: Sidechain
+  - symbol: showpmx
+    group: Display
+  - symbol: pause
+    group: Display
+  - symbol: clear
+    group: Display
+  - symbol: igv_l
+    group: Display
+  - symbol: ogv_l
+    group: Display
+  - symbol: scgv_l
+    group: Display
+  - symbol: grgv_l
+    group: Display
+  - symbol: igv_r
+    group: Display
+  - symbol: ogv_r
+    group: Display
+  - symbol: scgv_r
+    group: Display
+  - symbol: grgv_r
+    group: Display

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP Graphic EQ x16 — sixteen-band stereo graphic equalizer.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP Graphic EQ x16 — equalizador gráfico estéreo LSP de dezesseis bandas.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in

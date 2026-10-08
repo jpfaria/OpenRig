@@ -1,0 +1,7 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<http://lsp-plug.in/plugins/lv2/para_equalizer_x16_stereo>
+	a lv2:Plugin ;
+	lv2:binary <lsp-plugins-lv2.so> ;
+	rdfs:seeAlso <para_equalizer_x16_stereo.ttl> .

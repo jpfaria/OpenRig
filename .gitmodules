@@ -179,3 +179,6 @@
 [submodule "deps/airwindows-lv2"]
 	path = deps/airwindows-lv2
 	url = https://git.sr.ht/~hannes/airwindows-lv2
+[submodule "deps/lsp-plugins"]
+	path = deps/lsp-plugins
+	url = https://github.com/lsp-plugins/lsp-plugins.git

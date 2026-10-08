@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP Limiter — stereo lookahead limiter with oversampling, dithering and automatic level regulation.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP Limiter — limiter estéreo LSP com lookahead, oversampling, dithering e regulação automática de nível.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in

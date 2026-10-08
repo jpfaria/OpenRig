@@ -1,0 +1,175 @@
+manifest_version: 1
+id: lv2_lsp_graph_eq_x16
+display_name: LSP Graphic EQ x16
+description: LSP Graphic EQ x16 — sixteen-band stereo graphic equalizer.
+brand: lsp
+license: LGPL-3.0
+homepage: https://lsp-plug.in
+type: filter
+backend: lv2
+plugin_uri: http://lsp-plug.in/plugins/lv2/graph_equalizer_x16_stereo
+binaries:
+  linux-x86_64: platform/linux-x86_64/lsp-plugins-lv2.so
+  linux-aarch64: platform/linux-aarch64/lsp-plugins-lv2.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's analyzer and graph toggles.
+parameters:
+  - symbol: enabled
+    group: Global
+  - symbol: g_in
+    group: Global
+  - symbol: g_out
+    group: Global
+  - symbol: mode
+    group: Global
+  - symbol: slope
+    group: Global
+  - symbol: bal
+    group: Global
+  - symbol: xs_0
+    group: Low bands
+  - symbol: xm_0
+    group: Low bands
+  - symbol: xe_0
+    group: Low bands
+  - symbol: g_0
+    group: Low bands
+  - symbol: xs_1
+    group: Low bands
+  - symbol: xm_1
+    group: Low bands
+  - symbol: xe_1
+    group: Low bands
+  - symbol: g_1
+    group: Low bands
+  - symbol: xs_2
+    group: Low bands
+  - symbol: xm_2
+    group: Low bands
+  - symbol: xe_2
+    group: Low bands
+  - symbol: g_2
+    group: Low bands
+  - symbol: xs_3
+    group: Low bands
+  - symbol: xm_3
+    group: Low bands
+  - symbol: xe_3
+    group: Low bands
+  - symbol: g_3
+    group: Low bands
+  - symbol: xs_4
+    group: Low bands
+  - symbol: xm_4
+    group: Low bands
+  - symbol: xe_4
+    group: Low bands
+  - symbol: g_4
+    group: Low bands
+  - symbol: xs_5
+    group: Low bands
+  - symbol: xm_5
+    group: Low bands
+  - symbol: xe_5
+    group: Low bands
+  - symbol: g_5
+    group: Low bands
+  - symbol: xs_6
+    group: Low bands
+  - symbol: xm_6
+    group: Low bands
+  - symbol: xe_6
+    group: Low bands
+  - symbol: g_6
+    group: Low bands
+  - symbol: xs_7
+    group: Low bands
+  - symbol: xm_7
+    group: Low bands
+  - symbol: xe_7
+    group: Low bands
+  - symbol: g_7
+    group: Low bands
+  - symbol: xs_8
+    group: High bands
+  - symbol: xm_8
+    group: High bands
+  - symbol: xe_8
+    group: High bands
+  - symbol: g_8
+    group: High bands
+  - symbol: xs_9
+    group: High bands
+  - symbol: xm_9
+    group: High bands
+  - symbol: xe_9
+    group: High bands
+  - symbol: g_9
+    group: High bands
+  - symbol: xs_10
+    group: High bands
+  - symbol: xm_10
+    group: High bands
+  - symbol: xe_10
+    group: High bands
+  - symbol: g_10
+    group: High bands
+  - symbol: xs_11
+    group: High bands
+  - symbol: xm_11
+    group: High bands
+  - symbol: xe_11
+    group: High bands
+  - symbol: g_11
+    group: High bands
+  - symbol: xs_12
+    group: High bands
+  - symbol: xm_12
+    group: High bands
+  - symbol: xe_12
+    group: High bands
+  - symbol: g_12
+    group: High bands
+  - symbol: xs_13
+    group: High bands
+  - symbol: xm_13
+    group: High bands
+  - symbol: xe_13
+    group: High bands
+  - symbol: g_13
+    group: High bands
+  - symbol: xs_14
+    group: High bands
+  - symbol: xm_14
+    group: High bands
+  - symbol: xe_14
+    group: High bands
+  - symbol: g_14
+    group: High bands
+  - symbol: xs_15
+    group: High bands
+  - symbol: xm_15
+    group: High bands
+  - symbol: xe_15
+    group: High bands
+  - symbol: g_15
+    group: High bands
+  - symbol: react
+    group: Display
+  - symbol: shift
+    group: Display
+  - symbol: zoom
+    group: Display
+  - symbol: ife_l
+    group: Display
+  - symbol: ofe_l
+    group: Display
+  - symbol: rfe_l
+    group: Display
+  - symbol: ife_r
+    group: Display
+  - symbol: ofe_r
+    group: Display
+  - symbol: rfe_r
+    group: Display

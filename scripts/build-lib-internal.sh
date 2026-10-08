@@ -152,6 +152,34 @@ do_make() {
     make -C "$src" -j "$JOBS" $(cross_make_flags) "$@"
 }
 
+# macOS universal build for Make-only upstreams (no arch switch of their own):
+# build once per arch with `cc/c++ -arch <a>`, then lipo each <name>.so into a
+# universal <name>.dylib under $LAST_BUILD_DIR. Homebrew's include dir is not on
+# clang's default search path on Apple Silicon, so it is added explicitly.
+# MACOS_EXTRA_FLAGS carries recipe-specific compiler flags. Extra args go to make.
+do_make_universal_macos() {
+    local src="$1"
+    shift
+    local out="$BUILD_WORK_DIR/$(basename "$src")-universal"
+    local flags="-I$(brew --prefix)/include -mmacosx-version-min=11.0 ${MACOS_EXTRA_FLAGS:-}"
+    local a f
+    rm -rf "$out"
+    for a in arm64 x86_64; do
+        mkdir -p "$out/$a"
+        make -C "$src" clean >/dev/null 2>&1 || true
+        CC="cc -arch $a" CXX="c++ -arch $a" LD="cc -arch $a" \
+            CFLAGS="$flags" CXXFLAGS="$flags" \
+            make -C "$src" -j "$JOBS" "$@"
+        find "$src" -name "*.so" -type f -exec cp {} "$out/$a/" \;
+    done
+    for f in "$out/arm64"/*.so; do
+        [ -f "$out/x86_64/$(basename "$f")" ] || continue
+        lipo -create "$f" "$out/x86_64/$(basename "$f")" \
+            -output "$out/$(basename "${f%.so}").dylib"
+    done
+    LAST_BUILD_DIR="$out"
+}
+
 # Build with CMake (supports cross-compilation via CMAKE_EXTRA env)
 # Uses $BUILD_WORK_DIR to avoid conflicts with host CMakeCache
 do_cmake() {
@@ -256,6 +284,7 @@ PLUGINS=(
     x42
     distrho
     airwindows
+    lsp
 )
 
 # Map plugin name to build function
@@ -274,6 +303,7 @@ dispatch() {
         fomp)             build_fomp ;;
         invada-studio)    build_invada_studio ;;
         airwindows)       build_airwindows ;;
+        lsp)              build_lsp ;;
         wolf-shaper)      build_wolf_shaper ;;
         artyfx)           build_artyfx ;;
         sooperlooper)     build_sooperlooper ;;

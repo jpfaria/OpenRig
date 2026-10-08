@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP Gate — stereo gate with hysteresis, sidechain filters and lookahead.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP Gate — gate estéreo LSP com histerese, filtros de sidechain e lookahead.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in

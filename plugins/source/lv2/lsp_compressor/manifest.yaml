@@ -1,0 +1,113 @@
+manifest_version: 1
+id: lv2_lsp_compressor
+display_name: LSP Compressor
+description: LSP Compressor — stereo compressor with downward, upward and boosting modes, sidechain filters and lookahead.
+brand: lsp
+license: LGPL-3.0
+homepage: https://lsp-plug.in
+type: dyn
+backend: lv2
+plugin_uri: http://lsp-plug.in/plugins/lv2/compressor_stereo
+binaries:
+  linux-x86_64: platform/linux-x86_64/lsp-plugins-lv2.so
+  linux-aarch64: platform/linux-aarch64/lsp-plugins-lv2.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's analyzer and graph toggles.
+parameters:
+  - symbol: cm
+    group: Compressor
+  - symbol: al
+    group: Compressor
+  - symbol: at
+    group: Compressor
+  - symbol: rrl
+    group: Compressor
+  - symbol: rt
+    group: Compressor
+  - symbol: hold
+    group: Compressor
+  - symbol: cr
+    group: Compressor
+  - symbol: kn
+    group: Compressor
+  - symbol: bth
+    group: Compressor
+  - symbol: bsa
+    group: Compressor
+  - symbol: mk
+    group: Compressor
+  - symbol: enabled
+    group: Mix
+  - symbol: g_in
+    group: Mix
+  - symbol: g_out
+    group: Mix
+  - symbol: cdr
+    group: Mix
+  - symbol: cwt
+    group: Mix
+  - symbol: cdw
+    group: Mix
+  - symbol: in2lk
+    group: Sidechain
+  - symbol: lk2in
+    group: Sidechain
+  - symbol: lk2sc
+    group: Sidechain
+  - symbol: ssplit
+    group: Sidechain
+  - symbol: sscs
+    group: Sidechain
+  - symbol: sct
+    group: Sidechain
+  - symbol: scm
+    group: Sidechain
+  - symbol: sla
+    group: Sidechain
+  - symbol: scl
+    group: Sidechain
+  - symbol: scs
+    group: Sidechain
+  - symbol: scr
+    group: Sidechain
+  - symbol: scp
+    group: Sidechain
+  - symbol: shpm
+    group: Sidechain
+  - symbol: shpf
+    group: Sidechain
+  - symbol: slpm
+    group: Sidechain
+  - symbol: slpf
+    group: Sidechain
+  - symbol: showpmx
+    group: Display
+  - symbol: showmx
+    group: Display
+  - symbol: showsc
+    group: Display
+  - symbol: pause
+    group: Display
+  - symbol: clear
+    group: Display
+  - symbol: slv_l
+    group: Display
+  - symbol: elv_l
+    group: Display
+  - symbol: grv_l
+    group: Display
+  - symbol: ilv_l
+    group: Display
+  - symbol: olv_l
+    group: Display
+  - symbol: slv_r
+    group: Display
+  - symbol: elv_r
+    group: Display
+  - symbol: grv_r
+    group: Display
+  - symbol: ilv_r
+    group: Display
+  - symbol: olv_r
+    group: Display

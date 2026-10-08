@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP De-esser — stereo de-esser with split-band processing and sidechain filters.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP De-esser — de-esser estéreo LSP com processamento em banda dividida e filtros de sidechain.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in

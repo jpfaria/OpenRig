@@ -1,0 +1,121 @@
+manifest_version: 1
+id: lv2_lsp_deesser
+display_name: LSP De-esser
+description: LSP De-esser — stereo de-esser with split-band processing and sidechain filters.
+brand: lsp
+license: LGPL-3.0
+homepage: https://lsp-plug.in
+type: dyn
+backend: lv2
+plugin_uri: http://lsp-plug.in/plugins/lv2/deesser_stereo
+binaries:
+  linux-x86_64: platform/linux-x86_64/lsp-plugins-lv2.so
+  linux-aarch64: platform/linux-aarch64/lsp-plugins-lv2.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's analyzer and graph toggles.
+parameters:
+  - symbol: thresh
+    group: De-esser
+  - symbol: att
+    group: De-esser
+  - symbol: rel
+    group: De-esser
+  - symbol: hold
+    group: De-esser
+  - symbol: ratio
+    group: De-esser
+  - symbol: knee
+    group: De-esser
+  - symbol: xsplit
+    group: Filters
+  - symbol: slope
+    group: Filters
+  - symbol: split
+    group: Filters
+  - symbol: xlink
+    group: Filters
+  - symbol: hpf_s
+    group: Filters
+  - symbol: hpf_f
+    group: Filters
+  - symbol: hpf_q
+    group: Filters
+  - symbol: lpf_s
+    group: Filters
+  - symbol: lpf_f
+    group: Filters
+  - symbol: lpf_q
+    group: Filters
+  - symbol: pk1_on
+    group: Filters
+  - symbol: pk1_f
+    group: Filters
+  - symbol: pk1_g
+    group: Filters
+  - symbol: pk1_q
+    group: Filters
+  - symbol: pk2_on
+    group: Filters
+  - symbol: pk2_f
+    group: Filters
+  - symbol: pk2_g
+    group: Filters
+  - symbol: pk2_q
+    group: Filters
+  - symbol: enabled
+    group: Mix
+  - symbol: g_in
+    group: Mix
+  - symbol: g_out
+    group: Mix
+  - symbol: ssplit
+    group: Sidechain
+  - symbol: slink
+    group: Sidechain
+  - symbol: in2lk
+    group: Sidechain
+  - symbol: lk2in
+    group: Sidechain
+  - symbol: lk2sc
+    group: Sidechain
+  - symbol: sct
+    group: Sidechain
+  - symbol: scm
+    group: Sidechain
+  - symbol: scs
+    group: Sidechain
+  - symbol: scsl
+    group: Sidechain
+  - symbol: scsr
+    group: Sidechain
+  - symbol: sla
+    group: Sidechain
+  - symbol: scl
+    group: Sidechain
+  - symbol: scr
+    group: Sidechain
+  - symbol: scp
+    group: Sidechain
+  - symbol: zoom
+    group: Display
+  - symbol: showpmx
+    group: Display
+  - symbol: showsc
+    group: Display
+  - symbol: react
+    group: Display
+  - symbol: shift
+    group: Display
+  - symbol: ife_l
+    group: Display
+  - symbol: sfe_l
+    group: Display
+  - symbol: ofe_l
+    group: Display
+  - symbol: ife_r
+    group: Display
+  - symbol: sfe_r
+    group: Display
+  - symbol: ofe_r
+    group: Display

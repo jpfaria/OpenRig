@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP Multiband Compressor — stereo multiband compressor with up to eight bands, each with its own compressor and sidechain.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP Multiband Compressor — compressor multibanda estéreo LSP com até oito bandas, cada uma com compressor e sidechain próprios.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in

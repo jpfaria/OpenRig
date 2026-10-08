@@ -20,7 +20,8 @@ build_dragonfly_reverb() {
 build_zam_plugins() {
     local src="$DEPS_DIR/zam-plugins"
     do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
-    collect_libs "$src/bin" "Zam*_dsp"
+    # "Za*": ZaMaximX2 and ZaMultiComp(X2) are spelled without the "m".
+    collect_libs "$src/bin" "Za*_dsp"
 }
 
 build_mod_utilities() {
@@ -31,6 +32,15 @@ build_mod_utilities() {
 
 build_caps_lv2() {
     local src="$DEPS_DIR/caps-lv2"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        # clang cannot take the address of __builtin_sinf/cosf (dsp/v4f.h
+        # passes them as template arguments); the libm functions are the same
+        # math. MACOS=1 selects the Makefiles' -dynamiclib link.
+        MACOS=1 MACOS_EXTRA_FLAGS="-D__builtin_sinf=sinf -D__builtin_cosf=cosf -Wno-register" \
+            do_make_universal_macos "$src"
+        collect_libs "$LAST_BUILD_DIR"
+        return
+    fi
     do_make "$src"
     collect_libs "$src"
 }
@@ -73,7 +83,14 @@ build_fomp() {
 
 build_invada_studio() {
     local src="$DEPS_DIR/invada-studio"
-    do_make "$src"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        do_make_universal_macos "$src"
+        collect_libs "$LAST_BUILD_DIR"
+        return
+    fi
+    # The Makefile's `LD ?= gcc` never applies (make predefines LD=ld), and
+    # plain ld rejects the -fPIC/-DPIC it is handed; link through the compiler.
+    do_make "$src" LD="${CC:-gcc}"
     collect_libs "$src"
 }
 
@@ -301,4 +318,23 @@ build_airwindows() {
         cp "$lib" "$named/airwindows_$(basename "$lib")"
     done
     collect_libs "$named" "airwindows_*"
+}
+
+build_lsp() {
+    # LSP Plugins (LGPL-3.0): one lsp-plugins-lv2.so carries every plugin;
+    # commit-libs copies it into each package that claims it. Upstream builds
+    # LV2 on Linux only (no macOS port; Windows builds are not public), so the
+    # other platforms skip. `make fetch` pulls the pinned lsp-* modules the
+    # tagged release lists. No `ui` feature: the DSP library needs no X11.
+    if [ "$(uname -s)" != "Linux" ] || [ -n "${MINGW_TARGET:-}" ]; then
+        echo "lsp: LV2 is Linux-only upstream; skipping $(uname -s)"
+        return 0
+    fi
+    local src="$DEPS_DIR/lsp-plugins"
+    make -C "$src" clean
+    make -C "$src" config FEATURES='lv2'
+    make -C "$src" fetch
+    make -C "$src" -j "$JOBS"
+    LAST_BUILD_DIR="$src/.build"
+    collect_libs "$src/.build" "lsp-plugins-lv2"
 }

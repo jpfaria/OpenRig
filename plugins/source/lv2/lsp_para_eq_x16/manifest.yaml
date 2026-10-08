@@ -1,0 +1,379 @@
+manifest_version: 1
+id: lv2_lsp_para_eq_x16
+display_name: LSP Parametric EQ x16
+description: LSP Parametric EQ x16 — sixteen-filter stereo parametric equalizer with IIR, FIR and FFT modes.
+brand: lsp
+license: LGPL-3.0
+homepage: https://lsp-plug.in
+type: filter
+backend: lv2
+plugin_uri: http://lsp-plug.in/plugins/lv2/para_equalizer_x16_stereo
+binaries:
+  linux-x86_64: platform/linux-x86_64/lsp-plugins-lv2.so
+  linux-aarch64: platform/linux-aarch64/lsp-plugins-lv2.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's analyzer and graph toggles.
+parameters:
+  - symbol: enabled
+    group: Global
+  - symbol: g_in
+    group: Global
+  - symbol: g_out
+    group: Global
+  - symbol: mode
+    group: Global
+  - symbol: bal
+    group: Global
+  - symbol: frqs
+    group: Global
+  - symbol: decramp
+    group: Global
+  - symbol: ft_0
+    group: Filters 0-3
+  - symbol: fm_0
+    group: Filters 0-3
+  - symbol: s_0
+    group: Filters 0-3
+  - symbol: xs_0
+    group: Filters 0-3
+  - symbol: xm_0
+    group: Filters 0-3
+  - symbol: f_0
+    group: Filters 0-3
+  - symbol: w_0
+    group: Filters 0-3
+  - symbol: g_0
+    group: Filters 0-3
+  - symbol: q_0
+    group: Filters 0-3
+  - symbol: ft_1
+    group: Filters 0-3
+  - symbol: fm_1
+    group: Filters 0-3
+  - symbol: s_1
+    group: Filters 0-3
+  - symbol: xs_1
+    group: Filters 0-3
+  - symbol: xm_1
+    group: Filters 0-3
+  - symbol: f_1
+    group: Filters 0-3
+  - symbol: w_1
+    group: Filters 0-3
+  - symbol: g_1
+    group: Filters 0-3
+  - symbol: q_1
+    group: Filters 0-3
+  - symbol: ft_2
+    group: Filters 0-3
+  - symbol: fm_2
+    group: Filters 0-3
+  - symbol: s_2
+    group: Filters 0-3
+  - symbol: xs_2
+    group: Filters 0-3
+  - symbol: xm_2
+    group: Filters 0-3
+  - symbol: f_2
+    group: Filters 0-3
+  - symbol: w_2
+    group: Filters 0-3
+  - symbol: g_2
+    group: Filters 0-3
+  - symbol: q_2
+    group: Filters 0-3
+  - symbol: ft_3
+    group: Filters 0-3
+  - symbol: fm_3
+    group: Filters 0-3
+  - symbol: s_3
+    group: Filters 0-3
+  - symbol: xs_3
+    group: Filters 0-3
+  - symbol: xm_3
+    group: Filters 0-3
+  - symbol: f_3
+    group: Filters 0-3
+  - symbol: w_3
+    group: Filters 0-3
+  - symbol: g_3
+    group: Filters 0-3
+  - symbol: q_3
+    group: Filters 0-3
+  - symbol: ft_4
+    group: Filters 4-7
+  - symbol: fm_4
+    group: Filters 4-7
+  - symbol: s_4
+    group: Filters 4-7
+  - symbol: xs_4
+    group: Filters 4-7
+  - symbol: xm_4
+    group: Filters 4-7
+  - symbol: f_4
+    group: Filters 4-7
+  - symbol: w_4
+    group: Filters 4-7
+  - symbol: g_4
+    group: Filters 4-7
+  - symbol: q_4
+    group: Filters 4-7
+  - symbol: ft_5
+    group: Filters 4-7
+  - symbol: fm_5
+    group: Filters 4-7
+  - symbol: s_5
+    group: Filters 4-7
+  - symbol: xs_5
+    group: Filters 4-7
+  - symbol: xm_5
+    group: Filters 4-7
+  - symbol: f_5
+    group: Filters 4-7
+  - symbol: w_5
+    group: Filters 4-7
+  - symbol: g_5
+    group: Filters 4-7
+  - symbol: q_5
+    group: Filters 4-7
+  - symbol: ft_6
+    group: Filters 4-7
+  - symbol: fm_6
+    group: Filters 4-7
+  - symbol: s_6
+    group: Filters 4-7
+  - symbol: xs_6
+    group: Filters 4-7
+  - symbol: xm_6
+    group: Filters 4-7
+  - symbol: f_6
+    group: Filters 4-7
+  - symbol: w_6
+    group: Filters 4-7
+  - symbol: g_6
+    group: Filters 4-7
+  - symbol: q_6
+    group: Filters 4-7
+  - symbol: ft_7
+    group: Filters 4-7
+  - symbol: fm_7
+    group: Filters 4-7
+  - symbol: s_7
+    group: Filters 4-7
+  - symbol: xs_7
+    group: Filters 4-7
+  - symbol: xm_7
+    group: Filters 4-7
+  - symbol: f_7
+    group: Filters 4-7
+  - symbol: w_7
+    group: Filters 4-7
+  - symbol: g_7
+    group: Filters 4-7
+  - symbol: q_7
+    group: Filters 4-7
+  - symbol: ft_8
+    group: Filters 8-11
+  - symbol: fm_8
+    group: Filters 8-11
+  - symbol: s_8
+    group: Filters 8-11
+  - symbol: xs_8
+    group: Filters 8-11
+  - symbol: xm_8
+    group: Filters 8-11
+  - symbol: f_8
+    group: Filters 8-11
+  - symbol: w_8
+    group: Filters 8-11
+  - symbol: g_8
+    group: Filters 8-11
+  - symbol: q_8
+    group: Filters 8-11
+  - symbol: ft_9
+    group: Filters 8-11
+  - symbol: fm_9
+    group: Filters 8-11
+  - symbol: s_9
+    group: Filters 8-11
+  - symbol: xs_9
+    group: Filters 8-11
+  - symbol: xm_9
+    group: Filters 8-11
+  - symbol: f_9
+    group: Filters 8-11
+  - symbol: w_9
+    group: Filters 8-11
+  - symbol: g_9
+    group: Filters 8-11
+  - symbol: q_9
+    group: Filters 8-11
+  - symbol: ft_10
+    group: Filters 8-11
+  - symbol: fm_10
+    group: Filters 8-11
+  - symbol: s_10
+    group: Filters 8-11
+  - symbol: xs_10
+    group: Filters 8-11
+  - symbol: xm_10
+    group: Filters 8-11
+  - symbol: f_10
+    group: Filters 8-11
+  - symbol: w_10
+    group: Filters 8-11
+  - symbol: g_10
+    group: Filters 8-11
+  - symbol: q_10
+    group: Filters 8-11
+  - symbol: ft_11
+    group: Filters 8-11
+  - symbol: fm_11
+    group: Filters 8-11
+  - symbol: s_11
+    group: Filters 8-11
+  - symbol: xs_11
+    group: Filters 8-11
+  - symbol: xm_11
+    group: Filters 8-11
+  - symbol: f_11
+    group: Filters 8-11
+  - symbol: w_11
+    group: Filters 8-11
+  - symbol: g_11
+    group: Filters 8-11
+  - symbol: q_11
+    group: Filters 8-11
+  - symbol: ft_12
+    group: Filters 12-15
+  - symbol: fm_12
+    group: Filters 12-15
+  - symbol: s_12
+    group: Filters 12-15
+  - symbol: xs_12
+    group: Filters 12-15
+  - symbol: xm_12
+    group: Filters 12-15
+  - symbol: f_12
+    group: Filters 12-15
+  - symbol: w_12
+    group: Filters 12-15
+  - symbol: g_12
+    group: Filters 12-15
+  - symbol: q_12
+    group: Filters 12-15
+  - symbol: ft_13
+    group: Filters 12-15
+  - symbol: fm_13
+    group: Filters 12-15
+  - symbol: s_13
+    group: Filters 12-15
+  - symbol: xs_13
+    group: Filters 12-15
+  - symbol: xm_13
+    group: Filters 12-15
+  - symbol: f_13
+    group: Filters 12-15
+  - symbol: w_13
+    group: Filters 12-15
+  - symbol: g_13
+    group: Filters 12-15
+  - symbol: q_13
+    group: Filters 12-15
+  - symbol: ft_14
+    group: Filters 12-15
+  - symbol: fm_14
+    group: Filters 12-15
+  - symbol: s_14
+    group: Filters 12-15
+  - symbol: xs_14
+    group: Filters 12-15
+  - symbol: xm_14
+    group: Filters 12-15
+  - symbol: f_14
+    group: Filters 12-15
+  - symbol: w_14
+    group: Filters 12-15
+  - symbol: g_14
+    group: Filters 12-15
+  - symbol: q_14
+    group: Filters 12-15
+  - symbol: ft_15
+    group: Filters 12-15
+  - symbol: fm_15
+    group: Filters 12-15
+  - symbol: s_15
+    group: Filters 12-15
+  - symbol: xs_15
+    group: Filters 12-15
+  - symbol: xm_15
+    group: Filters 12-15
+  - symbol: f_15
+    group: Filters 12-15
+  - symbol: w_15
+    group: Filters 12-15
+  - symbol: g_15
+    group: Filters 12-15
+  - symbol: q_15
+    group: Filters 12-15
+  - symbol: react
+    group: Display
+  - symbol: shift
+    group: Display
+  - symbol: zoom
+    group: Display
+  - symbol: fsel
+    group: Display
+  - symbol: quant
+    group: Display
+  - symbol: insp_id
+    group: Display
+  - symbol: insp_r
+    group: Display
+  - symbol: insp_on
+    group: Display
+  - symbol: ife_l
+    group: Display
+  - symbol: ofe_l
+    group: Display
+  - symbol: rfe_l
+    group: Display
+  - symbol: ife_r
+    group: Display
+  - symbol: ofe_r
+    group: Display
+  - symbol: rfe_r
+    group: Display
+  - symbol: hue_0
+    group: Display
+  - symbol: hue_1
+    group: Display
+  - symbol: hue_2
+    group: Display
+  - symbol: hue_3
+    group: Display
+  - symbol: hue_4
+    group: Display
+  - symbol: hue_5
+    group: Display
+  - symbol: hue_6
+    group: Display
+  - symbol: hue_7
+    group: Display
+  - symbol: hue_8
+    group: Display
+  - symbol: hue_9
+    group: Display
+  - symbol: hue_10
+    group: Display
+  - symbol: hue_11
+    group: Display
+  - symbol: hue_12
+    group: Display
+  - symbol: hue_13
+    group: Display
+  - symbol: hue_14
+    group: Display
+  - symbol: hue_15
+    group: Display

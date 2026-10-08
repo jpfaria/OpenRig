@@ -44,6 +44,12 @@ The submodules are not cloned by default (`scripts/solver-setup.sh` skips them t
 - tag `plugins-build-N`, `plugins-build-<recipe>-N`, `plugins-build-<platform>-N` or `plugins-build-<platform>-<recipe>-N` → artifacts only;
 - `workflow_dispatch` with a recipe and a platform → artifacts, and the `commit-libs` job commits the binaries back to the dispatched branch under `plugins/source/{lv2,vst3}`.
 
+Writing a recipe:
+
+- A plain-Make upstream has no arch switch of its own, so on macOS call `do_make_universal_macos <src>`: it builds arm64 and x86_64 separately (Homebrew's include dir added, since clang on Apple Silicon does not search it) and lipos each `<name>.so` into `<name>.dylib`. A CMake or Meson recipe gets both arches from `CMAKE_EXTRA` or from `CFLAGS`/`LDFLAGS` at setup instead.
+- An upstream that does not build on a platform returns early there with a message (`build_lsp` is Linux-only); its manifests simply omit that slot.
+- `commit-libs` pushes with a plain `git push`: two dispatches finishing together, or a push to the branch while one runs, reject the second one. Dispatch one recipe at a time and rerun the rejected `commit-libs` job.
+
 ## Platform slots
 
 Slot names in every `manifest.yaml` (`binaries:`) and in the toolchain (`scripts/build-lib.sh`, `build-libs.yml`) must match the `Lv2Slot` enum in `crates/plugin-loader/src/manifest.rs` exactly:

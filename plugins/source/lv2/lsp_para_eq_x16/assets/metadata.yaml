@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: LSP Parametric EQ x16 — sixteen-filter stereo parametric equalizer with IIR, FIR and FFT modes.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
+  pt-BR:
+    description: LSP Parametric EQ x16 — equalizador paramétrico estéreo LSP de dezesseis filtros com modos IIR, FIR e FFT.
+    license: LGPL-3.0
+    homepage: https://lsp-plug.in
