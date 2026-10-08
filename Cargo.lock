@@ -1977,6 +1977,7 @@ dependencies = [
  "hound",
  "infra-yaml",
  "ir",
+ "libc",
  "log",
  "lv2",
  "nam",

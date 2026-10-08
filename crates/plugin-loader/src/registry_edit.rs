@@ -1,8 +1,10 @@
 //! Responsibility: loads or unloads one package while the app runs.
 
+use std::sync::atomic::Ordering;
+
 use crate::discover::{discover, LoadedPackage};
 use crate::manifest::Backend;
-use crate::registry::REGISTRY;
+use crate::registry::{GENERATION, REGISTRY};
 use crate::registry_query::packages;
 
 /// Error returned by [`unload`] / [`load_one`] (#561 expanded scope).
@@ -50,6 +52,7 @@ pub fn unload(id: &str) -> Result<(), CatalogOpError> {
         .cloned()
         .collect();
     *registry = Box::leak(next.into_boxed_slice());
+    GENERATION.fetch_add(1, Ordering::Release);
     Ok(())
 }
 
@@ -105,5 +108,6 @@ pub fn load_one(id: &str, plugins_roots: &[std::path::PathBuf]) -> Result<(), Ca
     let mut next: Vec<LoadedPackage> = current.to_vec();
     next.push(new_entry);
     *registry = Box::leak(next.into_boxed_slice());
+    GENERATION.fetch_add(1, Ordering::Release);
     Ok(())
 }
