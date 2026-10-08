@@ -1,0 +1,6562 @@
+{
+	"Name": "lsp-plugins",
+	"Version": "1.2.35",
+	"Factory Info": {
+		"Vendor": "LSP VST3",
+		"URL": "https://lsp-plug.in/",
+		"E-Mail": "lsp.plugin@gmail.com",
+		"Flags": {
+			"Classes Discardable": false,
+			"Component Non Discardable": false,
+			"Unicode": true
+		}
+	},
+	"Classes": [
+		{
+			"CID": "64737020616270326D2020206162326D",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x2 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616270327320202061623273",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x2 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616270346D2020206162346D",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x4 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616270347320202061623473",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x4 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616270386D2020206162386D",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616270387320202061623873",
+			"Category": "Audio Module Class",
+			"Name": "A/B Tester x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B7631366D20202076786C6C",
+			"Category": "Audio Module Class",
+			"Name": "Artistic Delay Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B763136732020206B626272",
+			"Category": "Audio Module Class",
+			"Name": "Artistic Delay Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206167316D202020206167316D",
+			"Category": "Audio Module Class",
+			"Name": "Autogain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020616731732020202061673173",
+			"Category": "Audio Module Class",
+			"Name": "Autogain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206262316D202020206262316D",
+			"Category": "Audio Module Class",
+			"Name": "Beat Breather Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020626231732020202062623173",
+			"Category": "Audio Module Class",
+			"Name": "Beat Breather Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206368316D202020206368316D",
+			"Category": "Audio Module Class",
+			"Name": "Chorus Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.17",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020636831732020202063683173",
+			"Category": "Audio Module Class",
+			"Name": "Chorus Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.17",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020636C316D20202020636C316D",
+			"Category": "Audio Module Class",
+			"Name": "Clipper Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020636C317320202020636C3173",
+			"Category": "Audio Module Class",
+			"Name": "Clipper Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207661316D202020206A617638",
+			"Category": "Audio Module Class",
+			"Name": "Delay Compensator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020766131732020202071707772",
+			"Category": "Audio Module Class",
+			"Name": "Delay Compensator Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020766132732020202066776433",
+			"Category": "Audio Module Class",
+			"Name": "Delay Compensator x2 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B316C7220202020336E616D",
+			"Category": "Audio Module Class",
+			"Name": "Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B316D202020202062677379",
+			"Category": "Audio Module Class",
+			"Name": "Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B316D73202020206A6A6566",
+			"Category": "Audio Module Class",
+			"Name": "Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B31732020202020756E7363",
+			"Category": "Audio Module Class",
+			"Name": "Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206677386C7220202077766272",
+			"Category": "Audio Module Class",
+			"Name": "Crossover LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206677386D20202020726D6E76",
+			"Category": "Audio Module Class",
+			"Name": "Crossover Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206677386D73202020766C7176",
+			"Category": "Audio Module Class",
+			"Name": "Crossover MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702066773873202020206F6F7162",
+			"Category": "Audio Module Class",
+			"Name": "Crossover Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206473316D202020206473316D",
+			"Category": "Audio Module Class",
+			"Name": "Deesser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020647331732020202064733173",
+			"Category": "Audio Module Class",
+			"Name": "Deesser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206470316C72202020686C3967",
+			"Category": "Audio Module Class",
+			"Name": "Dynamics Processor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206470316D202020206C71706D",
+			"Category": "Audio Module Class",
+			"Name": "Dynamics Processor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206470316D7320202075767267",
+			"Category": "Audio Module Class",
+			"Name": "Dynamics Processor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020647031732020202061617439",
+			"Category": "Audio Module Class",
+			"Name": "Dynamics Processor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702065316C72202020207A767366",
+			"Category": "Audio Module Class",
+			"Name": "Expander LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702065316D202020202074646471",
+			"Category": "Audio Module Class",
+			"Name": "Expander Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702065316D73202020206562686B",
+			"Category": "Audio Module Class",
+			"Name": "Expander MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020653173202020202061753066",
+			"Category": "Audio Module Class",
+			"Name": "Expander Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020666C746D20202020666C746D",
+			"Category": "Audio Module Class",
+			"Name": "Filter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020666C747320202020666C7473",
+			"Category": "Audio Module Class",
+			"Name": "Filter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702066316D20202020206C66316D",
+			"Category": "Audio Module Class",
+			"Name": "Flanger Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702066317320202020206C663173",
+			"Category": "Audio Module Class",
+			"Name": "Flanger Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067316C722020202069636D77",
+			"Category": "Audio Module Class",
+			"Name": "Gate LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067316D202020202075723065",
+			"Category": "Audio Module Class",
+			"Name": "Gate Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067316D73202020207A636931",
+			"Category": "Audio Module Class",
+			"Name": "Gate MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067317320202020207767346F",
+			"Category": "Audio Module Class",
+			"Name": "Gate Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206763316C722020206E67636C",
+			"Category": "Audio Module Class",
+			"Name": "GOTT Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206763316D202020206E67636D",
+			"Category": "Audio Module Class",
+			"Name": "GOTT Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206763316D732020206E67634D",
+			"Category": "Audio Module Class",
+			"Name": "GOTT Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067633173202020206E676373",
+			"Category": "Audio Module Class",
+			"Name": "GOTT Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676531366C7220207A656669",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x16 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676531366D2020207276776B",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676531366D732020776F7973",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x16 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067653136732020206172676C",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676533326C72202030686575",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x32 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676533326D202020766E6361",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x32 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020676533326D7320206B75386A",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x32 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702067653332732020206E767364",
+			"Category": "Audio Module Class",
+			"Name": "Graphic Equalizer x32 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206961316D2020202077767774",
+			"Category": "Audio Module Class",
+			"Name": "Impulse Responses Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206961317320202020316B687A",
+			"Category": "Audio Module Class",
+			"Name": "Impulse Responses Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020696E68316D20202066676771",
+			"Category": "Audio Module Class",
+			"Name": "Impulse Reverb Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020696E6831732020206F397A6A",
+			"Category": "Audio Module Class",
+			"Name": "Impulse Reverb Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206C6D316D2020202061626565",
+			"Category": "Audio Module Class",
+			"Name": "Latency Meter",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702062316D20202020206A7A357A",
+			"Category": "Audio Module Class",
+			"Name": "Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020623173202020202072667563",
+			"Category": "Audio Module Class",
+			"Name": "Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206C6B316D20202020656E6F39",
+			"Category": "Audio Module Class",
+			"Name": "Loudness Compensator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Distortion",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206C6B31732020202077766130",
+			"Category": "Audio Module Class",
+			"Name": "Loudness Compensator Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Distortion",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D71316D202020204D51314D",
+			"Category": "Audio Module Class",
+			"Name": "Matcher Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D713173202020204D513153",
+			"Category": "Audio Module Class",
+			"Name": "Matcher Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D62636C316D2020434C314D",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Clipper Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D62636C31732020434C3153",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Clipper Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626B386C72202030656766",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Compressor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626B386D20202066646975",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Compressor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626B386D73202076686369",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Compressor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626B3873202020676A736E",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Compressor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626470386C72206D647032",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Dynamics Processor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626470386D20206D647030",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Dynamics Processor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626470386D73206D647033",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Dynamics Processor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626470387320206D647031",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Dynamics Processor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6265386C72202062666D6B",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Expander LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6265386D2020206D79676F",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Expander Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6265386D732020756C7465",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Expander MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D62653873202020686F6274",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Expander Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6267386C7220206574616A",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Gate LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6267386D202020626D6868",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Gate Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6267386D73202078396E72",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Gate MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6267387320202079737531",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Gate Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6262316D2020206D626C6D",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D626231732020206D626C73",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6272316D62346D7363316D",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Ring Modulated Sidechain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D6252316D62346D73633173",
+			"Category": "Audio Module Class",
+			"Name": "Multiband Ring Modulated Sidechain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D31366D202020206D31366D",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D313673202020206D313673",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D346D20202020206D30346D",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x4 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D347320202020206D303473",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x4 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D386D20202020206D30386D",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206D387320202020206D303873",
+			"Category": "Audio Module Class",
+			"Name": "Mixer x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A313220202020636C7273",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x12 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A313264202020377A6B6A",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x12 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A3234202020207669736C",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x24 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A32346420202076696D6A",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x24 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A343820202020686E6A34",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x48 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020737A343864202020626C7969",
+			"Category": "Audio Module Class",
+			"Name": "Multi-Sampler x48 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206E673120202020206C6E6730",
+			"Category": "Audio Module Class",
+			"Name": "Noise Generator x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206E673220202020206C6E6731",
+			"Category": "Audio Module Class",
+			"Name": "Noise Generator x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206E673420202020206C6E6732",
+			"Category": "Audio Module Class",
+			"Name": "Noise Generator x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206F316D2020202020736E7471",
+			"Category": "Audio Module Class",
+			"Name": "Oscillator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Generator"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206F3120202020202071626C61",
+			"Category": "Audio Module Class",
+			"Name": "Oscilloscope x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206F3220202020202075627362",
+			"Category": "Audio Module Class",
+			"Name": "Oscilloscope x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206F3420202020202061747669",
+			"Category": "Audio Module Class",
+			"Name": "Oscilloscope x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706531366C722020346B6566",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x16 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706531366D20202064683379",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706531366D7320206F706A73",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x16 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706531367320202061356572",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706533326C722020696C716A",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x32 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706533326D20202069307078",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x32 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706533326D7320206C677A39",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x32 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706533327320202073326E7A",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x32 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207065386C72202020346B6538",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x8 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207065386D2020202064683338",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207065386D732020206F706A38",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x8 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706538732020202061356538",
+			"Category": "Audio Module Class",
+			"Name": "Parametric Equalizer x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702070643120202020206A66667A",
+			"Category": "Audio Module Class",
+			"Name": "Phase Detector",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207068316D202020207068316D",
+			"Category": "Audio Module Class",
+			"Name": "Phaser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.10",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020706831732020202070683173",
+			"Category": "Audio Module Class",
+			"Name": "Phaser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.10",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Modulation",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702070316D202020202068777263",
+			"Category": "Audio Module Class",
+			"Name": "Profiler Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020703173202020202068756277",
+			"Category": "Audio Module Class",
+			"Name": "Profiler Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207266316D202020207266316D",
+			"Category": "Audio Module Class",
+			"Name": "Referencer Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.12",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020726631732020202072663173",
+			"Category": "Audio Module Class",
+			"Name": "Referencer Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.12",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207230316D202020207230316D",
+			"Category": "Audio Module Class",
+			"Name": "Return Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020723031732020202072303173",
+			"Category": "Audio Module Class",
+			"Name": "Return Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020726D316D2020726D7363316D",
+			"Category": "Audio Module Class",
+			"Name": "Ring Modulated Sidechain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020726D31732020726D73633173",
+			"Category": "Audio Module Class",
+			"Name": "Ring Modulated Sidechain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207262316D2020202063716272",
+			"Category": "Audio Module Class",
+			"Name": "Room Builder Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702072623173202020206D707268",
+			"Category": "Audio Module Class",
+			"Name": "Room Builder Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Reverb",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B7A316D2020202063613472",
+			"Category": "Audio Module Class",
+			"Name": "Sampler Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370206B7A3173202020206B6A7733",
+			"Category": "Audio Module Class",
+			"Name": "Sampler Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Instrument",
+				"Instrument",
+				"Sampler",
+				"Instrument",
+				"Drum",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636167316D20206167314D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Autogain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736361673173202061673153",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Autogain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636B316C722020666F7767",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636B316D2020206C796A71",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636B316D732020696F7167",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636B317320202035787A69",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636473316D20204453316D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Deesser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736364733173202044533173",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Deesser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636470316C722073786D69",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Dynamics Processor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636470316D202061706B78",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Dynamics Processor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636470316D732066636A39",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Dynamics Processor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736364703173202066716E65",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Dynamics Processor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736365316C722020706E7677",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Expander LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736365316D2020207574756C",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Expander Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736365316D7320207A633064",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Expander MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636531732020206C777176",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Expander Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736367316C722020666D786F",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Gate LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736367316D2020206E6E7A32",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Gate Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736367316D7320206C366C63",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Gate MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207363673173202020666F7367",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Gate Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636763316C72207367636C",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain GOTT Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636763316D20207367636D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain GOTT Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636763316D73207367634D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain GOTT Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736367633173202073676373",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain GOTT Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736362316D2020206B797A75",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636231732020207A776637",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D71316D20204D51734D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Matcher Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D71317320204D517353",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Matcher Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"EQ",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626B386C726B767865",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Compressor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626B386D207676306D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Compressor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626B386D73686A6470",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Compressor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626B3873207A71726E",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Compressor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626470386C6D647036",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Dynamics Processor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626470386D6D647034",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Dynamics Processor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626470386D6D647037",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Dynamics Processor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D62647038736D647035",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Dynamics Processor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6265386C726B786476",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Expander LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6265386D20737A6B66",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Expander Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6265386D73776B6765",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Expander MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626538732066307172",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Expander Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6267386C726668666B",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Gate LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6267386D206D687A38",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Gate Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6267386D73756B7A73",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Gate MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D626738732072766A61",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Gate Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D6262316D206D626C4D",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073636D62623173206D626C53",
+			"Category": "Audio Module Class",
+			"Name": "Sidechain Multiband Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207330316D202020207330316D",
+			"Category": "Audio Module Class",
+			"Name": "Send Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020733031732020202073303173",
+			"Category": "Audio Module Class",
+			"Name": "Send Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Tools",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736431366D20202067743064",
+			"Category": "Audio Module Class",
+			"Name": "Slapback Delay Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073643136732020203078786A",
+			"Category": "Audio Module Class",
+			"Name": "Slapback Delay Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Delay",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073613120202020207174657A",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207361313220202020746A336C",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x12",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702073613136202020206E757A69",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x16",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736132202020202061773772",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207361342020202020787A676F",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736138202020202065356862",
+			"Category": "Audio Module Class",
+			"Name": "Spectrum Analyzer x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Analyzer"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207366316D2020202066656C69",
+			"Category": "Audio Module Class",
+			"Name": "Surge Filter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "64737020736631732020202063726A66",
+			"Category": "Audio Module Class",
+			"Name": "Surge Filter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702074736D316D2020207434797A",
+			"Category": "Audio Module Class",
+			"Name": "Trigger MIDI Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702074736D317320202039637166",
+			"Category": "Audio Module Class",
+			"Name": "Trigger MIDI Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "647370207473316D202020207A676876",
+			"Category": "Audio Module Class",
+			"Name": "Trigger Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Mono"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "6473702074733173202020207A696B61",
+			"Category": "Audio Module Class",
+			"Name": "Trigger Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Sub Categories": [
+				"Fx",
+				"Dynamics",
+				"Stereo"
+			],
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270326D2020206162326D",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x2 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270327320202061623273",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x2 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270346D2020206162346D",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x4 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270347320202061623473",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x4 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270386D2020206162386D",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616270387320202061623873",
+			"Category": "Component Controller Class",
+			"Name": "A/B Tester x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B7631366D20202076786C6C",
+			"Category": "Component Controller Class",
+			"Name": "Artistic Delay Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B763136732020206B626272",
+			"Category": "Component Controller Class",
+			"Name": "Artistic Delay Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206167316D202020206167316D",
+			"Category": "Component Controller Class",
+			"Name": "Autogain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020616731732020202061673173",
+			"Category": "Component Controller Class",
+			"Name": "Autogain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206262316D202020206262316D",
+			"Category": "Component Controller Class",
+			"Name": "Beat Breather Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020626231732020202062623173",
+			"Category": "Component Controller Class",
+			"Name": "Beat Breather Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206368316D202020206368316D",
+			"Category": "Component Controller Class",
+			"Name": "Chorus Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.17",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020636831732020202063683173",
+			"Category": "Component Controller Class",
+			"Name": "Chorus Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.17",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020636C316D20202020636C316D",
+			"Category": "Component Controller Class",
+			"Name": "Clipper Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020636C317320202020636C3173",
+			"Category": "Component Controller Class",
+			"Name": "Clipper Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207661316D202020206A617638",
+			"Category": "Component Controller Class",
+			"Name": "Delay Compensator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020766131732020202071707772",
+			"Category": "Component Controller Class",
+			"Name": "Delay Compensator Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020766132732020202066776433",
+			"Category": "Component Controller Class",
+			"Name": "Delay Compensator x2 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B316C7220202020336E616D",
+			"Category": "Component Controller Class",
+			"Name": "Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B316D202020202062677379",
+			"Category": "Component Controller Class",
+			"Name": "Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B316D73202020206A6A6566",
+			"Category": "Component Controller Class",
+			"Name": "Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B31732020202020756E7363",
+			"Category": "Component Controller Class",
+			"Name": "Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206677386C7220202077766272",
+			"Category": "Component Controller Class",
+			"Name": "Crossover LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206677386D20202020726D6E76",
+			"Category": "Component Controller Class",
+			"Name": "Crossover Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206677386D73202020766C7176",
+			"Category": "Component Controller Class",
+			"Name": "Crossover MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202066773873202020206F6F7162",
+			"Category": "Component Controller Class",
+			"Name": "Crossover Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206473316D202020206473316D",
+			"Category": "Component Controller Class",
+			"Name": "Deesser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020647331732020202064733173",
+			"Category": "Component Controller Class",
+			"Name": "Deesser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206470316C72202020686C3967",
+			"Category": "Component Controller Class",
+			"Name": "Dynamics Processor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206470316D202020206C71706D",
+			"Category": "Component Controller Class",
+			"Name": "Dynamics Processor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206470316D7320202075767267",
+			"Category": "Component Controller Class",
+			"Name": "Dynamics Processor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020647031732020202061617439",
+			"Category": "Component Controller Class",
+			"Name": "Dynamics Processor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202065316C72202020207A767366",
+			"Category": "Component Controller Class",
+			"Name": "Expander LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202065316D202020202074646471",
+			"Category": "Component Controller Class",
+			"Name": "Expander Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202065316D73202020206562686B",
+			"Category": "Component Controller Class",
+			"Name": "Expander MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020653173202020202061753066",
+			"Category": "Component Controller Class",
+			"Name": "Expander Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020666C746D20202020666C746D",
+			"Category": "Component Controller Class",
+			"Name": "Filter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020666C747320202020666C7473",
+			"Category": "Component Controller Class",
+			"Name": "Filter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202066316D20202020206C66316D",
+			"Category": "Component Controller Class",
+			"Name": "Flanger Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202066317320202020206C663173",
+			"Category": "Component Controller Class",
+			"Name": "Flanger Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067316C722020202069636D77",
+			"Category": "Component Controller Class",
+			"Name": "Gate LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067316D202020202075723065",
+			"Category": "Component Controller Class",
+			"Name": "Gate Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067316D73202020207A636931",
+			"Category": "Component Controller Class",
+			"Name": "Gate MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067317320202020207767346F",
+			"Category": "Component Controller Class",
+			"Name": "Gate Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206763316C722020206E67636C",
+			"Category": "Component Controller Class",
+			"Name": "GOTT Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206763316D202020206E67636D",
+			"Category": "Component Controller Class",
+			"Name": "GOTT Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206763316D732020206E67634D",
+			"Category": "Component Controller Class",
+			"Name": "GOTT Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067633173202020206E676373",
+			"Category": "Component Controller Class",
+			"Name": "GOTT Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676531366C7220207A656669",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x16 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676531366D2020207276776B",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676531366D732020776F7973",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x16 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067653136732020206172676C",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676533326C72202030686575",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x32 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676533326D202020766E6361",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x32 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020676533326D7320206B75386A",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x32 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202067653332732020206E767364",
+			"Category": "Component Controller Class",
+			"Name": "Graphic Equalizer x32 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206961316D2020202077767774",
+			"Category": "Component Controller Class",
+			"Name": "Impulse Responses Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206961317320202020316B687A",
+			"Category": "Component Controller Class",
+			"Name": "Impulse Responses Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020696E68316D20202066676771",
+			"Category": "Component Controller Class",
+			"Name": "Impulse Reverb Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020696E6831732020206F397A6A",
+			"Category": "Component Controller Class",
+			"Name": "Impulse Reverb Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206C6D316D2020202061626565",
+			"Category": "Component Controller Class",
+			"Name": "Latency Meter",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202062316D20202020206A7A357A",
+			"Category": "Component Controller Class",
+			"Name": "Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020623173202020202072667563",
+			"Category": "Component Controller Class",
+			"Name": "Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206C6B316D20202020656E6F39",
+			"Category": "Component Controller Class",
+			"Name": "Loudness Compensator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206C6B31732020202077766130",
+			"Category": "Component Controller Class",
+			"Name": "Loudness Compensator Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D71316D202020204D51314D",
+			"Category": "Component Controller Class",
+			"Name": "Matcher Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D713173202020204D513153",
+			"Category": "Component Controller Class",
+			"Name": "Matcher Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D62636C316D2020434C314D",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Clipper Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D62636C31732020434C3153",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Clipper Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.19",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626B386C72202030656766",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Compressor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626B386D20202066646975",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Compressor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626B386D73202076686369",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Compressor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626B3873202020676A736E",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Compressor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626470386C72206D647032",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Dynamics Processor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626470386D20206D647030",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Dynamics Processor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626470386D73206D647033",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Dynamics Processor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626470387320206D647031",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Dynamics Processor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6265386C72202062666D6B",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Expander LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6265386D2020206D79676F",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Expander Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6265386D732020756C7465",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Expander MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D62653873202020686F6274",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Expander Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6267386C7220206574616A",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Gate LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6267386D202020626D6868",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Gate Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6267386D73202078396E72",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Gate MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6267387320202079737531",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Gate Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6262316D2020206D626C6D",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D626231732020206D626C73",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6272316D62346D7363316D",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Ring Modulated Sidechain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D6252316D62346D73633173",
+			"Category": "Component Controller Class",
+			"Name": "Multiband Ring Modulated Sidechain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D31366D202020206D31366D",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D313673202020206D313673",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D346D20202020206D30346D",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x4 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D347320202020206D303473",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x4 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D386D20202020206D30386D",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206D387320202020206D303873",
+			"Category": "Component Controller Class",
+			"Name": "Mixer x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.27",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A313220202020636C7273",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x12 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A313264202020377A6B6A",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x12 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A3234202020207669736C",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x24 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A32346420202076696D6A",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x24 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A343820202020686E6A34",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x48 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020737A343864202020626C7969",
+			"Category": "Component Controller Class",
+			"Name": "Multi-Sampler x48 DirectOut",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206E673120202020206C6E6730",
+			"Category": "Component Controller Class",
+			"Name": "Noise Generator x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206E673220202020206C6E6731",
+			"Category": "Component Controller Class",
+			"Name": "Noise Generator x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206E673420202020206C6E6732",
+			"Category": "Component Controller Class",
+			"Name": "Noise Generator x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.30",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206F316D2020202020736E7471",
+			"Category": "Component Controller Class",
+			"Name": "Oscillator Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206F3120202020202071626C61",
+			"Category": "Component Controller Class",
+			"Name": "Oscilloscope x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206F3220202020202075627362",
+			"Category": "Component Controller Class",
+			"Name": "Oscilloscope x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206F3420202020202061747669",
+			"Category": "Component Controller Class",
+			"Name": "Oscilloscope x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706531366C722020346B6566",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x16 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706531366D20202064683379",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x16 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706531366D7320206F706A73",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x16 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706531367320202061356572",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x16 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706533326C722020696C716A",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x32 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706533326D20202069307078",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x32 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706533326D7320206C677A39",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x32 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706533327320202073326E7A",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x32 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207065386C72202020346B6538",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x8 LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207065386D2020202064683338",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x8 Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207065386D732020206F706A38",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x8 MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706538732020202061356538",
+			"Category": "Component Controller Class",
+			"Name": "Parametric Equalizer x8 Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202070643120202020206A66667A",
+			"Category": "Component Controller Class",
+			"Name": "Phase Detector",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207068316D202020207068316D",
+			"Category": "Component Controller Class",
+			"Name": "Phaser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.10",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020706831732020202070683173",
+			"Category": "Component Controller Class",
+			"Name": "Phaser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.10",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202070316D202020202068777263",
+			"Category": "Component Controller Class",
+			"Name": "Profiler Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020703173202020202068756277",
+			"Category": "Component Controller Class",
+			"Name": "Profiler Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207266316D202020207266316D",
+			"Category": "Component Controller Class",
+			"Name": "Referencer Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.12",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020726631732020202072663173",
+			"Category": "Component Controller Class",
+			"Name": "Referencer Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.12",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202072303173202020207230316D",
+			"Category": "Component Controller Class",
+			"Name": "Return Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020723031732020202072303173",
+			"Category": "Component Controller Class",
+			"Name": "Return Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020726D316D2020726D7363316D",
+			"Category": "Component Controller Class",
+			"Name": "Ring Modulated Sidechain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020726D31732020726D73633173",
+			"Category": "Component Controller Class",
+			"Name": "Ring Modulated Sidechain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.8",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207262316D2020202063716272",
+			"Category": "Component Controller Class",
+			"Name": "Room Builder Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202072623173202020206D707268",
+			"Category": "Component Controller Class",
+			"Name": "Room Builder Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B7A316D2020202063613472",
+			"Category": "Component Controller Class",
+			"Name": "Sampler Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920206B7A3173202020206B6A7733",
+			"Category": "Component Controller Class",
+			"Name": "Sampler Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636167316D20206167314D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Autogain Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736361673173202061673153",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Autogain Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.21",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636B316C722020666F7767",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636B316D2020206C796A71",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636B316D732020696F7167",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636B317320202035787A69",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.40",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636473316D20204453316D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Deesser Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736364733173202044533173",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Deesser Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.1",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636470316C722073786D69",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Dynamics Processor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636470316D202061706B78",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Dynamics Processor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636470316D732066636A39",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Dynamics Processor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736364703173202066716E65",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Dynamics Processor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736365316C722020706E7677",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Expander LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736365316D2020207574756C",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Expander Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736365316D7320207A633064",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Expander MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636531732020206C777176",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Expander Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736367316C722020666D786F",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Gate LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736367316D2020206E6E7A32",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Gate Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736367316D7320206C366C63",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Gate MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207363673173202020666F7367",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Gate Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.39",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636763316C72207367636C",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain GOTT Compressor LeftRight",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636763316D20207367636D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain GOTT Compressor Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636763316D73207367634D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain GOTT Compressor MidSide",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736367633173202073676373",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain GOTT Compressor Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736362316D2020206B797A75",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636231732020207A776637",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D71316D20204D51734D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Matcher Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D71317320204D517353",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Matcher Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.6",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626B386C726B767865",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Compressor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626B386D207676306D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Compressor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626B386D73686A6470",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Compressor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626B3873207A71726E",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Compressor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626470386C6D647036",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Dynamics Processor LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626470386D6D647034",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Dynamics Processor Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626470386D6D647037",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Dynamics Processor MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D62647038736D647035",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Dynamics Processor Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.32",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6265386C726B786476",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Expander LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6265386D20737A6B66",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Expander Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6265386D73776B6765",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Expander MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626538732066307172",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Expander Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6267386C726668666B",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Gate LeftRight x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6267386D206D687A38",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Gate Mono x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6267386D73756B7A73",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Gate MidSide x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D626738732072766A61",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Gate Stereo x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D6262316D206D626C4D",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Limiter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073636D62623173206D626C53",
+			"Category": "Component Controller Class",
+			"Name": "Sidechain Multiband Limiter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.24",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207330316D202020207330316D",
+			"Category": "Component Controller Class",
+			"Name": "Send Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020733031732020202073303173",
+			"Category": "Component Controller Class",
+			"Name": "Send Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.14",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736431366D20202067743064",
+			"Category": "Component Controller Class",
+			"Name": "Slapback Delay Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073643136732020203078786A",
+			"Category": "Component Controller Class",
+			"Name": "Slapback Delay Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.36",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073613120202020207174657A",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x1",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207361313220202020746A336C",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x12",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202073613136202020206E757A69",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x16",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736132202020202061773772",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x2",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207361342020202020787A676F",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x4",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736138202020202065356862",
+			"Category": "Component Controller Class",
+			"Name": "Spectrum Analyzer x8",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.41",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207366316D2020202066656C69",
+			"Category": "Component Controller Class",
+			"Name": "Surge Filter Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "75692020736631732020202063726A66",
+			"Category": "Component Controller Class",
+			"Name": "Surge Filter Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.35",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202074736D316D2020207434797A",
+			"Category": "Component Controller Class",
+			"Name": "Trigger MIDI Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202074736D317320202039637166",
+			"Category": "Component Controller Class",
+			"Name": "Trigger MIDI Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "756920207473316D202020207A676876",
+			"Category": "Component Controller Class",
+			"Name": "Trigger Mono",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		},
+		{
+			"CID": "7569202074733173202020207A696B61",
+			"Category": "Component Controller Class",
+			"Name": "Trigger Stereo",
+			"Vendor": "LSP VST3",
+			"Version": "1.0.37",
+			"SDKVersion": "VST 3.8.0",
+			"Class Flags": 1,
+			"Cardinality": 2147483647,
+			"Snapshots": []
+		}
+	],
+	"Compatibility": [
+		{
+			"New": "64737020616270326D2020206162326D",
+			"Old": [
+				"56535461623200612F62207465737465"
+			]
+		},
+		{
+			"New": "64737020616270327320202061623273",
+			"Old": [
+				"56535461623200612F62207465737465"
+			]
+		},
+		{
+			"New": "64737020616270346D2020206162346D",
+			"Old": [
+				"56535461623400612F62207465737465"
+			]
+		},
+		{
+			"New": "64737020616270347320202061623473",
+			"Old": [
+				"56535461623400612F62207465737465"
+			]
+		},
+		{
+			"New": "64737020616270386D2020206162386D",
+			"Old": [
+				"56535461623800612F62207465737465"
+			]
+		},
+		{
+			"New": "64737020616270387320202061623873",
+			"Old": [
+				"56535461623800612F62207465737465"
+			]
+		},
+		{
+			"New": "647370206B7631366D20202076786C6C",
+			"Old": [
+				"56535476786C00617274697374696320"
+			]
+		},
+		{
+			"New": "647370206B763136732020206B626272",
+			"Old": [
+				"5653546B626200617274697374696320"
+			]
+		},
+		{
+			"New": "647370206167316D202020206167316D",
+			"Old": [
+				"565354616731006175746F6761696E20"
+			]
+		},
+		{
+			"New": "64737020616731732020202061673173",
+			"Old": [
+				"565354616731006175746F6761696E20"
+			]
+		},
+		{
+			"New": "647370206262316D202020206262316D",
+			"Old": [
+				"56535462623100626561742062726561"
+			]
+		},
+		{
+			"New": "64737020626231732020202062623173",
+			"Old": [
+				"56535462623100626561742062726561"
+			]
+		},
+		{
+			"New": "647370206368316D202020206368316D",
+			"Old": [
+				"5653546368310063686F727573206D6F"
+			]
+		},
+		{
+			"New": "64737020636831732020202063683173",
+			"Old": [
+				"5653546368310063686F727573207374"
+			]
+		},
+		{
+			"New": "64737020636C316D20202020636C316D",
+			"Old": [
+				"565354636C3100636C6970706572206D"
+			]
+		},
+		{
+			"New": "64737020636C317320202020636C3173",
+			"Old": [
+				"565354636C3100636C69707065722073"
+			]
+		},
+		{
+			"New": "647370207661316D202020206A617638",
+			"Old": [
+				"5653546A61760064656C617920636F6D"
+			]
+		},
+		{
+			"New": "64737020766131732020202071707772",
+			"Old": [
+				"5653547170770064656C617920636F6D"
+			]
+		},
+		{
+			"New": "64737020766132732020202066776433",
+			"Old": [
+				"5653546677640064656C617920636F6D"
+			]
+		},
+		{
+			"New": "647370206B316C7220202020336E616D",
+			"Old": [
+				"565354336E6100636F6D70726573736F"
+			]
+		},
+		{
+			"New": "647370206B316D202020202062677379",
+			"Old": [
+				"56535462677300636F6D70726573736F"
+			]
+		},
+		{
+			"New": "647370206B316D73202020206A6A6566",
+			"Old": [
+				"5653546A6A6500636F6D70726573736F"
+			]
+		},
+		{
+			"New": "647370206B31732020202020756E7363",
+			"Old": [
+				"565354756E7300636F6D70726573736F"
+			]
+		},
+		{
+			"New": "647370206677386C7220202077766272",
+			"Old": [
+				"5653547776620063726F73736F766572"
+			]
+		},
+		{
+			"New": "647370206677386D20202020726D6E76",
+			"Old": [
+				"565354726D6E0063726F73736F766572"
+			]
+		},
+		{
+			"New": "647370206677386D73202020766C7176",
+			"Old": [
+				"565354766C710063726F73736F766572"
+			]
+		},
+		{
+			"New": "6473702066773873202020206F6F7162",
+			"Old": [
+				"5653546F6F710063726F73736F766572"
+			]
+		},
+		{
+			"New": "647370206473316D202020206473316D",
+			"Old": [
+				"56535464733100646573736572206D6F"
+			]
+		},
+		{
+			"New": "64737020647331732020202064733173",
+			"Old": [
+				"56535464733100646565737365722073"
+			]
+		},
+		{
+			"New": "647370206470316C72202020686C3967",
+			"Old": [
+				"565354686C390064796E616D69637320"
+			]
+		},
+		{
+			"New": "647370206470316D202020206C71706D",
+			"Old": [
+				"5653546C71700064796E616D69637320"
+			]
+		},
+		{
+			"New": "647370206470316D7320202075767267",
+			"Old": [
+				"5653547576720064796E616D69637320"
+			]
+		},
+		{
+			"New": "64737020647031732020202061617439",
+			"Old": [
+				"5653546161740064796E616D69637320"
+			]
+		},
+		{
+			"New": "6473702065316C72202020207A767366",
+			"Old": [
+				"5653547A767300657870616E64657220"
+			]
+		},
+		{
+			"New": "6473702065316D202020202074646471",
+			"Old": [
+				"56535474646400657870616E64657220"
+			]
+		},
+		{
+			"New": "6473702065316D73202020206562686B",
+			"Old": [
+				"56535465626800657870616E64657220"
+			]
+		},
+		{
+			"New": "64737020653173202020202061753066",
+			"Old": [
+				"56535461753000657870616E64657220"
+			]
+		},
+		{
+			"New": "64737020666C746D20202020666C746D",
+			"Old": [
+				"565354666C740066696C746572206D6F"
+			]
+		},
+		{
+			"New": "64737020666C747320202020666C7473",
+			"Old": [
+				"565354666C740066696C746572207374"
+			]
+		},
+		{
+			"New": "6473702066316D20202020206C66316D",
+			"Old": [
+				"5653546C663100666C616E676572206D"
+			]
+		},
+		{
+			"New": "6473702066317320202020206C663173",
+			"Old": [
+				"5653546C663100666C616E6765722073"
+			]
+		},
+		{
+			"New": "6473702067316C722020202069636D77",
+			"Old": [
+				"56535469636D0067617465206C2F7200"
+			]
+		},
+		{
+			"New": "6473702067316D202020202075723065",
+			"Old": [
+				"5653547572300067617465206D6F6E6F"
+			]
+		},
+		{
+			"New": "6473702067316D73202020207A636931",
+			"Old": [
+				"5653547A63690067617465206D2F7300"
+			]
+		},
+		{
+			"New": "6473702067317320202020207767346F",
+			"Old": [
+				"56535477673400676174652073746572"
+			]
+		},
+		{
+			"New": "647370206763316C722020206E67636C",
+			"Old": [
+				"5653546E676300676F747420636F6D70"
+			]
+		},
+		{
+			"New": "647370206763316D202020206E67636D",
+			"Old": [
+				"5653546E676300676F747420636F6D70"
+			]
+		},
+		{
+			"New": "647370206763316D732020206E67634D",
+			"Old": [
+				"5653546E676300676F747420636F6D70"
+			]
+		},
+		{
+			"New": "6473702067633173202020206E676373",
+			"Old": [
+				"5653546E676300676F747420636F6D70"
+			]
+		},
+		{
+			"New": "64737020676531366C7220207A656669",
+			"Old": [
+				"5653547A656600677261706869632065"
+			]
+		},
+		{
+			"New": "64737020676531366D2020207276776B",
+			"Old": [
+				"56535472767700677261706869632065"
+			]
+		},
+		{
+			"New": "64737020676531366D732020776F7973",
+			"Old": [
+				"565354776F7900677261706869632065"
+			]
+		},
+		{
+			"New": "6473702067653136732020206172676C",
+			"Old": [
+				"56535461726700677261706869632065"
+			]
+		},
+		{
+			"New": "64737020676533326C72202030686575",
+			"Old": [
+				"56535430686500677261706869632065"
+			]
+		},
+		{
+			"New": "64737020676533326D202020766E6361",
+			"Old": [
+				"565354766E6300677261706869632065"
+			]
+		},
+		{
+			"New": "64737020676533326D7320206B75386A",
+			"Old": [
+				"5653546B753800677261706869632065"
+			]
+		},
+		{
+			"New": "6473702067653332732020206E767364",
+			"Old": [
+				"5653546E767300677261706869632065"
+			]
+		},
+		{
+			"New": "647370206961316D2020202077767774",
+			"Old": [
+				"56535477767700696D70756C73652072"
+			]
+		},
+		{
+			"New": "647370206961317320202020316B687A",
+			"Old": [
+				"565354316B6800696D70756C73652072"
+			]
+		},
+		{
+			"New": "64737020696E68316D20202066676771",
+			"Old": [
+				"56535466676700696D70756C73652072"
+			]
+		},
+		{
+			"New": "64737020696E6831732020206F397A6A",
+			"Old": [
+				"5653546F397A00696D70756C73652072"
+			]
+		},
+		{
+			"New": "647370206C6D316D2020202061626565",
+			"Old": [
+				"565354616265006C6174656E6379206D"
+			]
+		},
+		{
+			"New": "6473702062316D20202020206A7A357A",
+			"Old": [
+				"5653546A7A35006C696D69746572206D"
+			]
+		},
+		{
+			"New": "64737020623173202020202072667563",
+			"Old": [
+				"565354726675006C696D697465722073"
+			]
+		},
+		{
+			"New": "647370206C6B316D20202020656E6F39",
+			"Old": [
+				"565354656E6F006C6F75646E65737320"
+			]
+		},
+		{
+			"New": "647370206C6B31732020202077766130",
+			"Old": [
+				"565354777661006C6F75646E65737320"
+			]
+		},
+		{
+			"New": "647370206D71316D202020204D51314D",
+			"Old": [
+				"5653544D5131006D617463686572206D"
+			]
+		},
+		{
+			"New": "647370206D713173202020204D513153",
+			"Old": [
+				"5653544D5131006D6174636865722073"
+			]
+		},
+		{
+			"New": "647370206D62636C316D2020434C314D",
+			"Old": [
+				"565354434C31006D6220636C69707065"
+			]
+		},
+		{
+			"New": "647370206D62636C31732020434C3153",
+			"Old": [
+				"565354434C31006D6220636C69707065"
+			]
+		},
+		{
+			"New": "647370206D626B386C72202030656766",
+			"Old": [
+				"565354306567006D6220636F6D707265"
+			]
+		},
+		{
+			"New": "647370206D626B386D20202066646975",
+			"Old": [
+				"565354666469006D6220636F6D707265"
+			]
+		},
+		{
+			"New": "647370206D626B386D73202076686369",
+			"Old": [
+				"565354766863006D6220636F6D707265"
+			]
+		},
+		{
+			"New": "647370206D626B3873202020676A736E",
+			"Old": [
+				"565354676A73006D6220636F6D707265"
+			]
+		},
+		{
+			"New": "647370206D626470386C72206D647032",
+			"Old": [
+				"5653546D6470006D622064796E616D69"
+			]
+		},
+		{
+			"New": "647370206D626470386D20206D647030",
+			"Old": [
+				"5653546D6470006D622064796E616D69"
+			]
+		},
+		{
+			"New": "647370206D626470386D73206D647033",
+			"Old": [
+				"5653546D6470006D622064796E616D69"
+			]
+		},
+		{
+			"New": "647370206D626470387320206D647031",
+			"Old": [
+				"5653546D6470006D622064796E616D69"
+			]
+		},
+		{
+			"New": "647370206D6265386C72202062666D6B",
+			"Old": [
+				"56535462666D006D6220657870616E64"
+			]
+		},
+		{
+			"New": "647370206D6265386D2020206D79676F",
+			"Old": [
+				"5653546D7967006D6220657870616E64"
+			]
+		},
+		{
+			"New": "647370206D6265386D732020756C7465",
+			"Old": [
+				"565354756C74006D6220657870616E64"
+			]
+		},
+		{
+			"New": "647370206D62653873202020686F6274",
+			"Old": [
+				"565354686F62006D6220657870616E64"
+			]
+		},
+		{
+			"New": "647370206D6267386C7220206574616A",
+			"Old": [
+				"565354657461006D622067617465206C"
+			]
+		},
+		{
+			"New": "647370206D6267386D202020626D6868",
+			"Old": [
+				"565354626D68006D622067617465206D"
+			]
+		},
+		{
+			"New": "647370206D6267386D73202078396E72",
+			"Old": [
+				"56535478396E006D622067617465206D"
+			]
+		},
+		{
+			"New": "647370206D6267387320202079737531",
+			"Old": [
+				"565354797375006D6220676174652073"
+			]
+		},
+		{
+			"New": "647370206D6262316D2020206D626C6D",
+			"Old": [
+				"5653546D626C006D62206C696D697465"
+			]
+		},
+		{
+			"New": "647370206D626231732020206D626C73",
+			"Old": [
+				"5653546D626C006D62206C696D697465"
+			]
+		},
+		{
+			"New": "647370206D6272316D62346D7363316D",
+			"Old": [
+				"5653546D6272006D622072696E67206D"
+			]
+		},
+		{
+			"New": "647370206D6252316D62346D73633173",
+			"Old": [
+				"5653546D6252006D622072696E67206D"
+			]
+		},
+		{
+			"New": "647370206D31366D202020206D31366D",
+			"Old": [
+				"5653546D3136006D6978657220783136"
+			]
+		},
+		{
+			"New": "647370206D313673202020206D313673",
+			"Old": [
+				"5653546D3136006D6978657220783136"
+			]
+		},
+		{
+			"New": "647370206D346D20202020206D30346D",
+			"Old": [
+				"5653546D3034006D6978657220783420"
+			]
+		},
+		{
+			"New": "647370206D347320202020206D303473",
+			"Old": [
+				"5653546D3034006D6978657220783420"
+			]
+		},
+		{
+			"New": "647370206D386D20202020206D30386D",
+			"Old": [
+				"5653546D3038006D6978657220783820"
+			]
+		},
+		{
+			"New": "647370206D387320202020206D303873",
+			"Old": [
+				"5653546D3038006D6978657220783820"
+			]
+		},
+		{
+			"New": "64737020737A313220202020636C7273",
+			"Old": [
+				"565354636C72006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "64737020737A313264202020377A6B6A",
+			"Old": [
+				"565354377A6B006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "64737020737A3234202020207669736C",
+			"Old": [
+				"565354766973006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "64737020737A32346420202076696D6A",
+			"Old": [
+				"56535476696D006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "64737020737A343820202020686E6A34",
+			"Old": [
+				"565354686E6A006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "64737020737A343864202020626C7969",
+			"Old": [
+				"565354626C79006D756C74692D73616D"
+			]
+		},
+		{
+			"New": "647370206E673120202020206C6E6730",
+			"Old": [
+				"5653546C6E67006E6F6973652067656E"
+			]
+		},
+		{
+			"New": "647370206E673220202020206C6E6731",
+			"Old": [
+				"5653546C6E67006E6F6973652067656E"
+			]
+		},
+		{
+			"New": "647370206E673420202020206C6E6732",
+			"Old": [
+				"5653546C6E67006E6F6973652067656E"
+			]
+		},
+		{
+			"New": "647370206F316D2020202020736E7471",
+			"Old": [
+				"565354736E74006F7363696C6C61746F"
+			]
+		},
+		{
+			"New": "647370206F3120202020202071626C61",
+			"Old": [
+				"56535471626C006F7363696C6C6F7363"
+			]
+		},
+		{
+			"New": "647370206F3220202020202075627362",
+			"Old": [
+				"565354756273006F7363696C6C6F7363"
+			]
+		},
+		{
+			"New": "647370206F3420202020202061747669",
+			"Old": [
+				"565354617476006F7363696C6C6F7363"
+			]
+		},
+		{
+			"New": "64737020706531366C722020346B6566",
+			"Old": [
+				"565354346B6500706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706531366D20202064683379",
+			"Old": [
+				"56535464683300706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706531366D7320206F706A73",
+			"Old": [
+				"5653546F706A00706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706531367320202061356572",
+			"Old": [
+				"56535461356500706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706533326C722020696C716A",
+			"Old": [
+				"565354696C7100706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706533326D20202069307078",
+			"Old": [
+				"56535469307000706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706533326D7320206C677A39",
+			"Old": [
+				"5653546C677A00706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706533327320202073326E7A",
+			"Old": [
+				"56535473326E00706172616D65747269"
+			]
+		},
+		{
+			"New": "647370207065386C72202020346B6538",
+			"Old": [
+				"565354346B6500706172616D65747269"
+			]
+		},
+		{
+			"New": "647370207065386D2020202064683338",
+			"Old": [
+				"56535464683300706172616D65747269"
+			]
+		},
+		{
+			"New": "647370207065386D732020206F706A38",
+			"Old": [
+				"5653546F706A00706172616D65747269"
+			]
+		},
+		{
+			"New": "64737020706538732020202061356538",
+			"Old": [
+				"56535461356500706172616D65747269"
+			]
+		},
+		{
+			"New": "6473702070643120202020206A66667A",
+			"Old": [
+				"5653546A666600706861736520646574"
+			]
+		},
+		{
+			"New": "647370207068316D202020207068316D",
+			"Old": [
+				"56535470683100706861736572206D6F"
+			]
+		},
+		{
+			"New": "64737020706831732020202070683173",
+			"Old": [
+				"56535470683100706861736572207374"
+			]
+		},
+		{
+			"New": "6473702070316D202020202068777263",
+			"Old": [
+				"5653546877720070726F66696C657220"
+			]
+		},
+		{
+			"New": "64737020703173202020202068756277",
+			"Old": [
+				"5653546875620070726F66696C657220"
+			]
+		},
+		{
+			"New": "647370207266316D202020207266316D",
+			"Old": [
+				"565354726631007265666572656E6365"
+			]
+		},
+		{
+			"New": "64737020726631732020202072663173",
+			"Old": [
+				"565354726631007265666572656E6365"
+			]
+		},
+		{
+			"New": "647370207230316D202020207230316D",
+			"Old": [
+				"5653547230310072657475726E206D6F"
+			]
+		},
+		{
+			"New": "64737020723031732020202072303173",
+			"Old": [
+				"5653547230310072657475726E207374"
+			]
+		},
+		{
+			"New": "64737020726D316D2020726D7363316D",
+			"Old": [
+				"565354726D310072696E67206D6F6475"
+			]
+		},
+		{
+			"New": "64737020726D31732020726D73633173",
+			"Old": [
+				"565354726D310072696E67206D6F6475"
+			]
+		},
+		{
+			"New": "647370207262316D2020202063716272",
+			"Old": [
+				"56535463716200726F6F6D206275696C"
+			]
+		},
+		{
+			"New": "6473702072623173202020206D707268",
+			"Old": [
+				"5653546D707200726F6F6D206275696C"
+			]
+		},
+		{
+			"New": "647370206B7A316D2020202063613472",
+			"Old": [
+				"5653546361340073616D706C6572206D"
+			]
+		},
+		{
+			"New": "647370206B7A3173202020206B6A7733",
+			"Old": [
+				"5653546B6A770073616D706C65722073"
+			]
+		},
+		{
+			"New": "6473702073636167316D20206167314D",
+			"Old": [
+				"5653546167310073696465636861696E"
+			]
+		},
+		{
+			"New": "64737020736361673173202061673153",
+			"Old": [
+				"5653546167310073696465636861696E"
+			]
+		},
+		{
+			"New": "6473702073636B316C722020666F7767",
+			"Old": [
+				"565354666F7700736320636F6D707265"
+			]
+		},
+		{
+			"New": "6473702073636B316D2020206C796A71",
+			"Old": [
+				"5653546C796A00736320636F6D707265"
+			]
+		},
+		{
+			"New": "6473702073636B316D732020696F7167",
+			"Old": [
+				"565354696F7100736320636F6D707265"
+			]
+		},
+		{
+			"New": "6473702073636B317320202035787A69",
+			"Old": [
+				"56535435787A00736320636F6D707265"
+			]
+		},
+		{
+			"New": "6473702073636473316D20204453316D",
+			"Old": [
+				"56535444533100736320646573736572"
+			]
+		},
+		{
+			"New": "64737020736364733173202044533173",
+			"Old": [
+				"56535444533100736320646565737365"
+			]
+		},
+		{
+			"New": "6473702073636470316C722073786D69",
+			"Old": [
+				"56535473786D0073632064796E616D69"
+			]
+		},
+		{
+			"New": "6473702073636470316D202061706B78",
+			"Old": [
+				"56535461706B0073632064796E616D69"
+			]
+		},
+		{
+			"New": "6473702073636470316D732066636A39",
+			"Old": [
+				"56535466636A0073632064796E616D69"
+			]
+		},
+		{
+			"New": "64737020736364703173202066716E65",
+			"Old": [
+				"56535466716E0073632064796E616D69"
+			]
+		},
+		{
+			"New": "64737020736365316C722020706E7677",
+			"Old": [
+				"565354706E7600736320657870616E64"
+			]
+		},
+		{
+			"New": "64737020736365316D2020207574756C",
+			"Old": [
+				"56535475747500736320657870616E64"
+			]
+		},
+		{
+			"New": "64737020736365316D7320207A633064",
+			"Old": [
+				"5653547A633000736320657870616E64"
+			]
+		},
+		{
+			"New": "6473702073636531732020206C777176",
+			"Old": [
+				"5653546C777100736320657870616E64"
+			]
+		},
+		{
+			"New": "64737020736367316C722020666D786F",
+			"Old": [
+				"565354666D780073632067617465206C"
+			]
+		},
+		{
+			"New": "64737020736367316D2020206E6E7A32",
+			"Old": [
+				"5653546E6E7A0073632067617465206D"
+			]
+		},
+		{
+			"New": "64737020736367316D7320206C366C63",
+			"Old": [
+				"5653546C366C0073632067617465206D"
+			]
+		},
+		{
+			"New": "647370207363673173202020666F7367",
+			"Old": [
+				"565354666F7300736320676174652073"
+			]
+		},
+		{
+			"New": "6473702073636763316C72207367636C",
+			"Old": [
+				"56535473676300736320676F74742063"
+			]
+		},
+		{
+			"New": "6473702073636763316D20207367636D",
+			"Old": [
+				"56535473676300736320676F74742063"
+			]
+		},
+		{
+			"New": "6473702073636763316D73207367634D",
+			"Old": [
+				"56535473676300736320676F74742063"
+			]
+		},
+		{
+			"New": "64737020736367633173202073676373",
+			"Old": [
+				"56535473676300736320676F74742063"
+			]
+		},
+		{
+			"New": "64737020736362316D2020206B797A75",
+			"Old": [
+				"5653546B797A007363206C696D697465"
+			]
+		},
+		{
+			"New": "6473702073636231732020207A776637",
+			"Old": [
+				"5653547A7766007363206C696D697465"
+			]
+		},
+		{
+			"New": "6473702073636D71316D20204D51734D",
+			"Old": [
+				"5653544D51730073696465636861696E"
+			]
+		},
+		{
+			"New": "6473702073636D71317320204D517353",
+			"Old": [
+				"5653544D51730073696465636861696E"
+			]
+		},
+		{
+			"New": "6473702073636D626B386C726B767865",
+			"Old": [
+				"5653546B7678007363206D6220636F6D"
+			]
+		},
+		{
+			"New": "6473702073636D626B386D207676306D",
+			"Old": [
+				"565354767630007363206D6220636F6D"
+			]
+		},
+		{
+			"New": "6473702073636D626B386D73686A6470",
+			"Old": [
+				"565354686A64007363206D6220636F6D"
+			]
+		},
+		{
+			"New": "6473702073636D626B3873207A71726E",
+			"Old": [
+				"5653547A7172007363206D6220636F6D"
+			]
+		},
+		{
+			"New": "6473702073636D626470386C6D647036",
+			"Old": [
+				"5653546D6470007363206D622064796E"
+			]
+		},
+		{
+			"New": "6473702073636D626470386D6D647034",
+			"Old": [
+				"5653546D6470007363206D622064796E"
+			]
+		},
+		{
+			"New": "6473702073636D626470386D6D647037",
+			"Old": [
+				"5653546D6470007363206D622064796E"
+			]
+		},
+		{
+			"New": "6473702073636D62647038736D647035",
+			"Old": [
+				"5653546D6470007363206D622064796E"
+			]
+		},
+		{
+			"New": "6473702073636D6265386C726B786476",
+			"Old": [
+				"5653546B7864007363206D6220657870"
+			]
+		},
+		{
+			"New": "6473702073636D6265386D20737A6B66",
+			"Old": [
+				"565354737A6B007363206D6220657870"
+			]
+		},
+		{
+			"New": "6473702073636D6265386D73776B6765",
+			"Old": [
+				"565354776B67007363206D6220657870"
+			]
+		},
+		{
+			"New": "6473702073636D626538732066307172",
+			"Old": [
+				"565354663071007363206D6220657870"
+			]
+		},
+		{
+			"New": "6473702073636D6267386C726668666B",
+			"Old": [
+				"565354666866007363206D6220676174"
+			]
+		},
+		{
+			"New": "6473702073636D6267386D206D687A38",
+			"Old": [
+				"5653546D687A007363206D6220676174"
+			]
+		},
+		{
+			"New": "6473702073636D6267386D73756B7A73",
+			"Old": [
+				"565354756B7A007363206D6220676174"
+			]
+		},
+		{
+			"New": "6473702073636D626738732072766A61",
+			"Old": [
+				"56535472766A007363206D6220676174"
+			]
+		},
+		{
+			"New": "6473702073636D6262316D206D626C4D",
+			"Old": [
+				"5653546D626C007363206D62206C696D"
+			]
+		},
+		{
+			"New": "6473702073636D62623173206D626C53",
+			"Old": [
+				"5653546D626C007363206D62206C696D"
+			]
+		},
+		{
+			"New": "647370207330316D202020207330316D",
+			"Old": [
+				"5653547330310073656E64206D6F6E6F"
+			]
+		},
+		{
+			"New": "64737020733031732020202073303173",
+			"Old": [
+				"5653547330310073656E642073746572"
+			]
+		},
+		{
+			"New": "64737020736431366D20202067743064",
+			"Old": [
+				"56535467743000736C61706261636B20"
+			]
+		},
+		{
+			"New": "6473702073643136732020203078786A",
+			"Old": [
+				"56535430787800736C61706261636B20"
+			]
+		},
+		{
+			"New": "6473702073613120202020207174657A",
+			"Old": [
+				"56535471746500737065637472756D20"
+			]
+		},
+		{
+			"New": "647370207361313220202020746A336C",
+			"Old": [
+				"565354746A3300737065637472756D20"
+			]
+		},
+		{
+			"New": "6473702073613136202020206E757A69",
+			"Old": [
+				"5653546E757A00737065637472756D20"
+			]
+		},
+		{
+			"New": "64737020736132202020202061773772",
+			"Old": [
+				"56535461773700737065637472756D20"
+			]
+		},
+		{
+			"New": "647370207361342020202020787A676F",
+			"Old": [
+				"565354787A6700737065637472756D20"
+			]
+		},
+		{
+			"New": "64737020736138202020202065356862",
+			"Old": [
+				"56535465356800737065637472756D20"
+			]
+		},
+		{
+			"New": "647370207366316D2020202066656C69",
+			"Old": [
+				"56535466656C0073757267652066696C"
+			]
+		},
+		{
+			"New": "64737020736631732020202063726A66",
+			"Old": [
+				"56535463726A0073757267652066696C"
+			]
+		},
+		{
+			"New": "6473702074736D316D2020207434797A",
+			"Old": [
+				"5653547434790074726967676572206D"
+			]
+		},
+		{
+			"New": "6473702074736D317320202039637166",
+			"Old": [
+				"5653543963710074726967676572206D"
+			]
+		},
+		{
+			"New": "647370207473316D202020207A676876",
+			"Old": [
+				"5653547A67680074726967676572206D"
+			]
+		},
+		{
+			"New": "6473702074733173202020207A696B61",
+			"Old": [
+				"5653547A696B00747269676765722073"
+			]
+		}
+	]
+}
