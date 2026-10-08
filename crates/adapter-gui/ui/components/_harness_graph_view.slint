@@ -132,3 +132,30 @@ export component SplitYChain inherits Window {
         ];
     }
 }
+
+// #1103: IN → OUTPUT (mid-chain, named by its device) → INPUT (mid-chain,
+// bypassed) → DRIVE → OUT. The mid-chain ports draw the chain's own jack.
+export component MidChainPorts inherits Window {
+    width: 900px;
+    height: 420px;
+    background: #0a0d12;
+    default-font-family: "Bebas Neue";
+
+    GraphView {
+        width: 100%;
+        height: 100%;
+        nodes: [
+            { id: "in", kind: "io_input", label: "IN 1", category: "input", fill: #1e8aff, border: #1359a5, layout_x: 80px, layout_y: 200px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+            { id: "mo", kind: "block", label: "Quantum HD 8 · Out 1/2", category: "other", fill: #00000000, border: #00000000, layout_x: 240px, layout_y: 200px, block: { type_label: "OUTPUT", icon_kind: "output", accent_color: #ff8a1e, display_name: "" } },
+            { id: "mi", kind: "block", label: "Quantum HD 8 · In 3", category: "other", fill: #00000000, border: #00000000, layout_x: 400px, layout_y: 200px, bypass: true, block: { type_label: "INPUT", icon_kind: "input", accent_color: #1e8aff, display_name: "" } },
+            { id: "od", kind: "block", label: "OD", category: "drive", fill: #00000000, border: #00000000, layout_x: 560px, layout_y: 200px, block: { type_label: "DRIVE", icon_kind: "gain", accent_color: #d04a3a, display_name: "Tube Screamer" } },
+            { id: "out", kind: "io_output", label: "OUT 1-2", category: "output", fill: #ff8a1e, border: #a55913, layout_x: 720px, layout_y: 200px, block: { type_label: "", icon_kind: "", accent_color: #000000, display_name: "" } },
+        ];
+        edges: [
+            { from_id: "in", to_id: "mo", from_x: 80px, from_y: 200px, to_x: 240px, to_y: 200px },
+            { from_id: "mo", to_id: "mi", from_x: 240px, from_y: 200px, to_x: 400px, to_y: 200px },
+            { from_id: "mi", to_id: "od", from_x: 400px, from_y: 200px, to_x: 560px, to_y: 200px },
+            { from_id: "od", to_id: "out", from_x: 560px, from_y: 200px, to_x: 720px, to_y: 200px },
+        ];
+    }
+}
