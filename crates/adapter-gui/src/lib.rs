@@ -202,6 +202,7 @@ mod split_picker_entries;
 mod stepped_input_mark;
 mod stepped_input_system_log;
 mod stepped_input_tick;
+mod stepped_input_timer;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;
