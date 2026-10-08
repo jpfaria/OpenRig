@@ -11,3 +11,4 @@ plugin_uri: http://invadarecords.com/plugins/lv2/compressor/stereo
 binaries:
   macos-universal: platform/macos-universal/inv_compressor.dylib
   linux-x86_64: platform/linux-x86_64/inv_compressor.so
+  linux-aarch64: platform/linux-aarch64/inv_compressor.so

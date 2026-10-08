@@ -11,3 +11,4 @@ plugin_uri: http://invadarecords.com/plugins/lv2/erreverb/sum
 binaries:
   macos-universal: platform/macos-universal/inv_erreverb.dylib
   linux-x86_64: platform/linux-x86_64/inv_erreverb.so
+  linux-aarch64: platform/linux-aarch64/inv_erreverb.so

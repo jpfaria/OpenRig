@@ -13,3 +13,4 @@ plugin_uri: http://invadarecords.com/plugins/lv2/tube/mono
 binaries:
   macos-universal: platform/macos-universal/inv_tube.dylib
   linux-x86_64: platform/linux-x86_64/inv_tube.so
+  linux-aarch64: platform/linux-aarch64/inv_tube.so
