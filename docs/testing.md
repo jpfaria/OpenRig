@@ -424,6 +424,16 @@ guard: the UI may not name the backend".
 cargo test -p adapter-gui --lib no_infra_cpal
 ```
 
+## Native quality battery
+
+`crates/engine/tests/native_quality_battery.rs` (#1106) renders every native model offline at 48 kHz, built the way the engine builds it, and measures: level change, THD+N and DC on a 1 kHz tone at -18 dBFS, non-harmonic energy (aliasing) on a 5 kHz tone at -6 dBFS, self-noise, tail decay, the peak at every one-knob extreme, all knobs at max, and the level at 44.1 and 96 kHz. A panic or a non-finite sample in any of these is a failure of the model.
+
+The measurements live in `crates/engine/tests/native_quality/`. It runs in a few seconds as part of the engine tests. To print the per-model table (plus CPU cost per model):
+
+```bash
+NATIVE_QUALITY_REPORT=1 scripts/cargo-locked.sh test -p engine --test native_quality_battery -- --nocapture
+```
+
 ## Real-plugin VST3 battery
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on

@@ -150,6 +150,9 @@ impl MonoProcessor for TapeProcessor {
         }
 
         let read_pos = (self.wow_write as f32 - wow_offset_samples - 1.0).rem_euclid(len as f32);
+        // rem_euclid can round a tiny negative offset up to exactly `len`,
+        // which is the same position as 0.
+        let read_pos = if read_pos >= len as f32 { 0.0 } else { read_pos };
         let i0 = read_pos as usize;
         let i1 = (i0 + 1) % len;
         let frac = read_pos - i0 as f32;

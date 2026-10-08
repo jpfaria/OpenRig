@@ -97,3 +97,16 @@ fn wow_at_zero_does_not_modulate() {
         assert!(p.process_sample(s).is_finite());
     }
 }
+
+#[test]
+fn wow_read_never_indexes_past_the_buffer_at_48k() {
+    // #1106: `rem_euclid(len)` on a tiny negative read offset rounds to
+    // exactly `len` in f32, so the wow read indexed one past the buffer
+    // and panicked on the audio thread within seconds at default knobs.
+    let sr = 48_000.0_f32;
+    let mut p = TapeProcessor::new(defaults(), sr);
+    for i in 0..(sr as usize * 12) {
+        let s = (std::f32::consts::TAU * 1_000.0 * i as f32 / sr).sin() * 0.125;
+        assert!(p.process_sample(s).is_finite());
+    }
+}
