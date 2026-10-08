@@ -1,0 +1,14 @@
+manifest_version: 1
+id: lv2_calf_compressor
+display_name: Calf Compressor
+description: Calf Compressor — stereo RMS/peak compressor with soft knee and stereo link.
+brand: calf
+license: LGPL-2.1
+homepage: https://calf-studio-gear.org
+type: dyn
+backend: lv2
+plugin_uri: http://calf.sourceforge.net/plugins/Compressor
+binaries:
+  macos-universal: platform/macos-universal/calf.dylib
+  linux-x86_64: platform/linux-x86_64/calf.so
+  linux-aarch64: platform/linux-aarch64/calf.so

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Calf Equalizer 8 Band — HP/LP filters, two shelves and four parametric bands.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org
+  pt-BR:
+    description: Calf Equalizer 8 Band — filtros HP/LP, dois shelves e quatro bandas paramétricas.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Calf Deesser — split or wide sibilance reducer with sidechain listen.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org
+  pt-BR:
+    description: Calf Deesser — redutor de sibilância split ou wide com escuta do sidechain.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org

@@ -285,6 +285,7 @@ PLUGINS=(
     distrho
     airwindows
     lsp
+    calf
 )
 
 # Map plugin name to build function
@@ -304,6 +305,7 @@ dispatch() {
         invada-studio)    build_invada_studio ;;
         airwindows)       build_airwindows ;;
         lsp)              build_lsp ;;
+        calf)             build_calf ;;
         wolf-shaper)      build_wolf_shaper ;;
         artyfx)           build_artyfx ;;
         sooperlooper)     build_sooperlooper ;;

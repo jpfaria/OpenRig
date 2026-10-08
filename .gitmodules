@@ -182,3 +182,6 @@
 [submodule "deps/lsp-plugins"]
 	path = deps/lsp-plugins
 	url = https://github.com/lsp-plugins/lsp-plugins.git
+[submodule "deps/calf"]
+	path = deps/calf
+	url = https://github.com/calf-studio-gear/calf.git

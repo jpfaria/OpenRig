@@ -209,3 +209,7 @@ lsp_para_eq_x16	lsp
 lsp_graph_eq_x16	lsp
 lsp_limiter	lsp
 lsp_deesser	lsp
+calf_compressor	calf
+calf_mb_compressor	calf
+calf_deesser	calf
+calf_eq8	calf

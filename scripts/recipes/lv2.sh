@@ -338,3 +338,45 @@ build_lsp() {
     LAST_BUILD_DIR="$src/.build"
     collect_libs "$src/.build" "lsp-plugins-lv2"
 }
+
+build_calf() {
+    # Calf Studio Gear (LGPL-2.1+): the LV2 DSP library only (no GUI, JACK or
+    # LASH). Calf links FluidSynth for its Vinyl module, which OpenRig does not
+    # ship; a no-op static FluidSynth (calf-fluidsynth-stub/) satisfies that link
+    # so the binary never depends on a FluidSynth the user may not have. The
+    # TTLs come from calfmakerdf and live in each package's data/, so CI builds
+    # the `calf` target alone. No Windows slot.
+    if [ -n "${MINGW_TARGET:-}" ]; then
+        echo "calf: no Windows slot; skipping"
+        return 0
+    fi
+    local src="$DEPS_DIR/calf"
+    local stub_src="$RECIPES_DIR/calf-fluidsynth-stub"
+    local stub="$BUILD_WORK_DIR/calf-fluidsynth-stub"
+    local build_dir="$BUILD_WORK_DIR/calf"
+    local inc="$stub_src" archs="" a
+    rm -rf "$stub" "$build_dir"
+    mkdir -p "$stub"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        for a in arm64 x86_64; do
+            cc -arch "$a" -mmacosx-version-min=11.0 -O2 -c "$stub_src/fluidsynth_stub.c" -o "$stub/stub_$a.o"
+        done
+        libtool -static -o "$stub/libfluidsynth.a" "$stub"/stub_*.o
+        archs="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0"
+        inc="$inc:$(brew --prefix)/include"
+    else
+        "${CC:-cc}" -O2 -fPIC -c "$stub_src/fluidsynth_stub.c" -o "$stub/stub.o"
+        ar rcs "$stub/libfluidsynth.a" "$stub/stub.o"
+    fi
+    # shellcheck disable=SC2086
+    LIBRARY_PATH="$stub" CPLUS_INCLUDE_PATH="$inc" cmake -S "$src" -B "$build_dir" \
+        -DCMAKE_BUILD_TYPE=Release -DWANT_GUI=OFF -DWANT_JACK=OFF -DWANT_LASH=OFF \
+        -DWANT_LV2_GUI=OFF -DWANT_SORDI=OFF $archs
+    LIBRARY_PATH="$stub" CPLUS_INCLUDE_PATH="$inc" cmake --build "$build_dir" --target calf -j "$JOBS"
+    local lib="$build_dir/src/libcalf.$LIB_EXT"
+    if { otool -L "$lib" 2>/dev/null || readelf -d "$lib"; } | grep -qi fluidsynth; then
+        echo "calf: $lib still links a shared FluidSynth" >&2
+        return 1
+    fi
+    cp "$lib" "$OUTPUT_DIR/calf.$LIB_EXT"
+}

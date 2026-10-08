@@ -48,6 +48,7 @@ Writing a recipe:
 
 - A plain-Make upstream has no arch switch of its own, so on macOS call `do_make_universal_macos <src>`: it builds arm64 and x86_64 separately (Homebrew's include dir added, since clang on Apple Silicon does not search it) and lipos each `<name>.so` into `<name>.dylib`. A CMake or Meson recipe gets both arches from `CMAKE_EXTRA` or from `CFLAGS`/`LDFLAGS` at setup instead.
 - An upstream that does not build on a platform returns early there with a message (`build_lsp` is Linux-only); its manifests simply omit that slot.
+- A shipped binary links only system libraries. When an upstream links a library just for a module OpenRig does not ship, link a no-op static stand-in instead of the real one (`build_calf` builds `scripts/recipes/calf-fluidsynth-stub/` into `libfluidsynth.a` for Calf's Vinyl) and make the recipe fail if `otool -L`/`readelf -d` still lists it.
 - `commit-libs` pushes with a plain `git push`: two dispatches finishing together, or a push to the branch while one runs, reject the second one. Dispatch one recipe at a time and rerun the rejected `commit-libs` job.
 
 ## Platform slots

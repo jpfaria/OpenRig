@@ -1,0 +1,106 @@
+manifest_version: 1
+id: lv2_calf_mb_compressor
+display_name: Calf Multiband Compressor
+description: Calf Multiband Compressor — four-band stereo compressor with adjustable crossovers.
+brand: calf
+license: LGPL-2.1
+homepage: https://calf-studio-gear.org
+type: dyn
+backend: lv2
+plugin_uri: http://calf.sourceforge.net/plugins/MultibandCompressor
+binaries:
+  macos-universal: platform/macos-universal/calf.dylib
+  linux-x86_64: platform/linux-x86_64/calf.so
+  linux-aarch64: platform/linux-aarch64/calf.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's notebook page selector.
+parameters:
+  - symbol: bypass
+    group: Global
+  - symbol: level_in
+    group: Global
+  - symbol: level_out
+    group: Global
+  - symbol: freq0
+    group: Global
+  - symbol: freq1
+    group: Global
+  - symbol: freq2
+    group: Global
+  - symbol: mode
+    group: Global
+  - symbol: threshold0
+    group: Band 1
+  - symbol: ratio0
+    group: Band 1
+  - symbol: attack0
+    group: Band 1
+  - symbol: release0
+    group: Band 1
+  - symbol: makeup0
+    group: Band 1
+  - symbol: knee0
+    group: Band 1
+  - symbol: detection0
+    group: Band 1
+  - symbol: bypass0
+    group: Band 1
+  - symbol: solo0
+    group: Band 1
+  - symbol: threshold1
+    group: Band 2
+  - symbol: ratio1
+    group: Band 2
+  - symbol: attack1
+    group: Band 2
+  - symbol: release1
+    group: Band 2
+  - symbol: makeup1
+    group: Band 2
+  - symbol: knee1
+    group: Band 2
+  - symbol: detection1
+    group: Band 2
+  - symbol: bypass1
+    group: Band 2
+  - symbol: solo1
+    group: Band 2
+  - symbol: threshold2
+    group: Band 3
+  - symbol: ratio2
+    group: Band 3
+  - symbol: attack2
+    group: Band 3
+  - symbol: release2
+    group: Band 3
+  - symbol: makeup2
+    group: Band 3
+  - symbol: knee2
+    group: Band 3
+  - symbol: detection2
+    group: Band 3
+  - symbol: bypass2
+    group: Band 3
+  - symbol: solo2
+    group: Band 3
+  - symbol: threshold3
+    group: Band 4
+  - symbol: ratio3
+    group: Band 4
+  - symbol: attack3
+    group: Band 4
+  - symbol: release3
+    group: Band 4
+  - symbol: makeup3
+    group: Band 4
+  - symbol: knee3
+    group: Band 4
+  - symbol: detection3
+    group: Band 4
+  - symbol: bypass3
+    group: Band 4
+  - symbol: solo3
+    group: Band 4
+  - symbol: notebook
+    group: Display

@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Calf Compressor — stereo RMS/peak compressor with soft knee and stereo link.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org
+  pt-BR:
+    description: Calf Compressor — compressor estéreo RMS/pico com joelho suave e stereo link.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org

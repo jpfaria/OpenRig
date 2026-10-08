@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: Calf Multiband Compressor — four-band stereo compressor with adjustable crossovers.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org
+  pt-BR:
+    description: Calf Multiband Compressor — compressor estéreo de quatro bandas com crossovers ajustáveis.
+    license: LGPL-2.1
+    homepage: https://calf-studio-gear.org

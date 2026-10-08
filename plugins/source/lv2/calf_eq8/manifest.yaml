@@ -1,0 +1,96 @@
+manifest_version: 1
+id: lv2_calf_eq8
+display_name: Calf Equalizer 8 Band
+description: Calf Equalizer 8 Band — HP/LP filters, two shelves and four parametric bands.
+brand: calf
+license: LGPL-2.1
+homepage: https://calf-studio-gear.org
+type: filter
+backend: lv2
+plugin_uri: http://calf.sourceforge.net/plugins/Equalizer8Band
+binaries:
+  macos-universal: platform/macos-universal/calf.dylib
+  linux-x86_64: platform/linux-x86_64/calf.so
+  linux-aarch64: platform/linux-aarch64/calf.so
+# Parameter tabs for the block editor (issue #119). Keyed by the port's
+# lv2:symbol; the live TTL stays the source of truth for which ports exist and
+# for their names. Display holds the plugin GUI's zoom and analyzer toggles.
+parameters:
+  - symbol: bypass
+    group: Global
+  - symbol: level_in
+    group: Global
+  - symbol: level_out
+    group: Global
+  - symbol: individuals
+    group: Global
+  - symbol: hp_active
+    group: High-pass
+  - symbol: hp_freq
+    group: High-pass
+  - symbol: hp_mode
+    group: High-pass
+  - symbol: hp_q
+    group: High-pass
+  - symbol: lp_active
+    group: Low-pass
+  - symbol: lp_freq
+    group: Low-pass
+  - symbol: lp_mode
+    group: Low-pass
+  - symbol: lp_q
+    group: Low-pass
+  - symbol: ls_active
+    group: Shelves
+  - symbol: ls_level
+    group: Shelves
+  - symbol: ls_freq
+    group: Shelves
+  - symbol: ls_q
+    group: Shelves
+  - symbol: hs_active
+    group: Shelves
+  - symbol: hs_level
+    group: Shelves
+  - symbol: hs_freq
+    group: Shelves
+  - symbol: hs_q
+    group: Shelves
+  - symbol: p1_active
+    group: Peak 1
+  - symbol: p1_level
+    group: Peak 1
+  - symbol: p1_freq
+    group: Peak 1
+  - symbol: p1_q
+    group: Peak 1
+  - symbol: p2_active
+    group: Peak 2
+  - symbol: p2_level
+    group: Peak 2
+  - symbol: p2_freq
+    group: Peak 2
+  - symbol: p2_q
+    group: Peak 2
+  - symbol: p3_active
+    group: Peak 3
+  - symbol: p3_level
+    group: Peak 3
+  - symbol: p3_freq
+    group: Peak 3
+  - symbol: p3_q
+    group: Peak 3
+  - symbol: p4_active
+    group: Peak 4
+  - symbol: p4_level
+    group: Peak 4
+  - symbol: p4_freq
+    group: Peak 4
+  - symbol: p4_q
+    group: Peak 4
+  - symbol: zoom
+    group: Display
+  - symbol: analyzer
+    group: Display
+  - symbol: analyzer_mode
+    group: Display
