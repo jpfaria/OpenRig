@@ -226,6 +226,7 @@ build_lsp() {
 # to the bundle name; on macOS `bundle-universal` lipo-merges both arches.
 
 _xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), rest=packages; sets XTASK_BUNDLED
+    # XTASK_PREP (optional): shell command run in the copied workspace before the build.
     local src="$1" dir="$BUILD_WORK_DIR/rust-$(basename "$1")" tc="$2"
     shift 2
     rm -rf "$dir" && mkdir -p "$BUILD_WORK_DIR" && cp -R "$src" "$dir"
@@ -233,6 +234,7 @@ _xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), 
     local cargo=(cargo) pkgs=() p
     [ -n "$tc" ] && { rustup toolchain install "$tc" --profile minimal; cargo=(cargo "+$tc"); }
     for p in "$@"; do pkgs+=(-p "$p"); done
+    [ -n "${XTASK_PREP:-}" ] && (cd "$dir" && eval "$XTASK_PREP")
     if [ "$(uname -s)" = "Darwin" ]; then
         (cd "$dir" && rustup target add ${tc:+--toolchain "$tc"} x86_64-apple-darwin aarch64-apple-darwin)
         (cd "$dir" && MACOSX_DEPLOYMENT_TARGET=11.0 "${cargo[@]}" run --package xtask --release -- bundle-universal "${pkgs[@]}" --release)
@@ -244,9 +246,13 @@ _xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), 
 build_nihplug() {
     # nih-plug example plugins (GPL-3 as VST3): Soft Vacuum, Spectral Compressor,
     # Safety Limiter, Crossover. Crossover's default `simd` feature needs nightly,
-    # so the whole set is built with nightly.
+    # so the whole set is built with nightly. Spectral Compressor turns on
+    # nih_plug's `standalone` feature, which feature unification spreads to all
+    # four and which links Homebrew's libjack on macOS (the plugins then fail to
+    # load on a Mac without JACK): it is dropped, the VST3 never uses it.
     _skip_windows && return 0
     local n
+    XTASK_PREP="perl -pi -e 's/, \"standalone\"\\]/]/' plugins/spectral_compressor/Cargo.toml" \
     _xtask_bundle "$DEPS_DIR/nih-plug" nightly soft_vacuum spectral_compressor safety_limiter crossover
     for n in "Soft Vacuum" "Spectral Compressor" "Safety Limiter" "Crossover"; do
         collect_bundle "$XTASK_BUNDLED" "$n.vst3"
