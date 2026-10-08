@@ -27,9 +27,12 @@ cargo build --release --target aarch64-apple-darwin -p adapter-gui $CONSOLE_BUIL
 echo "==> Building x86_64..."
 cargo build --release --target x86_64-apple-darwin -p adapter-gui $CONSOLE_BUILD_FLAGS
 
-# ── 3. Generate .icns from OpenRig logo SVG ───────────────────────────────────
-echo "==> Generating icon from openrig-logomark.svg..."
-SVG="crates/adapter-gui/ui/assets/openrig-logomark.svg"
+# ── 3. Generate .icns from the OpenRig app icon ──────────────────────────────
+# Source is the 1024px raster rendered from openrig-logomark.svg: sips cannot
+# rasterize the SVG (gradients/filters come out broken and off-centre, #1098),
+# but it resizes a PNG cleanly.
+echo "==> Generating icon from assets/brands/openrig/icon.png..."
+SRC="assets/brands/openrig/icon.png"
 mkdir -p assets/brands/openrig
 TMP_ICONSET=$(mktemp -d)/openrig.iconset
 mkdir -p "$TMP_ICONSET"
@@ -38,12 +41,12 @@ mkdir -p "$TMP_ICONSET"
 # @1x sizes: 16, 32, 128, 256, 512
 # @2x sizes: 32, 64, 256, 512, 1024 (named as @2x of the @1x size)
 for SIZE in 16 32 128 256 512; do
-    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SVG" \
+    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SRC" \
         --out "$TMP_ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
 done
 for SIZE in 32 64 256 512 1024; do
     HALF=$((SIZE / 2))
-    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SVG" \
+    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SRC" \
         --out "$TMP_ICONSET/icon_${HALF}x${HALF}@2x.png" >/dev/null
 done
 
