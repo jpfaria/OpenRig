@@ -48,6 +48,8 @@ signalsmith-stretch = "0.1.3"
 
 [dev-dependencies]
 hound = "3.5"
+# Thread CPU time, to prove a waiting worker does not spin.
+libc = "0.2"
 domain = { path = "../domain" }
 nam = { path = "../nam" }
 ir = { path = "../ir" }

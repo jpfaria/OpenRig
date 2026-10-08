@@ -2,12 +2,19 @@
 
 use crate::discover::LoadedPackage;
 use crate::manifest::{Backend, BlockType};
-use crate::registry::REGISTRY;
+use std::sync::atomic::Ordering;
+
+use crate::registry::{GENERATION, REGISTRY};
 
 /// Every plugin currently registered (natives + disk packages). Empty
 /// until [`init`] / [`init_many`] / [`reload`] runs.
 pub fn packages() -> &'static [LoadedPackage] {
     *REGISTRY.read().expect("REGISTRY poisoned")
+}
+
+/// The catalog's generation: it moves every time the catalog changes.
+pub fn generation() -> u64 {
+    GENERATION.load(Ordering::Acquire)
 }
 
 /// Plugins whose manifest declares `block_type`. Returned in registration

@@ -6,12 +6,15 @@
 //! build, parked between callbacks, that runs its path while the split's own
 //! worker runs the first path. The worker waits for every lane before it
 //! mixes, so a lane only ever touches its path while the worker is inside
-//! `run_paths` — the handshake is two atomic stores, no lock, no allocation.
+//! `run_paths`. The handshake is atomic, with no lock and no allocation; a
+//! parked thread is woken with `Thread::unpark`, the one syscall the audio
+//! path allows, so an idle lane and a waiting worker use no CPU.
 
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::thread::Thread;
+use std::time::{Duration, Instant};
 
 use crate::runtime_audio_frame::AudioFrame;
 use crate::runtime_split::align::AlignDelay;
@@ -25,9 +28,9 @@ const IDLE: u8 = 0;
 const READY: u8 = 1;
 const DONE: u8 = 2;
 
-/// How long an idle lane sleeps between looks: far under one buffer, and it
-/// yields the core instead of spinning on it.
-const IDLE_NAP: Duration = Duration::from_micros(50);
+/// How long the worker spins for a lane before it parks: the paths of a
+/// split usually end together, and a park costs a wake-up.
+const SPIN_BEFORE_PARK: Duration = Duration::from_micros(20);
 
 /// One path's work for one callback. The pointers are valid while the
 /// worker waits inside `run_paths`, which is the only time a lane reads them.
@@ -45,16 +48,27 @@ struct Lane {
     stop: AtomicBool,
     started: AtomicBool,
     job: UnsafeCell<Option<Job>>,
+    /// The worker waiting for this lane, woken when the job is done.
+    waiter: UnsafeCell<Option<Thread>>,
+    /// How many times the lane looked for work.
+    #[cfg(test)]
+    wakes: std::sync::atomic::AtomicU64,
 }
 
-// `job` is written only by the worker while `state` is IDLE, and read only
-// by the lane while it is READY: the state hands it over.
+// `job` and `waiter` are written only by the worker while `state` is IDLE,
+// and read only by the lane while it is READY: the state hands them over.
 unsafe impl Sync for Lane {}
 unsafe impl Send for Lane {}
 
+/// A lane and the thread that runs it.
+struct LaneHandle {
+    lane: Arc<Lane>,
+    thread: Thread,
+}
+
 /// The lanes of one split: one per path but the first.
 pub(crate) struct PathLanes {
-    lanes: Vec<Option<Arc<Lane>>>,
+    lanes: Vec<Option<LaneHandle>>,
 }
 
 impl PathLanes {
@@ -80,6 +94,7 @@ impl PathLanes {
         let run: *const PathRun<'static> =
             unsafe { std::mem::transmute(run as *const PathRun<'_>) };
         let policy = worker_rt_policy::thread_policy();
+        let worker = std::thread::current();
         let mut handed = Handed {
             lanes: &self.lanes,
             count: 0,
@@ -93,9 +108,13 @@ impl PathLanes {
                 policy,
             };
             match self.lanes.get(index - 1) {
-                Some(Some(lane)) => {
-                    unsafe { *lane.job.get() = Some(job) };
-                    lane.state.store(READY, Ordering::Release);
+                Some(Some(handle)) => {
+                    unsafe {
+                        *handle.lane.job.get() = Some(job);
+                        set_waiter(&handle.lane, &worker);
+                    }
+                    handle.lane.state.store(READY, Ordering::Release);
+                    handle.thread.unpark();
                 }
                 _ => unsafe { run_job(job) },
             }
@@ -108,30 +127,65 @@ impl PathLanes {
         }
         drop(handed);
     }
+
+    /// How many times the lanes looked for work, all together.
+    #[cfg(test)]
+    fn wakes(&self) -> u64 {
+        self.lanes
+            .iter()
+            .flatten()
+            .map(|handle| handle.lane.wakes.load(Ordering::Relaxed))
+            .sum()
+    }
 }
 
 impl Drop for PathLanes {
     fn drop(&mut self) {
-        for lane in self.lanes.iter().flatten() {
-            lane.stop.store(true, Ordering::Release);
+        for handle in self.lanes.iter().flatten() {
+            handle.lane.stop.store(true, Ordering::Release);
+            handle.thread.unpark();
         }
+    }
+}
+
+/// Point the lane at the worker that waits for it. The handle is only
+/// replaced when another thread drives the split, so a callback normally
+/// neither clones nor drops one.
+///
+/// # Safety
+/// The lane must be IDLE: it reads `waiter` only while READY.
+unsafe fn set_waiter(lane: &Lane, worker: &Thread) {
+    let slot = &mut *lane.waiter.get();
+    if slot.as_ref().map(Thread::id) != Some(worker.id()) {
+        *slot = Some(worker.clone());
     }
 }
 
 /// Waits, even on unwind, for every lane handed a job: the job points into
 /// the split the caller is about to give back.
 struct Handed<'a> {
-    lanes: &'a [Option<Arc<Lane>>],
+    lanes: &'a [Option<LaneHandle>],
     count: usize,
 }
 
 impl Drop for Handed<'_> {
     fn drop(&mut self) {
-        for lane in self.lanes.iter().take(self.count).flatten() {
-            while lane.state.load(Ordering::Acquire) != DONE {
-                std::hint::spin_loop();
-            }
-            lane.state.store(IDLE, Ordering::Relaxed);
+        for handle in self.lanes.iter().take(self.count).flatten() {
+            wait_done(&handle.lane);
+            handle.lane.state.store(IDLE, Ordering::Relaxed);
+        }
+    }
+}
+
+/// Spin briefly for a lane to finish, then park until it wakes us. A stale
+/// wake-up from an earlier callback only costs one more look at the state.
+fn wait_done(lane: &Lane) {
+    let start = Instant::now();
+    while lane.state.load(Ordering::Acquire) != DONE {
+        if start.elapsed() < SPIN_BEFORE_PARK {
+            std::hint::spin_loop();
+        } else {
+            std::thread::park();
         }
     }
 }
@@ -153,37 +207,45 @@ unsafe fn run_job(job: Job) {
     run_path(&mut *job.nodes, &mut *job.buf, &mut *job.align, &*job.run);
 }
 
-fn spawn_lane(name: &str, index: usize) -> Option<Arc<Lane>> {
+fn spawn_lane(name: &str, index: usize) -> Option<LaneHandle> {
     let lane = Arc::new(Lane {
         state: AtomicU8::new(IDLE),
         stop: AtomicBool::new(false),
         started: AtomicBool::new(false),
         job: UnsafeCell::new(None),
+        waiter: UnsafeCell::new(None),
+        #[cfg(test)]
+        wakes: std::sync::atomic::AtomicU64::new(0),
     });
     let theirs = Arc::clone(&lane);
     let spawned = std::thread::Builder::new()
         .name(format!("split-path:{name}:{index}"))
         .spawn(move || lane_loop(&theirs));
-    if let Err(error) = spawned {
-        log::warn!("split '{name}': path {index} runs on the split's worker ({error})");
-        return None;
-    }
+    let thread = match spawned {
+        Ok(joined) => joined.thread().clone(),
+        Err(error) => {
+            log::warn!("split '{name}': path {index} runs on the split's worker ({error})");
+            return None;
+        }
+    };
     // A lane that has not started yet would stall the first callback.
     while !lane.started.load(Ordering::Acquire) {
         std::thread::yield_now();
     }
-    Some(lane)
+    Some(LaneHandle { lane, thread })
 }
 
 fn lane_loop(lane: &Lane) {
     lane.started.store(true, Ordering::Release);
     let mut adopted = None;
     loop {
+        #[cfg(test)]
+        lane.wakes.fetch_add(1, Ordering::Relaxed);
         if lane.stop.load(Ordering::Acquire) {
             return;
         }
         if lane.state.load(Ordering::Acquire) != READY {
-            std::thread::sleep(IDLE_NAP);
+            std::thread::park();
             continue;
         }
         if let Some(job) = unsafe { *lane.job.get() } {
@@ -198,7 +260,13 @@ fn lane_loop(lane: &Lane) {
             let _ =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe { run_job(job) }));
         }
+        // Take the waiter before DONE: after it the worker may hand the
+        // lane its next job, waiter included.
+        let waiter = unsafe { (*lane.waiter.get()).clone() };
         lane.state.store(DONE, Ordering::Release);
+        if let Some(waiter) = waiter {
+            waiter.unpark();
+        }
     }
 }
 

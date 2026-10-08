@@ -16,6 +16,7 @@ use crate::tone3000::api_http::HttpTone3000Api;
 use crate::tone3000::api_types::{Page, Tone};
 use crate::tone3000::api_url::SearchQuery;
 use crate::tone3000::catalog_tones::{installed_entry, loaded_catalog_entries};
+use crate::tone3000::catalog_tones_cache::GenerationCache;
 use crate::tone3000::install::InstallProgress;
 use crate::tone3000::install_pending::PendingInstall;
 use crate::tone3000::installed::list_installed;
@@ -24,7 +25,8 @@ use crate::tone3000::installed::list_installed;
 pub type Tone3000ApiFactory = Arc<dyn Fn(&str) -> Arc<dyn Tone3000Api> + Send + Sync>;
 
 /// The catalog plugins that came from TONE3000, other than the browser's own.
-/// Read on every snapshot, so a catalog reload shows at once. Tests swap it.
+/// Read on every snapshot, so a catalog reload shows at once; walked again
+/// only when the catalog's generation moves. Tests swap it.
 pub type Tone3000CatalogSource = Arc<dyn Fn() -> Vec<Tone3000InstalledEntry> + Send + Sync>;
 
 /// The last search, as a frontend renders it.
@@ -123,7 +125,14 @@ impl Tone3000ControlState {
             api_factory: Arc::new(|key: &str| -> Arc<dyn Tone3000Api> {
                 Arc::new(HttpTone3000Api::new(key))
             }),
-            catalog: Arc::new(move || loaded_catalog_entries(plugins_root.as_deref())),
+            catalog: {
+                let cache = GenerationCache::default();
+                Arc::new(move || {
+                    cache.get(plugin_loader::registry::generation(), || {
+                        loaded_catalog_entries(plugins_root.as_deref())
+                    })
+                })
+            },
             search: Tone3000SearchSnapshot::default(),
             search_generation: 0,
             installs: Vec::new(),

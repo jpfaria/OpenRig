@@ -25,7 +25,7 @@
 //!
 //! Issues: #287, #561
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Mutex, RwLock};
 
 use crate::discover::LoadedPackage;
@@ -45,7 +45,13 @@ pub(crate) static REGISTRY: RwLock<&'static [LoadedPackage]> = RwLock::new(&[]);
 /// catalog. Subsequent `init_many` calls are no-ops (matches the
 /// pre-#561 `OnceLock` semantics); [`reload`] bypasses this flag.
 pub(crate) static REGISTRY_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+/// Moves every time a new catalog slice is published, so readers can keep
+/// what they derived from the catalog until it changes.
+pub(crate) static GENERATION: AtomicU64 = AtomicU64::new(0);
 pub use crate::registry_edit::{load_one, unload, CatalogOpError};
 pub use crate::registry_load::{init, init_many, reload, ReloadStats};
 pub use crate::registry_natives::{register_native, register_native_simple};
-pub use crate::registry_query::{find, len, model_available, native_count, packages, packages_for};
+pub use crate::registry_query::{
+    find, generation, len, model_available, native_count, packages, packages_for,
+};
