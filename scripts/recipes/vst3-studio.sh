@@ -108,8 +108,15 @@ build_airwindows() {
 # Five sibling CMake projects, each vendoring DPF as a submodule. Only the
 # stereo studio plugins are built (mono twins, scopes and meters skipped); DPF
 # emits <target>.vst3 under each project's bin/ with a matching binary stem.
-# The DSP uses floating-point std::to_chars/from_chars, which libc++ ships
-# from macOS 13.3, so on macOS these bundles target 13.3 instead of 11.0.
+# The compressor's curve (de)serialiser uses floating-point std::to_chars,
+# which libc++ ships from macOS 13.3 (so these bundles target 13.3 there), and
+# floating-point std::from_chars, which Apple's libc++ does not ship at all: on
+# macOS it is swapped for a locale-independent strtod_l shim.
+_mimo_from_chars_shim() {
+    local f="$1"
+    grep -q mimo_from_chars "$f" && return 0
+    perl -0777 -i -pe 's/std::from_chars\(/mimo_from_chars(/g; s/(#include <string>\n)/$1#include <xlocale.h>\nstatic inline std::from_chars_result mimo_from_chars(const char* first, const char* last, double\& value)\n{\n    static const locale_t cLocale = newlocale(LC_ALL_MASK, "C", nullptr);\n    const std::string text(first, last);\n    char* end = nullptr;\n    const double parsed = strtod_l(text.c_str(), \&end, cLocale);\n    if (end == text.c_str()) return {first, std::errc::invalid_argument};\n    value = parsed;\n    return {first + (end - text.c_str()), std::errc()};\n}\n/' "$f"
+}
 MIMO_STUDIO=(
     "compressor:compressor_stereo limiter contour"
     "statespace:parametric_eq multiband_compressor dynamic_eq dynamic_eq2"
@@ -119,7 +126,10 @@ MIMO_STUDIO=(
 build_mimomusic() {
     _skip_windows_arm && return 0
     local entry proj plugins p extra=" -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-    [ "$(uname -s)" = "Darwin" ] && extra="$extra -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        extra="$extra -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3"
+        _mimo_from_chars_shim "$DEPS_DIR/mimomusic-plugins/compressor/plugin/dsp/CurveDsp.hpp"
+    fi
     for entry in "${MIMO_STUDIO[@]}"; do
         proj="${entry%%:*}"
         plugins="${entry#*:}"
@@ -137,8 +147,9 @@ build_mimomusic() {
 # the studio modules, and only the `vst3` feature is built: no `ui` means no
 # cairo/X11 runtime dependency on the user's machine (the editor is generic).
 # `make fetch` pulls the LSP module repos pinned by dependencies.mk. macOS needs
-# GNU make >= 4.4 (`gmake`) and has no universal mode, so each arch is built in
-# its own copy and the two binaries are lipo-merged, then ad-hoc re-signed.
+# GNU make >= 4.4 (`gmake`) and LSP's x86 AVX2 inline assembly does not
+# assemble under Apple clang ("expected relocatable expression"), so the macOS
+# bundle is arm64 only, ad-hoc re-signed.
 LSP_STUDIO_MODULES="CLIPPER COMPRESSOR CROSSOVER EXPANDER GATE GRAPH_EQUALIZER IMPULSE_REVERB LIMITER MB_COMPRESSOR PARA_EQUALIZER"
 
 _lsp_build() { # $1=source copy, $2=install root, rest=extra make config args
@@ -159,39 +170,34 @@ build_lsp() {
     _skip_windows_arm && return 0
     local src="$DEPS_DIR/lsp-plugins" work="$BUILD_WORK_DIR/lsp"
     rm -rf "$work" && mkdir -p "$work"
+    cp -R "$src" "$work/src"
     if [ "$(uname -s)" = "Darwin" ]; then
-        local arch
-        for arch in arm64 x86_64; do
-            cp -R "$src" "$work/src-$arch"
-            CC="clang -arch $arch" CXX="clang++ -arch $arch" \
-                _lsp_build "$work/src-$arch" "$work/install-$arch" \
-                ARCHITECTURE="$arch" $([ "$arch" = x86_64 ] && echo ADD_FEATURES=crosscompile)
-        done
-        local arm x86
-        arm=$(find "$work/install-arm64" -type d -name "lsp-plugins.vst3" | head -1)
-        x86=$(find "$work/install-x86_64" -type d -name "lsp-plugins.vst3" | head -1)
-        lipo -create "$arm/Contents/MacOS/lsp-plugins" "$x86/Contents/MacOS/lsp-plugins" \
-            -output "$arm/Contents/MacOS/lsp-plugins.universal"
-        mv "$arm/Contents/MacOS/lsp-plugins.universal" "$arm/Contents/MacOS/lsp-plugins"
-        codesign --remove-signature "$arm" 2>/dev/null || true
-        codesign --force --deep --sign - "$arm"
-        collect_vst3 "$work/install-arm64" "lsp-plugins.vst3"
+        CC="clang -arch arm64" CXX="clang++ -arch arm64" \
+            _lsp_build "$work/src" "$work/install" ARCHITECTURE=arm64
+        local bundle
+        bundle=$(find "$work/install" -type d -name "lsp-plugins.vst3" | head -1)
+        codesign --remove-signature "$bundle" 2>/dev/null || true
+        codesign --force --deep --sign - "$bundle"
     else
-        cp -R "$src" "$work/src"
         _lsp_build "$work/src" "$work/install"
-        collect_vst3 "$work/install" "lsp-plugins.vst3"
     fi
+    collect_vst3 "$work/install" "lsp-plugins.vst3"
 }
 
 # --- Rust / nih-plug bundles (`cargo xtask bundle`) ---
 # Both workspaces ship an `xtask` package (nih_plug_xtask / nice_plug_xtask);
 # it is run by package name since bus_channel_strip has no `cargo xtask` alias.
+# The xtask builds from the OUTERMOST directory holding a Cargo.toml, which
+# under deps/ is OpenRig's own workspace, so each workspace is copied into
+# $BUILD_WORK_DIR (no Cargo.toml above it) and built there.
 # nih-plug's xtask writes target/bundled/<Name>.vst3 with the binary stem equal
 # to the bundle name; on macOS `bundle-universal` lipo-merges both arches.
 
-_xtask_bundle() { # $1=workspace dir, $2=toolchain ("" = workspace default), rest=packages
-    local dir="$1" tc="$2"
+_xtask_bundle() { # $1=source workspace, $2=toolchain ("" = workspace default), rest=packages; sets XTASK_BUNDLED
+    local dir="$BUILD_WORK_DIR/rust-$(basename "$1")" tc="$2"
     shift 2
+    rm -rf "$dir" && mkdir -p "$BUILD_WORK_DIR" && cp -R "$1" "$dir"
+    XTASK_BUNDLED="$dir/target/bundled"
     local cargo=(cargo) pkgs=() p
     [ -n "$tc" ] && { rustup toolchain install "$tc" --profile minimal; cargo=(cargo "+$tc"); }
     for p in "$@"; do pkgs+=(-p "$p"); done
@@ -208,10 +214,10 @@ build_nihplug() {
     # Safety Limiter, Crossover. Crossover's default `simd` feature needs nightly,
     # so the whole set is built with nightly.
     _skip_windows && return 0
-    local src="$DEPS_DIR/nih-plug" n
-    _xtask_bundle "$src" nightly soft_vacuum spectral_compressor safety_limiter crossover
+    local n
+    _xtask_bundle "$DEPS_DIR/nih-plug" nightly soft_vacuum spectral_compressor safety_limiter crossover
     for n in "Soft Vacuum" "Spectral Compressor" "Safety Limiter" "Crossover"; do
-        collect_bundle "$src/target/bundled" "$n.vst3"
+        collect_bundle "$XTASK_BUNDLED" "$n.vst3"
     done
 }
 
@@ -220,7 +226,6 @@ build_buschannelstrip() {
     # ButterComp2, Pultec, dynamic EQ, transformer, punch — built without its
     # `gui` feature (generic editor). Its rust-toolchain.toml pins nightly.
     _skip_windows && return 0
-    local src="$DEPS_DIR/bus_channel_strip"
-    _xtask_bundle "$src" "" bus_channel_strip
-    collect_bundle "$src/target/bundled" "Bus-Channel-Strip.vst3"
+    _xtask_bundle "$DEPS_DIR/bus_channel_strip" "" bus_channel_strip
+    collect_bundle "$XTASK_BUNDLED" "Bus-Channel-Strip.vst3"
 }
