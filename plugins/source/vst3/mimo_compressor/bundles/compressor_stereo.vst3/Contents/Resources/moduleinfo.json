@@ -1,0 +1,26 @@
+{
+  "Name": "compressor_stereo",
+  "Factory Info": {
+    "Vendor": "MimoMusic"
+  },
+  "Classes": [
+    {
+      "CID": "2046504473616C6374734D436F6D694D",
+      "Category": "Audio Module Class",
+      "Name": "Compressor Stereo",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    },
+    {
+      "CID": "204650446C72746374734D436F6D694D",
+      "Category": "Component Controller Class",
+      "Name": "Compressor Stereo",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

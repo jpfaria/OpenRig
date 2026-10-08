@@ -1,0 +1,26 @@
+{
+  "Name": "dynamic_eq",
+  "Factory Info": {
+    "Vendor": "MimoMusic"
+  },
+  "Classes": [
+    {
+      "CID": "2046504473616C63656453536F6D694D",
+      "Category": "Audio Module Class",
+      "Name": "Dynamic EQ",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    },
+    {
+      "CID": "204650446C727463656453536F6D694D",
+      "Category": "Component Controller Class",
+      "Name": "Dynamic EQ",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

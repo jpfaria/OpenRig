@@ -54,6 +54,10 @@ macos-universal · windows-x86_64 · windows-aarch64 · linux-x86_64 · linux-aa
 
 Never invent or rename a slot (`windows-x64`, `windows-arm64`), and never add a serde alias to paper over one: change the enum first, then the manifests and toolchain in the same commit.
 
+## VST3 `moduleinfo.json`
+
+The catalog scan never loads a plugin binary: it reads each bundle's `Contents/Resources/moduleinfo.json` (class id, name, vendor) and only falls back to the `CFBundleName` of `Info.plist`, with the class id left unknown. Every shipped bundle therefore carries a `moduleinfo.json`. JUCE and VST3 SDK builds emit it; DPF (mimo) and nih-plug bundles do not, so it is committed next to the bundle, generated once from the macOS binary's plugin factory (after its `bundleEntry`). The CI merge only adds files to a bundle, so a rebuild keeps it. Without it a DPF bundle is invisible (no `CFBundleName`), and a bundle whose class name differs from its `CFBundleName` cannot be instantiated.
+
 ## LV2 `plugin_uri` = binary = TTL
 
 OpenRig instantiates an LV2 package by walking `lv2_descriptor(i)` in the slot binary for the manifest's `plugin_uri`. Loading the manifest never opens the binary, so a stale URI passes `bundled_catalog_valid` and then fails at runtime (`LV2 plugin URI '…' not found`). An mda-lv2 rebuild once moved every URI from `moddevices.com` to `drobilla.net` and all ten `mda_*` packages broke silently.

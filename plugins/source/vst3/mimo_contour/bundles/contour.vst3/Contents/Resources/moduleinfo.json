@@ -1,0 +1,26 @@
+{
+  "Name": "contour",
+  "Factory Info": {
+    "Vendor": "MimoMusic"
+  },
+  "Classes": [
+    {
+      "CID": "2046504473616C63727443436F6D694D",
+      "Category": "Audio Module Class",
+      "Name": "Contour",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    },
+    {
+      "CID": "204650446C727463727443436F6D694D",
+      "Category": "Component Controller Class",
+      "Name": "Contour",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

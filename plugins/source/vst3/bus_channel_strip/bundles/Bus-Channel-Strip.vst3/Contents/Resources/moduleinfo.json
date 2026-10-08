@@ -1,0 +1,17 @@
+{
+  "Name": "Bus-Channel-Strip",
+  "Factory Info": {
+    "Vendor": "Francis Secada"
+  },
+  "Classes": [
+    {
+      "CID": "45786163746C79313643686172732121",
+      "Category": "Audio Module Class",
+      "Name": "Bus Channel Strip",
+      "Vendor": "Francis Secada",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "Name": "limiter",
+  "Factory Info": {
+    "Vendor": "MimoMusic"
+  },
+  "Classes": [
+    {
+      "CID": "2046504473616C636D694C4D6F6D694D",
+      "Category": "Audio Module Class",
+      "Name": "Limiter",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    },
+    {
+      "CID": "204650446C7274636D694C4D6F6D694D",
+      "Category": "Component Controller Class",
+      "Name": "Limiter",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}

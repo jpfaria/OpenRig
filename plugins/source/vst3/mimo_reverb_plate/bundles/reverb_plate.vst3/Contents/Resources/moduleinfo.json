@@ -1,0 +1,26 @@
+{
+  "Name": "reverb_plate",
+  "Factory Info": {
+    "Vendor": "MimoMusic"
+  },
+  "Classes": [
+    {
+      "CID": "2046504473616C6370526D4D6F6D694D",
+      "Category": "Audio Module Class",
+      "Name": "Reverb Plate",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    },
+    {
+      "CID": "204650446C72746370526D4D6F6D694D",
+      "Category": "Component Controller Class",
+      "Name": "Reverb Plate",
+      "Vendor": "MimoMusic",
+      "Sub Categories": [
+        "Fx"
+      ]
+    }
+  ]
+}
