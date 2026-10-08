@@ -1,9 +1,0 @@
-i18n:
-  en-US:
-    description: ZamChild670 — stereo variable-mu tube compressor modelled on the Fairchild 670.
-    license: GPL-2.0
-    homepage: https://github.com/zamaudio/zam-plugins
-  pt-BR:
-    description: ZamChild670 — compressor valvulado variable-mu estéreo inspirado no Fairchild 670.
-    license: GPL-2.0
-    homepage: https://github.com/zamaudio/zam-plugins
