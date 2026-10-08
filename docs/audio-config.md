@@ -1247,16 +1247,19 @@ not move when that happens, so each pipeline watches its own input channels.
   over a 0.25 s window. A clean input reads a max/median of about 1.0–1.3; a
   window above 5 is stepped. Below -90 dBFS a window carries no signal and is
   not judged.
-- **Trip and clear.** Four stepped windows in a row (1 s) trip the channel;
-  four clean ones (1 s) clear it. A buffer size change restarts the count, and
+- **Trip and clear.** Two stepped windows in a row (0.5 s) with the step at
+  the same buffer position (within 2 positions) trip the channel; four clean
+  ones (1 s) clear it. A seam the driver leaves stays at one position, a loud
+  transient does not. A buffer size change restarts the count, and
   a buffer our own processing skipped is fed as a discontinuity, never as a
   seam. Real-time safe: no allocation, lock or blocking.
 - **Per pipeline** (`runtime_input_seams.rs`). A runtime is marked stepped only
   while one of its own pipelines reads a tripped channel; another chain's
   input never marks it.
-- **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on the 2 s poll tick;
+- **Restart** (`adapter-gui/src/stepped_input_tick.rs`, on its own 250 ms
+  tick in `stepped_input_timer.rs`, 30 s cooldown per chain;
   `infra-cpal/src/controller_device_restart.rs`). On cpal the restart is the
-  device's (#1081). coreaudiod runs one IO context per process per device,
+  device's. coreaudiod runs one IO context per process per device,
   alive while any of OpenRig's streams on it runs, so a new set opened beside
   the old one would inherit the broken IO. Every OpenRig stream on the device
   the stepped input reads is closed — each chain that reads or plays there,

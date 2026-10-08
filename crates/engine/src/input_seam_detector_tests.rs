@@ -42,14 +42,52 @@ fn noise(frames: usize, amplitude: f32) -> Vec<f32> {
         .collect()
 }
 
+/// One 0.25 s window of `BUFFER`-frame buffers: the frames after which a
+/// window closes.
+fn window() -> usize {
+    (RATE * 0.25) as usize / BUFFER * BUFFER + BUFFER
+}
+
 #[test]
-fn the_recorded_stepped_input_trips_after_one_second() {
+fn the_recorded_stepped_input_trips_after_half_a_second() {
     let mut detector = InputSeamDetector::new(RATE);
     let tripped_at = feed(&mut detector, &samples(STEPPED));
     let frames = tripped_at.expect("the stepped In 1 recording never tripped the detector");
     assert!(
-        frames >= RATE as usize,
-        "tripped after {frames} frames, before one second of stepped input"
+        frames >= RATE as usize / 2,
+        "tripped after {frames} frames, before half a second of stepped input"
+    );
+    assert!(
+        frames <= 2 * window(),
+        "tripped after {frames} frames, later than two stepped windows"
+    );
+}
+
+/// `noise` plus a spike at `position` of every buffer, one position per
+/// window: the seam a stale driver ring leaves sits at one position for as
+/// long as it lasts.
+fn seams_at(positions: &[usize]) -> Vec<f32> {
+    let mut signal = noise(positions.len() * window(), 0.01);
+    for (w, &position) in positions.iter().enumerate() {
+        for buffer in signal[w * window()..(w + 1) * window()].chunks_exact_mut(BUFFER) {
+            buffer[position] += 0.2;
+        }
+    }
+    signal
+}
+
+#[test]
+fn a_seam_held_at_one_position_trips() {
+    let mut detector = InputSeamDetector::new(RATE);
+    assert!(feed(&mut detector, &seams_at(&[10, 10])).is_some());
+}
+
+#[test]
+fn stepped_windows_whose_seam_moves_never_trip() {
+    let mut detector = InputSeamDetector::new(RATE);
+    assert_eq!(
+        feed(&mut detector, &seams_at(&[10, 40, 10, 40, 10, 40])),
+        None
     );
 }
 
@@ -111,13 +149,12 @@ fn digital_silence_never_trips() {
 }
 
 #[test]
-fn stepped_input_shorter_than_one_second_does_not_trip() {
+fn one_stepped_window_between_clean_ones_does_not_trip() {
     let stepped = samples(STEPPED);
     let clean = samples(CLEAN);
-    let half = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
-    let mut signal = stepped[..half].to_vec();
-    signal.extend_from_slice(&clean[..half]);
-    signal.extend_from_slice(&stepped[..half]);
+    let mut signal = stepped[..window()].to_vec();
+    signal.extend_from_slice(&clean[..window()]);
+    signal.extend_from_slice(&stepped[window()..2 * window()]);
     let mut detector = InputSeamDetector::new(RATE);
     assert_eq!(feed(&mut detector, &signal), None);
 }
@@ -136,7 +173,7 @@ fn silence_holds_the_count_instead_of_clearing_it() {
 #[test]
 fn a_buffer_size_change_restarts_the_count() {
     let stepped = samples(STEPPED);
-    let part = (RATE as usize * 3 / 4) / BUFFER * BUFFER;
+    let part = window();
     let mut detector = InputSeamDetector::new(RATE);
     assert_eq!(feed(&mut detector, &stepped[..part]), None);
     for chunk in stepped[part..].chunks_exact(128).take(8) {
@@ -145,7 +182,7 @@ fn a_buffer_size_change_restarts_the_count() {
     let rest = &stepped[part + 8 * 128..];
     let tripped_at = feed(&mut detector, rest);
     assert!(
-        tripped_at.is_none_or(|frames| frames >= RATE as usize),
+        tripped_at.is_none_or(|frames| frames >= RATE as usize / 2),
         "the count survived a buffer size change: tripped {tripped_at:?} frames after it"
     );
 }
