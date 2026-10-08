@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_socalabs_compressor
+display_name: Compressor Socalabs Compressor
+description: Socalabs Compressor — clean feed-forward compressor with sidechain-style detector, knee and makeup gain.
+brand: socalabs
+license: BSD-3-Clause
+homepage: https://github.com/FigBug/slPlugins
+type: vst3
+backend: vst3
+bundle: bundles/SocalabsCompressor.vst3
+parameters: []

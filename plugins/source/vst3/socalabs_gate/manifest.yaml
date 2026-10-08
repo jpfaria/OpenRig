@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_socalabs_gate
+display_name: Gate Socalabs Gate
+description: Socalabs Gate — noise gate with attack, hold and release.
+brand: socalabs
+license: BSD-3-Clause
+homepage: https://github.com/FigBug/slPlugins
+type: vst3
+backend: vst3
+bundle: bundles/SocalabsGate.vst3
+parameters: []

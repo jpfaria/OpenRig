@@ -60,8 +60,13 @@ Use `./scripts/add-dep.sh` to add new ones.
 | darvaza | https://github.com/igorski/darvaza | `b935871` | CMake/VST3-SDK | darvaza (gate, MIT) — VST3 bundle, recipe `darvaza` |
 | homecorrupter | https://github.com/igorski/homecorrupter | `7b594e6` | CMake/VST3-SDK | homecorrupter (lo-fi, MIT) — VST3 bundle, recipe `homecorrupter` |
 | Schrammel_OJD | https://github.com/JanosGit/Schrammel_OJD | `03c0e84` | CMake/JUCE | OJD overdrive |
+| slPlugins | https://github.com/FigBug/slPlugins | `43319db` | CMake/JUCE | Socalabs Compressor, Limiter, Gate, Expander, GraphicEQ, StereoProcessor (BSD-3) — VST3 bundles, recipe `slplugins` |
+| valentine | https://github.com/tote-bag-labs/valentine | `87eba9b` | CMake/JUCE | Valentine compressor/saturator (GPL-3) — VST3 bundle, recipe `valentine` |
+| nine-strip | https://github.com/blablack/nine-strip | `111dee6` | CMake/JUCE | NineStrip channel strip (AGPL-3) — VST3 bundle, recipe `ninestrip` |
+| TheKissOfShame | https://github.com/hollance/TheKissOfShame | `2d43f68` | CMake/JUCE | The Kiss of Shame tape emulation (GPL-3) — VST3 bundle, recipe `kissofshame` |
+| airwin2rack | https://github.com/baconpaul/airwin2rack | `9b87116` | CMake/JUCE | Airwindows Consolidated (MIT) — VST3 bundle, recipe `airwindows` |
 
-Every row above except NeuralAmpModelerCore (vendored, see below) is a real git submodule (a committed gitlink under `deps/`). Each `build_*` recipe — grouped by backend in `scripts/recipes/lv2.sh` and `scripts/recipes/vst3.sh`, sourced by `scripts/build-lib-internal.sh` — expects its upstream checked out under `deps/<name>/` (CI checks them out with `submodules: recursive`). Register a new one with `./scripts/add-dep.sh <name> <url> <commit>` when activating the recipe.
+Every row above except NeuralAmpModelerCore (vendored, see below) is a real git submodule (a committed gitlink under `deps/`). Each `build_*` recipe — grouped by backend in `scripts/recipes/lv2.sh`, `scripts/recipes/vst3.sh` and `scripts/recipes/vst3-studio.sh`, sourced by `scripts/build-lib-internal.sh` — expects its upstream checked out under `deps/<name>/` (CI checks them out with `submodules: recursive`). Register a new one with `./scripts/add-dep.sh <name> <url> <commit>` when activating the recipe.
 
 ## Visual Asset Dependencies
 

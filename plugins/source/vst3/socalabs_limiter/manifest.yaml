@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_socalabs_limiter
+display_name: Limiter Socalabs Limiter
+description: Socalabs Limiter — lookahead peak limiter for bus and master.
+brand: socalabs
+license: BSD-3-Clause
+homepage: https://github.com/FigBug/slPlugins
+type: vst3
+backend: vst3
+bundle: bundles/SocalabsLimiter.vst3
+parameters: []

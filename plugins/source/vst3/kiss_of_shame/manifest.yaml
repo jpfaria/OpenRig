@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_kiss_of_shame
+display_name: Tape The Kiss of Shame
+description: The Kiss of Shame — analog tape deck emulation (saturation, hiss, wow/flutter, tape age).
+brand: hollance
+license: GPL-3.0-or-later
+homepage: https://github.com/hollance/TheKissOfShame
+type: vst3
+backend: vst3
+bundle: bundles/The Kiss Of Shame.vst3
+parameters: []

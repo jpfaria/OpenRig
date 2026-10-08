@@ -31,7 +31,7 @@ CI saves LFS bandwidth: test and PR jobs pull everything except `plugins/source/
 |---|---|
 | `scripts/build-lib.sh <recipe\|all> [--platform …]` | Entry point; cross-platform builds run in Docker (`docker/Dockerfile.build-libs`); `--list` shows the recipes |
 | `scripts/build-lib-internal.sh` | Dispatches a recipe inside the build environment |
-| `scripts/recipes/lv2.sh`, `scripts/recipes/vst3.sh` | One `build_<recipe>` function per upstream |
+| `scripts/recipes/lv2.sh`, `scripts/recipes/vst3.sh`, `scripts/recipes/vst3-studio.sh` | One `build_<recipe>` function per upstream (`vst3-studio.sh`: the mixing/mastering set) |
 | `scripts/plugin-recipes.tsv` | Which recipe produces each `plugins/source/{lv2,vst3}/<package>` |
 | `scripts/add-dep.sh <name> <url> <commit>` | Registers a new upstream as a pinned submodule under `deps/` |
 
@@ -42,7 +42,7 @@ The submodules are not cloned by default (`scripts/solver-setup.sh` skips them t
 `.github/workflows/build-libs.yml` builds the binaries for linux-x86_64, linux-aarch64, macOS universal and windows-x86_64:
 
 - tag `plugins-build-N`, `plugins-build-<recipe>-N`, `plugins-build-<platform>-N` or `plugins-build-<platform>-<recipe>-N` → artifacts only;
-- `workflow_dispatch` with a recipe and a platform → artifacts, and the `commit-libs` job commits the binaries back to the dispatched branch under `plugins/source/{lv2,vst3}`.
+- `workflow_dispatch` with a recipe (or a comma-separated list, built as one matrix so `commit-libs` pushes once) and a platform → artifacts, and the `commit-libs` job commits the binaries back to the dispatched branch under `plugins/source/{lv2,vst3}`.
 
 ## Platform slots
 

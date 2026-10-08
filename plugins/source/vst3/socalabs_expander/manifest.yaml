@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_socalabs_expander
+display_name: Dynamics Socalabs Expander
+description: Socalabs Expander — downward expander to tame noise and bleed.
+brand: socalabs
+license: BSD-3-Clause
+homepage: https://github.com/FigBug/slPlugins
+type: vst3
+backend: vst3
+bundle: bundles/SocalabsExpander.vst3
+parameters: []

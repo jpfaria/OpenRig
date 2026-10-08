@@ -176,3 +176,18 @@
 [submodule "deps/delirion"]
 	path = deps/delirion
 	url = https://github.com/igorski/delirion.git
+[submodule "deps/slPlugins"]
+	path = deps/slPlugins
+	url = https://github.com/FigBug/slPlugins.git
+[submodule "deps/valentine"]
+	path = deps/valentine
+	url = https://github.com/tote-bag-labs/valentine.git
+[submodule "deps/nine-strip"]
+	path = deps/nine-strip
+	url = https://github.com/blablack/nine-strip.git
+[submodule "deps/TheKissOfShame"]
+	path = deps/TheKissOfShame
+	url = https://github.com/hollance/TheKissOfShame.git
+[submodule "deps/airwin2rack"]
+	path = deps/airwin2rack
+	url = https://github.com/baconpaul/airwin2rack.git

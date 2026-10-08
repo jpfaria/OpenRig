@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_valentine
+display_name: Compressor Valentine
+description: Valentine — compressor and saturator modeled on aggressive hardware compression.
+brand: tote-bag-labs
+license: GPL-3.0-or-later
+homepage: https://github.com/tote-bag-labs/valentine
+type: vst3
+backend: vst3
+bundle: bundles/Valentine.vst3
+parameters: []

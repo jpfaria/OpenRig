@@ -1,5 +1,5 @@
 # plugin-recipes.tsv — map each plugins/source/{lv2,vst3}/<folder> to the recipe
-# (a build_<name> function in scripts/recipes/{lv2,vst3}.sh, dispatched by
+# (a build_<name> function in scripts/recipes/{lv2,vst3,vst3-studio}.sh, dispatched by
 # scripts/build-lib-internal.sh) that produces its binary/bundle.
 #
 # Several recipes build many catalogue entries: dragonfly-reverb yields 4
@@ -147,3 +147,13 @@ homecorrupter	homecorrupter
 rechoir	rechoir
 regrader	regrader
 transformant	transformant
+socalabs_compressor	slplugins
+socalabs_limiter	slplugins
+socalabs_gate	slplugins
+socalabs_expander	slplugins
+socalabs_graphic_eq	slplugins
+socalabs_stereo_processor	slplugins
+valentine	valentine
+nine_strip	ninestrip
+kiss_of_shame	kissofshame
+airwindows_consolidated	airwindows

@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_socalabs_graphic_eq
+display_name: EQ Socalabs GraphicEQ
+description: Socalabs GraphicEQ — multi-band graphic equalizer.
+brand: socalabs
+license: BSD-3-Clause
+homepage: https://github.com/FigBug/slPlugins
+type: vst3
+backend: vst3
+bundle: bundles/SocalabsGraphicEQ.vst3
+parameters: []

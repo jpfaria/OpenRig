@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       recipe:
-        description: 'Recipe to build (e.g. nam, dragonfly-reverb, "all"). One upstream group, not a catalogue folder.'
+        description: 'Recipe(s) to build: one upstream group or a comma-separated list (e.g. nam, "valentine,ninestrip", "all"). Not a catalogue folder.'
         required: true
         default: 'all'
       platform:
@@ -107,7 +107,11 @@ jobs:
             esac
           fi
 
-          echo "recipes=[\"$RECIPE\"]" >> "$GITHUB_OUTPUT"
+          # A comma-separated recipe list ("valentine,ninestrip") becomes one
+          # matrix entry per recipe in a single run, so commit-libs pushes once
+          # instead of N parallel runs racing on the same branch.
+          RECIPES_JSON=$(echo "$RECIPE" | tr -d ' ' | jq -R -c 'split(",") | map(select(length > 0))')
+          echo "recipes=$RECIPES_JSON" >> "$GITHUB_OUTPUT"
           echo "platform=$PLATFORM" >> "$GITHUB_OUTPUT"
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
 

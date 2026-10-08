@@ -1,0 +1,11 @@
+manifest_version: 1
+id: vst3_airwindows_consolidated
+display_name: Studio Airwindows Consolidated
+description: Airwindows Consolidated — the whole Airwindows effect library (consoles, saturation, EQ, dynamics, reverb) behind one selector.
+brand: airwindows
+license: MIT
+homepage: https://github.com/baconpaul/airwin2rack
+type: vst3
+backend: vst3
+bundle: bundles/Airwindows Consolidated.vst3
+parameters: []

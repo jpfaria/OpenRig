@@ -196,6 +196,8 @@ RECIPES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/recipes"
 source "$RECIPES_DIR/lv2.sh"
 # shellcheck source=/dev/null
 source "$RECIPES_DIR/vst3.sh"
+# shellcheck source=/dev/null
+source "$RECIPES_DIR/vst3-studio.sh"
 
 # --- Registry ---
 
@@ -255,6 +257,11 @@ PLUGINS=(
     aether
     x42
     distrho
+    slplugins
+    valentine
+    ninestrip
+    kissofshame
+    airwindows
 )
 
 # Map plugin name to build function
@@ -315,6 +322,11 @@ dispatch() {
         aether)           build_aether ;;
         x42)              build_x42 ;;
         distrho)          build_distrho ;;
+        slplugins)        build_slplugins ;;
+        valentine)        build_valentine ;;
+        ninestrip)        build_ninestrip ;;
+        kissofshame)      build_kissofshame ;;
+        airwindows)       build_airwindows ;;
         *) echo "Unknown plugin: $1"; exit 1 ;;
     esac
 }
