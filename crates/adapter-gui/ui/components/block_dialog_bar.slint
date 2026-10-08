@@ -4,6 +4,7 @@
 // that deletes the block at the right.
 import { Theme } from "../theme.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component BlockDialogBar inherits Rectangle {
     in property <string> title;
@@ -50,7 +51,7 @@ export component BlockDialogBar inherits Rectangle {
             accessible-action-default => { root.toggle-enabled(); }
         }
 
-        Text {
+        ElidedText {
             horizontal-stretch: 1;
             text: root.title;
             color: Theme.chrome-fg;
@@ -58,7 +59,6 @@ export component BlockDialogBar inherits Rectangle {
             font-size: 24px;
             letter-spacing: 0.06 * 24px;
             vertical-alignment: center;
-            overflow: elide;
         }
 
         delete-btn := Rectangle {

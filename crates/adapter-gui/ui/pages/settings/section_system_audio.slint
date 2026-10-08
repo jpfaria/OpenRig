@@ -14,6 +14,7 @@ import { SettingsCard } from "../../components/settings_card.slint";
 import { CheckMark } from "../../components/check_mark.slint";
 import { SegControl } from "../../components/seg_control.slint";
 import { FormButton, FormButtonKind } from "../../components/form_button.slint";
+import { ElidedText } from "../../components/elided_text.slint";
 
 // Inline helper — not promoted to components/ because it is only used here.
 component AudioDeviceRow inherits Rectangle {
@@ -76,18 +77,20 @@ component AudioDeviceRow inherits Rectangle {
                     spacing: 2px;
                     horizontal-stretch: 1;
 
-                    Text {
+                    dev-name := ElidedText {
                         text: root.device.name;
                         color: root.device.selected ? Theme.ink : Theme.ink-2;
                         font-size: 20px;
-                        overflow: elide;
+                        own-hover: false;
+                        hovered: device-ta.has-hover && device-ta.absolute-position.y + device-ta.mouse-y < dev-name.absolute-position.y + dev-name.height;
                     }
 
-                    if root.device.input-channels + root.device.output-channels > 0 : Text {
+                    if root.device.input-channels + root.device.output-channels > 0 : ElidedText {
                         text: @tr("label-device-channels {} {}", root.device.input-channels, root.device.output-channels);
                         color: Theme.ink-3;
                         font-size: Theme.min-font;
-                        overflow: elide;
+                        own-hover: false;
+                        hovered: device-ta.has-hover && device-ta.absolute-position.y + device-ta.mouse-y >= dev-name.absolute-position.y + dev-name.height;
                     }
                 }
 
@@ -109,7 +112,7 @@ component AudioDeviceRow inherits Rectangle {
 
             // #581: the toggle stops where the rates begin, so picking a rate
             // never deselects the device.
-            TouchArea {
+            device-ta := TouchArea {
                 x: 0;
                 width: root.device.selected ? rate-box.x - 6px : parent.width;
                 mouse-cursor: pointer;
@@ -138,11 +141,10 @@ component AudioDeviceRow inherits Rectangle {
                             color: Theme.ink;
                             font-size: 20px;
                         }
-                        Text {
+                        ElidedText {
                             text: @tr("help-buffer-latency");
                             color: Theme.ink-3;
                             font-size: Theme.min-font;
-                            overflow: elide;
                         }
                     }
 

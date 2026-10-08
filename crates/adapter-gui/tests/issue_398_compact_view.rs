@@ -1,6 +1,6 @@
 //! #398 — the compact view: a dark chain bar, then a rack of module cards.
 //! Each card has a side column (a category strip with the power button, the
-//! brand and the model field, the parameter tabs) and its knobs, drawn as
+//! brand and the model field) and its knobs under the parameter tabs, drawn as
 //! vector knobs whose value arc takes the category colour.
 
 use std::path::PathBuf;

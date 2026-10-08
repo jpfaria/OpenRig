@@ -1,5 +1,6 @@
 // Responsibility: renders the project setup page.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "../components/elided_text.slint";
 component SetupButton inherits Rectangle {
     in property <string> label;
     in property <bool> primary: false;
@@ -189,7 +190,7 @@ export component ProjectSetupPage inherits Rectangle {
             }
         }
 
-        if root.status-message != "" : Text {
+        if root.status-message != "" : ElidedText {
             x: 28px;
             y: 144px;
             width: parent.width - 56px;
@@ -198,7 +199,6 @@ export component ProjectSetupPage inherits Rectangle {
             color: Theme.bad;
             vertical-alignment: center;
             font-size: 18px;
-            overflow: elide;
         }
 
         // Buttons

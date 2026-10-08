@@ -119,6 +119,22 @@ audio for about a second.
   the broken one: **OPEN** — not measured; the test was cut by the coreaudiod
   crash. The stepped-input restart now does exactly this (Shipped), so its
   next marks on the rig answer it.
+- OpenRig's IOProc churn on stream rebuilds triggers the timeout:
+  **REFUTED** — 2026-10-07 19:23–19:41 -03:00, about 9000 IOProc creates and
+  destroys on the HD 8 (test processes) gave no eventlink timeout, and the
+  2026-10-08 01:55:30 timeout had no IOProc activity for over 2 minutes.
+- The dsp workers' realtime promotions trigger it: **REFUTED** — bursts of 20
+  promotions (2026-10-08 04:33:04, 04:42:57, 04:44:31 UTC) with no timeout.
+- Every eventlink timeout leaves the input stale: **REFUTED** — the
+  2026-10-08 01:55:30 timeout (OpenRig alone, its IO proc over budget) left it
+  clean; the 01:46:06 one, same session, left it stale at buffer position 13.
+- System overload is the common factor of the episodes with OpenRig alone:
+  **OPEN** — both 2026-10-08 timeouts ran at load 20–25 with swap full (a
+  parallel `cargo` build).
+- A newer driver fixes it: **OPEN** — 1.17.0 ships with Universal Control
+  5.1.1.113315, the latest public version on 2026-10-08. Reported to PreSonus
+  support (request 1033727, asked to forward to Thesycon) with the coreaudiod
+  crash report and a log of the 01:55 timeout.
 
 ## Shipped
 
@@ -159,7 +175,7 @@ audio for about a second.
 ## Open
 
 - Why the HD 8 driver stops answering the HAL's eventlink after the IO
-  contexts restart.
+  contexts restart — driver side, waiting on the vendor (Hypotheses).
 - Whether the coreaudiod crash comes from the same broken engine state (one
   occurrence).
 - What OpenRig can do on its own while another app's context is the broken

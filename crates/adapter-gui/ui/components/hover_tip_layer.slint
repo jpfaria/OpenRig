@@ -8,9 +8,19 @@ import { HoverTip } from "hover_tip_globals.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 
 export component HoverTipLayer inherits Rectangle {
+    // A PopupWindow paints over the whole window, window layer included, so
+    // every popup that holds hover labels declares its own layer, last, with
+    // `for-popup: true`; each layer draws only the labels of its own side, and
+    // a popup's label stays inside the popup.
+    in property <bool> for-popup;
+
     private property <length> gap: 2px;
-    private property <length> above: HoverTip.host-y - root.gap;
-    private property <length> below: HoverTip.host-y + HoverTip.host-h + root.gap;
+    // Window-absolute host, made local to this layer (a popup layer is not
+    // at the window's origin).
+    private property <length> host-x: HoverTip.host-x - root.absolute-position.x;
+    private property <length> host-y: HoverTip.host-y - root.absolute-position.y;
+    private property <length> above: root.host-y - root.gap;
+    private property <length> below: root.host-y + HoverTip.host-h + root.gap;
     private property <int> seen-beat: -1;
 
     // Drops a label whose control went away while hovered.
@@ -26,10 +36,12 @@ export component HoverTipLayer inherits Rectangle {
     }
 
     tip := Rectangle {
-        visible: HoverTip.show && HoverTip.text != "";
-        width: max(104px, label.preferred-width + 16px);
+        visible: HoverTip.show && HoverTip.text != "" && HoverTip.in-popup == root.for-popup;
+        // A long text (a full preset or plug-in name) wraps instead of
+        // leaving the layer.
+        width: min(root.width - 2 * OverlayPlacement.margin, max(104px, label.preferred-width + 16px));
         height: label.preferred-height + 6px;
-        x: OverlayPlacement.left(HoverTip.host-x + (HoverTip.host-w - self.width) / 2, self.width, root.width);
+        x: OverlayPlacement.left(root.host-x + (HoverTip.host-w - self.width) / 2, self.width, root.width);
         y: HoverTip.prefer-above
             ? OverlayPlacement.top-above(root.above, root.below, self.height, root.height)
             : OverlayPlacement.top(root.above, root.below, self.height, root.height);
@@ -44,7 +56,9 @@ export component HoverTipLayer inherits Rectangle {
             font-size: Theme.min-font;
             horizontal-alignment: center;
             vertical-alignment: center;
-            width: parent.width;
+            wrap: word-wrap;
+            x: 8px;
+            width: parent.width - 16px;
             height: parent.height;
         }
     }

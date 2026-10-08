@@ -4,6 +4,8 @@ import { BlockParameterItem } from "../models.slint";
 import { PanelKnob } from "panel_knob.slint";
 import { ToggleSwitch } from "toggle_switch.slint";
 import { SelectorKnob } from "selector_knob.slint";
+import { ElidedText } from "elided_text.slint";
+import { HoverTipLayer } from "hover_tip_layer.slint";
 
 // One column of the parameter grid in BlockPanelEditor.
 // Renders the appropriate widget based on `param.widget_kind`:
@@ -24,7 +26,7 @@ export component BlockPanelParameterItem inherits Rectangle {
     height: 90px;
 
     // Label
-    Text {
+    ElidedText {
         x: 0; y: 0; width: parent.width;
         height: 18px;
         text: root.param.label;
@@ -33,7 +35,6 @@ export component BlockPanelParameterItem inherits Rectangle {
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     // ── Enum ≤4 options (selector knob + inline labels) ──
@@ -62,7 +63,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
 
         // ── Bottom-left label (7h) — option 0 ──
-        Text {
+        ElidedText {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -71,9 +72,10 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 0 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-first-ta.has-hover;
         }
-        TouchArea {
+        opt-first-ta := TouchArea {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -82,7 +84,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
 
         // ── Bottom-right label (5h) — last option ──
-        Text {
+        ElidedText {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -94,9 +96,10 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
             horizontal-alignment: left;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-last-ta.has-hover;
         }
-        TouchArea {
+        opt-last-ta := TouchArea {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
             width: parent.lw; height: 14px;
@@ -105,7 +108,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
 
         // ── Top-center label (12h) — option 1 for 3-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 3;
             x: parent.cx - 55px; y: parent.top-row;
             width: 110px; height: 14px;
@@ -114,9 +117,10 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-top-ta.has-hover;
         }
-        TouchArea {
+        opt-top-ta := TouchArea {
             visible: parent.n == 3;
             x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
             mouse-cursor: pointer;
@@ -124,7 +128,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
 
         // ── Upper-left label (10h) — option 1 for 4-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 4;
             x: 0; y: parent.top-row;
             width: parent.lw; height: 14px;
@@ -133,9 +137,10 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-upper-left-ta.has-hover;
         }
-        TouchArea {
+        opt-upper-left-ta := TouchArea {
             visible: parent.n == 4;
             x: 0; y: parent.top-row; width: parent.lw; height: 14px;
             mouse-cursor: pointer;
@@ -143,7 +148,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
 
         // ── Upper-right label (2h) — option 2 for 4-opt ──
-        Text {
+        ElidedText {
             visible: parent.n == 4;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
             width: parent.lw; height: 14px;
@@ -152,9 +157,10 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: Theme.knob-option-font;
             font-weight: 2 == parent.sel ? 700 : 400;
             horizontal-alignment: left;
-            overflow: elide;
+            own-hover: false;
+            hovered: opt-upper-right-ta.has-hover;
         }
-        TouchArea {
+        opt-upper-right-ta := TouchArea {
             visible: parent.n == 4;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
             mouse-cursor: pointer;
@@ -172,7 +178,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         border-color: Theme.hair-2;
         border-radius: 6px;
 
-        Text {
+        ElidedText {
             x: 12px; y: 0;
             width: parent.width - 34px;
             height: parent.height;
@@ -183,7 +189,8 @@ export component BlockPanelParameterItem inherits Rectangle {
             font-size: 18px;
             font-weight: 700;
             vertical-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: param-open.has-hover;
         }
 
         Text {
@@ -236,7 +243,7 @@ export component BlockPanelParameterItem inherits Rectangle {
                         border-radius: 5px;
                         background: oi == root.param.selected_option_index ? Theme.accent-soft : (opt-ta.has-hover ? Theme.hover : transparent);
 
-                        Text {
+                        ElidedText {
                             x: 12px; y: 0;
                             width: parent.width - 24px;
                             height: parent.height;
@@ -245,7 +252,9 @@ export component BlockPanelParameterItem inherits Rectangle {
                             font-size: 18px;
                             font-weight: oi == root.param.selected_option_index ? 700 : 400;
                             vertical-alignment: center;
-                            overflow: elide;
+                            own-hover: false;
+                            hovered: opt-ta.has-hover;
+                            in-popup: true;
                         }
 
                         opt-ta := TouchArea {
@@ -256,6 +265,10 @@ export component BlockPanelParameterItem inherits Rectangle {
                         }
                     }
                 }
+            }
+
+            HoverTipLayer {
+                for-popup: true;
             }
         }
     }
@@ -270,7 +283,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         border-width: 1px;
         border-color: Theme.hair;
 
-        Text {
+        ElidedText {
             x: 4px;
             width: parent.width - 8px;
             height: parent.height;
@@ -278,7 +291,8 @@ export component BlockPanelParameterItem inherits Rectangle {
             color: root.param.value_text != "" ? Theme.ink-2 : Theme.accent;
             font-size: 18px;
             font-weight: 600;
-            overflow: elide;
+            own-hover: false;
+            hovered: file-ta.has-hover;
             horizontal-alignment: center;
             vertical-alignment: center;
         }

@@ -9,14 +9,15 @@ import { ParamTabBar } from "../components/param_tab_bar.slint";
 import { BlockStreamMiniDisplay } from "../components/block_stream_mini_display.slint";
 import { CurveEditorControl, MultiSliderControl } from "eq_widget.slint";
 import { CompactBlockParamStrip } from "compact_block_param_strip.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 // Single block row in the compact chain view. Exported so
 // CompactChainViewPage (in compact_chain_view.slint) can use it.
 //
 // #398: a module card. A row that opens a split lane carries the lane bar
 // (its icon and colour) on top. The card's side column holds the category strip
-// (power, icon, category, badge), then the brand and the model field, then the
-// parameter tabs; the knobs read left to right beside it.
+// (power, icon, category, badge), then the brand and the model field; beside
+// it the parameter tabs sit on top of the knobs, which read left to right.
 export component CompactBlockRow inherits Rectangle {
     in property <CompactBlockItem> block-data;
 
@@ -44,6 +45,8 @@ export component CompactBlockRow inherits Rectangle {
     callback select-parameter-group(int, int, int);
 
     private property <bool> has-param-tabs: root.block-data.parameter-groups.length > 1;
+    // The tab bar plus its gap to the knobs — `compact_block_layout::row_height_px`.
+    private property <length> tabs-h: root.has-param-tabs && !root.has-eq ? 28px + 12px : 0px;
     // #328: a split has no model — its card is the strip and its kind only.
     private property <bool> is-split: root.block-data.effect-type == "split";
     private property <bool> bypassed: !root.block-data.enabled;
@@ -182,7 +185,7 @@ export component CompactBlockRow inherits Rectangle {
                     tint: Gear.white;
                 }
 
-                Text {
+                ElidedText {
                     x: 68px;
                     width: parent.width - 68px - badge.width - 16px;
                     height: parent.height;
@@ -192,7 +195,6 @@ export component CompactBlockRow inherits Rectangle {
                     font-weight: 700;
                     letter-spacing: 0.12 * Theme.min-font;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
 
                 badge := Rectangle {
@@ -224,8 +226,6 @@ export component CompactBlockRow inherits Rectangle {
                 width: parent.width;
                 height: parent.height - root.strip-h;
                 opacity: root.bypassed ? 0.45 : 1.0;
-
-                property <length> stack-h: root.has-param-tabs ? 32px + 6px + 30px : 32px;
 
                 Rectangle {
                     x: 12px;
@@ -261,7 +261,7 @@ export component CompactBlockRow inherits Rectangle {
 
                 if !root.is-split : ModelSelectWithSearch {
                     x: 116px;
-                    y: (parent.height - parent.stack-h) / 2;
+                    y: (parent.height - 32px) / 2;
                     width: parent.width - 116px - 12px;
                     height: 32px;
                     show-badge: false;
@@ -283,18 +283,6 @@ export component CompactBlockRow inherits Rectangle {
                     }
                 }
 
-                if root.has-param-tabs : ParamTabBar {
-                    x: 116px;
-                    y: (parent.height - parent.stack-h) / 2 + 32px + 6px;
-                    width: parent.width - 116px - 12px;
-                    height: 30px;
-                    groups: root.block-data.parameter-groups;
-                    active: root.block-data.active-parameter-group;
-                    fade-into: Theme.side-ground;
-                    select(i) => {
-                        root.select-parameter-group(root.block-data.chain-index, root.block-data.block-index, i);
-                    }
-                }
             }
         }
 
@@ -306,11 +294,29 @@ export component CompactBlockRow inherits Rectangle {
             height: parent.height;
             opacity: root.bypassed ? 0.45 : 1.0;
 
+            // The tab bar and the knobs below it are centred as one block.
+            property <length> knobs-h: root.block-data.knob-overlays.length > 0 ? root.overlay-h : root.lines-h;
+            property <length> block-top: (self.height - root.tabs-h - self.knobs-h) / 2;
+
+            // Parameter tabs, on top of the knobs they switch.
+            if root.has-param-tabs && !root.has-eq : ParamTabBar {
+                x: 14px;
+                y: parent.block-top;
+                width: parent.width - 14px - 40px;
+                height: 28px;
+                groups: root.block-data.parameter-groups;
+                active: root.block-data.active-parameter-group;
+                fade-into: Theme.panel-hi;
+                select(i) => {
+                    root.select-parameter-group(root.block-data.chain-index, root.block-data.block-index, i);
+                }
+            }
+
             // Curated knob overlays, wrapping across strip lines.
             VerticalLayout {
                 visible: root.block-data.knob-overlays.length > 0;
                 x: 0;
-                y: (parent.height - root.overlay-h) / 2;
+                y: parent.block-top + root.tabs-h;
                 width: parent.width;
                 height: root.overlay-h;
                 spacing: 12px;
@@ -327,7 +333,7 @@ export component CompactBlockRow inherits Rectangle {
                         preferred-width: 66px;
                         height: 90px;
 
-                        Text {
+                        ElidedText {
                             x: 0; y: 0; width: parent.width; height: 22px;
                             text: knob.label;
                             color: Theme.ink-2;
@@ -335,7 +341,6 @@ export component CompactBlockRow inherits Rectangle {
                             font-weight: 600;
                             horizontal-alignment: center;
                             vertical-alignment: center;
-                            overflow: elide;
                         }
 
                         PanelKnob {
@@ -386,7 +391,7 @@ export component CompactBlockRow inherits Rectangle {
                     && !root.block-data.has-external-gui
                     && !root.has-eq;
                 x: 0;
-                y: (parent.height - root.lines-h) / 2;
+                y: parent.block-top + root.tabs-h;
                 width: parent.width;
                 height: root.lines-h;
                 block-data: root.block-data;

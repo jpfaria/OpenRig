@@ -4,6 +4,7 @@
 // numbers on the right. The limit sits at the middle of the track.
 import { Theme } from "../theme.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component ToneDoctorMetric inherits Rectangle {
     in property <string> name;
@@ -55,7 +56,7 @@ export component ToneDoctorMetric inherits Rectangle {
         background: Theme.ink;
     }
 
-    Text {
+    ElidedText {
         x: parent.width - root.value-w;
         width: root.value-w;
         height: parent.height;
@@ -66,6 +67,5 @@ export component ToneDoctorMetric inherits Rectangle {
         font-weight: 500;
         horizontal-alignment: right;
         vertical-alignment: center;
-        overflow: elide;
     }
 }

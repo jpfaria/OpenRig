@@ -20,6 +20,7 @@ import { DrumsBridge } from "../components/drums_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
 import { ProjectTempo } from "../components/project_tempo.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -128,7 +129,7 @@ export component ProjectChainsPage inherits Rectangle {
             // than the display face's line draws nothing.
             Rectangle {
                 horizontal-stretch: 1;
-                Text {
+                ElidedText {
                     y: (parent.height - root.bar-height) / 2;
                     width: parent.width;
                     height: root.bar-height;
@@ -138,7 +139,6 @@ export component ProjectChainsPage inherits Rectangle {
                     font-size: 28px;
                     letter-spacing: 1px;
                     vertical-alignment: center;
-                    overflow: elide;
                 }
             }
 

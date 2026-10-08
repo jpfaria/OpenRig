@@ -46,9 +46,8 @@ use crate::project_view::{
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::ui_state::block_drawer_state;
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, BlockStreamData, BlockStreamEntry,
-    BlockTypePickerItem, ChainInsertWindow, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow,
-    ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainInsertWindow,
+    CurveEditorPoint, MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
 
 pub(crate) struct SelectChainBlockCallbackCtx {
@@ -423,33 +422,14 @@ pub(crate) fn wire(
                             let Some(entries) = block_stream_reads.block_stream(&bid) else {
                                 return;
                             };
-                            if !entries.is_empty() {
-                                let slint_entries: Vec<BlockStreamEntry> = entries
-                                    .iter()
-                                    .map(|e| BlockStreamEntry {
-                                        key: e.key.clone().into(),
-                                        value: e.value,
-                                        text: e.text.clone().into(),
-                                        peak: e.peak,
-                                    })
-                                    .collect();
-                                crate::BlockEditorBridge::get(&win).set_block_stream_data(
-                                    BlockStreamData {
-                                        active: true,
-                                        stream_kind: kind,
-                                        entries: ModelRc::from(Rc::new(VecModel::from(
-                                            slint_entries,
-                                        ))),
-                                    },
-                                );
-                            } else {
-                                crate::BlockEditorBridge::get(&win).set_block_stream_data(
-                                    BlockStreamData {
-                                        active: false,
-                                        stream_kind: kind,
-                                        entries: ModelRc::default(),
-                                    },
-                                );
+                            // #1099: the readings move inside the shown model.
+                            let bridge = crate::BlockEditorBridge::get(&win);
+                            if let Some(next) = crate::block_stream_sync::sync_block_stream(
+                                &bridge.get_block_stream_data(),
+                                kind,
+                                &entries,
+                            ) {
+                                bridge.set_block_stream_data(next);
                             }
                         },
                     );

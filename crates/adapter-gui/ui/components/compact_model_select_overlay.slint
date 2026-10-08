@@ -76,6 +76,7 @@ export component CompactModelSelectOverlay inherits Rectangle {
                             divided: i > 0;
                             header: i == 0 || model.effect_type != root.filtered-models[i - 1].effect_type
                                 ? model.effect_type.to-uppercase() : "";
+                            hovered: row-ta.has-hover;
                         }
 
                         row-ta := TouchArea {

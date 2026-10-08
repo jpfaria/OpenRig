@@ -38,6 +38,7 @@ mod block_reorder;
 #[cfg(test)]
 #[path = "block_stream_read_tests.rs"]
 mod block_stream_read_tests;
+mod block_stream_sync;
 mod block_toggle;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
@@ -203,6 +204,7 @@ mod split_picker_entries;
 mod stepped_input_mark;
 mod stepped_input_system_log;
 mod stepped_input_tick;
+mod stepped_input_timer;
 mod thumbnails;
 pub mod tuner_close;
 mod tuner_session;

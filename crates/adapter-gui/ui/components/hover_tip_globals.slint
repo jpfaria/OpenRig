@@ -13,6 +13,9 @@ export global HoverTip {
     in-out property <length> host-w;
     in-out property <length> host-h;
     in-out property <bool> prefer-above;
+    // The hovered control is drawn inside a PopupWindow. A popup paints over
+    // the whole window, so its label is drawn by the popup's own layer.
+    in-out property <bool> in-popup;
     // Bumped by every control that takes the label over, so a control that
     // stops being hovered only hides the label while it is still its own.
     in-out property <int> owner;

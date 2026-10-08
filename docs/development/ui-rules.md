@@ -221,6 +221,14 @@ label stays fully inside its window and is never covered:
 - A hover label is an `IconTooltip` inside the control, drawn by the window's
   `HoverTipLayer { }` (declared in every window, after the probe), so no
   clip or later sibling cuts it.
+- A text that may not fit is an `ElidedText`, never a bare `Text` with
+  `overflow: elide`: when it is cut short and the pointer rests on it, the
+  hover label shows the whole text. A label inside or under a control's
+  `TouchArea` sets `own-hover: false` and passes that area's `has-hover`, so
+  the control keeps its clicks. A label inside a `PopupWindow` sets
+  `in-popup: true`, and that popup declares `HoverTipLayer { for-popup: true; }`
+  last, because a popup paints above the window's own layer
+  (`tests/issue_1100_elided_text_hover.rs`).
 
 `tests/issue_398_overlay_placement.rs` opens panels at each edge and checks
 they land inside; it also checks every window declares the probe and the

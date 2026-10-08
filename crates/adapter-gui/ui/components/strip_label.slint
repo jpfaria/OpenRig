@@ -8,6 +8,7 @@
 import { Theme } from "../theme.slint";
 import { OverlayPlacement } from "overlay_placement.slint";
 import { WindowBounds } from "window_bounds.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component StripLabel inherits Rectangle {
     in property <string> name;
@@ -40,7 +41,7 @@ export component StripLabel inherits Rectangle {
 
         name-ta := TouchArea {}
 
-        Text {
+        ElidedText {
             x: 2px; y: 31px;
             width: parent.width - 4px; height: 22px;
             text: root.detail;
@@ -51,7 +52,6 @@ export component StripLabel inherits Rectangle {
             wrap: no-wrap;
             horizontal-alignment: center;
             vertical-alignment: center;
-            overflow: elide;
         }
     }
 

@@ -55,6 +55,26 @@ export component ChainMixerTabs inherits Rectangle {
         root.tab == 0 ? @tr("label-mixer-no-inputs")
         : (root.tab == 1 ? @tr("label-mixer-no-outputs") : @tr("label-mixer-no-loopers"));
 
+    // #1099: the tab labels are set, never bound. A bound array literal is a
+    // new model each time it re-evaluates, and the host rewrites the chain's
+    // row on every meter tick of a running chain: the bar's tabs were rebuilt
+    // between a press and its release, and the click was lost.
+    private property <[string]> groups;
+
+    function refresh-groups() {
+        root.groups = root.di-playing && root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di"), @tr("tab-mixer-looper")]
+            : root.di-playing
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di")]
+            : root.has-looper
+            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-looper")]
+            : [@tr("tab-mixer-in"), @tr("tab-mixer-out")];
+    }
+
+    init => { root.refresh-groups(); }
+    changed di-playing => { root.refresh-groups(); }
+    changed has-looper => { root.refresh-groups(); }
+
     background: transparent;
     border-radius: 6px;
     clip: true;
@@ -62,13 +82,7 @@ export component ChainMixerTabs inherits Rectangle {
     ParamTabBar {
         x: 0; y: 0;
         width: parent.width; height: root.tabs-height;
-        groups: root.di-playing && root.has-looper
-            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di"), @tr("tab-mixer-looper")]
-            : root.di-playing
-            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-di")]
-            : root.has-looper
-            ? [@tr("tab-mixer-in"), @tr("tab-mixer-out"), @tr("tab-mixer-looper")]
-            : [@tr("tab-mixer-in"), @tr("tab-mixer-out")];
+        groups: root.groups;
         // Bar position 2 is DI while it plays, LOOPER otherwise.
         active: root.tab == 3 && !root.di-playing ? 2 : root.tab;
         boxed: true;

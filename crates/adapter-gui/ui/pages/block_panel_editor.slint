@@ -18,6 +18,7 @@ import "../fonts/BebasNeue.ttf";
 import "../fonts/DancingScript.ttf";
 import "../fonts/PermanentMarker.ttf";
 import "../fonts/Orbitron.ttf";
+import { ElidedText } from "../components/elided_text.slint";
 
 // Full visual amp head editor window content
 export component BlockPanelEditor inherits Rectangle {
@@ -300,13 +301,12 @@ export component BlockPanelEditor inherits Rectangle {
             height: parent.height;
             background: transparent;
 
-            Text {
+            ElidedText {
                 x: 0; y: 0; width: parent.width; height: 22px;
                 text: entry.key;
                 color: Theme.ink-3;
                 font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
                 horizontal-alignment: center; vertical-alignment: center;
-                overflow: elide;
             }
 
             Text {
@@ -418,7 +418,7 @@ export component BlockPanelEditor inherits Rectangle {
             }
 
             // Frequency label at bottom
-            Text {
+            ElidedText {
                 x: 0;
                 y: parent.height - 23px;
                 width: parent.width;
@@ -428,7 +428,6 @@ export component BlockPanelEditor inherits Rectangle {
                 color: Theme.ink-3;
                 font-size: 18px;
                 horizontal-alignment: center;
-                overflow: elide;
             }
         }
     }
