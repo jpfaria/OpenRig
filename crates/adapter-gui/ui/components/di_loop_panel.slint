@@ -19,6 +19,7 @@
 import { Theme, Gear } from "../theme.slint";
 import { ToolBar } from "tool_bar.slint";
 import { FieldCaption } from "field_caption.slint";
+import { ElidedText } from "elided_text.slint";
 
 // The closed field of a select: its value and a chevron, ringed while open.
 component SelectBox inherits Rectangle {
@@ -32,7 +33,7 @@ component SelectBox inherits Rectangle {
     border-width: 1px;
     border-color: root.open ? Theme.accent : root.hovered ? Theme.ink-3 : Theme.field-line;
 
-    Text {
+    ElidedText {
         x: 10px;
         width: parent.width - 40px;
         height: parent.height;
@@ -41,7 +42,8 @@ component SelectBox inherits Rectangle {
         font-size: Theme.min-font;
         font-weight: 500;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: root.hovered;
     }
 
     Image {
@@ -258,7 +260,7 @@ export component DiLoopPanel inherits Rectangle {
                             background: Theme.accent;
                         }
 
-                        Text {
+                        ElidedText {
                             x: 12px;
                             width: parent.width - 24px - (parent.is-take
                                 ? (root.armed-delete == i ? root.armed-w + 8px : 34px) : 0px);
@@ -268,7 +270,8 @@ export component DiLoopPanel inherits Rectangle {
                             font-size: Theme.min-font;
                             font-weight: i == root.selected-index ? 600 : 500;
                             vertical-alignment: center;
-                            overflow: elide;
+                            own-hover: false;
+                            hovered: row-ta.has-hover;
                         }
                         row-ta := TouchArea {
                             mouse-cursor: pointer;
@@ -301,7 +304,7 @@ export component DiLoopPanel inherits Rectangle {
                                 source: @image-url("../assets/trash.svg");
                                 colorize: del-ta.has-hover ? Theme.ink : Theme.ink-3;
                             }
-                            if root.armed-delete == i : del-confirm := Text {
+                            if root.armed-delete == i : del-confirm := ElidedText {
                                 width: parent.width;
                                 height: parent.height;
                                 text: @tr("di-take-delete-confirm");
@@ -310,7 +313,8 @@ export component DiLoopPanel inherits Rectangle {
                                 font-weight: 700;
                                 horizontal-alignment: center;
                                 vertical-alignment: center;
-                                overflow: elide;
+                                own-hover: false;
+                                hovered: del-ta.has-hover;
                             }
                             del-ta := TouchArea {
                                 mouse-cursor: pointer;
@@ -390,7 +394,7 @@ export component DiLoopPanel inherits Rectangle {
                             background: Theme.accent;
                         }
 
-                        Text {
+                        ElidedText {
                             x: 12px;
                             width: parent.width - 24px;
                             height: parent.height;
@@ -399,7 +403,8 @@ export component DiLoopPanel inherits Rectangle {
                             font-size: Theme.min-font;
                             font-weight: i == root.output-selected-index ? 600 : 500;
                             vertical-alignment: center;
-                            overflow: elide;
+                            own-hover: false;
+                            hovered: out-row-ta.has-hover;
                         }
                         out-row-ta := TouchArea {
                             mouse-cursor: pointer;

@@ -2,6 +2,7 @@
 import { Theme } from "../theme.slint";
 import { BlockModelPickerItem } from "../models.slint";
 import { ModelSelectWithSearch } from "model_select_with_search.slint";
+import { ElidedText } from "elided_text.slint";
 
 // Top-most strip of BlockPanelEditor: type icon, type label, model selector with
 // embedded search (it carries the backend badge), and trailing action buttons
@@ -82,7 +83,7 @@ export component BlockPanelHeader inherits Rectangle {
         search-text-changed(text) => { root.search-model(text); }
     }
 
-    if !root.show-model-picker : Text {
+    if !root.show-model-picker : ElidedText {
         x: root.picker-x;
         y: 0;
         width: root.picker-w;
@@ -94,7 +95,6 @@ export component BlockPanelHeader inherits Rectangle {
         letter-spacing: 0.06 * Theme.min-font;
         vertical-alignment: center;
         horizontal-alignment: left;
-        overflow: elide;
     }
 
     // Info (edit mode).

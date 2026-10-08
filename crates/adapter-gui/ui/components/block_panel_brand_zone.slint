@@ -7,6 +7,7 @@ import { Theme, Gear } from "../theme.slint";
 import { BrandLogo } from "brand_logo.slint";
 import { BlockPowerButton } from "block_power_button.slint";
 import { Locale } from "../locale_globals.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component BlockPanelBrandZone inherits Rectangle {
     in property <string> selected-brand;
@@ -49,7 +50,7 @@ export component BlockPanelBrandZone inherits Rectangle {
         tint: Theme.ink;
     }
 
-    if root.branded : Text {
+    if root.branded : ElidedText {
         x: 18px;
         y: root.top + 72px;
         width: parent.width - 36px;
@@ -61,7 +62,6 @@ export component BlockPanelBrandZone inherits Rectangle {
         letter-spacing: 0.12 * Theme.min-font;
         horizontal-alignment: center;
         vertical-alignment: center;
-        overflow: elide;
     }
 
     word := Text {

@@ -3,6 +3,7 @@
 // colour, the guilty block under it, and when the doctor measured a fix, the
 // fix with an Apply button on the green.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component ToneDoctorVerdict inherits Rectangle {
     in property <int> level;
@@ -50,11 +51,10 @@ export component ToneDoctorVerdict inherits Rectangle {
             }
         }
 
-        Text {
+        ElidedText {
             text: root.culprit;
             color: Theme.chrome-fg-2;
             font-size: Theme.min-font;
-            overflow: elide;
         }
 
         if root.has-suggestion : VerticalLayout {
@@ -74,19 +74,17 @@ export component ToneDoctorVerdict inherits Rectangle {
                     spacing: 2px;
                     horizontal-stretch: 1;
 
-                    Text {
+                    ElidedText {
                         text: @tr("tone-doctor-suggestion");
                         color: Theme.chrome-fg-2;
                         font-size: Theme.min-font;
-                        overflow: elide;
                     }
 
-                    Text {
+                    ElidedText {
                         text: root.suggestion;
                         color: Theme.chrome-fg;
                         font-size: Theme.min-font;
                         font-weight: 700;
-                        overflow: elide;
                     }
                 }
 

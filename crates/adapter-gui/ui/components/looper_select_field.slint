@@ -8,6 +8,7 @@
 
 import { Theme } from "../theme.slint";
 import { FieldCaption } from "field_caption.slint";
+import { ElidedText } from "elided_text.slint";
 
 // The closed field: the value, elided, and a chevron. The host puts the touch
 // target inside it.
@@ -23,7 +24,7 @@ export component LooperSelectBox inherits Rectangle {
     border-width: 1px;
     border-color: root.hovered ? Theme.ink-3 : Theme.field-line;
 
-    Text {
+    ElidedText {
         x: 10px;
         width: parent.width - 36px;
         height: parent.height;
@@ -32,7 +33,8 @@ export component LooperSelectBox inherits Rectangle {
         color: root.muted ? Theme.ink-3 : Theme.ink;
         font-size: Theme.min-font;
         font-weight: 500;
-        overflow: elide;
+        own-hover: false;
+        hovered: root.hovered;
     }
 
     Image {

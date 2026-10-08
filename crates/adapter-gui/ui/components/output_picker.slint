@@ -1,5 +1,6 @@
 // Responsibility: renders the output endpoint field with its picker rows.
 import { Theme } from "../theme.slint";
+import { ElidedText } from "elided_text.slint";
 // Shared by every independent pipeline window (metronome, backing tracks): a
 // closed field showing the chosen endpoint, and the clickable rows of the
 // picker overlay. Plain Rectangle + TouchArea, never a PopupWindow, whose rows
@@ -24,7 +25,7 @@ export component OutputField inherits Rectangle {
         source: @image-url("../assets/headphones.svg");
         colorize: Theme.ink-3;
     }
-    Text {
+    ElidedText {
         x: 34px;
         width: parent.width - 60px;
         height: parent.height;
@@ -33,7 +34,8 @@ export component OutputField inherits Rectangle {
         font-size: Theme.min-font;
         font-weight: 500;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover;
     }
     Image {
         x: parent.width - 19px; y: (parent.height - 9px) / 2;
@@ -60,7 +62,7 @@ export component OutputRow inherits Rectangle {
     border-radius: 5px;
     background: root.active ? Theme.accent-soft : (ta.has-hover ? Theme.panel-hi : transparent);
 
-    Text {
+    ElidedText {
         x: 12px;
         width: parent.width - 24px;
         height: parent.height;
@@ -69,7 +71,8 @@ export component OutputRow inherits Rectangle {
         font-size: 18px;
         font-weight: root.active ? 700 : 500;
         vertical-alignment: center;
-        overflow: elide;
+        own-hover: false;
+        hovered: ta.has-hover;
     }
     ta := TouchArea {
         mouse-cursor: pointer;

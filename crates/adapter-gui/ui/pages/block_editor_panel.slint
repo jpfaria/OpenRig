@@ -15,6 +15,7 @@ import { ModelSelectWithSearch } from "../components/model_select_with_search.sl
 import { BlockParameterRow } from "../components/block_parameter_row.slint";
 import { BlockTypeCard, ToolbarButton } from "../components/block_value_widgets.slint";
 import { ChainActionIcon, ChainPowerToggle } from "../components/chain_chips.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 export component BlockEditorPanel inherits Rectangle {
     callback show-plugin-info(string, string);  // effect_type, model_id
@@ -118,7 +119,7 @@ export component BlockEditorPanel inherits Rectangle {
             search-text-changed(text) => { BlockEditorBridge.search-block-model(text); }
         }
 
-        if root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : Text {
+        if root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : ElidedText {
             x: 20px;
             y: 118px;
             width: parent.width - 40px;
@@ -127,7 +128,6 @@ export component BlockEditorPanel inherits Rectangle {
             color: Theme.ink-2;
             font-size: 18px;
             vertical-alignment: center;
-            overflow: elide;
         }
 
         // (controls.svg removidos — painel agora é renderizado pelo BlockPanelEditor)
@@ -171,7 +171,7 @@ export component BlockEditorPanel inherits Rectangle {
             search-text-changed(text) => { BlockEditorBridge.search-block-model(text); }
         }
 
-        if !root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : Text {
+        if !root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : ElidedText {
             x: 20px;
             y: 122px;
             width: parent.width - 40px;
@@ -180,7 +180,6 @@ export component BlockEditorPanel inherits Rectangle {
             color: Theme.ink-2;
             font-size: 18px;
             vertical-alignment: center;
-            overflow: elide;
         }
 
         if !root.is-preamp && BlockEditorBridge.curve-editor-points.length > 0 : CurveEditorControl {
@@ -232,13 +231,12 @@ export component BlockEditorPanel inherits Rectangle {
                 height: parent.height;
                 background: transparent;
 
-                Text {
+                ElidedText {
                     x: 0; y: 6px; width: parent.width; height: 22px;
                     text: entry.key;
                     color: Theme.ink-3;
                     font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
                     horizontal-alignment: center; vertical-alignment: center;
-                    overflow: elide;
                 }
 
                 Text {

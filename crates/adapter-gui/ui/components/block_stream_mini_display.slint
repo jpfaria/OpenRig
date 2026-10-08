@@ -1,6 +1,7 @@
 // Responsibility: renders a block's live stream readout.
 import { Theme } from "../theme.slint";
 import { BlockStreamData } from "../models.slint";
+import { ElidedText } from "elided_text.slint";
 
 // Compact stream display rendered inside CompactBlockRow.
 //
@@ -36,10 +37,9 @@ export component BlockStreamMiniDisplay inherits Rectangle {
             width: slot-w;
             height: parent.height;
 
-            Text {
+            ElidedText {
                 x: 0; y: 0; width: parent.width; height: 22px;
                 text: entry.key;
-                overflow: elide;
                 color: Theme.ink-3;
                 font-size: 18px;
                 font-weight: 700; letter-spacing: 1px;

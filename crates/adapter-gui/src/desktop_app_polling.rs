@@ -1,5 +1,5 @@
 //! Responsibility: runs the background timers of the desktop app.
-//! Three background timers wired by `run_desktop_app` against the main window.
+//! Four background timers wired by `run_desktop_app` against the main window.
 //!
 //! * **Error poll** (200 ms) — installs any chain rebuild the control worker
 //!   finished (#672) and drains the audio engine's bounded `BlockError` queue,
@@ -15,8 +15,9 @@
 //!   recovers. Device hot-plug detection was deliberately moved out of this
 //!   timer because polling `/proc/asound/cards` triggered scarlett2_notify
 //!   freezes on the Orange Pi USB-C OTG port; the device list now refreshes
-//!   only on demand. The same tick restarts a chain whose input arrives
-//!   stepped (#979, `stepped_input_tick`).
+//!   only on demand.
+//! * **Stepped input** — `stepped_input_timer`: restarts the device of a chain
+//!   whose input arrives stepped.
 //!
 //! #127: this module holds NO audio backend. It reads through
 //! `LiveSource` (the errors, the health) and writes through `RuntimeControl`
@@ -82,6 +83,12 @@ pub(crate) fn start(
     // live within a few milliseconds instead of waiting for the tick above.
     std::mem::forget(crate::rebuild_install_timer::start(control.clone()));
 
+    // A stepped input is restarted on its own short tick, not the 2 s one below.
+    std::mem::forget(crate::stepped_input_timer::start(
+        live.clone(),
+        control.clone(),
+    ));
+
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
     // when the backend becomes available again.
@@ -89,7 +96,6 @@ pub(crate) fn start(
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer;
         let disconnected = Rc::new(RefCell::new(false));
-        let stepped_restarts = RefCell::new(crate::stepped_input_tick::SteppedRestarts::default());
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,
@@ -124,13 +130,6 @@ pub(crate) fn start(
                         &rust_i18n::t!("status-audio-reconnected"),
                     );
                 }
-                // #979: a chain whose input arrives stepped is switched off
-                // and on, the only cure seen on the rig.
-                crate::stepped_input_tick::stepped_input_tick(
-                    live.as_ref(),
-                    control.as_ref(),
-                    &stepped_restarts,
-                );
             },
         );
         std::mem::forget(health_timer);

@@ -8,6 +8,8 @@ export component IconTooltip inherits Rectangle {
     in property <string> text;
     in property <bool> show;
     in property <bool> prefer-above;
+    // Set by a control drawn inside a PopupWindow (see `HoverTipLayer.for-popup`).
+    in property <bool> in-popup;
 
     private property <bool> on: root.show && root.text != "";
     private property <int> mine: -1;
@@ -19,6 +21,7 @@ export component IconTooltip inherits Rectangle {
         HoverTip.host-w = root.width;
         HoverTip.host-h = root.height;
         HoverTip.prefer-above = root.prefer-above;
+        HoverTip.in-popup = root.in-popup;
         HoverTip.beat += 1;
     }
 

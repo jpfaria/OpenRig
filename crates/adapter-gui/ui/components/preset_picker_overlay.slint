@@ -15,6 +15,7 @@ import { ToolBar } from "tool_bar.slint";
 import { TextField } from "text_field.slint";
 import { FormButton } from "form_button.slint";
 import { ListBox, ListRow } from "list_box.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component PresetPickerOverlay {
     in property <bool> visible-overlay;
@@ -78,13 +79,14 @@ export component PresetPickerOverlay {
                                     font-size: Theme.min-font;
                                     vertical-alignment: center;
                                 }
-                                Text {
+                                ElidedText {
                                     horizontal-stretch: 1;
                                     text: item;
                                     color: Theme.ink;
                                     font-size: Theme.min-font;
                                     vertical-alignment: center;
-                                    overflow: elide;
+                                    own-hover: false;
+                                    hovered: item-area.has-hover;
                                 }
                                 Rectangle {
                                     width: 32px;

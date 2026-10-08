@@ -18,6 +18,7 @@ import { Theme } from "../theme.slint";
 import { Locale } from "../locale_globals.slint";
 import { ChannelOptionItem } from "../models.slint";
 import { CheckMark } from "check_mark.slint";
+import { ElidedText } from "elided_text.slint";
 
 component ChannelPickerRow inherits Rectangle {
     in property <ChannelOptionItem> channel;
@@ -55,7 +56,7 @@ component ChannelPickerRow inherits Rectangle {
             }
         }
 
-        Text {
+        ElidedText {
             horizontal-stretch: 1;
             text: root.channel.label;
             font-family: Locale.mono-font-family;
@@ -65,7 +66,8 @@ component ChannelPickerRow inherits Rectangle {
             font-size: Theme.min-font;
             font-weight: root.channel.selected ? 600 : 400;
             vertical-alignment: center;
-            overflow: elide;
+            own-hover: false;
+            hovered: ta.has-hover;
         }
     }
 

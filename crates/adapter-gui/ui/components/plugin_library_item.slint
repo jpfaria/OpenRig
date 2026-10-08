@@ -9,6 +9,7 @@ import { PluginRow } from "plugins_globals.slint";
 import { SettingsCard } from "settings_card.slint";
 import { TagPill } from "tag_pill.slint";
 import { FormButton, FormButtonKind } from "form_button.slint";
+import { ElidedText } from "elided_text.slint";
 
 export component PluginLibraryItem inherits SettingsCard {
     in property <PluginRow> plugin;
@@ -34,18 +35,16 @@ export component PluginLibraryItem inherits SettingsCard {
             HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
-                Text {
+                ElidedText {
                     text: root.plugin.name;
                     color: Theme.ink;
                     font-size: Theme.min-font;
                     font-weight: 700;
-                    overflow: elide;
                 }
-                if root.plugin.brand != "" : Text {
+                if root.plugin.brand != "" : ElidedText {
                     text: root.plugin.brand;
                     color: Theme.ink-3;
                     font-size: Theme.min-font;
-                    overflow: elide;
                 }
             }
             HorizontalLayout {

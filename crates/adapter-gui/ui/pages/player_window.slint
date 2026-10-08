@@ -23,6 +23,7 @@ import { FieldCaption } from "../components/field_caption.slint";
 import { Locale } from "../locale_globals.slint";
 import { WindowBoundsProbe } from "../components/window_bounds.slint";
 import { HoverTipLayer } from "../components/hover_tip_layer.slint";
+import { ElidedText } from "../components/elided_text.slint";
 
 export component PlayerPanel inherits Rectangle {
     in property <bool> show-close-button: false;
@@ -56,14 +57,13 @@ export component PlayerPanel inherits Rectangle {
                     padding-bottom: 10px;
                     spacing: 4px;
 
-                    Text {
+                    ElidedText {
                         text: PlayerBridge.track-name != "" ? PlayerBridge.track-name : @tr("status-no-track");
                         color: root.lit;
                         font-family: Locale.display-font-family;
                         font-size: 22px;
                         letter-spacing: 0.06 * 22px;
                         horizontal-alignment: center;
-                        overflow: elide;
                     }
 
                     HorizontalLayout {
@@ -212,12 +212,11 @@ export component PlayerPanel inherits Rectangle {
                 delete(path) => { PlayerBridge.delete-track(path); }
             }
 
-            Text {
+            ElidedText {
                 vertical-stretch: 0;
                 text: @tr("label-user-tracks-folder", PlayerBridge.user-folder);
                 color: Theme.ink-3;
                 font-size: Theme.min-font;
-                overflow: elide;
             }
         }
     }
