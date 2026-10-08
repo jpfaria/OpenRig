@@ -31,9 +31,7 @@ use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
 use crate::project_view::block_type_picker_items;
 use crate::state::{BlockEditorDraft, ProjectSession};
-use crate::{
-    AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,
-};
+use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
 // ── #614: public play/stop entry points for the compact chain view ──────────
 //
@@ -378,55 +376,36 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     };
                     let compact_blocks = cw.get_compact_blocks();
                     for i in 0..compact_blocks.row_count() {
-                        if let Some(mut item) = compact_blocks.row_data(i) {
-                            if item.effect_type == "utility" {
-                                let stream_data = if item.enabled {
-                                    let bid = BlockId(item.block_id.to_string());
-                                    let kind: slint::SharedString =
-                                        project::catalog::model_stream_kind(
-                                            item.effect_type.as_str(),
-                                            item.model_id.as_str(),
-                                        )
-                                        .into();
-                                    let Some(entries) = block_stream_reads.block_stream(&bid)
-                                    else {
-                                        continue;
-                                    };
-                                    if !entries.is_empty() {
-                                        let slint_entries: Vec<BlockStreamEntry> = entries
-                                            .iter()
-                                            .map(|e| BlockStreamEntry {
-                                                key: e.key.clone().into(),
-                                                value: e.value,
-                                                text: e.text.clone().into(),
-                                                peak: e.peak,
-                                            })
-                                            .collect();
-                                        BlockStreamData {
-                                            active: true,
-                                            stream_kind: kind,
-                                            entries: ModelRc::from(Rc::new(VecModel::from(
-                                                slint_entries,
-                                            ))),
-                                        }
-                                    } else {
-                                        BlockStreamData {
-                                            active: false,
-                                            stream_kind: kind,
-                                            entries: ModelRc::default(),
-                                        }
-                                    }
-                                } else {
-                                    // Disabled utility block — clear stream so parameters become visible
-                                    BlockStreamData {
-                                        active: false,
-                                        stream_kind: "".into(),
-                                        entries: ModelRc::default(),
-                                    }
-                                };
-                                item.stream_data = stream_data;
-                                compact_blocks.set_row_data(i, item);
-                            }
+                        let Some(mut item) = compact_blocks.row_data(i) else {
+                            continue;
+                        };
+                        if item.effect_type != "utility" {
+                            continue;
+                        }
+                        // A disabled utility block clears its stream so its
+                        // parameters become visible.
+                        let (kind, entries): (slint::SharedString, Vec<_>) = if item.enabled {
+                            let bid = BlockId(item.block_id.to_string());
+                            let Some(entries) = block_stream_reads.block_stream(&bid) else {
+                                continue;
+                            };
+                            let kind = project::catalog::model_stream_kind(
+                                item.effect_type.as_str(),
+                                item.model_id.as_str(),
+                            );
+                            (kind.into(), entries)
+                        } else {
+                            ("".into(), Vec::new())
+                        };
+                        // #1099: the row is rewritten only when its stream
+                        // changes shape; the readings move in place.
+                        if let Some(next) = crate::block_stream_sync::sync_block_stream(
+                            &item.stream_data,
+                            kind,
+                            &entries,
+                        ) {
+                            item.stream_data = next;
+                            compact_blocks.set_row_data(i, item);
                         }
                     }
                 },

@@ -3,11 +3,14 @@
 //! The chain list draws a chain's mixer the way it draws its IN/OUT meters: at
 //! the bottom of that chain's card, which grows to hold it. A second click on
 //! the same button closes it, and only one chain's mixer is open at a time.
-//! Driven through real pointer events on the chain list page.
+//! Driven through real pointer events on the chain list page. A tab of that
+//! mixer takes a click even while the meter poll rewrites the chain's row
+//! between the press and the release, as it does on every tick of a running
+//! chain (#1099).
 
-use i_slint_backend_testing::ElementHandle;
+use i_slint_backend_testing::{AccessibleRole, ElementHandle};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
 
 use crate::{ChainMixerPanel, ProjectChainItem, ProjectChainsHarness};
 
@@ -158,4 +161,73 @@ fn opening_another_chains_mixer_moves_it_to_that_card() {
         after[1]
     );
     assert_eq!(ChainMixerPanel::get(&h).get_chain_index(), 1);
+}
+
+fn centre(el: &ElementHandle) -> LogicalPosition {
+    let (pos, size) = (el.absolute_position(), el.size());
+    LogicalPosition::new(pos.x + size.width / 2.0, pos.y + size.height / 2.0)
+}
+
+/// The open mixer's tab buttons, left to right: IN, OUT, ...
+fn mixer_tabs(h: &ProjectChainsHarness) -> Vec<ElementHandle> {
+    let bar = on_screen(h, "ParamTabBar")
+        .into_iter()
+        .next()
+        .expect("the open mixer's tab bar");
+    let mut tabs = bar
+        .query_descendants()
+        .match_accessible_role(AccessibleRole::Button)
+        .find_all();
+    tabs.sort_by(|a, b| a.absolute_position().x.total_cmp(&b.absolute_position().x));
+    tabs
+}
+
+/// The words the open mixer shows below its tabs (the empty-tab text).
+fn mixer_texts(h: &ProjectChainsHarness) -> Vec<String> {
+    let mixer = on_screen(h, "ChainMixerTabs")
+        .into_iter()
+        .next()
+        .expect("the open mixer");
+    mixer
+        .query_descendants()
+        .match_accessible_role(AccessibleRole::Text)
+        .find_all()
+        .into_iter()
+        .filter_map(|el| el.accessible_label().map(|l| l.to_string()))
+        .collect()
+}
+
+/// The meter poll's tick on a running chain: the chain's row rewritten with
+/// fresh meter levels.
+fn meter_tick(h: &ProjectChainsHarness, chain: usize) {
+    let chains = h.get_chains();
+    let mut row = chains.row_data(chain).expect("the chain's row");
+    row.meter_out_dbfs += 0.5;
+    chains.set_row_data(chain, row);
+}
+
+#[test]
+fn the_out_tab_takes_a_click_while_the_running_chain_rewrites_its_row() {
+    let h = list();
+    click_mixer_button(&h, 0);
+    let on_in = mixer_texts(&h);
+
+    let out = centre(&mixer_tabs(&h)[1]);
+    let win = h.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: out });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: out,
+        button: PointerEventButton::Left,
+    });
+    meter_tick(&h, 0);
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: out,
+        button: PointerEventButton::Left,
+    });
+
+    assert_ne!(
+        mixer_texts(&h),
+        on_in,
+        "the click on OUT must switch the mixer away from IN"
+    );
 }
