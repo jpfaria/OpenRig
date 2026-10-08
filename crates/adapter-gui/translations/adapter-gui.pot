@@ -1655,3 +1655,15 @@ msgstr ""
 
 msgid "btn-wizard-finish"
 msgstr ""
+
+msgid "title-spectrum-outputs"
+msgstr ""
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr ""
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr ""
+
+msgid "status-spectrum-outputs-hidden"
+msgstr ""

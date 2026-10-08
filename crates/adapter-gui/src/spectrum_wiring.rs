@@ -21,6 +21,7 @@ use slint::{ComponentHandle, Global, ModelRc, VecModel};
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::spectrum_close::spectrum_close_commands;
+use crate::spectrum_filter_view::SpectrumFilterView;
 use crate::state::ProjectSession;
 use crate::{AppWindow, SpectrumRow, SpectrumWindow};
 
@@ -33,36 +34,78 @@ pub fn wire_spectrum(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     analyzers: &AnalyzerSessions,
 ) {
-    install_row_sink(window, spectrum_window, analyzers);
-    wire_open(window, spectrum_window);
+    let filter = Rc::new(SpectrumFilterView::default());
+    install_row_sink(window, spectrum_window, analyzers, &filter);
+    wire_filter(window, spectrum_window, &filter);
+    wire_open(window, spectrum_window, &filter);
     wire_close_inline(window, project_session);
     wire_close_windowed(spectrum_window, project_session);
     wire_power(window, spectrum_window, project_session);
 }
 
 /// Where the analyzer's bars are rendered — see `tuner_wiring::install_row_sink`
-/// for why the model has to be re-bound on every rebuild.
+/// for why the model has to be re-bound on every rebuild. The windows get the
+/// rows of the outputs left checked in the output filter.
 fn install_row_sink(
     window: &AppWindow,
     spectrum_window: &SpectrumWindow,
     analyzers: &AnalyzerSessions,
+    filter: &Rc<SpectrumFilterView>,
 ) {
     let main_window_weak = window.as_weak();
     let spectrum_window_weak = spectrum_window.as_weak();
+    let filter = Rc::clone(filter);
     analyzers.on_spectrum_rows(move |rows| {
-        let rows = rows.unwrap_or_else(empty_rows_model);
+        let rows = filter.show(rows.unwrap_or_else(empty_rows_model));
         if let Some(sw) = spectrum_window_weak.upgrade() {
-            crate::AnalyzerBridge::get(&sw).set_spectrum_rows(rows.clone());
+            publish_rows(&crate::AnalyzerBridge::get(&sw), &rows, &filter);
         }
         if let Some(mw) = main_window_weak.upgrade() {
-            crate::AnalyzerBridge::get(&mw).set_spectrum_rows(rows);
+            publish_rows(&crate::AnalyzerBridge::get(&mw), &rows, &filter);
         }
     });
 }
 
-fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
+fn publish_rows(
+    bridge: &crate::AnalyzerBridge<'_>,
+    rows: &ModelRc<SpectrumRow>,
+    filter: &SpectrumFilterView,
+) {
+    bridge.set_spectrum_rows(rows.clone());
+    bridge.set_spectrum_filter(filter.items());
+    bridge.set_spectrum_filter_shown(filter.shown_count());
+}
+
+/// A checkbox of the output filter: the shown rows and the count follow it.
+fn wire_filter(
+    window: &AppWindow,
+    spectrum_window: &SpectrumWindow,
+    filter: &Rc<SpectrumFilterView>,
+) {
+    let main_window_weak = window.as_weak();
+    let spectrum_window_weak = spectrum_window.as_weak();
+    let filter = Rc::clone(filter);
+    let on_toggle = move |index: i32, shown: bool| {
+        filter.toggle(index.max(0) as usize, shown);
+        if let Some(sw) = spectrum_window_weak.upgrade() {
+            crate::AnalyzerBridge::get(&sw).set_spectrum_filter_shown(filter.shown_count());
+        }
+        if let Some(mw) = main_window_weak.upgrade() {
+            crate::AnalyzerBridge::get(&mw).set_spectrum_filter_shown(filter.shown_count());
+        }
+    };
+    crate::AnalyzerBridge::get(window).on_toggle_spectrum_filter(on_toggle.clone());
+    crate::AnalyzerBridge::get(spectrum_window).on_toggle_spectrum_filter(on_toggle);
+}
+
+fn wire_open(
+    window: &AppWindow,
+    spectrum_window: &SpectrumWindow,
+    filter: &Rc<SpectrumFilterView>,
+) {
     let spectrum_window_weak = spectrum_window.as_weak();
     let main_window_weak = window.as_weak();
+    let filter = Rc::clone(filter);
     crate::AnalyzerBridge::get(window).on_open_spectrum_window(move || {
         let Some(sw) = spectrum_window_weak.upgrade() else {
             return;
@@ -75,13 +118,13 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
         // Open the spectrum in the powered-off resting state: no session,
         // no polling timer, no rows. The user has to press POWER to start
         // the analyzer (see `wire_power`).
-        let empty = empty_rows_model();
+        let empty = filter.show(empty_rows_model());
         if inline {
-            crate::AnalyzerBridge::get(&main_w).set_spectrum_rows(empty);
+            publish_rows(&crate::AnalyzerBridge::get(&main_w), &empty, &filter);
             crate::AnalyzerBridge::get(&main_w).set_spectrum_enabled(false);
             crate::AnalyzerBridge::get(&main_w).set_show_spectrum(true);
         } else {
-            crate::AnalyzerBridge::get(&sw).set_spectrum_rows(empty);
+            publish_rows(&crate::AnalyzerBridge::get(&sw), &empty, &filter);
             crate::AnalyzerBridge::get(&sw).set_spectrum_enabled(false);
             // Same window-opening pattern as the Block Editor: position
             // the child window relative to the main window so the user

@@ -1753,3 +1753,15 @@ msgstr "건너뛰기"
 
 msgid "btn-wizard-finish"
 msgstr "완료"
+
+msgid "title-spectrum-outputs"
+msgstr "출력"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} 표시"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "출력 {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "모든 출력 숨김"

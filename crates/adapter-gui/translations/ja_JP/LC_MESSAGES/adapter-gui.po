@@ -1755,3 +1755,15 @@ msgstr "スキップ"
 
 msgid "btn-wizard-finish"
 msgstr "完了"
+
+msgid "title-spectrum-outputs"
+msgstr "出力"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} 表示中"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "出力 {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "すべての出力が非表示"

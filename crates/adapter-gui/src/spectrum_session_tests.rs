@@ -115,16 +115,3 @@ fn fingerprint_stable_for_identical_projects() {
         project_stream_fingerprint(&mk(), &registry)
     );
 }
-
-#[test]
-fn short_device_label_strips_backend_prefix() {
-    assert_eq!(
-        short_device_label("coreaudio:Built-in Output"),
-        "Built-in Output"
-    );
-    assert_eq!(
-        short_device_label("jack:system:playback_1"),
-        "system:playback_1"
-    );
-    assert_eq!(short_device_label("plain-device"), "plain-device");
-}

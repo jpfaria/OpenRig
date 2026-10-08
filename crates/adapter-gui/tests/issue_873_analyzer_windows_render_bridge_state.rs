@@ -45,6 +45,7 @@ fn a_spectrum_row() -> SpectrumRow {
         levels: ModelRc::from(Rc::new(VecModel::from(vec![0.5f32; 63]))),
         peaks: ModelRc::from(Rc::new(VecModel::from(vec![0.6f32; 63]))),
         active: true,
+        ..Default::default()
     }
 }
 

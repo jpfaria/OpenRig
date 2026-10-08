@@ -5,9 +5,9 @@
 //! "One spectrum per input" model:
 //! - Every Input on every enabled chain is one **stream**
 //! - Every stream is internally stereo (mono inputs are upmixed)
-//! - Every stream gets **two rows** in the spectrum window: L and R
-//! - Two guitars in two chains → 4 rows; two guitars in one DualMono
-//!   chain → 4 rows as well
+//! - Every stream gets **two rows** (L and R) per output it feeds
+//! - Two guitars with three live outputs each → 12 rows; an unchecked
+//!   input or output has no rows
 //!
 //! The tap point lives inside the engine's `process_single_segment` —
 //! after the segment's FX chain has produced the post-effects stereo
@@ -31,6 +31,7 @@ use feature_dsp::spectrum_fft::{SpectrumAnalyzer, SpectrumSnapshot, FFT_SIZE, N_
 use project::project::Project;
 use slint::{Model, ModelRc, VecModel};
 
+use crate::spectrum_row_label::{spectrum_output_labels, spectrum_row_label};
 use crate::SpectrumRow;
 
 /// Capacity per channel: 4 × FFT_SIZE so a slow UI tick (≈100 ms) can still
@@ -45,30 +46,31 @@ const MAX_DRAIN_PER_TICK: usize = FFT_SIZE;
 ///
 /// The L and R rows of one stream SHARE the stream's single stereo
 /// subscription and address their own channel — a tap per row would be two
-/// taps on the audio callback where the engine needs one.
+/// taps on the audio callback where the engine needs one. A stream feeding
+/// several outputs shows one row per output on each side; those rows share
+/// this pipeline, since draining the tap once per row would split the signal.
 struct RowState {
     tap: Arc<dyn AudioTap>,
     channel: usize,
     analyzer: SpectrumAnalyzer,
-    levels_model: Rc<VecModel<f32>>,
-    peaks_model: Rc<VecModel<f32>>,
+    rows: Vec<RowView>,
     drain_buf: Vec<f32>,
 }
 
+/// One rendered row a pipeline writes into.
+struct RowView {
+    index: usize,
+    levels_model: Rc<VecModel<f32>>,
+    peaks_model: Rc<VecModel<f32>>,
+}
+
 impl RowState {
-    fn new(
-        tap: Arc<dyn AudioTap>,
-        channel: usize,
-        sample_rate: usize,
-        levels_model: Rc<VecModel<f32>>,
-        peaks_model: Rc<VecModel<f32>>,
-    ) -> Self {
+    fn new(tap: Arc<dyn AudioTap>, channel: usize, sample_rate: usize) -> Self {
         Self {
             tap,
             channel,
             analyzer: SpectrumAnalyzer::new(sample_rate as f32),
-            levels_model,
-            peaks_model,
+            rows: Vec::new(),
             drain_buf: Vec::with_capacity(MAX_DRAIN_PER_TICK),
         }
     }
@@ -117,18 +119,17 @@ fn project_stream_fingerprint(project: &Project, registry: &[IoBinding]) -> Stri
                 stream_index, entry.device_id.0, entry.mode
             ));
         }
+        // The rows follow the outputs each stream feeds, so a checked or
+        // unchecked output rebuilds the session too.
+        for stream in engine::stream_io_labels::chain_stream_io_labels(chain, registry) {
+            for output in &stream.outputs {
+                s.push_str(&format!("<{}/{}>", output.device, output.channels));
+            }
+            s.push('|');
+        }
         s.push(';');
     }
     s
-}
-
-/// Strip the OS backend prefix (`coreaudio:`, `wasapi:`, `jack:`, ...)
-/// so the row label shows the device name only. Inner colons preserved.
-fn short_device_label(device_id: &str) -> String {
-    device_id
-        .split_once(':')
-        .map(|(_, rest)| rest.to_string())
-        .unwrap_or_else(|| device_id.to_string())
 }
 
 /// Which tap a spectrum row reads. The Slint row carries only a display
@@ -172,8 +173,8 @@ pub struct SpectrumSession {
 
 impl SpectrumSession {
     /// Build a spectrum session for the given project: subscribe one
-    /// stereo stream tap per InputEntry of every enabled chain, and
-    /// create two rows (L, R) for each tap.
+    /// stereo stream tap per engine stream of every enabled chain, and
+    /// create two rows (L, R) for each output that stream feeds.
     pub fn build(project: &Project, taps: &dyn AudioTaps, registry: &[IoBinding]) -> Self {
         let rows_model: Rc<VecModel<SpectrumRow>> =
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
@@ -211,25 +212,14 @@ impl SpectrumSession {
             // registry, not from block `entries`.
             let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
 
-            // Best-effort device label for each stream — picks the resolved
-            // input entries in order, falling back to the chain id if there are
-            // more streams than entries (e.g. mono splits).
-            let mut entry_labels: Vec<String> = Vec::new();
-            for entry in &resolved_inputs {
-                let label = short_device_label(&entry.device_id.0);
-                if matches!(entry.mode, project::chain::ChainInputMode::Mono)
-                    && entry.channels.len() > 1
-                {
-                    // The engine splits this mono entry into one stream per
-                    // channel — produce a per-channel label so the spectrum
-                    // rows stay readable.
-                    for &ch in &entry.channels {
-                        entry_labels.push(format!("{label} CH {}", ch + 1));
-                    }
-                } else {
-                    entry_labels.push(label);
-                }
-            }
+            // The meters' labels: one per engine stream, read off the same
+            // segment map the runtime counts its streams from, each side
+            // named after the interface as the host names it.
+            let stream_labels = crate::meter_row_labels::project_stream_labels(
+                chain,
+                registry,
+                &crate::device_refresh_list::cached_devices(),
+            );
 
             let sample_rate = resolved_inputs
                 .first()
@@ -243,11 +233,6 @@ impl SpectrumSession {
                 .unwrap_or(live_sample_rate as usize);
 
             for stream_index in 0..stream_count {
-                let device_label = entry_labels
-                    .get(stream_index)
-                    .cloned()
-                    .unwrap_or_else(|| format!("stream {}", stream_index + 1));
-
                 let Some(tap) = taps.subscribe(
                     &TapPoint::StreamOutput {
                         chain: chain.id.clone(),
@@ -263,53 +248,43 @@ impl SpectrumSession {
                     continue;
                 };
 
-                // L row
-                let l_levels = make_zero_band_model();
-                let l_peaks = make_zero_band_model();
-                rows_model.push(SpectrumRow {
-                    label: format!(
-                        "{}  ·  IN: {}  ·  L",
-                        chain_label.to_uppercase(),
-                        device_label
-                    )
-                    .into(),
-                    levels: ModelRc::from(l_levels.clone()),
-                    peaks: ModelRc::from(l_peaks.clone()),
-                    active: false,
-                });
-                row_states.push(RowState::new(
-                    Arc::clone(&tap),
-                    0,
-                    sample_rate,
-                    l_levels,
-                    l_peaks,
-                ));
-                identities.push(RowIdentity {
-                    chain: chain.id.0.clone(),
-                    input: stream_index,
-                    channel: 0,
-                });
-
-                // R row
-                let r_levels = make_zero_band_model();
-                let r_peaks = make_zero_band_model();
-                rows_model.push(SpectrumRow {
-                    label: format!(
-                        "{}  ·  IN: {}  ·  R",
-                        chain_label.to_uppercase(),
-                        device_label
-                    )
-                    .into(),
-                    levels: ModelRc::from(r_levels.clone()),
-                    peaks: ModelRc::from(r_peaks.clone()),
-                    active: false,
-                });
-                row_states.push(RowState::new(tap, 1, sample_rate, r_levels, r_peaks));
-                identities.push(RowIdentity {
-                    chain: chain.id.0.clone(),
-                    input: stream_index,
-                    channel: 1,
-                });
+                // One L/R pair per output the stream feeds; every pair reads
+                // the stream's single tap — the stream writes the same signal
+                // to each of its outputs.
+                let mut sides = [
+                    RowState::new(Arc::clone(&tap), 0, sample_rate),
+                    RowState::new(tap, 1, sample_rate),
+                ];
+                let outputs = spectrum_output_labels(
+                    &chain_label,
+                    stream_labels.get(stream_index),
+                    stream_index,
+                );
+                for output_label in outputs {
+                    for (channel, state) in sides.iter_mut().enumerate() {
+                        let side = if channel == 0 { "L" } else { "R" };
+                        let levels = make_zero_band_model();
+                        let peaks = make_zero_band_model();
+                        state.rows.push(RowView {
+                            index: rows_model.row_count(),
+                            levels_model: levels.clone(),
+                            peaks_model: peaks.clone(),
+                        });
+                        rows_model.push(SpectrumRow {
+                            label: spectrum_row_label(&output_label, side).into(),
+                            output: output_label.as_str().into(),
+                            levels: ModelRc::from(levels),
+                            peaks: ModelRc::from(peaks),
+                            active: false,
+                        });
+                        identities.push(RowIdentity {
+                            chain: chain.id.0.clone(),
+                            input: stream_index,
+                            channel,
+                        });
+                    }
+                }
+                row_states.extend(sides);
             }
         }
 
@@ -338,7 +313,7 @@ impl SpectrumSession {
     /// Drain the subscriptions, feed the analyzer's sliding window, update the row
     /// model in-place. Allocation-free on the steady state.
     pub fn tick(&mut self) {
-        for (idx, state) in self.row_states.iter_mut().enumerate() {
+        for state in self.row_states.iter_mut() {
             state.drain_buf.clear();
             state
                 .tap
@@ -348,12 +323,14 @@ impl SpectrumSession {
             }
             let drain_slice: &[f32] = &state.drain_buf;
             if let Some(snap) = state.analyzer.process_chunk(drain_slice) {
-                write_snapshot_into(&snap, &state.levels_model, &state.peaks_model);
                 let active = snap.peaks.iter().any(|&p| p > 0.05);
-                if let Some(mut row) = self.rows_model.row_data(idx) {
-                    if row.active != active {
-                        row.active = active;
-                        self.rows_model.set_row_data(idx, row);
+                for view in &state.rows {
+                    write_snapshot_into(&snap, &view.levels_model, &view.peaks_model);
+                    if let Some(mut row) = self.rows_model.row_data(view.index) {
+                        if row.active != active {
+                            row.active = active;
+                            self.rows_model.set_row_data(view.index, row);
+                        }
                     }
                 }
             }
@@ -365,13 +342,13 @@ impl SpectrumSession {
     /// chain disabled, runtime torn down) so the window does not show
     /// stale bars frozen from the last live frame.
     pub fn freeze_to_zero(&mut self) {
-        for (idx, state) in self.row_states.iter_mut().enumerate() {
-            reset_band_model(&state.levels_model);
-            reset_band_model(&state.peaks_model);
-            if let Some(mut row) = self.rows_model.row_data(idx) {
+        for view in self.row_states.iter().flat_map(|state| &state.rows) {
+            reset_band_model(&view.levels_model);
+            reset_band_model(&view.peaks_model);
+            if let Some(mut row) = self.rows_model.row_data(view.index) {
                 if row.active {
                     row.active = false;
-                    self.rows_model.set_row_data(idx, row);
+                    self.rows_model.set_row_data(view.index, row);
                 }
             }
         }
@@ -385,3 +362,7 @@ mod tests;
 #[cfg(test)]
 #[path = "spectrum_session_readings_tests.rs"]
 mod readings_tests;
+
+#[cfg(test)]
+#[path = "spectrum_session_outputs_tests.rs"]
+mod outputs_tests;

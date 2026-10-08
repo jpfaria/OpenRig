@@ -1761,3 +1761,15 @@ msgstr "Überspringen"
 
 msgid "btn-wizard-finish"
 msgstr "Fertig"
+
+msgid "title-spectrum-outputs"
+msgstr "AUSGÄNGE"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} SICHTBAR"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "AUSGÄNGE {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "ALLE AUSGÄNGE AUSGEBLENDET"

@@ -18,6 +18,9 @@ export struct TunerRow {
 
 export struct SpectrumRow {
     label: string,
+    // The output the row reads (its label without the side): the L and R rows
+    // of one output share it, and the output filter lists it once.
+    output: string,
     // 63-band level array (0.0..1.0). When the row is inactive (chain
     // off / spectrum powered off) the array stays at zeros.
     levels: [float],

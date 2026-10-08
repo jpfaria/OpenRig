@@ -1756,3 +1756,15 @@ msgstr "Skip"
 
 msgid "btn-wizard-finish"
 msgstr "Finish"
+
+msgid "title-spectrum-outputs"
+msgstr "OUTPUTS"
+
+msgid "label-spectrum-outputs-shown {} {}"
+msgstr "{} / {} SHOWN"
+
+msgid "label-spectrum-outputs-shown-button {} {}"
+msgstr "OUTPUTS {}/{}"
+
+msgid "status-spectrum-outputs-hidden"
+msgstr "ALL OUTPUTS HIDDEN"
