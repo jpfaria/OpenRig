@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ACE Expander — Ardour's stereo downward expander with soft knee and sidechain.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org
+  pt-BR:
+    description: ACE Expander — expansor estéreo downward do Ardour com joelho suave e sidechain.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org

@@ -19,6 +19,9 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libfontconfig1 \
     libdrm2 \
     libseat1 \
+    libsndfile1 \
+    libcairo2 \
+    libexpat1 \
     libgles2 \
     libgl1-mesa-dri \
     weston \

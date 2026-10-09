@@ -10,14 +10,14 @@ Use `./scripts/add-dep.sh` to add new ones.
 | NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | vendored archive — see `NeuralAmpModelerCore.lock` | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
 | neural-amp-modeler-lv2 | https://github.com/mikeoliphant/neural-amp-modeler-lv2 | `5a5865a` | CMake | NeuralAudioCAPI (NAM inference) |
 | dragonfly-reverb | https://github.com/michaelwillis/dragonfly-reverb | `b3c15af` | DPF/Make | Hall, Plate, Room, EarlyReflections reverbs |
-| zam-plugins | https://github.com/zamaudio/zam-plugins | `6a7fd03` | DPF/Make | ZamComp, ZamDelay, ZamEQ2, ZamTube, ZamGate |
+| zam-plugins | https://github.com/zamaudio/zam-plugins | `ae44e5e` | DPF/Make | ZamComp, ZamDelay, ZamEQ2, ZamTube, ZamGate |
 | mod-utilities | https://github.com/mod-audio/mod-utilities | `b8a9d45` | Make | MOD gain, mixers, CV, switchboxes |
 | caps-lv2 | https://github.com/mod-audio/caps-lv2 | `5d52a0c` | Make | AmpVTS, CabinetIV, Plate, Chorus, Phaser, Compress |
 | tap-lv2 | https://github.com/moddevices/tap-lv2 | `cab6e0d` | Make | Echo, Reverb, Tremolo, EQ, Chorus, TubeWarmth |
 | SHIRO-Plugins | https://github.com/ninodewit/SHIRO-Plugins | `3e0a1d3` | DPF/Make | Shiroverb, Modulay, Harmless, Larynx |
 | DPF-Plugins | https://github.com/DISTRHO/DPF-Plugins | `df5cb65` | DPF/Make | Kars, Nekobi, PingPongPan |
 | MVerb | https://github.com/DISTRHO/MVerb | `5ae9f57` | DPF/Make | MVerb reverb |
-| mda-lv2 | https://gitlab.com/drobilla/mda-lv2 | `8218120` | Meson | DubDelay, Leslie, Overdrive, EPiano, Piano |
+| mda-lv2 | https://gitlab.com/drobilla/mda-lv2 | `fb85abe` | Meson | DubDelay, Leslie, Overdrive, EPiano, Piano |
 | fomp | https://gitlab.com/drobilla/fomp | `9ed4d2e` | Meson | VCO, VCF, Phaser, Flanger |
 | invada-studio | https://github.com/BlokasLabs/invada-studio | `9525be9` | Make | Compressor, Delay, Reverb, Filter, Tube |
 | wolf-shaper | https://github.com/wolf-plugins/wolf-shaper | `d38cc33` | DPF/Make | Waveshaper |
@@ -38,6 +38,10 @@ Use `./scripts/add-dep.sh` to add new ones.
 | time12 | https://github.com/tiagolr/time12 | `cb86fd6` | CMake/JUCE | TIME-12 (stutter/tape-stop) — VST3 bundle, recipe `time12` |
 | filtr | https://github.com/tiagolr/filtr | `b42c4e0` | CMake/JUCE | FILT-R (envelope filter, AGPL-3) — VST3 bundle, recipe `filtr` |
 | ZLEqualizer | https://github.com/ZL-Audio/ZLEqualizer | `903c0c9` | CMake/JUCE | ZLEqualizer (dynamic EQ, AGPL-3) — VST3 bundle, recipe `zl_equalizer` |
+| lsp-plugins | https://github.com/lsp-plugins/lsp-plugins | `2df6eea` | Make | Compressor, multiband, gate, parametric/graphic EQ, limiter (LGPL-3.0) — recipe `lsp`, Linux only |
+| airwindows-lv2 | https://git.sr.ht/~hannes/airwindows-lv2 | `b328631` | Meson | Airwindows studio set (MIT) — recipe `airwindows` |
+| calf | https://github.com/calf-studio-gear/calf | `60c4963` | CMake | Compressor, Multiband Compressor, Deesser, Equalizer 8 Band (LGPL-2.1) — recipe `calf` |
+| ardour-ace | https://github.com/Ardour/ardour | vendored sources — see `ardour-ace.lock` | cc (recipe) | ACE Compressor, Expander, EQ, Delay, Reverb (GPL-2.0-or-later) — recipe `ardour-ace` |
 | ZLCompressor | https://github.com/ZL-Audio/ZLCompressor | `b2fe331` | CMake/JUCE | ZLCompressor (compressor, AGPL-3) — VST3 bundle, recipe `zl_compressor` |
 | ZLSplitter | https://github.com/ZL-Audio/ZLSplitter | `dfaccc6` | CMake/JUCE | ZLSplitter (signal splitter, AGPL-3) — VST3 bundle, recipe `zl_splitter` |
 | ZLSpectrumEqualizer | https://github.com/ZL-Audio/ZLSpectrumEqualizer | `21cc97d` | CMake/JUCE | ZLSpectrumEqualizer (spectrum EQ, AGPL-3) — VST3 bundle, recipe `zl_spectrum_equalizer` |

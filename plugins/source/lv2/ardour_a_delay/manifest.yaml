@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_ardour_a_delay
+display_name: ACE Delay
+description: ACE Delay — Ardour's feedback delay with low-pass in the loop and note divisions.
+brand: ardour
+license: GPL-2.0-or-later
+homepage: https://ardour.org
+type: delay
+backend: lv2
+plugin_uri: urn:ardour:a-delay
+binaries:
+  macos-universal: platform/macos-universal/a-delay.dylib
+  windows-x86_64: platform/windows-x86_64/a-delay.dll
+  linux-x86_64: platform/linux-x86_64/a-delay.so
+  linux-aarch64: platform/linux-aarch64/a-delay.so

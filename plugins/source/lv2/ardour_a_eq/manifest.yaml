@@ -1,0 +1,66 @@
+manifest_version: 1
+id: lv2_ardour_a_eq
+display_name: ACE EQ
+description: ACE EQ — Ardour's six-band parametric EQ with low and high shelves.
+brand: ardour
+license: GPL-2.0-or-later
+homepage: https://ardour.org
+type: filter
+backend: lv2
+plugin_uri: urn:ardour:a-eq
+binaries:
+  macos-universal: platform/macos-universal/a-eq.dylib
+  windows-x86_64: platform/windows-x86_64/a-eq.dll
+  linux-x86_64: platform/linux-x86_64/a-eq.so
+  linux-aarch64: platform/linux-aarch64/a-eq.so
+# Groups for the block editor, keyed by lv2:symbol; the live TTL stays the
+# source of truth for which ports exist and for their names.
+parameters:
+  - symbol: master
+    group: Global
+  - symbol: enable
+    group: Global
+  - symbol: filtogl
+    group: Low shelf
+  - symbol: freql
+    group: Low shelf
+  - symbol: gl
+    group: Low shelf
+  - symbol: filtog1
+    group: Band 1
+  - symbol: freq1
+    group: Band 1
+  - symbol: g1
+    group: Band 1
+  - symbol: bw1
+    group: Band 1
+  - symbol: filtog2
+    group: Band 2
+  - symbol: freq2
+    group: Band 2
+  - symbol: g2
+    group: Band 2
+  - symbol: bw2
+    group: Band 2
+  - symbol: filtog3
+    group: Band 3
+  - symbol: freq3
+    group: Band 3
+  - symbol: g3
+    group: Band 3
+  - symbol: bw3
+    group: Band 3
+  - symbol: filtog4
+    group: Band 4
+  - symbol: freq4
+    group: Band 4
+  - symbol: g4
+    group: Band 4
+  - symbol: bw4
+    group: Band 4
+  - symbol: filtogh
+    group: High shelf
+  - symbol: freqh
+    group: High shelf
+  - symbol: gh
+    group: High shelf

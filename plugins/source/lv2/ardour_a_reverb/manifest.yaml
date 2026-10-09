@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_ardour_a_reverb
+display_name: ACE Reverb
+description: ACE Reverb — Ardour's stereo room reverb with blend and room size.
+brand: ardour
+license: GPL-2.0-or-later
+homepage: https://ardour.org
+type: reverb
+backend: lv2
+plugin_uri: urn:ardour:a-reverb
+binaries:
+  macos-universal: platform/macos-universal/a-reverb.dylib
+  windows-x86_64: platform/windows-x86_64/a-reverb.dll
+  linux-x86_64: platform/linux-x86_64/a-reverb.so
+  linux-aarch64: platform/linux-aarch64/a-reverb.so

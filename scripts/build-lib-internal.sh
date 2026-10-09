@@ -286,6 +286,7 @@ PLUGINS=(
     airwindows
     lsp
     calf
+    ardour-ace
 )
 
 # Map plugin name to build function
@@ -306,6 +307,7 @@ dispatch() {
         airwindows)       build_airwindows ;;
         lsp)              build_lsp ;;
         calf)             build_calf ;;
+        ardour-ace)       build_ardour_ace ;;
         wolf-shaper)      build_wolf_shaper ;;
         artyfx)           build_artyfx ;;
         sooperlooper)     build_sooperlooper ;;

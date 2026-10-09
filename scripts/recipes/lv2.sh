@@ -368,15 +368,44 @@ build_calf() {
         "${CC:-cc}" -O2 -fPIC -c "$stub_src/fluidsynth_stub.c" -o "$stub/stub.o"
         ar rcs "$stub/libfluidsynth.a" "$stub/stub.o"
     fi
+    # stub-target.cmake makes `fluidsynth` the stub archive by full path, so a
+    # runner with libfluidsynth-dev installed cannot hand the link its .so.
     # shellcheck disable=SC2086
-    LIBRARY_PATH="$stub" CPLUS_INCLUDE_PATH="$inc" cmake -S "$src" -B "$build_dir" \
+    CPLUS_INCLUDE_PATH="$inc" cmake -S "$src" -B "$build_dir" \
         -DCMAKE_BUILD_TYPE=Release -DWANT_GUI=OFF -DWANT_JACK=OFF -DWANT_LASH=OFF \
-        -DWANT_LV2_GUI=OFF -DWANT_SORDI=OFF $archs
-    LIBRARY_PATH="$stub" CPLUS_INCLUDE_PATH="$inc" cmake --build "$build_dir" --target calf -j "$JOBS"
+        -DWANT_LV2_GUI=OFF -DWANT_SORDI=OFF $archs \
+        -DCMAKE_PROJECT_INCLUDE="$stub_src/stub-target.cmake" \
+        -DCALF_FLUIDSYNTH_STUB="$stub/libfluidsynth.a"
+    CPLUS_INCLUDE_PATH="$inc" cmake --build "$build_dir" --target calf -j "$JOBS"
     local lib="$build_dir/src/libcalf.$LIB_EXT"
     if { otool -L "$lib" 2>/dev/null || readelf -d "$lib"; } | grep -qi fluidsynth; then
         echo "calf: $lib still links a shared FluidSynth" >&2
         return 1
     fi
     cp "$lib" "$OUTPUT_DIR/calf.$LIB_EXT"
+}
+
+build_ardour_ace() {
+    # Ardour's ACE plugins (GPL-2.0-or-later): five single-file C plugins,
+    # vendored in deps/ardour-ace (see deps/ardour-ace.lock). Built without
+    # LV2_EXTENDED, so no inline display and no cairo. The patch drops the
+    # output-port writes from a-comp/a-exp activate(): LV2 lets a host connect
+    # ports after activate(), and OpenRig does.
+    local work="$BUILD_WORK_DIR/ardour-ace"
+    local cflags="-O3 -fPIC -std=c99 -DHAVE_LV2_1_18_6" p
+    rm -rf "$work"
+    cp -R "$DEPS_DIR/ardour-ace" "$work"
+    patch -d "$work" -p1 < "$RECIPES_DIR/ardour-ace-activate-ports.patch"
+    for p in comp exp eq delay reverb; do
+        if [ "$(uname -s)" = "Darwin" ]; then
+            # shellcheck disable=SC2086
+            cc -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 $cflags \
+                -I"$(brew --prefix)/include" -I"$work/shared" -shared \
+                "$work/a-$p.lv2/a-$p.c" -o "$OUTPUT_DIR/a-$p.$LIB_EXT" -lm
+        else
+            # shellcheck disable=SC2086
+            "${CC:-cc}" $cflags -I"$work/shared" -shared \
+                "$work/a-$p.lv2/a-$p.c" -o "$OUTPUT_DIR/a-$p.$LIB_EXT" -lm
+        fi
+    done
 }

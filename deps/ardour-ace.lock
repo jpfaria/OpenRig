@@ -1,0 +1,4 @@
+upstream: https://github.com/Ardour/ardour
+tag: 9.8
+commit: 22ed8656c2533e325322ff11831448e5123e0d4b
+paths: libs/plugins/a-{comp,exp,eq,delay,reverb}.lv2, libs/plugins/shared/dynamic_display.c, COPYING

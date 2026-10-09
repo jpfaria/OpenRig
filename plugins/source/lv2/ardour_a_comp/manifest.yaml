@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_ardour_a_comp
+display_name: ACE Compressor
+description: ACE Compressor — Ardour's stereo feed-forward compressor with soft knee and sidechain.
+brand: ardour
+license: GPL-2.0-or-later
+homepage: https://ardour.org
+type: dyn
+backend: lv2
+plugin_uri: urn:ardour:a-comp#stereo
+binaries:
+  macos-universal: platform/macos-universal/a-comp.dylib
+  windows-x86_64: platform/windows-x86_64/a-comp.dll
+  linux-x86_64: platform/linux-x86_64/a-comp.so
+  linux-aarch64: platform/linux-aarch64/a-comp.so

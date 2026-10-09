@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ACE Compressor — Ardour's stereo feed-forward compressor with soft knee and sidechain.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org
+  pt-BR:
+    description: ACE Compressor — compressor estéreo feed-forward do Ardour com joelho suave e sidechain.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org

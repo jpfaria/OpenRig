@@ -30,8 +30,8 @@ use crate::{build_lv2_processor_full, build_stereo_lv2_processor_full};
 /// `extra_out` holds output **control** ports (gain-reduction meters,
 /// latency indicators, etc.). LV2 requires every port to be connected
 /// before `run()`; an unconnected output control port makes the plugin
-/// write to null/garbage memory → SIGSEGV (issue #457). They are routed
-/// to a scratch buffer just like surplus audio outputs.
+/// write to null/garbage memory → SIGSEGV (issue #457). Each one gets its
+/// own slot in the processor (#1105).
 #[derive(Debug, Default, PartialEq)]
 struct PortPlan {
     audio_in: Vec<usize>,
@@ -40,7 +40,7 @@ struct PortPlan {
     control: Vec<(usize, f32)>,
     /// Atom/MIDI ports (in and out, deduplicated and sorted).
     atom: Vec<usize>,
-    /// Output control ports — connected to a dummy buffer, never read.
+    /// Output control ports — each connected to its own slot, never read.
     extra_out: Vec<usize>,
     /// The output control port that reports the plugin's latency (#328).
     /// It stays in `extra_out` so it is connected; the processor re-points

@@ -213,3 +213,8 @@ calf_compressor	calf
 calf_mb_compressor	calf
 calf_deesser	calf
 calf_eq8	calf
+ardour_a_comp	ardour-ace
+ardour_a_exp	ardour-ace
+ardour_a_eq	ardour-ace
+ardour_a_delay	ardour-ace
+ardour_a_reverb	ardour-ace

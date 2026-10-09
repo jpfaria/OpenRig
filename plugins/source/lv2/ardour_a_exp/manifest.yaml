@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_ardour_a_exp
+display_name: ACE Expander
+description: ACE Expander — Ardour's stereo downward expander with soft knee and sidechain.
+brand: ardour
+license: GPL-2.0-or-later
+homepage: https://ardour.org
+type: dyn
+backend: lv2
+plugin_uri: urn:ardour:a-exp#stereo
+binaries:
+  macos-universal: platform/macos-universal/a-exp.dylib
+  windows-x86_64: platform/windows-x86_64/a-exp.dll
+  linux-x86_64: platform/linux-x86_64/a-exp.so
+  linux-aarch64: platform/linux-aarch64/a-exp.so

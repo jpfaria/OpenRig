@@ -39,9 +39,9 @@ use anyhow::Result;
 /// - `audio_in_ports` / `audio_out_ports`: audio port indices
 /// - `control_ports`: `(port_index, initial_value)` for input control ports
 /// - `atom_ports`: atom/MIDI sidechain ports (connected to an empty buffer)
-/// - `extra_out_ports`: output control ports (meters, latency) connected to
-///   a scratch buffer so the plugin never writes to unconnected memory on
-///   `run()` (issue #457). Empty atom/extra slices reduce this to the
+/// - `extra_out_ports`: output control ports (meters, latency), each connected
+///   to its own slot so the plugin never writes to unconnected memory on
+///   `run()` (issue #457) nor reads another port back (#1105). Empty atom/extra slices reduce this to the
 ///   plain audio+control case — this is the single entry point so no
 ///   caller can accidentally skip a port and reintroduce the crash.
 pub fn build_lv2_processor_full(
@@ -68,9 +68,9 @@ pub fn build_lv2_processor_full(
 
 /// Build a stereo LV2 processor with atom ports AND extra output ports.
 ///
-/// `extra_out_ports` (output control ports — meters, latency) are
-/// connected to a scratch buffer so the plugin never writes to
-/// unconnected memory on `run()` (issue #457). Empty atom/extra slices
+/// `extra_out_ports` (output control ports — meters, latency) are each
+/// connected to their own slot so the plugin never writes to unconnected
+/// memory on `run()` (issue #457) nor reads another port back (#1105). Empty atom/extra slices
 /// reduce this to the plain stereo case.
 pub fn build_stereo_lv2_processor_full(
     lib_path: &str,

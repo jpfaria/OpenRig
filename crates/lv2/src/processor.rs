@@ -22,8 +22,10 @@ pub struct Lv2Processor {
     in_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Audio output buffer — connected to the plugin's audio output port.
     out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
-    /// Dummy output buffer for extra output ports that must be connected but aren't read.
-    _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// One slot per output control port (meters, latency): they must be
+    /// connected (issue #457) and never share memory, since a plugin may
+    /// read its own output port back as state (#1105).
+    _control_out_slots: Box<[f32]>,
     /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
     /// Slot the plugin's latency port writes into (#328), boxed so its
@@ -76,11 +78,11 @@ impl Lv2Processor {
         )
     }
 
-    /// Create a processor with atom ports and extra (dummy) output ports.
+    /// Create a processor with atom ports and output control ports.
     ///
-    /// `extra_out_ports` are connected to a scratch buffer so plugins with
-    /// more outputs than we read (e.g., mono-in/stereo-out used as mono)
-    /// don't write to unconnected memory.
+    /// `extra_out_ports` are output **control** ports (meters, latency), each
+    /// connected to its own one-float slot so the plugin never writes to
+    /// unconnected memory (#457) nor reads another port's value back (#1105).
     pub fn with_extra_ports(
         plugin: Lv2Plugin,
         audio_in_ports: &[usize],
@@ -91,7 +93,7 @@ impl Lv2Processor {
     ) -> Self {
         let mut in_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
-        let mut dummy_out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut control_out_slots = vec![0.0f32; extra_out_ports.len()].into_boxed_slice();
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
 
         // Create an empty LV2_Atom_Sequence buffer.
@@ -127,10 +129,10 @@ impl Lv2Processor {
             }
         }
 
-        // Connect extra output ports to dummy buffer (prevents writes to unconnected memory)
-        for &port_idx in extra_out_ports {
+        // One slot per output control port (#457, #1105)
+        for (slot, &port_idx) in control_out_slots.iter_mut().zip(extra_out_ports) {
             unsafe {
-                plugin.connect_port(port_idx as u32, dummy_out_buf.as_mut_ptr() as *mut c_void);
+                plugin.connect_port(port_idx as u32, slot as *mut f32 as *mut c_void);
             }
         }
 
@@ -148,7 +150,7 @@ impl Lv2Processor {
             plugin,
             in_buf,
             out_buf,
-            _dummy_out_buf: dummy_out_buf,
+            _control_out_slots: control_out_slots,
             control_values,
             latency_out: Box::new(0.0),
             latency: 0,

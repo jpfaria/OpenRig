@@ -29,9 +29,10 @@ pub struct StereoLv2Processor {
     in_buf_sidechain: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
-    /// Scratch buffer for output control ports (meters, latency) that
-    /// must be connected but are never read (issue #457).
-    _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// One slot per output control port (meters, latency): they must be
+    /// connected (issue #457) and never share memory, since a plugin may
+    /// read its own output port back as state (#1105).
+    _control_out_slots: Box<[f32]>,
     control_values: Vec<f32>,
     /// Slot the plugin's latency port writes into (#328), boxed so its
     /// address stays put while the port is connected to it.
@@ -82,7 +83,7 @@ impl StereoLv2Processor {
     /// meters, latency indicators). LV2 requires every port to be
     /// connected before `run()`; leaving an output control port
     /// unconnected makes the plugin write to null/garbage memory →
-    /// SIGSEGV (issue #457). They are connected to a scratch buffer.
+    /// SIGSEGV (issue #457). Each gets its own one-float slot (#1105).
     pub fn with_extra_ports(
         plugin: Lv2Plugin,
         audio_in_ports: &[usize],
@@ -107,7 +108,7 @@ impl StereoLv2Processor {
         let mut in_buf_sidechain = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
-        let mut dummy_out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut control_out_slots = vec![0.0f32; extra_out_ports.len()].into_boxed_slice();
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
 
         let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
@@ -119,11 +120,11 @@ impl StereoLv2Processor {
             }
         }
 
-        // Connect output control ports to the scratch buffer so the
-        // plugin never writes to unconnected memory (issue #457).
-        for &port_idx in extra_out_ports {
+        // One slot per output control port: never unconnected (#457),
+        // never shared with another port (#1105).
+        for (slot, &port_idx) in control_out_slots.iter_mut().zip(extra_out_ports) {
             unsafe {
-                plugin.connect_port(port_idx as u32, dummy_out_buf.as_mut_ptr() as *mut c_void);
+                plugin.connect_port(port_idx as u32, slot as *mut f32 as *mut c_void);
             }
         }
 
@@ -172,7 +173,7 @@ impl StereoLv2Processor {
             in_buf_sidechain,
             out_buf_l,
             out_buf_r,
-            _dummy_out_buf: dummy_out_buf,
+            _control_out_slots: control_out_slots,
             control_values,
             latency_out: Box::new(0.0),
             latency: 0,

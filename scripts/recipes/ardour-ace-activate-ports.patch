@@ -1,0 +1,26 @@
+diff -ru a/a-comp.lv2/a-comp.c b/a-comp.lv2/a-comp.c
+--- a/a-comp.lv2/a-comp.c
++++ b/a-comp.lv2/a-comp.c
+@@ -285,9 +285,6 @@
+ {
+ 	AComp* acomp = (AComp*)instance;
+ 
+-	*(acomp->gainr) = 0.0f;
+-	*(acomp->outlevel) = -70.0f;
+-	*(acomp->inlevel) = -160.f;
+ 
+ #ifdef LV2_EXTENDED
+ 	acomp->v_peakdb = -160.f;
+diff -ru a/a-exp.lv2/a-exp.c b/a-exp.lv2/a-exp.c
+--- a/a-exp.lv2/a-exp.c
++++ b/a-exp.lv2/a-exp.c
+@@ -287,9 +287,6 @@
+ {
+ 	AExp* aexp = (AExp*)instance;
+ 
+-	*(aexp->gainr) = 160.0f;
+-	*(aexp->outlevel) = -45.0f;
+-	*(aexp->inlevel) = -45.0f;
+ 
+ #ifdef LV2_EXTENDED
+ 	aexp->v_peakdb = -160.f;

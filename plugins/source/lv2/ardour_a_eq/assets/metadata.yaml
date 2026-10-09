@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: ACE EQ — Ardour's six-band parametric EQ with low and high shelves.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org
+  pt-BR:
+    description: ACE EQ — EQ paramétrico de seis bandas do Ardour com shelves grave e agudo.
+    license: GPL-2.0-or-later
+    homepage: https://ardour.org
