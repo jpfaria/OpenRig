@@ -153,6 +153,15 @@ the block has to say, in one short question, before writing another round.
 - Editing the HTML and forgetting the three JSONs (or vice-versa), leaving the
   page mixing old and new copy per language.
 - Adding a third sentence to "explain" the lede. Cut it; the lede is the explanation.
+- Writing a grid card's lede as a feature spec — channel numbers, `IN → OUT`,
+  counts like "twelve scopes", UI widget names ("checklist"). A card matches
+  its siblings in the same grid: read them first and keep the same length and
+  voice (one short benefit clause). Rejected candidates for the Spectrum card:
+  "Um par de gráficos L/R para cada saída que cada entrada alimenta, com uma
+  lista para mostrar só os pares IN → OUT que você quer."
+- Proposing new copy when a new feature does not change the card's claim. If
+  the current line is still true and still the right promise, the option to
+  keep it goes first.
 
 ## Checking the page before proposing it
 
