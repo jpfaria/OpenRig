@@ -19,6 +19,9 @@ const TUNING: FlangerTuning = FlangerTuning {
     base_ms: 0.3,
     max_ms: 18.0,
     feedback_clamp: 0.99,
+    // -1.5 dB: the 0.99 feedback ceiling peaked at +6.7 dBFS on the nominal
+    // programme (#1106).
+    output_trim: 0.8414,
 };
 
 #[derive(Debug, Clone, Copy)]

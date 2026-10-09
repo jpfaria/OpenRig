@@ -13,6 +13,11 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "hall";
 pub const DISPLAY_NAME: &str = "Hall Reverb";
 
+/// Brings the wet path to unity loudness, so the mix knob trades dry for
+/// wet without a jump. The wet measured +13.8 dB off unity on full-range
+/// programme before the trim (#1106).
+const WET_TRIM: f32 = 0.2042; // -13.8 dB
+
 // Freeverb standard comb sizes (samples at 44100 Hz). R channel offset = +23.
 const COMB_SIZES: [usize; 8] = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
 const ALLPASS_SIZES: [usize; 4] = [556, 441, 341, 225];
@@ -174,8 +179,8 @@ impl StereoProcessor for HallReverb {
 
         let dry = 1.0 - self.params.mix;
         [
-            dry.mul_add(mono, self.params.mix * wet_l),
-            dry.mul_add(mono, self.params.mix * wet_r),
+            dry.mul_add(mono, self.params.mix * WET_TRIM * wet_l),
+            dry.mul_add(mono, self.params.mix * WET_TRIM * wet_r),
         ]
     }
 }

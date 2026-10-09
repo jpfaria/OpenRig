@@ -1,5 +1,6 @@
 //! Responsibility: implements the core preamp model.
 use anyhow::Result;
+use block_core::dsp::{output_knob_db, unity_knob_db, IirOversampler};
 use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,
     ParameterSet, ParameterUnit,
@@ -8,6 +9,14 @@ use block_core::{
     db_to_lin, AudioChannelLayout, BlockProcessor, EnvelopeFollower, ModelAudioMode, MonoProcessor,
     OnePoleHighPass, OnePoleLowPass, StereoProcessor,
 };
+
+/// Rate multiple the drive stages run at (#1106).
+const OVERSAMPLING: usize = 16;
+/// Input knob: 50 % is unity. The top stops at +12 dB: past it the
+/// saturated stages only got louder, peaking over +6 dBFS on the nominal
+/// programme (#1106).
+const INPUT_MIN_DB: f32 = -18.0;
+const INPUT_MAX_DB: f32 = 12.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAmpHeadSettings {
@@ -67,6 +76,12 @@ struct NativeAmpHeadProcessor {
     depth_low: OnePoleLowPass,
     post_low_pass: OnePoleLowPass,
     sag_envelope: EnvelopeFollower,
+    /// Preamp drive stages.
+    drive_oversampler: IirOversampler,
+    /// Power-amp drive stage.
+    power_oversampler: IirOversampler,
+    /// The asymmetric stages leave an offset.
+    dc_block: OnePoleHighPass,
 }
 
 impl StereoProcessor for DualMonoProcessor {
@@ -76,13 +91,13 @@ impl StereoProcessor for DualMonoProcessor {
             self.right.process_sample(input[1]),
         ]
     }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
+    }
 }
 
 impl NativeAmpHeadProcessor {
-    fn percent_to_gain_db(p: f32) -> f32 {
-        -18.0 + (p / 100.0) * 36.0
-    }
-
     fn new(
         profile: NativeAmpHeadProfile,
         settings: NativeAmpHeadSettings,
@@ -91,8 +106,10 @@ impl NativeAmpHeadProcessor {
         NativeAmpHeadProcessor {
             profile,
             settings,
-            input_gain: db_to_lin(Self::percent_to_gain_db(settings.input) + profile.input_trim_db),
-            output_gain: db_to_lin(Self::percent_to_gain_db(settings.output)),
+            input_gain: db_to_lin(
+                unity_knob_db(settings.input, INPUT_MIN_DB, INPUT_MAX_DB) + profile.input_trim_db,
+            ),
+            output_gain: db_to_lin(output_knob_db(settings.output)),
             pre_high_pass: OnePoleHighPass::new(profile.low_cut_hz, sample_rate),
             bright_high_pass: OnePoleHighPass::new(1_500.0, sample_rate),
             tone_low: OnePoleLowPass::new(260.0, sample_rate),
@@ -101,6 +118,9 @@ impl NativeAmpHeadProcessor {
             depth_low: OnePoleLowPass::new(115.0, sample_rate),
             post_low_pass: OnePoleLowPass::new(profile.top_end_hz, sample_rate),
             sag_envelope: EnvelopeFollower::from_ms(4.0, 110.0, sample_rate),
+            drive_oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
+            power_oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
+            dc_block: OnePoleHighPass::new(20.0, sample_rate),
         }
     }
 
@@ -128,12 +148,12 @@ impl MonoProcessor for NativeAmpHeadProcessor {
         let envelope = self.sag_envelope.process(sample).min(1.0);
         let dynamic_drive = (1.1 + gain * self.profile.drive_scale) * (1.0 - sag * 0.45 * envelope);
 
-        sample = Self::drive_stage(sample, dynamic_drive, self.profile.asymmetry);
-        sample = Self::drive_stage(
-            sample,
-            1.0 + gain * self.profile.power_drive,
-            self.profile.asymmetry * 0.6,
-        );
+        let asymmetry = self.profile.asymmetry;
+        let second_drive = 1.0 + gain * self.profile.power_drive;
+        sample = self.drive_oversampler.process(sample, |s| {
+            let first = Self::drive_stage(s, dynamic_drive, asymmetry);
+            Self::drive_stage(first, second_drive, asymmetry * 0.6)
+        });
 
         let low = self.tone_low.process(sample);
         let high = self.tone_high.process(sample);
@@ -155,9 +175,16 @@ impl MonoProcessor for NativeAmpHeadProcessor {
             * ((Self::normalized_percent(self.settings.depth) - 0.5) * self.profile.depth_voice);
 
         sample += presence_push + depth_push;
-        sample = Self::drive_stage(sample, 0.8 + master * self.profile.power_drive, 0.04);
-        sample = self.post_low_pass.process(sample);
+        let power_drive = 0.8 + master * self.profile.power_drive;
+        sample = self
+            .power_oversampler
+            .process(sample, |s| Self::drive_stage(s, power_drive, 0.04));
+        sample = self.dc_block.process(self.post_low_pass.process(sample));
         sample * (0.35 + master * 1.35) * self.output_gain
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.drive_oversampler.latency_samples() + self.power_oversampler.latency_samples()
     }
 }
 

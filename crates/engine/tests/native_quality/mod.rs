@@ -1,5 +1,6 @@
 //! Responsibility: routes the native quality battery's modules.
 
+pub mod bars;
 pub mod catalog;
 pub mod measure;
 pub mod render;

@@ -67,6 +67,10 @@ impl MonoProcessor for NativeAmpProcessor {
         let sample = self.head.process_sample(input);
         self.cab.process_sample(sample)
     }
+
+    fn latency_samples(&self) -> usize {
+        self.head.latency_samples() + self.cab.latency_samples()
+    }
 }
 
 impl StereoProcessor for DualMonoProcessor {
@@ -75,6 +79,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 

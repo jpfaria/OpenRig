@@ -27,6 +27,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -35,6 +36,12 @@ use block_core::{
 pub const MODEL_ID: &str = "tape_saturation";
 pub const DISPLAY_NAME: &str = "Tape Saturation";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the nonlinearity runs at (#1106).
+const OVERSAMPLING: usize = 16;
+/// Keeps the release loudness: the band-limited oversampler (#1106) no
+/// longer dulls the harmonics, which made the default 4.0 dB louder.
+const LEVEL_TRIM: f32 = 0.631; // -4.0 dB
 
 const TAU: f32 = std::f32::consts::TAU;
 
@@ -55,8 +62,7 @@ struct TapeProcessor {
     in_hpf: OnePoleHighPass,
     pre_emph: OnePoleHighPass,
     de_emph: OnePoleLowPass,
-    upsample_lpf: OnePoleLowPass,
-    downsample_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
     /// Hysteresis memory: low-passed previous output, used to bend the
     /// saturator shape based on recent signal history.
     hyst_mem: f32,
@@ -70,7 +76,6 @@ struct TapeProcessor {
 
 impl TapeProcessor {
     fn new(settings: Settings, sample_rate: f32) -> Self {
-        let oversample_rate = sample_rate * 2.0;
         // Hysteresis memory cutoff: low-passing at ~3kHz so the memory
         // term tracks slowly-varying excursions but ignores high-freq
         // detail (the lag of magnetic domain alignment).
@@ -82,8 +87,7 @@ impl TapeProcessor {
             in_hpf: OnePoleHighPass::new(30.0, sample_rate),
             pre_emph: OnePoleHighPass::new(5_000.0, sample_rate),
             de_emph: OnePoleLowPass::new(8_000.0, sample_rate),
-            upsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
-            downsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
             hyst_mem: 0.0,
             hyst_alpha,
             wow_buf: vec![0.0; wow_buf_len],
@@ -122,13 +126,11 @@ impl MonoProcessor for TapeProcessor {
         let pre = self.pre_emph.process(x);
         let driven = (x + pre * 0.3) * (1.0 + drive * 6.0);
 
-        // 2× polyphase oversampling around the nonlinearity.
-        let up0 = self.upsample_lpf.process(driven * 2.0);
-        let up1 = self.upsample_lpf.process(0.0);
-        let s0 = Self::shape(up0, self.hyst_mem, hyst);
-        let s1 = Self::shape(up1, self.hyst_mem, hyst);
-        let _ = self.downsample_lpf.process(s0);
-        let saturated = self.downsample_lpf.process(s1);
+        // Oversampled nonlinearity.
+        let mem = self.hyst_mem;
+        let saturated = self
+            .oversampler
+            .process(driven, |s| Self::shape(s, mem, hyst));
 
         // Update hysteresis memory: 1-pole LPF on the saturated output.
         self.hyst_mem = saturated * (1.0 - self.hyst_alpha) + self.hyst_mem * self.hyst_alpha;
@@ -158,7 +160,11 @@ impl MonoProcessor for TapeProcessor {
         let frac = read_pos - i0 as f32;
         let wowed = self.wow_buf[i0] * (1.0 - frac) + self.wow_buf[i1] * frac;
 
-        wowed * (level * 1.5)
+        wowed * (level * 1.5 * LEVEL_TRIM)
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -173,6 +179,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -252,7 +262,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
     Ok(())
 }
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
-    Ok("native='tape_saturation' algorithm='hysteretic tanh + wow + 2x oversampled'".to_string())
+    Ok("native='tape_saturation' algorithm='hysteretic tanh + wow + 16x oversampled'".to_string())
 }
 fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())

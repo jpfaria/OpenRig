@@ -86,6 +86,11 @@ pub fn params_from_set(params: &ParameterSet) -> Result<RingModParams> {
     })
 }
 
+/// A unit-peak sine carrier has 0.5 power, so the product came out 3 dB
+/// under the input (#1106). Scaling by sqrt(2) makes the carrier unit-RMS
+/// and the ring-modulated voice level with bypass.
+const CARRIER_RMS_MAKEUP: f32 = std::f32::consts::SQRT_2;
+
 pub struct RingModulator {
     mix: f32,
     /// Carrier phase running at the up-rate (= 2 × sample_rate).
@@ -129,7 +134,7 @@ impl MonoProcessor for RingModulator {
         let wet = self.dc_blocker.process(flush_denormal(wet_raw));
 
         // Step 5: dry/wet mix.
-        (1.0 - self.mix) * input + self.mix * wet
+        (1.0 - self.mix) * input + self.mix * CARRIER_RMS_MAKEUP * wet
     }
 
     /// The wet signal is one oversampler round trip late; below 100 % mix

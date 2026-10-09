@@ -426,12 +426,25 @@ cargo test -p adapter-gui --lib no_infra_cpal
 
 ## Native quality battery
 
-`crates/engine/tests/native_quality_battery.rs` (#1106) renders every native model offline at 48 kHz, built the way the engine builds it, and measures: level change, THD+N and DC on a 1 kHz tone at -18 dBFS, non-harmonic energy (aliasing) on a 5 kHz tone at -6 dBFS, self-noise, tail decay, the peak at every one-knob extreme, all knobs at max, and the level at 44.1 and 96 kHz. A panic or a non-finite sample in any of these is a failure of the model.
+`crates/engine/tests/native_quality_battery.rs` (#1106) renders every native model offline at 48 kHz in 64-frame blocks, built the way the engine builds it, and holds it to the bars in `native_quality/bars.rs`. Every native model meets every bar; a panic or a non-finite sample anywhere is a failure.
+
+| Stimulus | Measures | Bar |
+|---|---|---|
+| Pink multisine, -24 dBFS RMS (peaks near -12 dBFS, a hot DI) | level at default knobs, last 3 s | linear models within ±3 dB; filters judged on the 999 Hz passband tone instead |
+| same | level at 96 kHz minus 48 kHz | within ±1 dB |
+| same, every knob alone at min and max | peak | ≤ +6 dBFS |
+| same | level of the models whose DSP #1106 rebuilt, against the release | within ±1 dB (`RELEASE_LEVEL_DB`) |
+| 999 Hz tone (bin 341), -18 dBFS | DC | < -60 dBFS |
+| 5001 Hz tone (bin 1707), -6 dBFS | non-harmonic energy up to 20 kHz on saturating models (aliasing) | < -60 dB |
+| Digital silence; a 0.5 s noise burst | self-noise; tail 11.5 s later | < -90 dBFS; < -60 dBFS |
+| Every knob at max after a burst | tail growth against the loudest earlier 0.5 s | must not grow |
+
+Saturating models run their nonlinearity in `block_core::dsp::IirOversampler` (polyphase IIR half-bands, 100 dB stopband, up to 32×) and report its delay through `latency_samples()`. Output, input and makeup knobs whose midpoint is unity use `block_core::dsp::unity_knob_db`: the boost half stops where the nominal programme stays under +6 dBFS.
 
 The measurements live in `crates/engine/tests/native_quality/`. It runs in a few seconds as part of the engine tests. To print the per-model table (plus CPU cost per model):
 
 ```bash
-NATIVE_QUALITY_REPORT=1 scripts/cargo-locked.sh test -p engine --test native_quality_battery -- --nocapture
+NATIVE_QUALITY_REPORT=1 scripts/cargo-locked.sh test -p engine --release --test native_quality_battery -- --nocapture
 ```
 
 ## Real-plugin VST3 battery

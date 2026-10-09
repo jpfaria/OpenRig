@@ -12,7 +12,7 @@
 //!
 //! Topology:
 //! - Input HPF (DC block + low-freq cut to mimic OT primary inductance).
-//! - 2× polyphase oversampling around the nonlinearity.
+//! - IIR half-band oversampling around the nonlinearity (#1106).
 //! - Symmetric soft clip = tanh(x) with an added cubic 3rd-harmonic
 //!   emphasis (transformer cores produce proportionally more 3rd
 //!   harmonic than tanh alone).
@@ -25,6 +25,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -33,6 +34,12 @@ use block_core::{
 pub const MODEL_ID: &str = "transformer_saturation";
 pub const DISPLAY_NAME: &str = "Transformer Saturation";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the nonlinearity runs at (#1106).
+const OVERSAMPLING: usize = 16;
+/// Keeps the release loudness: the band-limited oversampler (#1106) no
+/// longer dulls the harmonics, which made the default 4.1 dB louder.
+const LEVEL_TRIM: f32 = 0.6237; // -4.1 dB
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -48,20 +55,17 @@ struct TransformerProcessor {
     settings: Settings,
     in_hpf: OnePoleHighPass,
     eddy_lpf: OnePoleLowPass,
-    upsample_lpf: OnePoleLowPass,
-    downsample_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
 }
 
 impl TransformerProcessor {
     fn new(settings: Settings, sample_rate: f32) -> Self {
-        let oversample_rate = sample_rate * 2.0;
         Self {
             settings,
             in_hpf: OnePoleHighPass::new(40.0, sample_rate),
             // Default eddy roll-off ~ 6 kHz; modulated by `warmth`.
             eddy_lpf: OnePoleLowPass::new(6_000.0, sample_rate),
-            upsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
-            downsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
         }
     }
 
@@ -96,19 +100,18 @@ impl MonoProcessor for TransformerProcessor {
         // Drive: 0 → unity (no sat), 100 → ~10× (heavy sat).
         let driven = x * (1.0 + drive * 9.0);
 
-        // 2× polyphase oversampling around the nonlinearity.
-        let up0 = self.upsample_lpf.process(driven * 2.0);
-        let up1 = self.upsample_lpf.process(0.0);
-        let s0 = Self::shape(up0, color);
-        let s1 = Self::shape(up1, color);
-        let _ = self.downsample_lpf.process(s0);
-        let down = self.downsample_lpf.process(s1);
+        // Oversampled nonlinearity.
+        let down = self.oversampler.process(driven, |s| Self::shape(s, color));
 
         // Eddy-current LPF: warmth=1 fully open, warmth=0 darkest.
         let warm = self.eddy_lpf.process(down);
         let toned = down * warmth + warm * (1.0 - warmth);
 
-        toned * (level * 1.5) // 50% = 0.75x — drive raises perceived level
+        toned * (level * 1.5 * LEVEL_TRIM) // 50% = 0.75x — drive raises perceived level
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -123,6 +126,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -192,7 +199,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
 }
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
     Ok(
-        "native='transformer_saturation' algorithm='tanh + cubic 3rd-harmonic 2x oversampled'"
+        "native='transformer_saturation' algorithm='tanh + cubic 3rd-harmonic 16x oversampled'"
             .to_string(),
     )
 }

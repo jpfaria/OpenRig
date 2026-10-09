@@ -13,7 +13,7 @@
 //!
 //! Topology:
 //! - Input HPF (DC block).
-//! - 2× polyphase oversampling around the nonlinearity (wavefolders
+//! - IIR half-band oversampling around the nonlinearity (wavefolders
 //!   alias aggressively — oversampling is non-negotiable here).
 //! - Trigonometric folder: y = sin(π/2 · drive · x). At drive=1 this is
 //!   a single fold; at drive=10 it produces dozens of folds with
@@ -27,6 +27,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -35,6 +36,12 @@ use block_core::{
 pub const MODEL_ID: &str = "wavefolder";
 pub const DISPLAY_NAME: &str = "Wavefolder (Buchla)";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the nonlinearity runs at (#1106).
+const OVERSAMPLING: usize = 32;
+/// Keeps the release loudness: the band-limited oversampler (#1106) no
+/// longer dulls the harmonics, which made the default 4.2 dB louder.
+const LEVEL_TRIM: f32 = 0.6166; // -4.2 dB
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -48,19 +55,16 @@ struct WavefolderProcessor {
     settings: Settings,
     in_hpf: OnePoleHighPass,
     out_lpf: OnePoleLowPass,
-    upsample_lpf: OnePoleLowPass,
-    downsample_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
 }
 
 impl WavefolderProcessor {
     fn new(settings: Settings, sample_rate: f32) -> Self {
-        let oversample_rate = sample_rate * 2.0;
         Self {
             settings,
             in_hpf: OnePoleHighPass::new(40.0, sample_rate),
             out_lpf: OnePoleLowPass::new(8_000.0, sample_rate),
-            upsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
-            downsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
         }
     }
 
@@ -89,20 +93,19 @@ impl MonoProcessor for WavefolderProcessor {
 
         let x = self.in_hpf.process(input);
 
-        // 2× oversampling around the trig fold.
-        let up0 = self.upsample_lpf.process(x * 2.0);
-        let up1 = self.upsample_lpf.process(0.0);
-        let f0 = Self::fold(up0, drive, bias);
-        let f1 = Self::fold(up1, drive, bias);
-        let _ = self.downsample_lpf.process(f0);
-        let down = self.downsample_lpf.process(f1);
+        // Oversampled trig fold.
+        let down = self.oversampler.process(x, |s| Self::fold(s, drive, bias));
 
         // Tone control: tone=1 keeps the bright folds; tone=0 lowpasses
         // toward a mellow sine-ish output.
         let warm = self.out_lpf.process(down);
         let toned = down * tone + warm * (1.0 - tone);
 
-        toned * (level * 1.5)
+        toned * (level * 1.5 * LEVEL_TRIM)
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -117,6 +120,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -186,7 +193,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
 }
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
     Ok(
-        "native='wavefolder' algorithm='trig wavefolder sin(π/2·drive·x) 2x oversampled'"
+        "native='wavefolder' algorithm='trig wavefolder sin(π/2·drive·x) 32x oversampled'"
             .to_string(),
     )
 }

@@ -5,10 +5,16 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::unity_knob_db;
 use block_core::{db_to_lin, EnvelopeFollower, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "compressor_studio_clean";
 pub const DISPLAY_NAME: &str = "Studio Clean Compressor";
+
+/// Makeup knob: 50 % is unity. The top stops at +16 dB so the nominal
+/// programme stays under +6 dBFS with the knob at max (#1106).
+const MAKEUP_MIN_DB: f32 = -24.0;
+const MAKEUP_MAX_DB: f32 = 16.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CompressorParams {
@@ -114,7 +120,7 @@ pub fn params_from_set(params: &ParameterSet) -> Result<CompressorParams> {
         ratio: 1.0 + (ratio_pct / 100.0) * 19.0,
         attack_ms: required_f32(params, "attack_ms").map_err(Error::msg)?,
         release_ms: required_f32(params, "release_ms").map_err(Error::msg)?,
-        makeup_gain: -24.0 + (makeup_pct / 100.0) * 48.0,
+        makeup_gain: unity_knob_db(makeup_pct, MAKEUP_MIN_DB, MAKEUP_MAX_DB),
         mix: mix_pct / 100.0,
     })
 }

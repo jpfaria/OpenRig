@@ -32,6 +32,11 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "shimmer";
 pub const DISPLAY_NAME: &str = "Shimmer";
 
+/// Brings the wet path to unity loudness, so the mix knob trades dry for
+/// wet without a jump. The wet measured -16.5 dB off unity on full-range
+/// programme before the trim (#1106).
+const WET_TRIM: f32 = 6.6834; // +16.5 dB
+
 const N: usize = 8;
 
 const DELAY_MS: [f32; N] = [42.0, 47.0, 53.0, 59.0, 67.0, 73.0, 81.0, 89.0];
@@ -324,8 +329,8 @@ impl StereoProcessor for ShimmerReverb {
 
         let dry = 1.0 - self.params.mix;
         [
-            dry.mul_add(input[0], self.params.mix * wet_l),
-            dry.mul_add(input[1], self.params.mix * wet_r),
+            dry.mul_add(input[0], self.params.mix * WET_TRIM * wet_l),
+            dry.mul_add(input[1], self.params.mix * WET_TRIM * wet_r),
         ]
     }
 }

@@ -14,6 +14,16 @@ use crate::WahBackendKind;
 pub const MODEL_ID: &str = "cry_classic";
 pub const DISPLAY_NAME: &str = "Cry Classic";
 
+/// The band-pass peaks at unity, so on full-range programme the default
+/// voice came out 16.6 dB under bypass (#1106). A real wah's resonance
+/// stands well above its skirts; this lifts the band so the default sweep
+/// sits level with bypass.
+const WET_MAKEUP: f32 = 5.6234; // +15 dB
+/// Output knob: 50 % is unity. The top stops at +12 dB so the lifted band
+/// stays under +6 dBFS on the nominal programme with the knob at max.
+const OUTPUT_MIN_DB: f32 = -24.0;
+const OUTPUT_MAX_DB: f32 = 12.0;
+
 #[derive(Clone, Copy)]
 struct WahSettings {
     position: f32,
@@ -103,7 +113,7 @@ impl MonoProcessor for WahProcessor {
         self.x1 = input;
         self.y2 = self.y1;
         self.y1 = wet;
-        let mixed = (1.0 - self.mix) * input + self.mix * wet;
+        let mixed = (1.0 - self.mix) * input + self.mix * WET_MAKEUP * wet;
         mixed * self.output_gain
     }
 }
@@ -168,7 +178,7 @@ fn settings_from_params(params: &ParameterSet) -> Result<WahSettings> {
         position: position_pct / 100.0,
         q: 0.2 + (q_pct / 100.0) * 11.8,
         mix: mix_pct / 100.0,
-        output: -24.0 + (output_pct / 100.0) * 48.0,
+        output: block_core::dsp::unity_knob_db(output_pct, OUTPUT_MIN_DB, OUTPUT_MAX_DB),
     })
 }
 

@@ -29,6 +29,11 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "cathedral";
 pub const DISPLAY_NAME: &str = "Cathedral";
 
+/// Brings the wet path to unity loudness, so the mix knob trades dry for
+/// wet without a jump. The wet measured -23.1 dB off unity on full-range
+/// programme before the trim (#1106).
+const WET_TRIM: f32 = 14.289; // +23.1 dB
+
 const N: usize = 16;
 
 // Long delay lengths in ms — co-prime-ish, spread between 60ms and 180ms
@@ -249,8 +254,8 @@ impl StereoProcessor for CathedralReverb {
 
         let dry = 1.0 - self.params.mix;
         [
-            dry.mul_add(input[0], self.params.mix * wet_l),
-            dry.mul_add(input[1], self.params.mix * wet_r),
+            dry.mul_add(input[0], self.params.mix * WET_TRIM * wet_l),
+            dry.mul_add(input[1], self.params.mix * WET_TRIM * wet_r),
         ]
     }
 }

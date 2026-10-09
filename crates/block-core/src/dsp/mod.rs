@@ -4,11 +4,15 @@ pub mod biquad;
 pub mod denormal;
 pub mod envelope;
 pub mod gain;
+pub mod halfband_design;
+pub mod halfband_iir;
 pub mod hilbert_iir;
+pub mod iir_oversampler;
 pub mod lfo;
 pub mod one_pole;
 pub mod oversampling;
 pub mod svf;
+pub mod unity_knob;
 
 pub use biquad::{BiquadDesign, BiquadFilter, BiquadKind, BIQUAD_COEFF_RAMP_FRAMES};
 pub use envelope::{calculate_coefficient, EnvelopeFollower};
@@ -24,6 +28,8 @@ pub use one_pole::OnePoleHighPass as DcBlocker;
 
 pub use denormal::{flush_denormal, DENORMAL_GUARD};
 pub use hilbert_iir::HilbertIir;
+pub use iir_oversampler::{IirOversampler, OversampledMono};
 pub use lfo::{Lfo, LfoShape};
 pub use oversampling::Oversampler2x;
 pub use svf::{Svf, SvfFrame};
+pub use unity_knob::{output_knob_db, unity_knob_db};

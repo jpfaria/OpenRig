@@ -22,6 +22,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -30,6 +31,12 @@ use block_core::{
 pub const MODEL_ID: &str = "fuzz_ge";
 pub const DISPLAY_NAME: &str = "Fuzz Face (Ge)";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the nonlinearity runs at (#1106).
+const OVERSAMPLING: usize = 32;
+/// Keeps the release loudness: the band-limited oversampler (#1106) no
+/// longer dulls the harmonics, which made the default 1.2 dB louder.
+const LEVEL_TRIM: f32 = 0.871; // -1.2 dB
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -43,21 +50,18 @@ struct FuzzGeProcessor {
     in_hpf: OnePoleHighPass,
     out_hpf: OnePoleHighPass,
     tone_lpf: OnePoleLowPass,
-    upsample_lpf: OnePoleLowPass,
-    downsample_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
 }
 
 impl FuzzGeProcessor {
     fn new(settings: Settings, sample_rate: f32) -> Self {
-        let oversample_rate = sample_rate * 2.0;
         Self {
             settings,
             in_hpf: OnePoleHighPass::new(50.0, sample_rate),
             out_hpf: OnePoleHighPass::new(40.0, sample_rate),
             // Lower cutoff than Si — Ge rolls highs sooner, sounds warmer.
             tone_lpf: OnePoleLowPass::new(2_500.0, sample_rate),
-            upsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
-            downsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
         }
     }
 
@@ -88,19 +92,20 @@ impl MonoProcessor for FuzzGeProcessor {
         // Ge has lower beta — somewhat less raw gain than Si.
         let pre = x * (4.0 + fuzz * 100.0);
 
-        // Two-stage clip with 2× oversampling.
-        let up0 = self.upsample_lpf.process(pre * 2.0);
-        let up1 = self.upsample_lpf.process(0.0);
-        let s0 = Self::ge_shape(Self::ge_shape(up0));
-        let s1 = Self::ge_shape(Self::ge_shape(up1));
-        let _ = self.downsample_lpf.process(s0);
-        let down = self.downsample_lpf.process(s1);
+        // Two-stage clip, oversampled.
+        let down = self
+            .oversampler
+            .process(pre, |s| Self::ge_shape(Self::ge_shape(s)));
 
         let warm = self.tone_lpf.process(down);
         let toned = down * tone + warm * (1.0 - tone);
 
         let out = self.out_hpf.process(toned);
-        out * (level * 1.5)
+        out * (level * 1.5 * LEVEL_TRIM)
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -115,6 +120,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -173,7 +182,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
 }
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
     Ok(
-        "native='fuzz_ge' algorithm='Ge Fuzz Face — biased tanh 2-stage 2x oversampled'"
+        "native='fuzz_ge' algorithm='Ge Fuzz Face — biased tanh 2-stage 32x oversampled'"
             .to_string(),
     )
 }

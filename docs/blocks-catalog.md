@@ -28,11 +28,11 @@ An LV2 package is offered only when it ships a binary for the platform OpenRig r
 
 ## Common parameters
 
-- **Native preamp/amp**: input, gain, bass, middle, treble, presence, depth, sag, master, output, bright.
+- **Native preamp/amp**: input, gain, bass, middle, treble, presence, depth, sag, master, output, bright. `input` spans -18..+12 dB and `output` -18..+4 dB, both unity at 50 % (the native cab's `output` uses the same law).
 - **Delay**: `time_ms` (1–2000), `feedback` (0–100 %), `mix` (0–100 %). Every native delay shares these three; some add character knobs — see [Native delay algorithms](#native-delay-algorithms).
 - **Reverb (native)**: `room_size`, `damping`, `mix` (0–100 %); some models add more (Hall: `pre_delay_ms`).
 - **Reverb (IR convolution, `backend: ir`)**: `mix` (0–100 %, default 30 %), `pre_delay_ms` (0–200), `level` (wet trim, −24..+24 dB). Convolves a reverb impulse response (same FFT engine as the IR cab) and blends it with the dry signal, unlike a cab block (100 % wet). True stereo for 2-channel IRs; a mono IR runs dual mono in a stereo chain.
-- **Compressor** (`compressor_studio_clean`): `threshold`, `ratio`, `attack_ms`, `release_ms`, `makeup_gain`, `mix`.
+- **Compressor** (`compressor_studio_clean`): `threshold`, `ratio`, `attack_ms`, `release_ms`, `makeup_gain` (-24..+16 dB, unity at 50 %), `mix`.
 - **Limiter** (`limiter_brickwall`): `threshold`, `ceiling`, `release_ms`, `lookahead_ms`, `knee_db`.
 - **Gate** (`gate_basic`): `threshold` (−96..0 dB), `attack_ms` (0.1–100), `release_ms` (1–500), `hold_ms` (0–2000, default 150 — keeps the decay from being cut), `hysteresis_db` (0–20, default 6 — prevents chattering).
 - **Three Band EQ** (`eq_three_band_basic`): `low_gain`/`mid_gain`/`high_gain` (−12..+12 dB), `low_freq`/`mid_freq`/`high_freq` (Hz), `mid_q` (0.1–6).

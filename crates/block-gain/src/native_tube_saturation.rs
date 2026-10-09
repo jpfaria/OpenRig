@@ -15,7 +15,7 @@
 //! 1. DC-blocking input HPF (~30 Hz) — removes any pedal-bus DC offset
 //!    that would otherwise interact with the asymmetric clipper.
 //! 2. Pre-emphasis HPF (~700 Hz) before the clipper to thicken the bite.
-//! 3. 2× polyphase oversampling around the nonlinearity (anti-alias).
+//! 3. IIR half-band oversampling around the nonlinearity (anti-alias, #1106).
 //! 4. tanh(x + bias) — bias 0.0..0.3 introduces 2nd-harmonic content.
 //! 5. De-emphasis LPF after the clipper to roll off the brittle highs.
 //! 6. Output level trim.
@@ -26,6 +26,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -34,6 +35,12 @@ use block_core::{
 pub const MODEL_ID: &str = "tube_saturation";
 pub const DISPLAY_NAME: &str = "Tube Saturation";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the nonlinearity runs at (#1106).
+const OVERSAMPLING: usize = 32;
+/// Keeps the release loudness: the band-limited oversampler (#1106) no
+/// longer dulls the harmonics, which made the default 3.5 dB louder.
+const LEVEL_TRIM: f32 = 0.6683; // -3.5 dB
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -46,24 +53,21 @@ struct Settings {
 struct TubeProcessor {
     settings: Settings,
     dc_block: OnePoleHighPass,
+    out_dc_block: OnePoleHighPass,
     pre_emph: OnePoleHighPass,
     de_emph: OnePoleLowPass,
-    // Oversampling state
-    upsample_lpf: OnePoleLowPass,
-    downsample_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
 }
 
 impl TubeProcessor {
     fn new(settings: Settings, sample_rate: f32) -> Self {
-        let oversample_rate = sample_rate * 2.0;
         Self {
             settings,
             dc_block: OnePoleHighPass::new(30.0, sample_rate),
+            out_dc_block: OnePoleHighPass::new(20.0, sample_rate),
             pre_emph: OnePoleHighPass::new(700.0, sample_rate),
             de_emph: OnePoleLowPass::new(6_500.0, sample_rate),
-            // Halfband at 0.45×SR — kills the alias band before decimation.
-            upsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
-            downsample_lpf: OnePoleLowPass::new(sample_rate * 0.45, oversample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
         }
     }
 
@@ -94,23 +98,21 @@ impl MonoProcessor for TubeProcessor {
         // Drive: 0 → unity, 100 → ~30× before the clipper.
         let driven = (x + pre * 0.4) * (1.0 + drive * 30.0);
 
-        // 2× polyphase oversampling around the nonlinearity.
-        // Stage 1: upsample by 2 (zero-stuff, then lowpass).
-        let up0 = self.upsample_lpf.process(driven * 2.0);
-        let up1 = self.upsample_lpf.process(0.0);
-        // Stage 2: nonlinear shape on both samples.
-        let sh0 = Self::shape(up0, bias);
-        let sh1 = Self::shape(up1, bias);
-        // Stage 3: downsample by 2 (lowpass, take every other).
-        let _ = self.downsample_lpf.process(sh0);
-        let down = self.downsample_lpf.process(sh1);
+        // Oversampled nonlinearity; the asymmetric clip leaves an offset
+        // that the output blocker takes out.
+        let shaped = self.oversampler.process(driven, |s| Self::shape(s, bias));
+        let down = self.out_dc_block.process(shaped);
 
         // De-emphasis: tone scales the cutoff effect — a soft tone control.
         let de = self.de_emph.process(down);
         let toned = down * tone + de * (1.0 - tone);
 
         // Output level. 50% = unity (so default doesn't change perceived loudness).
-        toned * (level * 2.0)
+        toned * (level * 2.0 * LEVEL_TRIM)
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -125,6 +127,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -194,7 +200,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
-    Ok("native='tube_saturation' algorithm='tanh+bias 2x oversampled'".to_string())
+    Ok("native='tube_saturation' algorithm='tanh+bias 32x oversampled'".to_string())
 }
 
 fn schema() -> Result<ModelParameterSchema> {

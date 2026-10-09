@@ -1,5 +1,6 @@
 //! Responsibility: implements the core cab model.
 use anyhow::Result;
+use block_core::dsp::output_knob_db;
 use block_core::param::ParameterSet;
 use block_core::{
     db_to_lin, AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, MonoProcessor,
@@ -75,10 +76,6 @@ impl DelayTap {
     }
 }
 
-fn percent_to_gain_db(p: f32) -> f32 {
-    -18.0 + (p / 100.0) * 36.0
-}
-
 impl NativeCabProcessor {
     fn new(profile: NativeCabProfile, settings: NativeCabSettings, sample_rate: f32) -> Self {
         let mic_position = (settings.mic_position / 100.0).clamp(0.0, 1.0);
@@ -108,7 +105,7 @@ impl NativeCabProcessor {
 
         Self {
             settings,
-            output_gain: db_to_lin(percent_to_gain_db(settings.output)),
+            output_gain: db_to_lin(output_knob_db(settings.output)),
             body_hp: BiquadFilter::new(BiquadKind::HighPass, body_hz, 0.0, 0.707, sample_rate),
             low_bump: BiquadFilter::new(
                 BiquadKind::Peak,

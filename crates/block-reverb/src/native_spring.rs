@@ -14,6 +14,11 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "spring";
 pub const DISPLAY_NAME: &str = "Spring Reverb";
 
+/// Brings the wet path to unity loudness, so the mix knob trades dry for
+/// wet without a jump. The wet measured +23.7 dB off unity on full-range
+/// programme before the trim (#1106).
+const WET_TRIM: f32 = 0.0653; // -23.7 dB
+
 // Allpass sizes (samples at 44100 Hz) for the spring coil diffusion chain.
 // Two slightly different sets for L/R give a subtle stereo width.
 const ALLPASS_SIZES_L: [usize; 6] = [601, 803, 1009, 1201, 1499, 1801];
@@ -174,8 +179,8 @@ impl StereoProcessor for SpringReverb {
 
         let dry = 1.0 - self.params.mix;
         [
-            dry.mul_add(mono, self.params.mix * wet_l),
-            dry.mul_add(mono, self.params.mix * wet_r),
+            dry.mul_add(mono, self.params.mix * WET_TRIM * wet_l),
+            dry.mul_add(mono, self.params.mix * WET_TRIM * wet_r),
         ]
     }
 }

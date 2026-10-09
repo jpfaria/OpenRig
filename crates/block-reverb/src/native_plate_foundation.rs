@@ -10,6 +10,11 @@ use block_core::{ModelAudioMode, MonoProcessor};
 pub const MODEL_ID: &str = "plate_foundation";
 pub const DISPLAY_NAME: &str = "Plate Foundation Reverb";
 
+/// Brings the wet path to unity loudness, so the mix knob trades dry for
+/// wet without a jump. The wet measured +22.7 dB off unity on full-range
+/// programme before the trim (#1106).
+const WET_TRIM: f32 = 0.0733; // -22.7 dB
+
 pub struct ReverbParams {
     pub room_size: f32,
     pub damping: f32,
@@ -140,7 +145,7 @@ impl MonoProcessor for FoundationPlateReverb {
         // Blend the early diffused field with the sustained tail so the
         // first ~25 ms (before the combs speak) is already dense.
         let plate = 0.5 * diffused + wet;
-        (1.0 - self.params.mix).mul_add(input, self.params.mix * plate)
+        (1.0 - self.params.mix).mul_add(input, self.params.mix * WET_TRIM * plate)
     }
 }
 

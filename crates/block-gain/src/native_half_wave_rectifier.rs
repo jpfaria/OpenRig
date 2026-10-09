@@ -21,6 +21,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
+use block_core::dsp::IirOversampler;
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
     OnePoleLowPass, StereoProcessor,
@@ -29,6 +30,9 @@ use block_core::{
 pub const MODEL_ID: &str = "half_wave_rectifier";
 pub const DISPLAY_NAME: &str = "Octave-Up (Half-Wave)";
 const BRAND: &str = block_core::BRAND_NATIVE;
+
+/// Rate multiple the rectifier and fuzz run at (#1106).
+const OVERSAMPLING: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -41,8 +45,11 @@ struct Settings {
 struct OctaveProcessor {
     settings: Settings,
     in_dc_block: OnePoleHighPass,
+    /// Runs at the oversampled rate, between the rectifier and the fuzz.
+    rect_dc_block: OnePoleHighPass,
     out_dc_block: OnePoleHighPass,
     tone_lpf: OnePoleLowPass,
+    oversampler: IirOversampler,
 }
 
 impl OctaveProcessor {
@@ -51,8 +58,11 @@ impl OctaveProcessor {
             settings,
             in_dc_block: OnePoleHighPass::new(40.0, sample_rate),
             // The rectifier introduces a DC term ~ 2/π·peak; HPF takes it out.
-            out_dc_block: OnePoleHighPass::new(80.0, sample_rate),
+            rect_dc_block: OnePoleHighPass::new(80.0, sample_rate * OVERSAMPLING as f32),
+            // The fuzz bends the centred pulse train asymmetrically.
+            out_dc_block: OnePoleHighPass::new(20.0, sample_rate),
             tone_lpf: OnePoleLowPass::new(4_500.0, sample_rate),
+            oversampler: IirOversampler::new(sample_rate, OVERSAMPLING),
         }
     }
 
@@ -83,11 +93,16 @@ impl MonoProcessor for OctaveProcessor {
         // pitch-doubling mechanism. (The issue title says "half-wave"
         // following the common informal name for the effect, but the
         // Octavia circuit is a full-wave diode bridge.)
-        let rect = driven.abs();
-        // DC-block the asymmetric pulse train so the output sits centred.
-        let centred = self.out_dc_block.process(rect);
-        // Octavia-style fuzz on the rectified signal.
-        let fuzzy = Self::fuzz(centred * 2.0);
+        // Rectifier, DC block and fuzz all run oversampled: the
+        // rectifier's corner has harmonics far past Nyquist.
+        let rect_dc_block = &mut self.rect_dc_block;
+        let shaped = self.oversampler.process(driven, |s| {
+            // DC-block the asymmetric pulse train so it sits centred.
+            let centred = rect_dc_block.process(s.abs());
+            // Octavia-style fuzz on the rectified signal.
+            Self::fuzz(centred * 2.0)
+        });
+        let fuzzy = self.out_dc_block.process(shaped);
         // Tone control (LPF blend).
         let warm = self.tone_lpf.process(fuzzy);
         let toned = fuzzy * tone + warm * (1.0 - tone);
@@ -97,6 +112,10 @@ impl MonoProcessor for OctaveProcessor {
 
         // Output level (50% = unity, 100% = +6 dB).
         mixed * (level * 2.0)
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.oversampler.latency_samples()
     }
 }
 
@@ -111,6 +130,10 @@ impl StereoProcessor for DualMonoProcessor {
             self.left.process_sample(input[0]),
             self.right.process_sample(input[1]),
         ]
+    }
+
+    fn latency_samples(&self) -> usize {
+        self.left.latency_samples()
     }
 }
 
@@ -180,7 +203,7 @@ pub fn validate_params(p: &ParameterSet) -> Result<()> {
 }
 
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
-    Ok("native='half_wave_rectifier' algorithm='|x| + DC-block + tanh fuzz'".to_string())
+    Ok("native='half_wave_rectifier' algorithm='|x| + DC-block + tanh fuzz 32x oversampled'".to_string())
 }
 
 fn schema() -> Result<ModelParameterSchema> {

@@ -22,6 +22,11 @@ use crate::ReverbBackendKind;
 pub const MODEL_ID: &str = "reverse";
 pub const DISPLAY_NAME: &str = "Reverse Reverb";
 
+/// Brings the wet path 1 dB over unity: at the 50 % default the linear
+/// crossfade of uncorrelated dry and wet otherwise dips 3 dB. Measured
+/// -4.8 dB wet before the trim (#1106).
+const WET_TRIM: f32 = 1.9498; // +5.8 dB
+
 const MIN_LENGTH_MS: f32 = 100.0;
 const MAX_LENGTH_MS: f32 = 2000.0;
 
@@ -151,8 +156,8 @@ impl StereoProcessor for ReverseReverb {
         let wet_r = self.right.process(input[1]);
         let dry = 1.0 - self.params.mix;
         [
-            dry.mul_add(input[0], self.params.mix * wet_l),
-            dry.mul_add(input[1], self.params.mix * wet_r),
+            dry.mul_add(input[0], self.params.mix * WET_TRIM * wet_l),
+            dry.mul_add(input[1], self.params.mix * WET_TRIM * wet_r),
         ]
     }
 }

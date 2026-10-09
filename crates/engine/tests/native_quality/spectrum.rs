@@ -54,22 +54,26 @@ pub fn thd_n_db(spectrum: &[f64], fundamental_bin: usize) -> f32 {
     ratio_db(total - fundamental, fundamental)
 }
 
-/// Energy that is neither DC nor a harmonic of the fundamental, relative
-/// to the fundamental, dB. For a tone whose bin does not divide the FFT
-/// size, folded (aliased) harmonics land here, together with noise.
-pub fn inharmonic_db(spectrum: &[f64], fundamental_bin: usize) -> f32 {
-    let half = spectrum.len();
+/// Energy below `top_bin` that is neither DC nor a harmonic of the
+/// fundamental, relative to the fundamental, dB. For a tone whose bin does
+/// not divide the FFT size, folded (aliased) harmonics land here, together
+/// with noise.
+pub fn inharmonic_db(spectrum: &[f64], fundamental_bin: usize, top_bin: usize) -> f32 {
+    let half = spectrum.len().min(top_bin);
     let mut harmonic = vec![false; half];
     harmonic[..=SKIRT].iter_mut().for_each(|h| *h = true);
+    // A harmonic just above `top_bin` still has skirt bins below it.
     let mut n = 1;
-    while n * fundamental_bin < half {
+    while n * fundamental_bin < half + SKIRT {
         let centre = n * fundamental_bin;
         let lo = centre.saturating_sub(SKIRT);
         let hi = (centre + SKIRT).min(half - 1);
-        harmonic[lo..=hi].iter_mut().for_each(|h| *h = true);
+        if lo <= hi {
+            harmonic[lo..=hi].iter_mut().for_each(|h| *h = true);
+        }
         n += 1;
     }
-    let rest: f64 = spectrum
+    let rest: f64 = spectrum[..half]
         .iter()
         .zip(&harmonic)
         .filter(|(_, &h)| !h)

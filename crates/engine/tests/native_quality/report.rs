@@ -28,8 +28,8 @@ fn family_label(r: &ModelReport) -> String {
 /// Markdown table, one row per model.
 pub fn table(reports: &[ModelReport], cpu: &[(String, f32)]) -> String {
     let mut out = String::from(
-        "| model | family | level dB | THD+N dB | DC dBFS | inharm. dB | silence dBFS | tail dBFS | extreme peak dBFS (at) | all-max tail dBFS | 96k Δ dB | CPU % | broken |\n\
-         |---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+        "| model | family | level dB | THD+N dB | DC dBFS | inharm. dB | silence dBFS | tail dBFS | extreme peak dBFS (at) | all-max tail dBFS | growth dB | 96k Δ dB | CPU % | broken |\n\
+         |---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
     );
     for r in reports {
         let cpu_pct = cpu
@@ -42,7 +42,7 @@ pub fn table(reports: &[ModelReport], cpu: &[(String, f32)]) -> String {
             None => r.broken_at.join("; "),
         };
         out.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} ({}) | {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} ({}) | {} | {} | {} | {} | {} |\n",
             r.id,
             family_label(r),
             f(r.level_db),
@@ -54,6 +54,7 @@ pub fn table(reports: &[ModelReport], cpu: &[(String, f32)]) -> String {
             f(r.extreme_peak_dbfs),
             r.extreme_peak_at,
             f(r.all_max_tail_dbfs),
+            f(r.all_max_growth_db),
             f(r.sr96_level_delta_db),
             cpu_pct,
             broken,

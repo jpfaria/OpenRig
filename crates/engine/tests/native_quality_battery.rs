@@ -6,10 +6,12 @@
 //! (tail), every knob alone at its extremes and all knobs at max (NaN/Inf,
 //! runaway feedback), and 44.1 / 96 kHz (rate independence).
 //!
+//! The bars are in `native_quality/bars.rs`; every model meets them.
 //! `NATIVE_QUALITY_REPORT=1` prints the per-model table.
 
 mod native_quality;
 
+use native_quality::bars::failures;
 use native_quality::catalog::native_models;
 use native_quality::measure::{cpu_rtf, measure, ModelReport};
 use native_quality::report::table;
@@ -32,7 +34,7 @@ fn measure_all() -> Vec<ModelReport> {
 }
 
 #[test]
-fn report_every_native_model() {
+fn every_native_model_meets_the_quality_bar() {
     let reports = measure_all();
     assert!(
         reports.len() > 50,
@@ -46,4 +48,17 @@ fn report_every_native_model() {
             .collect();
         println!("{}", table(&reports, &cpu));
     }
+    let failing: Vec<String> = reports
+        .iter()
+        .filter_map(|r| {
+            let f = failures(r);
+            (!f.is_empty()).then(|| format!("{} ({}): {}", r.id, r.family, f.join("; ")))
+        })
+        .collect();
+    assert!(
+        failing.is_empty(),
+        "{} native models miss the quality bar:\n{}",
+        failing.len(),
+        failing.join("\n")
+    );
 }

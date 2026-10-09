@@ -15,6 +15,12 @@ use crate::DelayBackendKind;
 pub const MODEL_ID: &str = "granular";
 pub const DISPLAY_NAME: &str = "Granular Delay";
 
+/// Grains re-read the buffer at random offsets, so two overlapping Hann
+/// windows add in power (0.75 mean), not in amplitude: the cloud came out
+/// 0.9 dB under the input and the 40 % default 3.1 dB under (#1106). This
+/// brings the cloud to +1 dB so the default crossfade stays level.
+const WET_TRIM: f32 = 1.2445; // +1.9 dB
+
 const GRAIN_SIZE: usize = 2_048;
 /// Max random position jitter (samples) at full `spread`.
 const MAX_SPREAD_SAMPLES: f32 = 6_000.0;
@@ -183,7 +189,7 @@ impl MonoProcessor for GranularDelay {
         self.rng = rng;
         self.buffer[self.write_pos] = sanitize(input + wet * self.params.feedback);
         self.write_pos = (self.write_pos + 1) % len;
-        mix_dry_wet(input, wet, self.params.mix)
+        mix_dry_wet(input, wet * WET_TRIM, self.params.mix)
     }
 }
 
