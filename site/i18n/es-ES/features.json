@@ -16,7 +16,7 @@
   "tools.tuner.h3": "Afinador",
   "tools.tuner.p": "Cromático, uno por entrada, y silencia la salida mientras afinas.",
   "tools.spectrum.h3": "Espectro",
-  "tools.spectrum.p": "Bandas izquierda y derecha en tiempo real, para ver los graves antes de que embarren la mezcla.",
+  "tools.spectrum.p": "Monitoriza en tiempo real el sonido que sale por cada salida y elige cuáles seguir.",
   "tools.mixer.h3": "Mezclador",
   "tools.mixer.p": "Fader, solo y mute para cada entrada y salida, ajustables mientras tocas.",
   "tools.doctor.h3": "Tone Doctor",

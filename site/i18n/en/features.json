@@ -16,7 +16,7 @@
   "tools.tuner.h3": "Tuner",
   "tools.tuner.p": "Chromatic, one per input, and it mutes the output while you tune.",
   "tools.spectrum.h3": "Spectrum",
-  "tools.spectrum.p": "Left and right bands in real time, so you see the low end before it muddies the mix.",
+  "tools.spectrum.p": "Monitor in real time the sound coming out of each output, and pick which ones to watch.",
   "tools.mixer.h3": "Mixer",
   "tools.mixer.p": "A fader, solo and mute for every input and output, adjustable while you play.",
   "tools.doctor.h3": "Tone Doctor",
