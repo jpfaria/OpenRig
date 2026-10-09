@@ -395,7 +395,8 @@ build_ardour_ace() {
     local cflags="-O3 -fPIC -std=c99 -DHAVE_LV2_1_18_6" p
     rm -rf "$work"
     cp -R "$DEPS_DIR/ardour-ace" "$work"
-    patch -d "$work" -p1 < "$RECIPES_DIR/ardour-ace-activate-ports.patch"
+    # git, not patch: MSYS2 on the Windows runner has no patch binary.
+    git -C "$work" apply "$RECIPES_DIR/ardour-ace-activate-ports.patch"
     for p in comp exp eq delay reverb; do
         if [ "$(uname -s)" = "Darwin" ]; then
             # shellcheck disable=SC2086
