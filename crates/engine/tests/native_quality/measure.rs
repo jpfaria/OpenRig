@@ -3,10 +3,11 @@
 use std::sync::OnceLock;
 use std::time::Instant;
 
-use block_core::param::ParameterSet;
+use block_core::param::{ParameterDomain, ParameterSet};
 use domain::value_objects::ParameterValue;
 
 use super::catalog::NativeModel;
+use super::guitar::guitar_di;
 use super::render::{default_params, render, Rendered};
 use super::signals::{bin_hz, db_to_lin, noise_burst, pink_multisine, sine};
 use super::spectrum::{dc_dbfs, inharmonic_db, peak_dbfs, power_spectrum, tail_rms_dbfs, thd_n_db};
@@ -45,6 +46,11 @@ pub struct ModelReport {
     pub level_db: f32,
     /// Output RMS minus input RMS for the nominal tone, dB: the passband gain.
     pub tone_level_db: f32,
+    /// Output RMS minus input RMS for the guitar DI, whole take, dB.
+    pub guitar_level_db: f32,
+    /// Programme level with the `mix` knob at its minimum, dB: fully dry.
+    /// NaN for models without a `mix` knob.
+    pub dry_level_db: f32,
     pub thd_n_db: f32,
     pub dc_dbfs: f32,
     /// Non-harmonic energy for a hot 5 kHz tone, dB re fundamental.
@@ -105,6 +111,8 @@ pub fn measure(model: &NativeModel) -> ModelReport {
         build_error: None,
         level_db: f32::NAN,
         tone_level_db: f32::NAN,
+        guitar_level_db: f32::NAN,
+        dry_level_db: f32::NAN,
         thd_n_db: f32::NAN,
         dc_dbfs: f32::NAN,
         inharmonic_db: f32::NAN,
@@ -133,6 +141,28 @@ pub fn measure(model: &NativeModel) -> ModelReport {
         Err(e) => {
             report.build_error = Some(e.to_string());
             return report;
+        }
+    }
+
+    // Guitar DI: level as a player hears it.
+    let (di, di_sr) = guitar_di();
+    match run(&defaults, *di_sr, di) {
+        Ok(r) => {
+            report.guitar_level_db =
+                worst(&r, |c| tail_rms_dbfs(c, c.len())) - tail_rms_dbfs(di, di.len())
+        }
+        Err(e) => report.broken_at.push(format!("guitar DI: {e}")),
+    }
+
+    // Mix at its minimum: fully dry must be the input.
+    if let Some(mix) = model.schema.parameters.iter().find(|p| p.path == "mix") {
+        if let ParameterDomain::FloatRange { min, .. } = mix.domain {
+            let mut dry = defaults.clone();
+            dry.insert("mix", ParameterValue::Float(min));
+            match run(&dry, SR, programme(SR)) {
+                Ok(r) => report.dry_level_db = level_db(&r, programme(SR), SR),
+                Err(e) => report.broken_at.push(format!("mix=min: {e}")),
+            }
         }
     }
 

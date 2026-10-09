@@ -25,6 +25,7 @@ const TUNING: AutoWahTuning = AutoWahTuning {
     attack_ms: 2.0,
     release_ms: 40.0,
     sensitivity: 1.5,
+    wet_gain: 0.3917, // -8.1 dB (#1106)
 };
 
 fn schema() -> Result<ModelParameterSchema> {

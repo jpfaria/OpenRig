@@ -44,9 +44,9 @@ pub struct FlangerTuning {
     pub max_ms: f32,
     /// Hard clamp on the feedback gain magnitude (BIBO bound).
     pub feedback_clamp: f32,
-    /// Linear gain on the output, so each voice's default sits level with
-    /// bypass (#1106).
-    pub output_trim: f32,
+    /// Linear gain on the delayed (wet) path only, so each voice's default
+    /// sits level with bypass while `mix` = 0 stays bypass (#1106).
+    pub wet_trim: f32,
 }
 
 impl FlangerTuning {
@@ -55,7 +55,7 @@ impl FlangerTuning {
         base_ms: 1.0,
         max_ms: 12.0,
         feedback_clamp: 0.95,
-        output_trim: 1.0,
+        wet_trim: 1.0,
     };
 }
 
@@ -143,7 +143,7 @@ pub struct Flanger {
     depth: f32,
     feedback: f32,
     mix: f32,
-    output_trim: f32,
+    wet_trim: f32,
     base_samples: f32,
     sweep_samples: f32,
     buffer: Vec<f32>,
@@ -175,7 +175,7 @@ impl Flanger {
             depth: params.depth.clamp(0.0, 1.0),
             feedback: params.feedback.clamp(-fb_clamp, fb_clamp),
             mix: params.mix.clamp(0.0, 1.0),
-            output_trim: tuning.output_trim,
+            wet_trim: tuning.wet_trim,
             base_samples,
             sweep_samples,
             buffer: vec![0.0; max_samples],
@@ -233,7 +233,7 @@ impl MonoProcessor for Flanger {
         self.buffer[self.write_idx] = to_buffer;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
 
-        ((1.0 - self.mix) * input + self.mix * delayed) * self.output_trim
+        (1.0 - self.mix) * input + self.mix * self.wet_trim * delayed
     }
 }
 

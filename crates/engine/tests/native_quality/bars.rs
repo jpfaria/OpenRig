@@ -23,6 +23,14 @@ pub const MAX_TAIL_DBFS: f32 = -60.0;
 /// release measured at default knobs, dB either way.
 pub const MAX_RELEASE_LEVEL_DRIFT_DB: f32 = 1.0;
 
+/// How far the fully dry setting (`mix` at minimum) may sit from the
+/// input, dB either way: dry is bypass.
+pub const MAX_DRY_LEVEL_DB: f32 = 0.5;
+
+/// Families judged on the guitar DI: their gain follows the spectrum, and
+/// a guitar's mid-heavy spectrum is what they are voiced for.
+const GUITAR_LEVEL_FAMILIES: &[&str] = &["Wah"];
+
 /// Families judged on their passband gain: their default cuts content on
 /// purpose, so the full-range programme level would count the cut itself.
 const PASSBAND_LEVEL_FAMILIES: &[&str] = &["Filter"];
@@ -43,6 +51,25 @@ const RELEASE_LEVEL_DB: &[(&str, f32)] = &[
     ("transformer_saturation", 5.2),
     ("tube_saturation", 15.0),
     ("wavefolder", 8.6),
+];
+
+/// The same models' default-knob level on the guitar DI, as the release
+/// measured it, dB. Saturation is level-dependent, so the quieter real DI
+/// is pinned too.
+const RELEASE_GUITAR_LEVEL_DB: &[(&str, f32)] = &[
+    ("blackface_clean", 10.5),
+    ("chime", 11.5),
+    ("tweed_breakup", 16.3),
+    ("american_clean", 13.5),
+    ("brit_crunch", 19.9),
+    ("modern_high_gain", 22.6),
+    ("fuzz_ge", 24.1),
+    ("fuzz_si", 27.0),
+    ("half_wave_rectifier", 12.2),
+    ("tape_saturation", 5.3),
+    ("transformer_saturation", 6.5),
+    ("tube_saturation", 18.8),
+    ("wavefolder", 10.4),
 ];
 
 /// Saturating models whose non-harmonic output is the effect itself.
@@ -88,6 +115,23 @@ pub fn failures(report: &ModelReport) -> Vec<String> {
             MAX_RELEASE_LEVEL_DRIFT_DB,
         );
     }
+    if let Some((_, release)) = RELEASE_GUITAR_LEVEL_DB
+        .iter()
+        .find(|(id, _)| *id == report.id)
+    {
+        over(
+            "guitar level drift from release dB",
+            (report.guitar_level_db - release).abs(),
+            MAX_RELEASE_LEVEL_DRIFT_DB,
+        );
+    }
+    if !report.dry_level_db.is_nan() {
+        over(
+            "dry (mix=min) level dB",
+            report.dry_level_db.abs(),
+            MAX_DRY_LEVEL_DB,
+        );
+    }
     if report.nonlinear {
         if !ALIASING_IS_THE_EFFECT
             .iter()
@@ -96,8 +140,11 @@ pub fn failures(report: &ModelReport) -> Vec<String> {
             over("aliasing dB", report.inharmonic_db, MAX_ALIASING_DB);
         }
     } else {
-        let level = if PASSBAND_LEVEL_FAMILIES.contains(&report.family.as_str()) {
+        let family = report.family.as_str();
+        let level = if PASSBAND_LEVEL_FAMILIES.contains(&family) {
             report.tone_level_db
+        } else if GUITAR_LEVEL_FAMILIES.contains(&family) {
+            report.guitar_level_db
         } else {
             report.level_db
         };

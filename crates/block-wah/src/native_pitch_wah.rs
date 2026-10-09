@@ -43,6 +43,9 @@ pub const MODEL_ID: &str = "pitch_wah";
 pub const DISPLAY_NAME: &str = "Pitch-Tracking Wah";
 
 const SPLIT_HZ: f32 = 700.0;
+/// Linear gain on the band-pass (wet) path so the default sits level with
+/// bypass on a guitar DI while `mix` = 0 stays bypass (#1106).
+const WET_GAIN: f32 = 0.5662; // -4.9 dB
 const MIN_CUTOFF_HZ: f32 = 250.0;
 const MAX_CUTOFF_HZ: f32 = 2_400.0;
 
@@ -99,7 +102,7 @@ impl MonoProcessor for PitchWah {
         self.wah.set_cutoff_q(cutoff, self.q);
         let bp = self.wah.process_band(input);
         let wet = self.dc_blocker.process(flush_denormal(bp));
-        (1.0 - self.mix) * input + self.mix * wet
+        (1.0 - self.mix) * input + self.mix * WET_GAIN * wet
     }
 }
 

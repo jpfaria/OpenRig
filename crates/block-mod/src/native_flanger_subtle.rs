@@ -19,8 +19,9 @@ const TUNING: FlangerTuning = FlangerTuning {
     base_ms: 5.0,
     max_ms: 11.0,
     feedback_clamp: 0.50,
-    // +3 dB: the shallow comb at the 35 % default sat 4.1 dB under bypass (#1106).
-    output_trim: 1.4125,
+    // +6 dB on the wet path: the shallow comb at the 35 % default sat
+    // 4.1 dB under bypass (#1106).
+    wet_trim: 2.0,
 };
 
 #[derive(Debug, Clone, Copy)]

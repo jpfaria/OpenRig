@@ -43,6 +43,10 @@ use crate::WahBackendKind;
 pub const MODEL_ID: &str = "talk_box";
 pub const DISPLAY_NAME: &str = "Talk Box";
 
+/// Linear gain on the formant (wet) path so the default sits level with
+/// bypass on a guitar DI while `mix` = 0 stays bypass (#1106).
+const WET_GAIN: f32 = 0.2971; // -10.6 dB
+
 /// Vowel formants table (F1, F2, F3) for cardinal vowels A/E/I/O/U.
 const FORMANTS: [[f32; 3]; 5] = [
     [730.0, 1090.0, 2440.0], // A
@@ -107,7 +111,7 @@ impl MonoProcessor for TalkBox {
         // a small boost to the upper formants for "vowel" colour.
         let wet_raw = b1 + 0.85 * b2 + 0.7 * b3;
         let wet = self.dc_blocker.process(flush_denormal(wet_raw));
-        (1.0 - self.mix) * input + self.mix * wet
+        (1.0 - self.mix) * input + self.mix * WET_GAIN * wet
     }
 }
 

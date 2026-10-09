@@ -430,16 +430,18 @@ cargo test -p adapter-gui --lib no_infra_cpal
 
 | Stimulus | Measures | Bar |
 |---|---|---|
-| Pink multisine, -24 dBFS RMS (peaks near -12 dBFS, a hot DI) | level at default knobs, last 3 s | linear models within ±3 dB; filters judged on the 999 Hz passband tone instead |
+| Pink multisine, -24 dBFS RMS (peaks near -12 dBFS, a hot DI) | level at default knobs, last 3 s | linear models within ±3 dB; filters judged on the 999 Hz passband tone, wahs on the guitar DI instead |
 | same | level at 96 kHz minus 48 kHz | within ±1 dB |
 | same, every knob alone at min and max | peak | ≤ +6 dBFS |
 | same | level of the models whose DSP #1106 rebuilt, against the release | within ±1 dB (`RELEASE_LEVEL_DB`) |
+| same, `mix` at min | level | within ±0.5 dB of bypass (the dry path is untouched) |
+| Guitar DI, first 20 s of `assets/di-loops/fabiano-antunes-STRATO-clean.wav` (git LFS) | level at default knobs | wahs within ±3 dB (they are judged on guitar, not pink); rebuilt models within ±1 dB of the release (`RELEASE_GUITAR_LEVEL_DB`) |
 | 999 Hz tone (bin 341), -18 dBFS | DC | < -60 dBFS |
 | 5001 Hz tone (bin 1707), -6 dBFS | non-harmonic energy up to 20 kHz on saturating models (aliasing) | < -60 dB |
 | Digital silence; a 0.5 s noise burst | self-noise; tail 11.5 s later | < -90 dBFS; < -60 dBFS |
 | Every knob at max after a burst | tail growth against the loudest earlier 0.5 s | must not grow |
 
-Saturating models run their nonlinearity in `block_core::dsp::IirOversampler` (polyphase IIR half-bands, 100 dB stopband, up to 32×) and report its delay through `latency_samples()`. Output, input and makeup knobs whose midpoint is unity use `block_core::dsp::unity_knob_db`: the boost half stops where the nominal programme stays under +6 dBFS.
+Saturating models run their nonlinearity in `block_core::dsp::IirOversampler` (polyphase IIR half-bands, 100 dB stopband, up to 32×) and report its delay through `latency_samples()`. Make-up gain on a wet path (wahs, flangers) multiplies only the wet signal, so `mix` at min stays bypass. Output, input and makeup knobs whose midpoint is unity use `block_core::dsp::unity_knob_db`: the boost half stops where the nominal programme stays under +6 dBFS.
 
 The measurements live in `crates/engine/tests/native_quality/`. It runs in a few seconds as part of the engine tests. To print the per-model table (plus CPU cost per model):
 

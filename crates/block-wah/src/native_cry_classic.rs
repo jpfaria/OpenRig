@@ -14,11 +14,10 @@ use crate::WahBackendKind;
 pub const MODEL_ID: &str = "cry_classic";
 pub const DISPLAY_NAME: &str = "Cry Classic";
 
-/// The band-pass peaks at unity, so on full-range programme the default
-/// voice came out 16.6 dB under bypass (#1106). A real wah's resonance
-/// stands well above its skirts; this lifts the band so the default sweep
-/// sits level with bypass.
-const WET_MAKEUP: f32 = 5.6234; // +15 dB
+/// The band-pass peaks at unity, so the bare band sat far under bypass
+/// (#1106). A real wah's resonance stands well above its skirts; this lifts
+/// the band so the default sweep sits level with bypass on a guitar DI.
+const WET_MAKEUP: f32 = 2.831; // +9.0 dB
 /// Output knob: 50 % is unity. The top stops at +12 dB so the lifted band
 /// stays under +6 dBFS on the nominal programme with the knob at max.
 const OUTPUT_MIN_DB: f32 = -24.0;

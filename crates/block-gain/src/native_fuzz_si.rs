@@ -34,9 +34,13 @@ use block_core::{
 
 /// Rate multiple the clipper runs at.
 const OVERSAMPLING: usize = 32;
-/// Keeps the release loudness: the band-limited oversampler (#1106) no
-/// longer dulls the harmonics, which made the default 0.9 dB louder.
-const LEVEL_TRIM: f32 = 0.9016; // -0.9 dB
+/// Drive into the clipper relative to the release: its 2x zero-stuffing
+/// path fed the shaper about 5 dB less than the nominal pre-gain, so the
+/// guitar level (partly clipped) and the pink level (fully clipped) only
+/// both match the release with this drive (#1106).
+const DRIVE_TRIM: f32 = 0.54;
+/// Keeps the release loudness once the drive matches (#1106).
+const LEVEL_TRIM: f32 = 0.974; // -0.23 dB
 
 pub const MODEL_ID: &str = "fuzz_si";
 pub const DISPLAY_NAME: &str = "Fuzz Face (Si)";
@@ -98,7 +102,7 @@ impl MonoProcessor for FuzzProcessor {
         // Fuzz Face has fixed massive gain — knob effectively varies
         // the bias and feedback, producing a usable range. Map fuzz
         // 0..1 to gain 5..150.
-        let pre = x * (5.0 + fuzz * 145.0);
+        let pre = x * (5.0 + fuzz * 145.0) * DRIVE_TRIM;
 
         // Two-stage clip, oversampled.
         let down = self

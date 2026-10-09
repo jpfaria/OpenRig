@@ -60,6 +60,10 @@ pub struct AutoWahTuning {
     pub release_ms: f32,
     /// Input pre-gain into the envelope detector — sets sensitivity.
     pub sensitivity: f32,
+    /// Linear gain on the band-pass (wet) path: the resonant band peaks
+    /// at about Q, so this sets the default level with bypass on a guitar
+    /// DI while `mix` = 0 stays bypass (#1106).
+    pub wet_gain: f32,
 }
 
 impl AutoWahTuning {
@@ -71,6 +75,7 @@ impl AutoWahTuning {
         attack_ms: 5.0,
         release_ms: 80.0,
         sensitivity: 1.0,
+        wet_gain: 0.4044, // -7.9 dB
     };
 }
 
@@ -90,6 +95,7 @@ pub struct AutoWah {
     max_cutoff_hz: f32,
     q: f32,
     sensitivity: f32,
+    wet_gain: f32,
     mix: f32,
 }
 
@@ -115,6 +121,7 @@ impl AutoWah {
             max_cutoff_hz,
             q,
             sensitivity,
+            wet_gain: tuning.wet_gain,
             mix: p.mix.clamp(0.0, 1.0),
         }
     }
@@ -127,7 +134,7 @@ impl MonoProcessor for AutoWah {
         self.svf.set_cutoff_q(cutoff, self.q);
         let bp = self.svf.process_band(input);
         let wet = self.dc_blocker.process(flush_denormal(bp));
-        (1.0 - self.mix) * input + self.mix * wet
+        (1.0 - self.mix) * input + self.mix * self.wet_gain * wet
     }
 }
 

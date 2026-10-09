@@ -34,9 +34,13 @@ const BRAND: &str = block_core::BRAND_NATIVE;
 
 /// Rate multiple the nonlinearity runs at (#1106).
 const OVERSAMPLING: usize = 32;
-/// Keeps the release loudness: the band-limited oversampler (#1106) no
-/// longer dulls the harmonics, which made the default 1.2 dB louder.
-const LEVEL_TRIM: f32 = 0.871; // -1.2 dB
+/// Drive into the clipper relative to the release: its 2x zero-stuffing
+/// path fed the shaper about 5 dB less than the nominal pre-gain, so the
+/// guitar level (partly clipped) and the pink level (fully clipped) only
+/// both match the release with this drive (#1106).
+const DRIVE_TRIM: f32 = 0.58;
+/// Keeps the release loudness once the drive matches (#1106).
+const LEVEL_TRIM: f32 = 0.948; // -0.46 dB
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -90,7 +94,7 @@ impl MonoProcessor for FuzzGeProcessor {
 
         let x = self.in_hpf.process(input);
         // Ge has lower beta — somewhat less raw gain than Si.
-        let pre = x * (4.0 + fuzz * 100.0);
+        let pre = x * (4.0 + fuzz * 100.0) * DRIVE_TRIM;
 
         // Two-stage clip, oversampled.
         let down = self
