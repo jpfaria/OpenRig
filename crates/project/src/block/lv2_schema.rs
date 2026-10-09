@@ -61,12 +61,18 @@ fn one_lv2_param(port: plugin_loader::dispatch::Lv2Port) -> block_core::param::P
             .iter()
             .map(|(value, label)| (value.as_str(), label.as_str()))
             .collect();
+        // The option nearest the TTL default: some bundles declare a default
+        // that is not one of their scale points (Airwindows Mastering: 6 on
+        // options 0..5), and an enum with no default fails to load (#1105).
+        // No TTL default → the first option.
+        let target = port.default_value.unwrap_or(port.scale_points[0].value);
         let default = port
-            .default_value
-            .and_then(|value| {
-                port.scale_points
-                    .iter()
-                    .find(|sp| (sp.value - value).abs() < f32::EPSILON)
+            .scale_points
+            .iter()
+            .min_by(|a, b| {
+                (a.value - target)
+                    .abs()
+                    .total_cmp(&(b.value - target).abs())
             })
             .map(|sp| sp.value.to_string());
         return block_core::param::enum_parameter(
@@ -106,3 +112,7 @@ fn one_lv2_param(port: plugin_loader::dispatch::Lv2Port) -> block_core::param::P
         block_core::param::ParameterUnit::None,
     )
 }
+
+#[cfg(test)]
+#[path = "lv2_schema_tests.rs"]
+mod tests;

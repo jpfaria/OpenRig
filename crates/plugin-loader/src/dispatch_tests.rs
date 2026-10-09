@@ -254,6 +254,20 @@ fn lv2_control_value_falls_back_through_chain() {
     assert_eq!(lv2_control_value("missing", None, &user), 0.0);
 }
 
+/// #1105: the LV2 schema stores a `lv2:toggled` port as a bool and an
+/// enumeration as the option's value string. Both must reach the control
+/// port; reading only numbers fed the TTL default no matter what was set.
+#[test]
+fn lv2_control_value_reads_toggles_and_enum_options() {
+    let mut user = ParameterSet::default();
+    user.insert("toggle1", DomainValue::Bool(true));
+    user.insert("bypass", DomainValue::Bool(false));
+    user.insert("sense", DomainValue::String("0.5".to_string()));
+    assert_eq!(lv2_control_value("toggle1", Some(0.0), &user), 1.0);
+    assert_eq!(lv2_control_value("bypass", Some(1.0), &user), 0.0);
+    assert_eq!(lv2_control_value("sense", Some(0.0), &user), 0.5);
+}
+
 #[test]
 fn scan_lv2_ports_finds_ttls_in_shared_data_dir() {
     // Real-world bundles dedupe TTLs into `<package>/data/` and

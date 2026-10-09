@@ -278,6 +278,15 @@ never repeats them. The group of a `ParameterSpec` is the tab, and the generic
 tab machinery renders one tab per group. IR and LV2 params stay ungrouped: one
 flat grid.
 
+### LV2 parameters
+
+An LV2 block's parameters come from its TTL input control ports
+(`project::block::lv2_schema`): `lv2:toggled` is a bool, `lv2:enumeration` with
+scale points is a select, anything else a number. Every parameter has a default:
+an enumeration whose TTL default is not one of its scale points takes the nearest
+one. On build, `lv2_control_value` feeds the port the chosen value, so a toggle
+reaches it as 1/0 and an enumeration as its option's number.
+
 ### Native cab voicing
 
 The native cabinets (`brit_4x12`, `vintage_1x12`, `american_2x12`) are a

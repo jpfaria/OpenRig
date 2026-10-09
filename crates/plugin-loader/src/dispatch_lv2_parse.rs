@@ -96,43 +96,58 @@ fn parse_port_properties(block: &str) -> std::collections::HashSet<String> {
 /// and return the parsed `(value, label)` pairs in document order.
 /// Order matches what enumeration UIs typically render, so callers can
 /// pass it straight to `enum_parameter`.
+///
+/// One `lv2:scalePoint` usually carries a comma-separated object list,
+/// `lv2:scalePoint [ ... ] , [ ... ] ;`: every `[ ... ]` in that list is a
+/// scale point. Reading only the first one left the port's default outside
+/// its options, so the parameter had no default and a new block failed to
+/// load (#1105).
 fn parse_scale_points(block: &str) -> Vec<Lv2ScalePoint> {
     let mut out = Vec::new();
-    let bytes = block.as_bytes();
     let needle = "lv2:scalePoint";
     let mut cursor = 0;
     while let Some(rel) = block[cursor..].find(needle) {
-        let after_keyword = cursor + rel + needle.len();
-        // Scan forward to the opening `[` that follows the directive,
-        // skipping whitespace.
-        let mut i = after_keyword;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        if i >= bytes.len() || bytes[i] != b'[' {
-            cursor = after_keyword;
-            continue;
-        }
-        let inner_start = i + 1;
-        let mut depth: i32 = 1;
-        let mut j = inner_start;
-        while j < bytes.len() && depth > 0 {
-            match bytes[j] {
-                b'[' => depth += 1,
-                b']' => depth -= 1,
-                _ => {}
+        cursor += rel + needle.len();
+        while let Some((inner, next)) = next_blank_node(block, cursor) {
+            let value = capture_after(inner, "rdf:value").and_then(|raw| raw.parse::<f32>().ok());
+            let label = capture_quoted(inner, "rdfs:label");
+            if let (Some(value), Some(label)) = (value, label) {
+                out.push(Lv2ScalePoint { value, label });
             }
-            j += 1;
+            let rest = skip_whitespace(block, next);
+            if !rest.starts_with(',') {
+                cursor = next;
+                break;
+            }
+            cursor = block.len() - rest.len() + 1;
         }
-        let inner = &block[inner_start..j.saturating_sub(1)];
-        let value = capture_after(inner, "rdf:value").and_then(|raw| raw.parse::<f32>().ok());
-        let label = capture_quoted(inner, "rdfs:label");
-        if let (Some(value), Some(label)) = (value, label) {
-            out.push(Lv2ScalePoint { value, label });
-        }
-        cursor = j;
     }
     out
+}
+
+fn skip_whitespace(block: &str, from: usize) -> &str {
+    block[from..].trim_start()
+}
+
+/// The `[ ... ]` blank node that starts at `from` (after whitespace):
+/// its inner text and the offset right past its closing `]`.
+fn next_blank_node(block: &str, from: usize) -> Option<(&str, usize)> {
+    let start = block.len() - skip_whitespace(block, from).len();
+    if block.as_bytes().get(start) != Some(&b'[') {
+        return None;
+    }
+    let bytes = block.as_bytes();
+    let mut depth: i32 = 1;
+    let mut j = start + 1;
+    while j < bytes.len() && depth > 0 {
+        match bytes[j] {
+            b'[' => depth += 1,
+            b']' => depth -= 1,
+            _ => {}
+        }
+        j += 1;
+    }
+    Some((&block[start + 1..j.saturating_sub(1)], j))
 }
 
 fn classify(block: &str) -> Lv2PortRole {
@@ -198,13 +213,23 @@ fn capture_quoted(block: &str, key: &str) -> Option<String> {
 
 /// Resolve a control parameter's value: prefer the user's `ParameterSet`
 /// keyed by the LV2 symbol, fall back to the port's `lv2:default`, then
-/// `0.0` as last resort.
+/// `0.0` as last resort. A toggle arrives as a bool and an enumeration as
+/// its option's value string (see the LV2 schema), so both are read too.
 pub fn lv2_control_value(symbol: &str, default: Option<f32>, params: &ParameterSet) -> f32 {
     if let Some(value) = params.get_f32(symbol) {
         return value;
     }
     if let Some(value) = params.get_i64(symbol) {
         return value as f32;
+    }
+    if let Some(value) = params.get_bool(symbol) {
+        return if value { 1.0 } else { 0.0 };
+    }
+    if let Some(value) = params
+        .get_string(symbol)
+        .and_then(|s| s.parse::<f32>().ok())
+    {
+        return value;
     }
     default.unwrap_or(0.0)
 }
