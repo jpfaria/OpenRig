@@ -19,6 +19,24 @@ build_dragonfly_reverb() {
 
 build_zam_plugins() {
     local src="$DEPS_DIR/zam-plugins"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        # ZamVerb asks pkg-config for fftw3f + samplerate, and ld64 prefers the
+        # Homebrew .dylib, so the plugin only loads where Homebrew is installed.
+        # These .pc files hand it the static archives instead.
+        local pc="$BUILD_WORK_DIR/zam-static-pc"
+        mkdir -p "$pc"
+        local name lib
+        for name in fftw3f samplerate; do
+            case "$name" in
+                fftw3f) lib="$(brew --prefix fftw)/lib/libfftw3f.a" ;;
+                samplerate) lib="$(brew --prefix libsamplerate)/lib/libsamplerate.a" ;;
+            esac
+            [ -f "$lib" ] || { echo "missing static $lib" >&2; return 1; }
+            printf 'Name: %s\nDescription: static\nVersion: 0\nLibs: %s -lm\nCflags: -I%s\n' \
+                "$name" "$lib" "$(dirname "$(dirname "$lib")")/include" > "$pc/$name.pc"
+        done
+        export PKG_CONFIG_PATH="$pc${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+    fi
     do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     # "Za*": ZaMaximX2 and ZaMultiComp(X2) are spelled without the "m".
     collect_libs "$src/bin" "Za*_dsp"
