@@ -56,6 +56,7 @@ fn lv2_manifest() -> PluginManifest {
                 Lv2Slot::LinuxX86_64,
                 PathBuf::from("platform/linux-x86_64/plugin.so"),
             )]),
+            block_length: None,
         },
     }
 }

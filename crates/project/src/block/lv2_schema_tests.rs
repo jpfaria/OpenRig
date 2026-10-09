@@ -19,6 +19,7 @@ fn every_shipped_lv2_parameter_has_a_default() {
         let Backend::Lv2 {
             plugin_uri,
             binaries,
+            ..
         } = &package.manifest.backend
         else {
             continue;

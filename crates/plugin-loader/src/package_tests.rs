@@ -160,6 +160,7 @@ fn lv2_manifest(binaries: BTreeMap<Lv2Slot, PathBuf>) -> PluginManifest {
         backend: Backend::Lv2 {
             plugin_uri: "urn:test:plugin".to_string(),
             binaries,
+            block_length: None,
         },
     }
 }

@@ -50,6 +50,8 @@ pub(crate) const LV2_BUF_SIZE_BOUNDED_URI: &str =
 pub(crate) const LV2_OPTIONS_URI: &str = "http://lv2plug.in/ns/ext/options#options";
 pub(crate) const LV2_BUF_SIZE_MAX_URI: &str = "http://lv2plug.in/ns/ext/buf-size#maxBlockLength";
 pub(crate) const LV2_BUF_SIZE_MIN_URI: &str = "http://lv2plug.in/ns/ext/buf-size#minBlockLength";
+pub(crate) const LV2_BUF_SIZE_NOMINAL_URI: &str =
+    "http://lv2plug.in/ns/ext/buf-size#nominalBlockLength";
 pub(crate) const LV2_ATOM_INT_URI: &str = "http://lv2plug.in/ns/ext/atom#Int";
 pub(crate) const LV2_ATOM_FLOAT_URI: &str = "http://lv2plug.in/ns/ext/atom#Float";
 pub(crate) const LV2_PARAM_SAMPLE_RATE_URI: &str = "http://lv2plug.in/ns/ext/parameters#sampleRate";

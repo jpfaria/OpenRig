@@ -8,6 +8,7 @@ homepage: https://github.com/zamaudio/zam-plugins
 type: reverb
 backend: lv2
 plugin_uri: urn:zamaudio:ZamVerb
+block_length: 128
 binaries:
   macos-universal: platform/macos-universal/ZamVerb_dsp.dylib
   windows-x86_64: platform/windows-x86_64/ZamVerb_dsp.dll

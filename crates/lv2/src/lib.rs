@@ -10,6 +10,7 @@
 #![allow(clippy::type_complexity)]
 
 mod audio_shape;
+mod fixed_block;
 mod from_package;
 mod host;
 mod host_abi;

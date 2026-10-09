@@ -16,6 +16,7 @@ pub(crate) fn disk_package_audio_mode(package: &plugin_loader::LoadedPackage) ->
         Backend::Lv2 {
             plugin_uri,
             binaries,
+            ..
         } => lv2_bundle_ports(package, plugin_uri, binaries)
             .map(|ports| lv2_audio_mode(&ports))
             .unwrap_or(ModelAudioMode::DualMono),

@@ -117,6 +117,7 @@ pub(crate) fn synthesize_parameters_from_manifest(
         Backend::Lv2 {
             plugin_uri,
             binaries,
+            ..
         } => super::lv2_schema::lv2_parameters(package, plugin_uri, binaries),
         Backend::Vst3 { parameters, .. } => parameters
             .iter()

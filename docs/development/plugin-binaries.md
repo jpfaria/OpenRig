@@ -75,6 +75,15 @@ OpenRig instantiates an LV2 package by walking `lv2_descriptor(i)` in the slot b
 
 The automated URI check (`qa_audit`'s `lv2_uri.rs`) stayed in OpenRig-plugins and is not ported yet; check the binary by hand (`strings <lib> | grep <plugin_uri>`) until it is.
 
+## LV2 `block_length`
+
+Some plugins only process when `run()` gets exactly the block size the host announced. ZamVerb's convolver passes the input through unchanged on any other length, so it sounded dry in the app. An LV2 manifest declares that size with `block_length: <frames>` (1–4096):
+
+- The host announces it as both `buf-size:nominalBlockLength` and `buf-size:maxBlockLength`.
+- `lv2::fixed_block::FixedBlock` feeds the plugin exact blocks of that size, whatever the device callback delivers. The output comes out one block late, and that latency is added to the reported latency.
+- It applies to plugins with a stereo output shape; the mono-input shape ignores it.
+- Leave it unset unless the plugin needs it: it costs one block of latency. ZamVerb uses 128 (2.7 ms at 48 kHz).
+
 ## Updating a recipe submodule
 
 Bump the `deps/<x>` pointer, then rebuild through `build-libs.yml` `workflow_dispatch recipe=<x> platform=all`.

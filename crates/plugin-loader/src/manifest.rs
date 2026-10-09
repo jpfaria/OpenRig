@@ -268,6 +268,12 @@ pub enum Backend {
     Lv2 {
         plugin_uri: String,
         binaries: BTreeMap<Lv2Slot, PathBuf>,
+        /// Frames per `run()` the plugin needs, for a plugin that processes
+        /// nothing on any other length (ZamVerb's convolver passes the
+        /// input through). The host announces it and feeds the plugin
+        /// blocks of exactly this size, one block late (#1105).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        block_length: Option<u32>,
     },
     /// Native VST3 plugin bundle. Cross-platform `.vst3` directory with
     /// `Contents/<arch>/<plugin>` inside, ships as a single bundle inside

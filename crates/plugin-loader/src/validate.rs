@@ -127,6 +127,7 @@ pub fn validate_manifest(manifest: &PluginManifest) -> Result<(), ValidationErro
         Backend::Lv2 {
             plugin_uri,
             binaries,
+            ..
         } => {
             if plugin_uri.trim().is_empty() {
                 return Err(ValidationError::EmptyLv2PluginUri);

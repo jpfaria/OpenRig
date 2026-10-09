@@ -100,6 +100,7 @@ binaries:
         Backend::Lv2 {
             plugin_uri,
             binaries,
+            ..
         } => {
             assert_eq!(plugin_uri, "http://example.com/plugins/my-fuzz");
             assert_eq!(binaries.len(), 5);
@@ -333,5 +334,48 @@ captures:
     match m.backend {
         Backend::Nam { captures, .. } => assert_eq!(captures[0].noise_gate, None),
         other => panic!("expected NAM backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_lv2_manifest_can_declare_the_block_length_the_plugin_needs() {
+    // #1105: ZamVerb only processes `run()` calls of the block size the
+    // host announced; its manifest names that size.
+    let yaml = r#"
+manifest_version: 1
+id: lv2_zamverb
+display_name: ZamVerb
+type: reverb
+backend: lv2
+plugin_uri: urn:zamaudio:ZamVerb
+block_length: 128
+binaries:
+  macos-universal: platform/macos-universal/ZamVerb_dsp.dylib
+"#;
+
+    let m = parse(yaml);
+
+    match m.backend {
+        Backend::Lv2 { block_length, .. } => assert_eq!(block_length, Some(128)),
+        other => panic!("expected LV2 backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_lv2_manifest_without_a_block_length_declares_none() {
+    let yaml = r#"
+manifest_version: 1
+id: lv2_x
+display_name: X
+type: reverb
+backend: lv2
+plugin_uri: urn:x
+binaries:
+  macos-universal: platform/macos-universal/x.dylib
+"#;
+
+    match parse(yaml).backend {
+        Backend::Lv2 { block_length, .. } => assert_eq!(block_length, None),
+        other => panic!("expected LV2 backend, got {other:?}"),
     }
 }

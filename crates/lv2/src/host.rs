@@ -11,8 +11,8 @@ use std::ptr;
 use crate::host_abi::{
     LV2Descriptor, LV2Feature, LV2Handle, LV2OptionsOption, LV2UridMap, LV2_ATOM_FLOAT_URI,
     LV2_ATOM_INT_URI, LV2_BUF_SIZE_BOUNDED_URI, LV2_BUF_SIZE_MAX_URI, LV2_BUF_SIZE_MIN_URI,
-    LV2_OPTIONS_URI, LV2_PARAM_SAMPLE_RATE_URI, LV2_URID_MAP_URI, LV2_WORKER_INTERFACE_URI,
-    LV2_WORKER_SCHEDULE_URI,
+    LV2_BUF_SIZE_NOMINAL_URI, LV2_OPTIONS_URI, LV2_PARAM_SAMPLE_RATE_URI, LV2_URID_MAP_URI,
+    LV2_WORKER_INTERFACE_URI, LV2_WORKER_SCHEDULE_URI,
 };
 use crate::host_urid::{urid_map_callback, UridMap};
 use crate::host_worker::{
@@ -45,6 +45,19 @@ unsafe impl Sync for Lv2Plugin {}
 
 impl Lv2Plugin {
     pub fn load(lib_path: &str, uri: &str, sample_rate: f64, bundle_path: &str) -> Result<Self> {
+        Self::load_with_block_length(lib_path, uri, sample_rate, bundle_path, None)
+    }
+
+    /// Load a plugin that needs `run()` calls of one size: `block_length`
+    /// is announced as its nominal and maximum block (#1105). `None` keeps
+    /// the default bounds (1..=4096).
+    pub fn load_with_block_length(
+        lib_path: &str,
+        uri: &str,
+        sample_rate: f64,
+        bundle_path: &str,
+        block_length: Option<u32>,
+    ) -> Result<Self> {
         // 1. dlopen
         let library = unsafe { libloading::Library::new(lib_path) }
             .with_context(|| format!("failed to load LV2 library: {lib_path}"))?;
@@ -81,6 +94,7 @@ impl Lv2Plugin {
         let urid_sample_rate_key = urid_map.map(LV2_PARAM_SAMPLE_RATE_URI);
         let urid_min_block_key = urid_map.map(LV2_BUF_SIZE_MIN_URI);
         let urid_max_block_key = urid_map.map(LV2_BUF_SIZE_MAX_URI);
+        let urid_nominal_block_key = urid_map.map(LV2_BUF_SIZE_NOMINAL_URI);
 
         let mut lv2_urid_map_struct = Box::new(LV2UridMap {
             handle: urid_map.as_mut() as *mut UridMap as *mut c_void,
@@ -89,10 +103,10 @@ impl Lv2Plugin {
 
         // 5. Build options with stable heap addresses
         let options_min_block = Box::new(1i32);
-        let options_max_block = Box::new(4096i32);
+        let options_max_block = Box::new(block_length.map_or(4096, |n| n as i32));
         let options_sample_rate = Box::new(sample_rate as f32);
 
-        let options_array: Vec<LV2OptionsOption> = vec![
+        let mut options_array: Vec<LV2OptionsOption> = vec![
             LV2OptionsOption {
                 context: 0,
                 subject: 0,
@@ -117,16 +131,26 @@ impl Lv2Plugin {
                 type_: urid_atom_int,
                 value: options_max_block.as_ref() as *const i32 as *const c_void,
             },
-            // Terminator
-            LV2OptionsOption {
+        ];
+        if block_length.is_some() {
+            // A plugin that needs one block size reads it as the nominal one.
+            options_array.push(LV2OptionsOption {
                 context: 0,
                 subject: 0,
-                key: 0,
-                size: 0,
-                type_: 0,
-                value: ptr::null(),
-            },
-        ];
+                key: urid_nominal_block_key,
+                size: 4,
+                type_: urid_atom_int,
+                value: options_max_block.as_ref() as *const i32 as *const c_void,
+            });
+        }
+        options_array.push(LV2OptionsOption {
+            context: 0,
+            subject: 0,
+            key: 0,
+            size: 0,
+            type_: 0,
+            value: ptr::null(),
+        });
 
         // 6. Build CStrings and features
         let urid_map_uri_cstr = CString::new(LV2_URID_MAP_URI).unwrap();

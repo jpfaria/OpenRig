@@ -23,7 +23,12 @@ use plugin_loader::manifest::{Backend, Lv2Slot};
 use plugin_loader::LoadedPackage;
 
 use crate::audio_shape::{classify, AudioShape};
-use crate::{build_lv2_processor_full, build_stereo_lv2_processor_full};
+use crate::build_lv2_processor_full;
+use crate::fixed_block::FixedBlock;
+use crate::{Lv2Plugin, StereoLv2Processor};
+
+/// Largest block an LV2 processor's port buffers hold.
+const MAX_BLOCK_LENGTH: u32 = 4096;
 
 /// Result of partitioning a plugin's scanned ports by role.
 ///
@@ -137,10 +142,11 @@ pub fn build_from_package(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let (plugin_uri, lib_path) = match &package.manifest.backend {
+    let (plugin_uri, lib_path, block_length) = match &package.manifest.backend {
         Backend::Lv2 {
             plugin_uri,
             binaries,
+            block_length,
         } => {
             let slot = current_slot()?;
             let rel = binaries.get(&slot).ok_or_else(|| {
@@ -150,7 +156,11 @@ pub fn build_from_package(
                     slot
                 )
             })?;
-            (plugin_uri.clone(), package.root.join(rel))
+            (
+                plugin_uri.clone(),
+                package.root.join(rel),
+                block_length.map(|n| n.clamp(1, MAX_BLOCK_LENGTH)),
+            )
         }
         _ => bail!(
             "lv2::build_from_package called with non-LV2 backend (model `{}`)",
@@ -195,7 +205,7 @@ pub fn build_from_package(
             &bundle_str,
             &plan,
             layout,
-            &package.manifest.id,
+            block_length,
         )?,
         None => bail!(
             "LV2 plugin `{}` has unsupported audio shape: {} in / {} out",
@@ -266,6 +276,8 @@ fn build_mono_input(
     }
 }
 
+/// `block_length`: the manifest's `block_length` — the plugin only processes
+/// `run()` calls of that size, so it is fed through a [`FixedBlock`] (#1105).
 #[allow(clippy::too_many_arguments)] // see build_mono_input
 fn build_stereo_input(
     lib_path: &str,
@@ -274,28 +286,35 @@ fn build_stereo_input(
     bundle_path: &str,
     plan: &PortPlan,
     layout: AudioChannelLayout,
-    plugin_id: &str,
+    block_length: Option<u32>,
 ) -> Result<BlockProcessor> {
-    let make = || -> Result<crate::StereoLv2Processor> {
-        let processor = build_stereo_lv2_processor_full(
+    let make = || -> Result<Box<dyn StereoProcessor>> {
+        let plugin = Lv2Plugin::load_with_block_length(
             lib_path,
             uri,
             sample_rate,
             bundle_path,
+            block_length,
+        )?;
+        let processor = StereoLv2Processor::with_extra_ports(
+            plugin,
             &plan.audio_in,
             &plan.audio_out,
             &plan.control,
             &plan.atom,
             &plan.extra_out,
-        )?;
-        Ok(match plan.latency {
+        );
+        let processor = match plan.latency {
             Some(port) => processor.with_latency_port(port),
             None => processor,
+        };
+        Ok(match block_length {
+            Some(length) => Box::new(FixedBlock::new(processor, length as usize)),
+            None => Box::new(processor),
         })
     };
-    let _ = plugin_id;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(make()?))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(make()?)),
         AudioChannelLayout::Mono => {
             // Stereo plugin in a mono chain: feed both inputs from the
             // mono sample and average the outputs.
@@ -360,7 +379,7 @@ impl StereoProcessor for DualMonoLv2 {
 }
 
 struct StereoAsMono {
-    inner: crate::StereoLv2Processor,
+    inner: Box<dyn StereoProcessor>,
 }
 
 impl MonoProcessor for StereoAsMono {
