@@ -54,6 +54,10 @@ macos-universal · windows-x86_64 · windows-aarch64 · linux-x86_64 · linux-aa
 
 Never invent or rename a slot (`windows-x64`, `windows-arm64`), and never add a serde alias to paper over one: change the enum first, then the manifests and toolchain in the same commit.
 
+## VST3 bundle shipped and installed on the system
+
+A VST3 found both in a plugins root and in a system folder (`/Library/Audio/Plug-Ins/VST3`, …) with the same model id (`vst3:{bundle}:{class}`) appears once in the catalog, and the copy from the plugins root wins (`crates/vst3-host/src/catalog_merge.rs`). OpenRig ships that build, so the package id resolves to it on every machine, whatever the user has installed.
+
 ## VST3 `moduleinfo.json`
 
 The catalog scan never loads a plugin binary: it reads each bundle's `Contents/Resources/moduleinfo.json` (class id, name, vendor) and only falls back to the `CFBundleName` of `Info.plist`, with the class id left unknown. Every shipped bundle therefore carries a `moduleinfo.json`. JUCE and VST3 SDK builds emit it; DPF (mimo) and nih-plug bundles do not, so it is committed next to the bundle, generated once from the macOS binary's plugin factory (after its `bundleEntry`). The CI merge only adds files to a bundle, so a rebuild keeps it. Without it a DPF bundle is invisible (no `CFBundleName`), and a bundle whose class name differs from its `CFBundleName` cannot be instantiated.

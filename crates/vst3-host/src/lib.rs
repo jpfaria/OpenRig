@@ -24,6 +24,7 @@
 
 mod bundle_metadata;
 pub mod catalog;
+mod catalog_merge;
 mod catalog_params;
 pub mod discovery;
 mod host;

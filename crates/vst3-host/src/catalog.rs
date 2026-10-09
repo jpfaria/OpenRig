@@ -11,9 +11,10 @@
 //! `class_name` is the plugin's display name with spaces replaced by `_`.
 //! This scheme is stable as long as the plugin is installed at the same path.
 
+use crate::catalog_merge::merge_discovered;
 use crate::discovery::{scan_system_vst3, scan_vst3_dirs, Vst3PluginInfo};
 use block_core::ModelVisualData;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -59,31 +60,26 @@ pub(crate) static UID_CACHE: OnceLock<Mutex<HashMap<PathBuf, HashMap<String, [u8
 /// (`<plugins_root>/vst3/<id>/bundles/`) join the same catalog as
 /// system-installed plugins — same model-ID scheme, same block kind, same
 /// native editor. A bundle discovered in both places (same `model_id`) is
-/// kept once.
+/// kept once, from the plugins root (`catalog_merge`).
 pub fn init_vst3_catalog(sample_rate: f64, extra_dirs: &[PathBuf]) {
     CATALOG.get_or_init(|| {
-        let mut infos = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
-        infos.extend(scan_vst3_dirs(extra_dirs));
+        let system = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
+        let infos = merge_discovered(system, scan_vst3_dirs(extra_dirs));
         log::info!("VST3 catalog: discovered {} plugins", infos.len());
-        let mut seen: HashSet<String> = HashSet::new();
         infos
             .into_iter()
-            .filter_map(|info| {
-                let id = make_model_id(&info);
-                if !seen.insert(id.clone()) {
-                    return None; // same bundle found in a system path and a plugins root
-                }
-                let model_id = leak(id);
+            .map(|info| {
+                let model_id = leak(make_model_id(&info));
                 let display_name = leak(info.name.clone());
                 let brand = leak(info.vendor.clone());
                 let category = leak(info.category.clone());
-                Some(Vst3CatalogEntry {
+                Vst3CatalogEntry {
                     model_id,
                     display_name,
                     brand,
                     category,
                     info,
-                })
+                }
             })
             .collect()
     });
