@@ -162,34 +162,41 @@ fn thread_cpu() -> Duration {
     Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
 }
 
-/// Sleeps on its first sample: a path far slower than the worker's own.
-struct Slow {
+/// Busy for a while on its first sample: a path far costlier than the worker's own.
+struct Costly {
     done: bool,
 }
 
-impl MonoProcessor for Slow {
+impl MonoProcessor for Costly {
     fn process_sample(&mut self, input: f32) -> f32 {
         if !self.done {
             self.done = true;
-            std::thread::sleep(Duration::from_millis(40));
+            let start = Instant::now();
+            while start.elapsed() < Duration::from_millis(40) {
+                std::hint::spin_loop();
+            }
         }
         input
     }
 }
 
+/// The worker declares its realtime budget from the CPU it measures on
+/// itself, and its lanes take that budget. A worker that slept while its
+/// lanes ran would declare less than a lane needs, and the kernel demotes a
+/// thread that overruns its budget: underruns on the rig.
 #[test]
-fn the_worker_does_not_burn_its_core_while_a_slow_path_runs() {
+fn the_worker_waiting_for_its_lanes_counts_that_wait_as_its_own_cost() {
     let paths = vec![
         vec![mono_node("p0", Box::new(ThreadProbe(Default::default())))],
-        vec![mono_node("p1", Box::new(Slow { done: false }))],
+        vec![mono_node("p1", Box::new(Costly { done: false }))],
     ];
     let mut state = split(paths);
     let start = thread_cpu();
     run(&mut state, 64);
     let used = thread_cpu() - start;
     assert!(
-        used < Duration::from_millis(10),
-        "the worker used {used:?} of CPU waiting 40 ms for a path"
+        used >= Duration::from_millis(30),
+        "the worker measured only {used:?} of CPU while its lane ran 40 ms"
     );
 }
 
