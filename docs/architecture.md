@@ -448,9 +448,11 @@ atomics loaded once per callback. The mix is DSP inside that node — never a su
 of two segments or two runtimes — so each segment of a chain runs its own split
 and stream isolation holds by construction. Every path but the first runs on a
 lane of its own: a realtime thread spawned at build and parked between
-callbacks, released with an atomic store plus an unpark and joined by a short
-spin then a park, so one core never carries every path of a split and a
-waiting thread uses no CPU.
+callbacks, released with an atomic store plus an unpark and joined by a spin,
+so one core never carries every path of a split and an idle lane uses no CPU.
+The worker spins rather than parks while it waits: it declares its realtime
+budget from the CPU it measures on itself and its lanes take that budget, so
+the wait must count as its cost.
 
 A Y is not a node of its own: per output segment the builder shapes it into a
 Split → Mix whose mixer passes at unity the paths that lead to that output's
